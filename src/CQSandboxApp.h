@@ -16,6 +16,7 @@ namespace CQSandbox {
 class Canvas;
 class Canvas3D;
 class Control;
+class Control3D;
 class Editor;
 
 class App : public QFrame {
@@ -29,7 +30,8 @@ class App : public QFrame {
   Canvas  *canvas () const { return canvas_; }
   Control *control() const { return control_; }
 
-  Canvas3D *canvas3D() const { return canvas3D_; }
+  Canvas3D  *canvas3D () const { return canvas3D_; }
+  Control3D *control3D() const { return control3D_; }
 
   bool is3D() const { return is3D_; }
   void set3D(bool b) { is3D_ = b; }
@@ -50,10 +52,11 @@ class App : public QFrame {
  private:
   CQTcl* tcl_ { nullptr };
 
-  Canvas*   canvas_   { nullptr };
-  Control*  control_  { nullptr };
-  Canvas3D* canvas3D_ { nullptr };
-  bool      is3D_     { false };
+  Canvas*    canvas_    { nullptr };
+  Control*   control_   { nullptr };
+  Canvas3D*  canvas3D_  { nullptr };
+  Control3D* control3D_ { nullptr };
+  bool       is3D_      { false };
 };
 
 //---
@@ -86,6 +89,27 @@ class Control : public QFrame {
   QLabel* infoLabel_ { nullptr };
 
   Editor* editor_ { nullptr };
+};
+
+//---
+
+class Control3D : public QFrame {
+  Q_OBJECT
+
+ public:
+  Control3D(Canvas3D *canvas);
+
+  Canvas3D *canvas() const { return canvas_; }
+
+  void setInfo(const QString &label);
+
+ public Q_SLOTS:
+  void updateInfo();
+
+ private:
+  Canvas3D* canvas_ { nullptr };
+
+  QLabel* infoLabel_ { nullptr };
 };
 
 }

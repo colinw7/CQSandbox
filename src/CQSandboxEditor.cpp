@@ -27,7 +27,7 @@ Editor(Canvas *canvas) :
 
   updateObjects();
 
-  connect(canvas_, SIGNAL(objectsChanged()), this, SLOT(updateObjects()));
+  connect(canvas_, &Canvas::objectsChanged, this, &Editor::updateObjects);
 
   connect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
           this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));

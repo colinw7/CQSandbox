@@ -13,22 +13,29 @@ MOC_DIR = .moc
 CONFIG += debug
 
 SOURCES += \
-CQSandboxApp.cpp 
-CQSandboxCanvas3D.cpp 
-CQSandbox.cpp 
-CQSandboxEditor.cpp 
-CQSandboxMain.cpp 
-CQSVGUtil.cpp 
+CQSandboxMain.cpp \
+CQSandboxApp.cpp \
+CQSandbox.cpp \
+CQSandboxEditor.cpp \
+CQSandboxCanvas3D.cpp \
+\
+CQGLTexture.cpp \
+CQSVGUtil.cpp \
+CQAxis.cpp \
+CLorenzCalc.cpp \
 
 HEADERS += \
+CQSandboxApp.h \
+CQSandbox.h \
+CQSandboxEditor.h \
+CQSandboxCanvas3D.h \
+CQSandboxUtil.h \
+\
+CQGLTexture.h \
+CQSVGUtil.h \
 CGLCamera.h \
 CQGLBuffer.h \
-CQSandboxApp.h \
-CQSandboxCanvas3D.h \
-CQSandboxEditor.h \
-CQSandbox.h \
-CQSandboxUtil.h \
-CQSVGUtil.h \
+CQAxis.h \
 
 DESTDIR     = ../bin
 OBJECTS_DIR = ../obj
@@ -38,8 +45,17 @@ INCLUDEPATH += \
 . \
 ../include \
 ../../CQUtil/include \
+../../CSVG/include \
+../../CGeometry3D/include \
+../../CImportModel/include \
+../../CQBaseModel/include \
+../../CImageLib/include \
+../../CFont/include \
+../../CCsv/qinclude \
 ../../CUtil/include \
+../../CFile/include \
 ../../CMath/include \
+../../CStrUtil/include \
 ../../COS/include \
 /usr/include/tcl \
 

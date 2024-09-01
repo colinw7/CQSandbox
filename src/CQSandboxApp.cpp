@@ -18,6 +18,8 @@
 
 namespace CQSandbox {
 
+//---
+
 App::
 App(QWidget *parent) :
  QFrame(parent)
@@ -34,11 +36,15 @@ init()
   auto *layout = new QVBoxLayout(this);
 
   if (is3D()) {
-    canvas3D_ = new Canvas3D(this);
+    canvas3D_  = new Canvas3D(this);
+    control3D_ = new Control3D(canvas3D_);
 
     canvas3D_->init();
 
+    layout->addWidget(control3D_);
     layout->addWidget(canvas3D_);
+
+    connect(canvas3D_, &Canvas3D::typeChanged, control3D_, &Control3D::updateInfo);
   }
   else {
     canvas_  = new Canvas(this);
@@ -240,5 +246,54 @@ editSlot()
 
   editor_->show();
 }
+
+//---
+
+Control3D::
+Control3D(Canvas3D *canvas) :
+ QFrame(canvas), canvas_(canvas)
+{
+  setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+  auto *layout = new QHBoxLayout(this);
+
+  infoLabel_ = new QLabel(" ");
+
+  layout->addWidget(infoLabel_);
+
+  layout->addStretch(1);
+
+  updateInfo();
+}
+
+void
+Control3D::
+setInfo(const QString &label)
+{
+  infoLabel_->setText(label);
+}
+
+void
+Control3D::
+updateInfo()
+{
+  auto type = canvas_->type();
+
+  QString text;
+
+  if      (type == OpenGLWindow::Type::CAMERA) {
+    text += "Mode: Camera";
+  }
+  else if (type == OpenGLWindow::Type::LIGHT) {
+    text += "Mode: Light";
+  }
+  else if (type == OpenGLWindow::Type::MODEL) {
+    text += "Mode: Model";
+  }
+
+  infoLabel_->setText(text);
+}
+
+//---
 
 }
