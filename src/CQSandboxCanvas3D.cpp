@@ -9,6 +9,7 @@
 #include <CGeomScene3D.h>
 #include <CGeomTexture.h>
 #include <CLorenzCalc.h>
+#include <CForceDirected3D.h>
 
 #include <CQGLBuffer.h>
 #include <CQGLTexture.h>
@@ -21,6 +22,11 @@
 #include <QFileInfo>
 #include <QMouseEvent>
 #include <QTimer>
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb_truetype.h>
+
+#include <fstream>
 
 #define Q(x) #x
 #define QUOTE(x) Q(x)
@@ -326,6 +332,14 @@ addCommands()
   tcl->createObjCommand("sb3d::shader",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ShaderObj>),
     static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::graph",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<GraphObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::text",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Text3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
 }
 
 void
@@ -359,6 +373,20 @@ Canvas3D::
 addObject(Object3D *obj)
 {
   objects_.push_back(obj);
+}
+
+void
+Canvas3D::
+removeObject(Object3D *obj)
+{
+  Objects objects;
+
+  for (auto *obj1 : objects_) {
+    if (obj != obj1)
+      objects.push_back(obj);
+  }
+
+  std::swap(objects_, objects);
 }
 
 int
@@ -821,6 +849,15 @@ calcId() const
   return id;
 }
 
+void
+Object3D::
+setPosition(const CPoint3D &p)
+{
+  position_ = p;
+
+  needsUpdate_ = true;
+}
+
 QVariant
 Object3D::
 getValue(const QString &name, const QStringList &)
@@ -1252,11 +1289,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     needsUpdate_ = true;
   }
-  else if (name == "position") {
-    position_ = stringToPoint3D(tcl, value);
-
-    needsUpdate_ = true;
-  }
+  else if (name == "position")
+    setPosition(stringToPoint3D(tcl, value));
   else if (name == "wireframe") {
     wireframe_ = Util::stringToBool(value);
 
@@ -1465,15 +1499,16 @@ render()
     CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
-  auto modelMatrix = CGLMatrix3D::identity();
-  modelMatrix.translated(float(position_.getX()),
-                         float(position_.getY()),
-                         float(position_.getZ()));
-  modelMatrix.scaled(scale(), scale(), scale());
-  modelMatrix.rotated(xAngle(), CGLVector3D(1.0, 0.0, 0.0));
-  modelMatrix.rotated(yAngle(), CGLVector3D(0.0, 1.0, 0.0));
-  modelMatrix.rotated(zAngle(), CGLVector3D(0.0, 0.0, 1.0));
-  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
+  modelMatrix_ = CGLMatrix3D::identity();
+  modelMatrix_.translated(float(position().getX()),
+                          float(position().getY()),
+                          float(position().getZ()));
+  modelMatrix_.scaled(scale(), scale(), scale());
+  modelMatrix_.rotated(xAngle(), CGLVector3D(1.0, 0.0, 0.0));
+  modelMatrix_.rotated(yAngle(), CGLVector3D(0.0, 1.0, 0.0));
+  modelMatrix_.rotated(zAngle(), CGLVector3D(0.0, 0.0, 1.0));
+
+  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
 
   //---
 
@@ -1639,6 +1674,8 @@ create(Canvas3D *canvas, const QStringList &)
 
   auto name = canvas->addNewObject(obj);
 
+  obj->init();
+
   tcl->setResult(name);
 
   return true;
@@ -1647,6 +1684,12 @@ create(Canvas3D *canvas, const QStringList &)
 ShaderObj::
 ShaderObj(Canvas3D *canvas) :
  Object3D(canvas)
+{
+}
+
+void
+ShaderObj::
+init()
 {
   fragmentShader_ = QString("\
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {\n\
@@ -1803,6 +1846,8 @@ create(Canvas3D *canvas, const QStringList &)
 
   auto name = canvas->addNewObject(obj);
 
+  obj->init();
+
   tcl->setResult(name);
 
   return true;
@@ -1812,7 +1857,6 @@ ParticleListObj::
 ParticleListObj(Canvas3D *canvas) :
  Object3D(canvas)
 {
-  updateGL();
 }
 
 QVariant
@@ -1977,7 +2021,7 @@ setNumPoints(int n)
 
 void
 ParticleListObj::
-updateGL()
+init()
 {
   if (! s_program) {
     static const char *vertexShaderSource =
@@ -2068,8 +2112,9 @@ render()
   s_program->program->setUniformValue("projection",
     CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
-  auto modelMatrix = CGLMatrix3D::identity();
-  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
+
+  modelMatrix_ = CGLMatrix3D::identity();
+  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
 
   auto n = points_.size();
 
@@ -2148,6 +2193,749 @@ render()
   canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, n);
 
   s_program->program->release();
+}
+
+//---
+
+ProgramData *GraphObj::s_program   = nullptr;
+
+bool
+GraphObj::
+create(Canvas3D *canvas, const QStringList &)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new GraphObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  obj->init();
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+GraphObj::
+GraphObj(Canvas3D *canvas) :
+ Object3D(canvas)
+{
+  forceDirected_ = new CForceDirected3D;
+
+  auto node1 = forceDirected_->newNode();
+  auto node2 = forceDirected_->newNode();
+  auto node3 = forceDirected_->newNode();
+  auto node4 = forceDirected_->newNode();
+
+  auto node5 = forceDirected_->newNode();
+  auto node6 = forceDirected_->newNode();
+  auto node7 = forceDirected_->newNode();
+  auto node8 = forceDirected_->newNode();
+
+  node1->setLabel("Node 1");
+  node2->setLabel("Node 2");
+  node3->setLabel("Node 3");
+  node4->setLabel("Node 4");
+  node5->setLabel("Node 5");
+  node6->setLabel("Node 6");
+  node7->setLabel("Node 7");
+  node8->setLabel("Node 8");
+
+  auto edge1 = forceDirected_->newEdge(node1, node2);
+  auto edge2 = forceDirected_->newEdge(node2, node3);
+  auto edge3 = forceDirected_->newEdge(node3, node1);
+  auto edge4 = forceDirected_->newEdge(node1, node4);
+  auto edge5 = forceDirected_->newEdge(node2, node4);
+  auto edge6 = forceDirected_->newEdge(node3, node4);
+
+  auto edge7  = forceDirected_->newEdge(node1, node5);
+  auto edge8  = forceDirected_->newEdge(node2, node6);
+  auto edge9  = forceDirected_->newEdge(node3, node7);
+  auto edge10 = forceDirected_->newEdge(node4, node8);
+
+#if 0
+  int initSteps { 1000 };
+
+  for (int i = 0; i < initSteps; ++i)
+    forceDirected_->step(stepSize_);
+#endif
+}
+
+void
+GraphObj::
+init()
+{
+  if (! s_program) {
+    static const char *vertexShaderSource =
+      "#version 330 core\n"
+      "layout (location = 0) in vec3 point;\n"
+      "layout (location = 1) in vec3 line;\n"
+      "uniform highp mat4 projection;\n"
+      "uniform highp mat4 view;\n"
+      "uniform highp mat4 model;\n"
+      "uniform bool useLine;\n"
+      "void main()\n"
+      "{\n"
+      "   if (useLine) {\n"
+      "     gl_Position = projection * view * model * vec4(line.x, line.y, line.z, 1.0);\n"
+      "   } else {\n"
+      "     gl_Position = projection * view * model * vec4(point.x, point.y, point.z, 1.0);\n"
+      "}  \n"
+      "}";
+    static const char *fragmentShaderSource =
+      "#version 330 core\n"
+      "void main()\n"
+      "{\n"
+      "  gl_FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
+      "}\n";
+
+    s_program = new ProgramData;
+
+    s_program->program = new QOpenGLShaderProgram(this);
+
+    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    s_program->program->link();
+  }
+
+  //---
+
+  canvas_->glGenVertexArrays(1, &pointsArrayId_);
+
+  canvas_->glGenBuffers(1, &pointsBufferId_);
+  canvas_->glGenBuffers(1, &linesBufferId_);
+}
+
+QVariant
+GraphObj::
+getValue(const QString &name, const QStringList &args)
+{
+  return Object3D::getValue(name, args);
+}
+
+void
+GraphObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  Object3D::setValue(name, value, args);
+}
+
+void
+GraphObj::
+tick()
+{
+  forceDirected_->step(stepSize_);
+
+  updatePoints();
+
+  updateTextObjs();
+}
+
+void
+GraphObj::
+updatePoints()
+{
+  double xmin, ymin, zmin, xmax, ymax, zmax;
+  forceDirected_->calcRange(xmin, ymin, zmin, xmax, ymax, zmax);
+
+  auto mapPoint = [&](const Springy3D::Point &p) {
+    auto x = CMathUtil::map(p.p().x(), xmin, xmax, -0.45, 0.45);
+    auto y = CMathUtil::map(p.p().y(), ymin, ymax, -0.45, 0.45);
+    auto z = CMathUtil::map(p.p().z(), zmin, zmax, -0.45, 0.45);
+
+    return CGLVector3D(x, y, z);
+  };
+
+  if (xmax == xmin) xmax = xmin + 0.01;
+  if (ymax == ymin) ymax = ymin + 0.01;
+  if (zmax == zmin) zmax = zmin + 0.01;
+
+  auto nodes = forceDirected_->nodes();
+
+  auto nn = nodes.size();
+
+  if (nn != points_.size())
+    points_.resize(nn);
+
+  for (size_t i = 0; i < nn; ++i) {
+    auto point = forceDirected_->point(nodes[i]);
+
+    points_[i] = mapPoint(point->p());
+  }
+
+  auto edges = forceDirected_->edges();
+
+  auto ne = edges.size();
+
+  if (2*ne != linePoints_.size())
+    linePoints_.resize(2*ne);
+
+  for (size_t i = 0; i < ne; ++i) {
+    auto point1 = forceDirected_->point(edges[i]->source());
+    auto point2 = forceDirected_->point(edges[i]->target());
+
+    linePoints_[2*i    ] = mapPoint(point1->p());
+    linePoints_[2*i + 1] = mapPoint(point2->p());
+  }
+
+  //---
+
+  // bind the Vertex Array Object
+  canvas_->glBindVertexArray(pointsArrayId_);
+
+  //---
+
+  // store point data in array buffer
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, nn*sizeof(CGLVector3D), &points_[0], GL_STATIC_DRAW);
+
+  // set points attrib data and format (for current buffer)
+  canvas_->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
+  canvas_->glEnableVertexAttribArray(0);
+
+  //---
+
+  // store point data in array buffer
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, linesBufferId_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, 2*ne*sizeof(CGLVector3D), &linePoints_[0], GL_STATIC_DRAW);
+
+  // set points attrib data and format (for current buffer)
+  canvas_->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
+  canvas_->glEnableVertexAttribArray(1);
+
+  //---
+
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
+  canvas_->glBindVertexArray(0);
+
+  //---
+
+  modelMatrix_ = CGLMatrix3D::identity();
+
+  modelMatrix_.translated(float(position().getX()),
+                          float(position().getY()),
+                          float(position().getZ()));
+
+  modelMatrix_.rotated(xAngle(), CGLVector3D(1.0, 0.0, 0.0));
+  modelMatrix_.rotated(yAngle(), CGLVector3D(0.0, 1.0, 0.0));
+  modelMatrix_.rotated(zAngle(), CGLVector3D(0.0, 0.0, 1.0));
+
+}
+
+void
+GraphObj::
+updateTextObjs()
+{
+  auto nodes = forceDirected_->nodes();
+
+  auto nn = nodes.size();
+
+  while (textObjs_.size() > nn) {
+    auto *obj = textObjs_.back();
+
+    textObjs_.pop_back();
+
+    canvas_->removeObject(obj);
+
+    delete obj;
+  }
+
+  while (textObjs_.size() < nn) {
+    auto *obj = new Text3DObj(canvas_);
+
+    (void) canvas_->addNewObject(obj);
+
+    obj->init();
+
+    textObjs_.push_back(obj);
+  }
+
+  int i = 0;
+
+  for (auto &node : nodes) {
+    auto *textObj = textObjs_[i];
+
+    textObj->setText(QString::fromStdString(node->label()));
+
+    const auto &p = points_[i];
+
+    float x, y, z;
+    modelMatrix_.multiplyPoint(p.x(), p.y(), p.z(), &x, &y, &z);
+
+    auto p1 = CPoint3D(x, y, z);
+
+    textObj->setPosition(p1);
+
+    ++i;
+  }
+}
+
+void
+GraphObj::
+render()
+{
+  s_program->program->bind();
+
+  s_program->program->setUniformValue("projection",
+    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+
+  canvas_->glBindVertexArray(pointsArrayId_);
+
+  s_program->program->setUniformValue("useLine", 0);
+
+  int np = points_.size();
+
+  glDrawArrays(GL_POINTS, 0, np);
+//glDrawArrays(GL_TRIANGLES, 0, np);
+
+  s_program->program->release();
+
+  //------
+
+  s_program->program->bind();
+
+  s_program->program->setUniformValue("projection",
+    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+
+  canvas_->glBindVertexArray(pointsArrayId_);
+
+  s_program->program->setUniformValue("useLine", 1);
+
+  int nl = linePoints_.size();
+
+  glDrawArrays(GL_LINES, 0, nl);
+
+  s_program->program->release();
+}
+
+//---
+
+struct FontData {
+  uint32_t                            size = 40;
+  uint32_t                            atlasWidth = 1024;
+  uint32_t                            atlasHeight = 1024;
+  uint32_t                            oversampleX = 2;
+  uint32_t                            oversampleY = 2;
+  uint32_t                            firstChar = ' ';
+  uint32_t                            charCount = '~' - ' ';
+  std::unique_ptr<stbtt_packedchar[]> charInfo;
+  GLuint                              texture = 0;
+};
+
+Text3DObj::TextProgramData* Text3DObj::s_program  = nullptr;
+FontData*                   Text3DObj::s_fontData = nullptr;
+
+bool
+Text3DObj::
+create(Canvas3D *canvas, const QStringList &)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new Text3DObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  obj->init();
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+Text3DObj::
+Text3DObj(Canvas3D *canvas) :
+ Object3D(canvas)
+{
+}
+
+void
+Text3DObj::
+init()
+{
+  if (! s_program) {
+    static const char *vertexShaderSource =
+      "#version 330 core\n"
+      "attribute highp vec4 position;\n"
+      "attribute highp vec2 texCoord0;\n"
+      "attribute lowp  vec3 color;\n"
+      "uniform highp mat4 projection;\n"
+      "uniform highp mat4 view;\n"
+      "uniform highp mat4 model;\n"
+      "varying highp vec2 uv0;\n"
+      "varying lowp vec3 col;\n"
+      "void main() {\n"
+      "  gl_Position = projection * view * model * position;\n"
+      "  uv0 = texCoord0;\n"
+      "  col = color;\n"
+      "}\n";
+
+    static const char *fragmentShaderSource =
+      "#version 330 core\n"
+      "varying lowp vec3 col;\n"
+      "varying highp vec2 uv0;\n"
+      "uniform sampler2D mainTex;\n"
+      "void main() {\n"
+       " vec4 tc = texture(mainTex, uv0);\n"
+      "  gl_FragColor = vec4(col.r, col.g, col.b, tc.r);\n"
+      "}\n";
+
+    s_program = new TextProgramData;
+
+    s_program->program = new QOpenGLShaderProgram(this);
+
+    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    s_program->program->link();
+
+    //---
+
+    s_program->posAttr = s_program->program->attributeLocation("position");
+    Q_ASSERT(s_program->posAttr != -1);
+
+    s_program->colAttr = s_program->program->attributeLocation("color");
+  //Q_ASSERT(s_program->colAttr != -1);
+
+    s_program->texPosAttr = s_program->program->attributeLocation("texCoord0");
+    Q_ASSERT(s_program->texPosAttr != -1);
+
+    s_program->projectionUniform = s_program->program->uniformLocation("projection");
+    Q_ASSERT(s_program->projectionUniform != -1);
+
+    s_program->viewUniform = s_program->program->uniformLocation("view");
+    Q_ASSERT(s_program->viewUniform != -1);
+
+    s_program->modelUniform = s_program->program->uniformLocation("model");
+    Q_ASSERT(s_program->modelUniform != -1);
+
+    s_program->textureUniform = s_program->program->uniformLocation("mainTex");
+    Q_ASSERT(s_program->textureUniform != -1);
+  }
+
+  initFont();
+}
+
+void
+Text3DObj::
+initFont()
+{
+  if (s_fontData)
+    return;
+
+  s_fontData = new FontData;
+
+  //---
+
+  auto fontData = readFile("fonts/OpenSans-Regular.ttf");
+  auto atlasData = std::make_unique<uint8_t[]>(s_fontData->atlasWidth*s_fontData->atlasHeight);
+
+  s_fontData->charInfo = std::make_unique<stbtt_packedchar[]>(s_fontData->charCount);
+
+  stbtt_pack_context context;
+  if (! stbtt_PackBegin(&context, atlasData.get(), s_fontData->atlasWidth,
+                        s_fontData->atlasHeight, 0, 1, nullptr))
+    assert(false);
+
+  stbtt_PackSetOversampling(&context, s_fontData->oversampleX, s_fontData->oversampleY);
+
+  if (! stbtt_PackFontRange(&context, fontData.data(), 0, s_fontData->size, s_fontData->firstChar,
+                            s_fontData->charCount, s_fontData->charInfo.get()))
+    assert(false);
+
+  stbtt_PackEnd(&context);
+
+  glGenTextures(1, &s_fontData->texture);
+  glBindTexture(GL_TEXTURE_2D, s_fontData->texture);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, s_fontData->atlasWidth, s_fontData->atlasHeight,
+               0, GL_RED, GL_UNSIGNED_BYTE, atlasData.get());
+  glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
+
+  canvas_->glGenerateMipmap(GL_TEXTURE_2D);
+}
+
+std::vector<uint8_t>
+Text3DObj::
+readFile(const char *path) const
+{
+  std::ifstream file(path, std::ios::binary | std::ios::ate);
+
+  if (! file.is_open())
+    assert(false);
+
+  const auto size = file.tellg();
+
+  file.seekg(0, std::ios::beg);
+  auto bytes = std::vector<uint8_t>(size);
+  file.read(reinterpret_cast<char *>(&bytes[0]), size);
+  file.close();
+
+  return bytes;
+}
+
+void
+Text3DObj::
+setText(const QString &text)
+{
+  text_ = text;
+
+  textDataValid_  = false;
+}
+
+QVariant
+Text3DObj::
+getValue(const QString &name, const QStringList &args)
+{
+  if (name == "text")
+    return text();
+  else
+    return Object3D::getValue(name, args);
+}
+
+void
+Text3DObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  if (name == "text")
+    setText(value);
+  else
+    Object3D::setValue(name, value, args);
+}
+
+void
+Text3DObj::
+updateTextData()
+{
+  vertices_.clear();
+  uvs_     .clear();
+  indexes_ .clear();
+  colors_  .clear();
+
+  const auto &color = color_;
+
+  uint16_t lastIndex = 0;
+
+  float offsetX = 0, offsetY = 0;
+
+  double f = 1.0/s_fontData->size;
+
+  for (const auto &c : text_) {
+    const auto glyphInfo = makeGlyphInfo(c.toLatin1(), offsetX, offsetY);
+
+    offsetX = glyphInfo.offsetX;
+    offsetY = glyphInfo.offsetY;
+
+    auto addPos = [&](int i) {
+      // x, y, z
+      auto pos = glyphInfo.positions[i];
+
+      pos.scaleX(f);
+      pos.scaleY(f);
+
+      vertices_.emplace_back(pos);
+
+      // u, v
+      uvs_.emplace_back(glyphInfo.uvs[i]);
+
+      // color
+      colors_.push_back(color);
+    };
+
+    addPos(0);
+    addPos(1);
+    addPos(2);
+    addPos(3);
+
+    //---
+
+    indexes_.push_back(lastIndex);
+    indexes_.push_back(lastIndex + 1);
+    indexes_.push_back(lastIndex + 2);
+    indexes_.push_back(lastIndex);
+    indexes_.push_back(lastIndex + 2);
+    indexes_.push_back(lastIndex + 3);
+
+    lastIndex += 4;
+  }
+
+  rotatingLabel_.indexElementCount = indexes_.size();
+}
+
+void
+Text3DObj::
+initRotatingLabel()
+{
+  if (! rotatingLabel_.vao)
+    canvas_->glGenVertexArrays(1, &rotatingLabel_.vao);
+
+  if (! rotatingLabel_.vertexBuffer)
+    canvas_->glGenBuffers(1, &rotatingLabel_.vertexBuffer);
+
+  if (! rotatingLabel_.uvBuffer)
+    canvas_->glGenBuffers(1, &rotatingLabel_.uvBuffer);
+
+  if (! rotatingLabel_.colBuffer)
+    canvas_->glGenBuffers(1, &rotatingLabel_.colBuffer);
+
+  if (! rotatingLabel_.indexBuffer)
+    canvas_->glGenBuffers(1, &rotatingLabel_.indexBuffer);
+}
+
+Text3DObj::GlyphInfo
+Text3DObj::
+makeGlyphInfo(uint32_t character, float offsetX, float offsetY) const
+{
+  stbtt_aligned_quad quad;
+
+  stbtt_GetPackedQuad(s_fontData->charInfo.get(), s_fontData->atlasWidth, s_fontData->atlasHeight,
+                      character - s_fontData->firstChar, &offsetX, &offsetY, &quad, 1);
+
+  const auto xmin =  quad.x0;
+  const auto ymin = -quad.y1;
+  const auto xmax =  quad.x1;
+  const auto ymax = -quad.y0;
+
+  GlyphInfo info{};
+
+  info.offsetX = offsetX;
+  info.offsetY = offsetY;
+
+  info.positions[0] = CGLVector3D(xmin, ymin, 0.0f);
+  info.positions[1] = CGLVector3D(xmin, ymax, 0.0f);
+  info.positions[2] = CGLVector3D(xmax, ymax, 0.0f);
+  info.positions[3] = CGLVector3D(xmax, ymin, 0.0f);
+
+  info.uvs[0] = CGLVector2D(quad.s0, quad.t1);
+  info.uvs[1] = CGLVector2D(quad.s0, quad.t0);
+  info.uvs[2] = CGLVector2D(quad.s1, quad.t0);
+  info.uvs[3] = CGLVector2D(quad.s1, quad.t1);
+
+  return info;
+}
+
+void
+Text3DObj::
+render()
+{
+  if (! textDataValid_) {
+    updateTextData();
+
+    initRotatingLabel();
+
+    textDataValid_ = true;
+  }
+
+  //---
+
+  modelMatrix_ = CGLMatrix3D::identity();
+
+  modelMatrix_.translated(float(position().getX()),
+                          float(position().getY()),
+                          float(position().getZ()));
+  modelMatrix_.rotated(xAngle(), CGLVector3D(1.0, 0.0, 0.0));
+  modelMatrix_.rotated(yAngle(), CGLVector3D(0.0, 1.0, 0.0));
+  modelMatrix_.rotated(zAngle(), CGLVector3D(0.0, 0.0, 1.0));
+  modelMatrix_.scaled(size_, size_, 1.0);
+
+  //------
+
+  s_program->program->bind();
+
+  s_program->program->setUniformValue("projection",
+    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+
+  //---
+
+  glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+  glEnable(GL_TEXTURE_2D);
+
+  //---
+
+  canvas_->glBindVertexArray(rotatingLabel_.vao);
+
+  // get GL_ARRAY_BUFFER (vertices) data from vertexBuffer
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, rotatingLabel_.vertexBuffer);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, sizeof(CGLVector3D)*vertices_.size(),
+                        vertices_.data(), GL_STATIC_DRAW);
+
+  // position attribute populated from 3 floats (x, y, z) (data from GL_ARRAY_BUFFER)
+  canvas_->glVertexAttribPointer(s_program->posAttr, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+  canvas_->glEnableVertexAttribArray(s_program->posAttr);
+
+  //--
+
+  // get GL_ARRAY_BUFFER data from uvBuffer
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, rotatingLabel_.uvBuffer);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, sizeof(CGLVector2D)*uvs_.size(),
+                        uvs_.data(), GL_STATIC_DRAW);
+
+  // texture pos attribute populated from 2 floats (u, v) (data from GL_ARRAY_BUFFER)
+  canvas_->glVertexAttribPointer(s_program->texPosAttr, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+  canvas_->glEnableVertexAttribArray(s_program->texPosAttr);
+
+  //--
+
+  // get GL_ARRAY_BUFFER data from colBuffer
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, rotatingLabel_.colBuffer);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, sizeof(Color)*colors_.size(),
+                        colors_.data(), GL_STATIC_DRAW);
+
+  // color attribute populated from 3 floats (r, g, b)
+  canvas_->glVertexAttribPointer(s_program->colAttr, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+  canvas_->glEnableVertexAttribArray(s_program->colAttr);
+
+  //--
+
+  // get GL_ELEMENT_ARRAY_BUFFER from indexBuffer
+  canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rotatingLabel_.indexBuffer);
+  canvas_->glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t)*rotatingLabel_.indexElementCount,
+                        indexes_.data(), GL_STATIC_DRAW);
+
+  //matrix1.translate(pos_.x, pos_.y, pos_.z - 2);
+//matrix1.rotate(rotation_, rotation_, rotation_, 0);
+//matrix1.scale(size_, size_, 1.0f);
+
+  glBindTexture(GL_TEXTURE_2D, s_fontData->texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
+  glActiveTexture(GL_TEXTURE0);
+
+  s_program->program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
+
+  canvas_->glBindVertexArray(rotatingLabel_.vao);
+  canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rotatingLabel_.indexBuffer);
+  glDrawElements(GL_TRIANGLES, rotatingLabel_.indexElementCount,
+                 GL_UNSIGNED_SHORT, nullptr);
+
+  //---
+
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
+  canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  canvas_->glBindVertexArray(0);
+
+  canvas_->glDisableVertexAttribArray(s_program->posAttr);
+  canvas_->glDisableVertexAttribArray(s_program->texPosAttr);
+  canvas_->glDisableVertexAttribArray(s_program->colAttr);
+
+  //---
+
+  s_program->program->release();
+
+  glPopAttrib();
 }
 
 }

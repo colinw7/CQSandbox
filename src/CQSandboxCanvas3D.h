@@ -17,6 +17,7 @@ class CQGLTexture;
 class CGLTexture;
 class CGLCamera;
 class CGeomObject3D;
+class CForceDirected3D;
 
 class QOpenGLShaderProgram;
 class QTimer;
@@ -102,6 +103,8 @@ class Object3D : public QObject {
 
   Canvas3D *canvas() const { return canvas_; }
 
+  //---
+
   size_t ind() const { return ind_; }
   void setInd(size_t ind) { ind_ = ind; }
 
@@ -121,6 +124,13 @@ class Object3D : public QObject {
 
   double zAngle() const { return zAngle_; }
   void setZAngle(double r) { zAngle_ = r; }
+
+  const CPoint3D &position() const { return position_; }
+  void setPosition(const CPoint3D &p);
+
+  //---
+
+  virtual void init() { }
 
   virtual QVariant getValue(const QString &name, const QStringList &args);
   virtual void setValue(const QString &name, const QString &value, const QStringList &args);
@@ -142,7 +152,13 @@ class Object3D : public QObject {
   double   yAngle_   { 0.0 };
   double   zAngle_   { 0.0 };
   CPoint3D position_ { 0, 0, 0 };
+
+  CGLMatrix3D modelMatrix_;
+
+  bool needsUpdate_ { true };
 };
+
+//---
 
 class Model3D : public Object3D {
   Q_OBJECT
@@ -194,6 +210,8 @@ class Model3D : public Object3D {
   GLTextures glTextures_;
 };
 
+//---
+
 class ShapeObj : public Object3D {
   Q_OBJECT
 
@@ -210,7 +228,7 @@ class ShapeObj : public Object3D {
   double scale() const { return scale_; }
   void setScale(double r) { scale_ = r; }
 
-  virtual void init();
+  void init() override;
 
   void updateGL();
 
@@ -230,12 +248,10 @@ class ShapeObj : public Object3D {
   TexCoords texCoords_;
   bool      wireframe_ { false };
 
-  CGLMatrix3D modelMatrix_;
-  double      scale_ { 1.0 };
+  double scale_ { 1.0 };
 
   CQGLTexture *texture_ { nullptr };
 
-  bool needsUpdate_ { true };
   bool useTexture_  { false };
 
   unsigned int vertexBufferId_   { 0 };
@@ -244,6 +260,8 @@ class ShapeObj : public Object3D {
   unsigned int vertexArrayId_    { 0 };
   unsigned int indBufferId_      { 0 };
 };
+
+//---
 
 class CubeObj : public ShapeObj {
   Q_OBJECT
@@ -256,6 +274,8 @@ class CubeObj : public ShapeObj {
   void init() override;
 };
 
+//---
+
 class ShaderObj : public Object3D {
   Q_OBJECT
 
@@ -266,6 +286,8 @@ class ShaderObj : public Object3D {
 
   QVariant getValue(const QString &name, const QStringList &args) override;
   void setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  void init() override;
 
   void updateShaders();
 
@@ -285,6 +307,8 @@ class ShaderObj : public Object3D {
   bool shaderValid_ { false };
 };
 
+//---
+
 class ParticleListObj : public Object3D {
   Q_OBJECT
 
@@ -296,12 +320,12 @@ class ParticleListObj : public Object3D {
   QVariant getValue(const QString &name, const QStringList &args) override;
   void setValue(const QString &name, const QString &value, const QStringList &args) override;
 
+  void init() override;
+
   void render() override;
 
  protected:
   void setNumPoints(int n);
-
-  void updateGL();
 
  protected:
   struct ParticleListProgramData : public ProgramData {
@@ -323,6 +347,126 @@ class ParticleListObj : public Object3D {
   GLuint particles_position_buffer_ { 0 };
   GLuint particles_color_buffer_    { 0 };
   GLuint billboard_vertex_buffer_   { 0 };
+};
+
+//---
+
+class FontData;
+
+class Text3DObj : public Object3D {
+  Q_OBJECT
+
+ public:
+  struct GlyphInfo {
+    CGLVector3D positions[4];
+    CGLVector2D uvs[4];
+    float       offsetX { 0 };
+    float       offsetY { 0 };
+  };
+
+  struct TextProgramData : public ProgramData {
+    GLint posAttr        { 0 };
+    GLint colAttr        { 0 };
+    GLint texPosAttr     { 0 };
+    GLint textureUniform { 0 };
+  };
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  Text3DObj(Canvas3D *canvas);
+
+  const QString &text() const { return text_; }
+  void setText(const QString &s);
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  void init() override;
+
+  void render() override;
+
+ private:
+  void initFont();
+
+  std::vector<uint8_t> readFile(const char *path) const;
+
+  void updateTextData();
+
+  void initRotatingLabel();
+
+  GlyphInfo makeGlyphInfo(uint32_t character, float offsetX, float offsetY) const;
+
+ private:
+  struct RotatingLabel {
+    GLuint   vao = 0;
+    GLuint   vertexBuffer = 0;
+    GLuint   uvBuffer = 0;
+    GLuint   colBuffer = 0;
+    GLuint   indexBuffer = 0;
+    uint16_t indexElementCount = 0;
+    float    angle { 0.0f };
+  };
+
+  static TextProgramData* s_program;
+  static FontData*        s_fontData;
+
+  QString text_;
+  Color   color_ { 1.0, 1.0, 1.0 };
+  double  size_ { 0.05 };
+  bool    textDataValid_ { false };
+
+  std::vector<CGLVector3D> vertices_;
+  std::vector<CGLVector2D> uvs_;
+  std::vector<Color>       colors_;
+  std::vector<uint16_t>    indexes_;
+
+  RotatingLabel rotatingLabel_;
+};
+
+//---
+
+class GraphObj : public Object3D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  GraphObj(Canvas3D *canvas);
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  void init() override;
+
+  void tick() override;
+
+  void render() override;
+
+ private:
+  void updatePoints();
+
+  void updateTextObjs();
+
+ private:
+  using Points   = std::vector<CGLVector3D>;
+  using TextObjs = std::vector<Text3DObj *>;
+
+  static ProgramData* s_program;
+
+  CForceDirected3D *forceDirected_ { nullptr };
+
+  double stepSize_ { 0.01 };
+
+  Points points_;
+  Points linePoints_;
+
+  TextObjs textObjs_;
+
+  unsigned int pointsBufferId_ { 0 };
+  unsigned int linesBufferId_  { 0 };
+  unsigned int pointsArrayId_  { 0 };
+  unsigned int linesArrayId_   { 0 };
 };
 
 //---
@@ -388,6 +532,8 @@ class Canvas3D : public OpenGLWindow {
   QString addNewObject(Object3D *obj);
 
   void addObject(Object3D *obj);
+
+  void removeObject(Object3D *obj);
 
   //---
 
