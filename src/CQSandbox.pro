@@ -18,6 +18,7 @@ CQSandboxApp.cpp \
 CQSandbox.cpp \
 CQSandboxEditor.cpp \
 CQSandboxCanvas3D.cpp \
+CQSandboxControl3D.cpp \
 \
 CQHtmlTextPainter.cpp \
 CCircleFactor.cpp \
@@ -33,12 +34,21 @@ CQTclUtil.cpp \
 CTclUtil.cpp \
 \
 CForceDirected3D.cpp \
+CFlag.cpp \
+CDotParse.cpp \
+CFireworks.cpp \
+CFlocking.cpp \
+CFlock.cpp \
+CBoid.cpp \
+CWaterSurface.cpp \
+CProfile.cpp \
 
 HEADERS += \
 CQSandboxApp.h \
 CQSandbox.h \
 CQSandboxEditor.h \
 CQSandboxCanvas3D.h \
+CQSandboxControl3D.h \
 CQSandboxUtil.h \
 \
 CQHtmlTextPainter.h \
@@ -65,6 +75,7 @@ INCLUDEPATH += \
 ../../CImageLib/include \
 ../../CFont/include \
 ../../CCsv/qinclude \
+../../CConfig/include \
 ../../CUtil/include \
 ../../CFile/include \
 ../../CMath/include \
@@ -81,6 +92,7 @@ unix:LIBS += \
 -L../../CGeometry3D/lib \
 -L../../CImageLib/lib \
 -L../../CRGBName/lib \
+-L../../CConfig/lib \
 -L../../CUtil/lib \
 -L../../CFileUtil/lib \
 -L../../CFile/lib \
@@ -96,6 +108,7 @@ unix:LIBS += \
 -lCGeometry3D \
 -lCImageLib \
 -lCRGBName \
+-lCConfig \
 -lCUtil \
 -lCFileUtil \
 -lCFile \

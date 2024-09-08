@@ -17,6 +17,7 @@ class Canvas;
 class Canvas3D;
 class Control;
 class Control3D;
+class CanvasControl3D;
 class Editor;
 
 class App : public QFrame {
@@ -106,10 +107,23 @@ class Control3D : public QFrame {
  public Q_SLOTS:
   void updateInfo();
 
+  void cameraSlot();
+  void modelSlot();
+  void lightSlot();
+  void wireSlot();
+  void settingsSlot();
+
  private:
   Canvas3D* canvas_ { nullptr };
 
-  QLabel* infoLabel_ { nullptr };
+  QToolButton* cameraButton_   { nullptr };
+  QToolButton* modelButton_    { nullptr };
+  QToolButton* lightButton_    { nullptr };
+  QToolButton* wireButton_     { nullptr };
+  QToolButton* settingsButton_ { nullptr };
+  QLabel*      infoLabel_      { nullptr };
+
+  CanvasControl3D *canvasControl_ { nullptr };
 };
 
 }

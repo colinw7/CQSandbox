@@ -2,6 +2,7 @@
 #include <CQSandbox.h>
 #include <CQSandboxEditor.h>
 #include <CQSandboxCanvas3D.h>
+#include <CQSandboxControl3D.h>
 
 #include <CQIconButton.h>
 #include <CQTclUtil.h>
@@ -15,6 +16,11 @@
 #include <svg/play_svg.h>
 #include <svg/pause_svg.h>
 #include <svg/play_one_svg.h>
+#include <svg/camera_svg.h>
+#include <svg/model_svg.h>
+#include <svg/light_svg.h>
+#include <svg/wireframe_svg.h>
+#include <svg/settings_svg.h>
 
 namespace CQSandbox {
 
@@ -257,11 +263,60 @@ Control3D(Canvas3D *canvas) :
 
   auto *layout = new QHBoxLayout(this);
 
+  auto addToolButton = [&](const QString &name, const QString &iconName,
+                           const QString &tip, const char *slotName) {
+    auto *button = new CQIconButton;
+
+    button->setObjectName(name);
+    button->setIcon(iconName);
+    button->setIconSize(QSize(32, 32));
+    button->setAutoRaise(true);
+    button->setToolTip(tip);
+
+    connect(button, SIGNAL(clicked()), this, slotName);
+
+    return button;
+  };
+
+  auto addCheckButton = [&](const QString &name, const QString &iconName,
+                            const QString &tip, const char *slotName) {
+    auto *button = new CQIconButton;
+
+    button->setObjectName(name);
+    button->setCheckable(true);
+    button->setIcon(iconName);
+    button->setIconSize(QSize(32, 32));
+    button->setAutoRaise(true);
+    button->setToolTip(tip);
+
+    connect(button, SIGNAL(clicked()), this, slotName);
+
+    return button;
+  };
+
+  cameraButton_ = addToolButton("camera", "CAMERA", "Camera", SLOT(cameraSlot()));
+  modelButton_  = addToolButton("model" , "MODEL" , "Model" , SLOT(modelSlot()));
+  lightButton_  = addToolButton("light" , "LIGHT" , "Light" , SLOT(lightSlot()));
+
+  layout->addWidget(cameraButton_);
+  layout->addWidget(modelButton_);
+  layout->addWidget(lightButton_);
+
+  wireButton_ = addCheckButton("wire", "WIREFRAME", "Wireframe", SLOT(wireSlot()));
+
+  layout->addWidget(wireButton_);
+
   infoLabel_ = new QLabel(" ");
 
   layout->addWidget(infoLabel_);
 
   layout->addStretch(1);
+
+  settingsButton_ = addToolButton("settings", "SETTINGS" , "Settings", SLOT(settingsSlot()));
+
+  layout->addWidget(settingsButton_);
+
+  //---
 
   updateInfo();
 }
@@ -292,6 +347,48 @@ updateInfo()
   }
 
   infoLabel_->setText(text);
+}
+
+void
+Control3D::
+cameraSlot()
+{
+  canvas_->setType(OpenGLWindow::Type::CAMERA);
+}
+
+void
+Control3D::
+modelSlot()
+{
+  canvas_->setType(OpenGLWindow::Type::MODEL);
+}
+
+void
+Control3D::
+lightSlot()
+{
+  canvas_->setType(OpenGLWindow::Type::LIGHT);
+}
+
+void
+Control3D::
+wireSlot()
+{
+  auto *button = qobject_cast<CQIconButton *>(sender());
+
+  canvas_->setWireframe(button->isChecked());
+
+  canvas_->update();
+}
+
+void
+Control3D::
+settingsSlot()
+{
+  if (! canvasControl_)
+    canvasControl_ = new CanvasControl3D(canvas_);
+
+  canvasControl_->show();
 }
 
 //---
