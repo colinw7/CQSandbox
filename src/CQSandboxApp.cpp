@@ -310,6 +310,10 @@ Control3D(Canvas3D *canvas) :
 
   layout->addWidget(infoLabel_);
 
+  posLabel_ = new QLabel(" ");
+
+  layout->addWidget(posLabel_);
+
   layout->addStretch(1);
 
   settingsButton_ = addToolButton("settings", "SETTINGS" , "Settings", SLOT(settingsSlot()));
@@ -330,20 +334,30 @@ setInfo(const QString &label)
 
 void
 Control3D::
+setPos(const QString &label)
+{
+  posLabel_->setText(label);
+}
+
+void
+Control3D::
 updateInfo()
 {
   auto type = canvas_->type();
 
   QString text;
 
-  if      (type == OpenGLWindow::Type::CAMERA) {
+  if      (type == Canvas3D::Type::CAMERA) {
     text += "Mode: Camera";
   }
-  else if (type == OpenGLWindow::Type::LIGHT) {
+  else if (type == Canvas3D::Type::LIGHT) {
     text += "Mode: Light";
   }
-  else if (type == OpenGLWindow::Type::MODEL) {
+  else if (type == Canvas3D::Type::MODEL) {
     text += "Mode: Model";
+  }
+  else if (type == Canvas3D::Type::GAME) {
+    text += "Mode: Game";
   }
 
   infoLabel_->setText(text);
@@ -353,21 +367,21 @@ void
 Control3D::
 cameraSlot()
 {
-  canvas_->setType(OpenGLWindow::Type::CAMERA);
+  canvas_->setType(Canvas3D::Type::CAMERA);
 }
 
 void
 Control3D::
 modelSlot()
 {
-  canvas_->setType(OpenGLWindow::Type::MODEL);
+  canvas_->setType(Canvas3D::Type::MODEL);
 }
 
 void
 Control3D::
 lightSlot()
 {
-  canvas_->setType(OpenGLWindow::Type::LIGHT);
+  canvas_->setType(Canvas3D::Type::LIGHT);
 }
 
 void

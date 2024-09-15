@@ -63,8 +63,10 @@ class CGLCamera {
   }
 
   const CGLVector3D &position() const { return position_; }
+  void setPosition(const CGLVector3D &p) { position_ = p; }
 
   float zoom() const { return zoom_; }
+  void setZoom(float z) { zoom_ = z; }
 
   // processes input received from any keyboard-like input system.
   // Accepts input parameter in the form of camera defined ENUM

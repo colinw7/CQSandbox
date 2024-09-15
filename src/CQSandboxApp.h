@@ -104,6 +104,8 @@ class Control3D : public QFrame {
 
   void setInfo(const QString &label);
 
+  void setPos(const QString &label);
+
  public Q_SLOTS:
   void updateInfo();
 
@@ -122,6 +124,7 @@ class Control3D : public QFrame {
   QToolButton* wireButton_     { nullptr };
   QToolButton* settingsButton_ { nullptr };
   QLabel*      infoLabel_      { nullptr };
+  QLabel*      posLabel_       { nullptr };
 
   CanvasControl3D *canvasControl_ { nullptr };
 };

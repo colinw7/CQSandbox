@@ -541,6 +541,7 @@ compiler_moc_header_clean:
 		../../CMath/include/CMathMacros.h \
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
+		../../CMath/include/CMinMax.h \
 		.moc/moc_predefs.h \
 		/usr/lib/qt5/bin/moc
 	/usr/lib/qt5/bin/moc $(DEFINES) --include /home/colinw/git/CQSandbox/src/.moc/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/include -I/home/colinw/git/CQUtil/include -I/home/colinw/git/CGeometry3D/include -I/home/colinw/git/CImportModel/include -I/home/colinw/git/CQBaseModel/include -I/home/colinw/git/CImageLib/include -I/home/colinw/git/CFont/include -I/home/colinw/git/CCsv/qinclude -I/home/colinw/git/CConfig/include -I/home/colinw/git/CUtil/include -I/home/colinw/git/CFile/include -I/home/colinw/git/CMath/include -I/home/colinw/git/CStrUtil/include -I/home/colinw/git/COS/include -I/usr/include/tcl -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -I/usr/include/c++/11 -I/usr/include/x86_64-linux-gnu/c++/11 -I/usr/include/c++/11/backward -I/usr/lib/gcc/x86_64-linux-gnu/11/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include CQSandboxCanvas3D.h -o .moc/moc_CQSandboxCanvas3D.cpp
@@ -623,6 +624,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CMathMacros.h \
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
+		../../CMath/include/CMinMax.h \
 		CQSandboxControl3D.h \
 		../../CQUtil/include/CQIconButton.h \
 		CQTclUtil.h \
@@ -653,6 +655,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CISize2D.h \
 		CQSandboxApp.h \
 		CQSandboxUtil.h \
+		../../CMath/include/CPoint3D.h \
+		../../CMath/include/CIPoint3D.h \
 		CQSVGUtil.h \
 		CQTclUtil.h \
 		CQHtmlTextPainter.h \
@@ -696,6 +700,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CMathMacros.h \
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
+		../../CMath/include/CMinMax.h \
 		CQSandboxApp.h \
 		CQSandboxUtil.h \
 		CQTclUtil.h \
@@ -786,7 +791,11 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CGeometry3D/include/CGeomMask.h \
 		CFireworks.h \
 		../../CMath/include/CParticle2D.h \
-		../../CMath/include/CMinMax.h \
+		../../CMath/include/CSphere3D.h \
+		../../CMath/include/CShape3D.h \
+		../../CMath/include/CLine3D.h \
+		../../CMath/include/CCone3D.h \
+		../../CMath/include/CCylinder3D.h \
 		stb_truetype.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxCanvas3D.o CQSandboxCanvas3D.cpp
 
@@ -805,7 +814,9 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CMathMacros.h \
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
-		../../CQUtil/include/CQColorEdit.h
+		../../CMath/include/CMinMax.h \
+		../../CQUtil/include/CQColorEdit.h \
+		../../CQUtil/include/CQRealSpin.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxControl3D.o CQSandboxControl3D.cpp
 
 ../obj/CQHtmlTextPainter.o: CQHtmlTextPainter.cpp CQHtmlTextPainter.h

@@ -236,17 +236,17 @@ class CQGLBuffer {
 
  private:
   void term() {
+    data_.vertexBuffer->destroy();
+    data_.indBuffer   ->destroy();
+
+    data_.vObj->destroy();
+
     delete data_.vObj;
     delete data_.vertexBuffer;
     delete data_.indBuffer;
 
     delete [] data_.data;
     delete [] data_.indData;
-
-    data_.vertexBuffer->destroy();
-    data_.indBuffer   ->destroy();
-
-    data_.vObj->destroy();
 
     data_ = Data();
   }

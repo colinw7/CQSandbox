@@ -200,16 +200,6 @@ pathToString(const QPainterPath &path) {
   return CQSVGUtil::pathToString(path);
 }
 
-QColor
-stringToColor(const QString &str) {
-  return QColor(str);
-}
-
-QString
-colorToString(const QColor &c) {
-  return c.name();
-}
-
 QString
 alignToString(Qt::Alignment align)
 {
@@ -748,7 +738,7 @@ paletteProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
       auto c = QColor::fromHsvF(h, s, v);
 
-      tcl->setResult(colorToString(c));
+      tcl->setResult(Util::colorToString(c));
     }
   }
   else if (args[0] == "get") {
@@ -798,13 +788,13 @@ getValue(const QString &name)
   auto *tcl = app_->tcl();
 
   if      (name == "brush.color")
-    return colorToString(brush_.value().color());
+    return Util::colorToString(brush_.value().color());
   else if (name == "brush.color.target")
-    return colorToString(brush_.target().color());
+    return Util::colorToString(brush_.target().color());
   else if (name == "brush.steps")
-    return colorToString(brush_.steps());
+    return Util::colorToString(brush_.steps());
   else if (name == "pen.color")
-    return colorToString(pen_.color());
+    return Util::colorToString(pen_.color());
   else if (name == "pen.width")
     return Util::realToString(pen_.widthF());
   else if (name == "range")
@@ -829,21 +819,21 @@ setValue(const QString &name, const QString &value)
   if      (name == "brush.color") {
     auto b = brush_.value();
 
-    b.setColor(stringToColor(value));
+    b.setColor(Util::stringToColor(value));
 
     brush_ = b;
   }
   else if (name == "brush.color.target") {
     auto b = brush_.target();
 
-    b.setColor(stringToColor(value));
+    b.setColor(Util::stringToColor(value));
 
     brush_.setTarget(b);
   }
   else if (name == "brush.steps")
     brush_.setSteps(Util::stringToInt(value));
   else if (name == "pen.color")
-    pen_.setColor(stringToColor(value));
+    pen_.setColor(Util::stringToColor(value));
   else if (name == "pen.width")
     pen_.setWidthF(Util::stringToReal(value));
   else if (name == "range")
@@ -875,7 +865,7 @@ Canvas::
 getStyleValue(const QString &name)
 {
   if      (name == "pen.color")
-    return colorToString(stylePen_.color());
+    return Util::colorToString(stylePen_.color());
   else if (name == "pen.width")
     return Util::realToString(stylePen_.widthF());
   else {
@@ -889,9 +879,9 @@ Canvas::
 setStyleValue(const QString &name, const QString &value)
 {
   if      (name == "brush.color")
-    styleBrush_.setColor(stringToColor(value));
+    styleBrush_.setColor(Util::stringToColor(value));
   else if (name == "pen.color")
-    stylePen_.setColor(stringToColor(value));
+    stylePen_.setColor(Util::stringToColor(value));
   else if (name == "pen.width")
     stylePen_.setWidthF(Util::stringToReal(value));
 }
@@ -2963,15 +2953,15 @@ getValue(const QString &name, const QStringList &)
   else if (name == "visible")
     return isVisible();
   else if (name == "brush.color")
-    return colorToString(brush_.value().color());
+    return Util::colorToString(brush_.value().color());
   else if (name == "brush.color.target")
-    return colorToString(brush_.target().color());
+    return Util::colorToString(brush_.target().color());
   else if (name == "brush.alpha")
     return Util::realToString(brush_.value().color().alphaF());
   else if (name == "brush.steps")
-    return colorToString(brush_.steps());
+    return Util::colorToString(brush_.steps());
   else if (name == "pen.color")
-    return colorToString(pen_.color());
+    return Util::colorToString(pen_.color());
   else if (name == "pen.width")
     return Util::realToString(pen_.widthF());
   else if (name == "group")
@@ -3008,14 +2998,14 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "brush.color") {
     auto b = brush_.value();
 
-    b.setColor(stringToColor(value));
+    b.setColor(Util::stringToColor(value));
 
     brush_ = b;
   }
   else if (name == "brush.color.target") {
     auto b = brush_.target();
 
-    b.setColor(stringToColor(value));
+    b.setColor(Util::stringToColor(value));
 
     brush_.setTarget(b);
   }
@@ -3054,7 +3044,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
     brush_ = QBrush(lg);
   }
   else if (name == "pen.color")
-    pen_.setColor(stringToColor(value));
+    pen_.setColor(Util::stringToColor(value));
   else if (name == "pen.width")
     pen_.setWidthF(Util::stringToReal(value));
   else if (name == "pen.dash")

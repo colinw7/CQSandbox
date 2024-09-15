@@ -13,6 +13,9 @@
 #include <CDotParse.h>
 #include <CInterval.h>
 
+#include <COthello.h>
+#include <CFieldRunners.h>
+
 #include <CQGLBuffer.h>
 #include <CQGLTexture.h>
 #include <CGLTexture.h>
@@ -21,6 +24,10 @@
 #include <CFlag.h>
 #include <CFlocking.h>
 #include <CFireworks.h>
+#include <CSphere3D.h>
+#include <CCone3D.h>
+#include <CCylinder3D.h>
+#include <CCenteredBox3D.h>
 
 #include <CFile.h>
 #include <CMinMax.h>
@@ -55,15 +62,6 @@ int createObjectProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
     return TCL_ERROR;
 
   return TCL_OK;
-}
-
-QString
-point3DToString(const CPoint3D &p) {
-  auto xstr = QString::number(p.x);
-  auto ystr = QString::number(p.y);
-  auto zstr = QString::number(p.z);
-
-  return xstr + " " + ystr + " " + zstr;
 }
 
 QString
@@ -107,6 +105,25 @@ stringToVector2D(CQTcl *tcl, const QString &str) {
     auto y = strs[1].toDouble(&ok);
 
     p = CGLVector2D(x, y);
+  }
+
+  return p;
+}
+
+CPoint2D
+stringToPoint2D(CQTcl *tcl, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  CPoint2D p;
+
+  if (strs.size() >= 2) {
+    bool ok;
+    auto x = strs[0].toDouble(&ok);
+    auto y = strs[1].toDouble(&ok);
+
+    p.x = x;
+    p.y = y;
   }
 
   return p;
@@ -187,8 +204,9 @@ colorToString(const Color &c) {
   auto rstr = QString::number(c.r);
   auto gstr = QString::number(c.g);
   auto bstr = QString::number(c.b);
+  auto astr = QString::number(c.a);
 
-  return rstr + " " + gstr + " " + bstr;
+  return rstr + " " + gstr + " " + bstr + " " + astr;
 }
 
 Color
@@ -203,13 +221,40 @@ stringToColor(CQTcl *tcl, const QString &str) {
     auto r = strs[0].toDouble(&ok);
     auto g = strs[1].toDouble(&ok);
     auto b = strs[2].toDouble(&ok);
+    auto a = 1.0;
+
+    if (strs.size() >= 4)
+      a = strs[3].toDouble(&ok);
 
     c.r = r;
     c.g = g;
     c.b = b;
+    c.a = a;
   }
 
   return c;
+}
+
+std::vector<Color>
+stringToColors(CQTcl *tcl, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  std::vector<Color> colors;
+
+  for (const auto &str : strs) {
+    auto c = stringToColor(tcl, str);
+
+    colors.push_back(c);
+  }
+
+  return colors;
+}
+
+CGLVector3D
+pointToVector(const CPoint3D &p)
+{
+  return CGLVector3D(p.x, p.y, p.z);
 }
 
 //---
@@ -270,17 +315,6 @@ setAnimating(bool animating)
   update();
 }
 
-void
-OpenGLWindow::
-setType(const Type &type)
-{
-  if (type != type_) {
-    type_ = type;
-
-    Q_EMIT typeChanged();
-  }
-}
-
 bool
 OpenGLWindow::
 event(QEvent *event)
@@ -289,8 +323,6 @@ event(QEvent *event)
 }
 
 //---
-
-QOpenGLShaderProgram* Canvas3D::s_lightShaderProgram;
 
 Canvas3D::
 Canvas3D(App *app) :
@@ -309,6 +341,9 @@ init()
 
   app_->runTclCmd("proc init { args } { }");
   app_->runTclCmd("proc update { args } { }");
+  app_->runTclCmd("proc click { args } { }");
+  app_->runTclCmd("proc keyPress { args } { }");
+  app_->runTclCmd("proc tick { args } { }");
 
   timer_ = new QTimer;
 
@@ -319,29 +354,49 @@ init()
 
 void
 Canvas3D::
+setType(const Type &type)
+{
+  if (type != type_) {
+    type_ = type;
+
+    Q_EMIT typeChanged();
+  }
+}
+
+void
+Canvas3D::
 addCommands()
 {
    auto *tcl = app_->tcl();
 
   // global
+  tcl->createObjCommand("sb3d::canvas",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::canvasProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::camera",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::cameraProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb3d::load_model",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::loadModelProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  // objects
   tcl->createObjCommand("sb3d::shape",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Shape3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::cube",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<CubeObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Cube3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::particle_list",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ParticleListObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ParticleList3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::shader",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ShaderObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Shader3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::graph",
@@ -349,7 +404,7 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::surface",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<SurfaceObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Surface3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::text",
@@ -362,6 +417,18 @@ addCommands()
 
   tcl->createObjCommand("sb3d::axis",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Axis3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::sprite",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Sprite3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::othello",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Othello3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::field_runners",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<FieldRunners3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 }
 
@@ -414,6 +481,250 @@ removeObject(Object3D *obj)
 
 int
 Canvas3D::
+canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas3D *>(clientData);
+  assert(th);
+
+  auto args = th->app()->getArgs(objc, objv);
+  if (args.size() < 1) return TCL_ERROR;
+
+  auto *tcl = th->app_->tcl();
+
+  if      (args[0] == "get") {
+    if (args.size() >= 2) {
+      auto name = args[1];
+
+      QStringList args1;
+      for (int i = 2; i < args.length(); ++i)
+        args1.push_back(args[i]);
+
+      auto res = th->getValue(name, args1);
+
+      tcl->setResult(res);
+    }
+  }
+  else if (args[0] == "set") {
+    if (args.size() >= 3) {
+      auto name  = args[1];
+      auto value = args[2];
+
+      QStringList args1;
+      for (int i = 3; i < args.length(); ++i)
+        args1.push_back(args[i]);
+
+      th->setValue(name, value, args1);
+    }
+  }
+  else if (args[0] == "delete") {
+    if (args.size() >= 2) {
+      if (args[1] == "all") {
+        Objects objects;
+
+        std::swap(objects, th->objects_);
+
+        for (auto *obj : objects)
+          delete obj;
+
+      }
+    }
+  }
+  else
+    return TCL_ERROR;
+
+  return TCL_OK;
+}
+
+int
+Canvas3D::
+cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas3D *>(clientData);
+  assert(th);
+
+  auto args = th->app()->getArgs(objc, objv);
+  if (args.size() < 1) return TCL_ERROR;
+
+  auto *tcl = th->app_->tcl();
+
+  if      (args[0] == "get") {
+    if (args.size() >= 2) {
+      auto name = args[1];
+
+      QStringList args1;
+      for (int i = 2; i < args.length(); ++i)
+        args1.push_back(args[i]);
+
+      auto res = th->getCameraValue(name, args1);
+
+      tcl->setResult(res);
+    }
+  }
+  else if (args[0] == "set") {
+    if (args.size() >= 3) {
+      auto name  = args[1];
+      auto value = args[2];
+
+      QStringList args1;
+      for (int i = 3; i < args.length(); ++i)
+        args1.push_back(args[i]);
+
+      th->setCameraValue(name, value, args1);
+    }
+  }
+  else
+    return TCL_ERROR;
+
+  return TCL_OK;
+}
+
+QVariant
+Canvas3D::
+getValue(const QString &name, const QStringList &args)
+{
+//auto *tcl = app_->tcl();
+
+  if      (name == "bg")
+    return Util::colorToString(bgColor());
+  else if (name == "near")
+    return Util::realToString(near());
+  else if (name == "far")
+    return Util::realToString(far());
+  else if (name == "xmap") {
+    if (args.size() >= 1) {
+      auto x = Util::stringToReal(args[0]);
+
+      auto x1 = xrange_.map(x, -0.5, 0.5);
+
+      return QVariant(x1);
+    }
+    else {
+      app_->errorMsg(QString("Missing value for '%1'").arg(name));
+      return QVariant();
+    }
+  }
+  else if (name == "ymap") {
+    if (args.size() >= 1) {
+      auto y = Util::stringToReal(args[0]);
+
+      auto y1 = yrange_.map(y, -0.5, 0.5);
+
+      return QVariant(y1);
+    }
+    else {
+      app_->errorMsg(QString("Missing value for '%1'").arg(name));
+      return QVariant();
+    }
+  }
+  else if (name == "zmap") {
+    if (args.size() >= 1) {
+      auto z = Util::stringToReal(args[0]);
+
+      auto z1 = zrange_.map(z, -0.5, 0.5);
+
+      return QVariant(z1);
+    }
+    else {
+      app_->errorMsg(QString("Missing value for '%1'").arg(name));
+      return QVariant();
+    }
+  }
+  else {
+    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+    return QVariant();
+  }
+}
+
+void
+Canvas3D::
+setValue(const QString &name, const QString &value, const QStringList &)
+{
+  auto *tcl = app_->tcl();
+
+  if      (name == "bg")
+    setBgColor(Util::stringToColor(value));
+  else if (name == "near")
+    setNear(Util::stringToReal(value));
+  else if (name == "far")
+    setFar(Util::stringToReal(value));
+  else if (name == "xrange") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.size() != 2) {
+      app_->errorMsg("Invalid values for range");
+      return;
+    }
+
+    double xmin = Util::stringToReal(strs[0]);
+    double xmax = Util::stringToReal(strs[1]);
+
+    xrange_ = CRMinMax(xmin, xmax);
+  }
+  else if (name == "yrange") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.size() != 2) {
+      app_->errorMsg("Invalid values for range");
+      return;
+    }
+
+    double xmin = Util::stringToReal(strs[0]);
+    double xmax = Util::stringToReal(strs[1]);
+
+    yrange_ = CRMinMax(xmin, xmax);
+  }
+  else if (name == "zrange") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.size() != 2) {
+      app_->errorMsg("Invalid values for range");
+      return;
+    }
+
+    double xmin = Util::stringToReal(strs[0]);
+    double xmax = Util::stringToReal(strs[1]);
+
+    zrange_ = CRMinMax(xmin, xmax);
+  }
+  else
+    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+}
+
+QVariant
+Canvas3D::
+getCameraValue(const QString &name, const QStringList &)
+{
+//auto *tcl = app_->tcl();
+
+  if      (name == "zoom")
+    return Util::realToString(camera()->zoom());
+  else if (name == "position")
+    return vector3DToString(camera()->position());
+  else {
+    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+    return QVariant();
+  }
+}
+
+void
+Canvas3D::
+setCameraValue(const QString &name, const QString &value, const QStringList &)
+{
+  auto *tcl = app_->tcl();
+
+  if      (name == "zoom")
+    camera()->setZoom(Util::stringToReal(value));
+  else if (name == "position")
+    camera()->setPosition(stringToVector3D(tcl, value));
+  else
+    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+}
+
+int
+Canvas3D::
 loadModelProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
   auto *th = static_cast<Canvas3D *>(clientData);
@@ -431,7 +742,7 @@ loadModelProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
     return TCL_ERROR;
   }
 
-  auto *model = new Model3D(th);
+  auto *model = new Model3DObj(th);
 
   if (! model->load(filename)) {
     delete model;
@@ -466,7 +777,6 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       auto name = args[1];
 
       QStringList args1;
-
       for (int i = 2; i < args.length(); ++i)
         args1.push_back(args[i]);
 
@@ -484,7 +794,6 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       auto value = args[2];
 
       QStringList args1;
-
       for (int i = 3; i < args.length(); ++i)
         args1.push_back(args[i]);
 
@@ -512,76 +821,25 @@ initialize()
 
   //---
 
-  if (! s_lightShaderProgram) {
-    QString buildDir = QUOTE(BUILD_DIR);
-
-    s_lightShaderProgram = new QOpenGLShaderProgram;
-
-    if (! s_lightShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex,
-                                                        buildDir + "/shaders/light.vs"))
-      std::cerr << s_lightShaderProgram->log().toStdString() << "\n";
-
-    if (! s_lightShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
-                                                        buildDir + "/shaders/light.fs"))
-      std::cerr << s_lightShaderProgram->log().toStdString() << "\n";
-
-    s_lightShaderProgram->link();
-  }
+  light_ = new Light3D(this);
 
   //---
 
-  // set up vertex data (and buffer(s)) and configure vertex attributes
-  lightBuffer_ = new CQGLBuffer(s_lightShaderProgram);
+  eyeLine_ = new Path3DObj(this);
 
-  lightBuffer_->addPoint(-0.5f, -0.5f, -0.5f);
-  lightBuffer_->addPoint( 0.5f, -0.5f, -0.5f);
-  lightBuffer_->addPoint( 0.5f,  0.5f, -0.5f);
+  (void) addNewObject(eyeLine_);
 
-  lightBuffer_->addPoint( 0.5f,  0.5f, -0.5f);
-  lightBuffer_->addPoint(-0.5f,  0.5f, -0.5f);
-  lightBuffer_->addPoint(-0.5f, -0.5f, -0.5f);
+  eyeLine_->init();
+  eyeLine_->setVisible(false);
 
-  lightBuffer_->addPoint(-0.5f, -0.5f,  0.5f);
-  lightBuffer_->addPoint( 0.5f, -0.5f,  0.5f);
-  lightBuffer_->addPoint( 0.5f,  0.5f,  0.5f);
+  //---
 
-  lightBuffer_->addPoint( 0.5f,  0.5f,  0.5f);
-  lightBuffer_->addPoint(-0.5f,  0.5f,  0.5f);
-  lightBuffer_->addPoint(-0.5f, -0.5f,  0.5f);
+  intersectParticles_ = new ParticleList3DObj(this);
 
-  lightBuffer_->addPoint(-0.5f,  0.5f,  0.5f);
-  lightBuffer_->addPoint(-0.5f,  0.5f, -0.5f);
-  lightBuffer_->addPoint(-0.5f, -0.5f, -0.5f);
+  (void) addNewObject(intersectParticles_);
 
-  lightBuffer_->addPoint(-0.5f, -0.5f, -0.5f);
-  lightBuffer_->addPoint(-0.5f, -0.5f,  0.5f);
-  lightBuffer_->addPoint(-0.5f,  0.5f,  0.5f);
-
-  lightBuffer_->addPoint( 0.5f,  0.5f,  0.5f);
-  lightBuffer_->addPoint( 0.5f,  0.5f, -0.5f);
-  lightBuffer_->addPoint( 0.5f, -0.5f, -0.5f);
-
-  lightBuffer_->addPoint( 0.5f, -0.5f, -0.5f);
-  lightBuffer_->addPoint( 0.5f, -0.5f,  0.5f);
-  lightBuffer_->addPoint( 0.5f,  0.5f,  0.5f);
-
-  lightBuffer_->addPoint(-0.5f, -0.5f, -0.5f);
-  lightBuffer_->addPoint( 0.5f, -0.5f, -0.5f);
-  lightBuffer_->addPoint( 0.5f, -0.5f,  0.5f);
-
-  lightBuffer_->addPoint( 0.5f, -0.5f,  0.5f);
-  lightBuffer_->addPoint(-0.5f, -0.5f,  0.5f);
-  lightBuffer_->addPoint(-0.5f, -0.5f, -0.5f);
-
-  lightBuffer_->addPoint(-0.5f,  0.5f, -0.5f);
-  lightBuffer_->addPoint( 0.5f,  0.5f, -0.5f);
-  lightBuffer_->addPoint( 0.5f,  0.5f,  0.5f);
-
-  lightBuffer_->addPoint( 0.5f,  0.5f,  0.5f);
-  lightBuffer_->addPoint(-0.5f,  0.5f,  0.5f);
-  lightBuffer_->addPoint(-0.5f,  0.5f, -0.5f);
-
-  lightBuffer_->load();
+  intersectParticles_->init();
+  intersectParticles_->setVisible(false);
 
   //---
 
@@ -608,7 +866,10 @@ render()
 {
   const qreal retinaScale = devicePixelRatio();
 
-  glViewport(0, 0, width()*retinaScale, height()*retinaScale);
+  pixelWidth_  = width ()*retinaScale;
+  pixelHeight_ = height()*retinaScale;
+
+  glViewport(0, 0, pixelWidth_, pixelHeight_);
 
   glClearColor(bgColor_.redF(), bgColor_.greenF(), bgColor_.blueF(), 1.0f);
 
@@ -627,39 +888,23 @@ render()
 
   aspect_ = float(width())/float(height());
 
-  projectionMatrix_ = CGLMatrix3D::perspective(camera_->zoom(), aspect_, 0.1f, 100.0f);
+  projectionMatrix_ = CGLMatrix3D::perspective(camera_->zoom(), aspect_, near_, far_);
   viewMatrix_       = camera_->getViewMatrix();
 
   //---
 
-  // lighting
   viewPos_ = camera_->position();
 
   //---
 
-  for (auto *obj : objects_)
-    obj->render();
+  for (auto *obj : objects_) {
+    if (obj && obj->isVisible())
+      obj->render();
+  }
 
   //---
 
-  // setup light shader
-  lightBuffer_->bind();
-
-  s_lightShaderProgram->bind();
-
-  s_lightShaderProgram->setUniformValue("projection",
-    CQGLUtil::toQMatrix(projectionMatrix()));
-  s_lightShaderProgram->setUniformValue("view", CQGLUtil::toQMatrix(viewMatrix()));
-
-  auto lightMatrix = CGLMatrix3D::translation(lightPos());
-  lightMatrix.scaled(0.01f, 0.01f, 0.01f);
-  s_lightShaderProgram->setUniformValue("model", CQGLUtil::toQMatrix(lightMatrix));
-
-  // draw light
-  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-  //lightBuffer_->drawTriangles();
-
-  lightBuffer_->unbind();
+  light_->render();
 }
 
 void
@@ -668,6 +913,8 @@ mousePressEvent(QMouseEvent *e)
 {
   float xpos = float(e->x());
   float ypos = float(e->y());
+
+  setMousePos(xpos, ypos);
 
   auto type = this->type();
 
@@ -683,21 +930,41 @@ void
 Canvas3D::
 mouseReleaseEvent(QMouseEvent *)
 {
+  Objects clickObjs;
+
+  for (auto *obj : objects_) {
+    if (! obj->isVisible())
+      continue;
+
+    if (obj->isInside()) {
+      clickObjs.push_back(obj);
+      obj->setInside(false);
+
+      obj->setNeedsUpdate();
+    }
+  }
+
+  eyeLine_           ->setVisible(false);
+  intersectParticles_->setVisible(false);
+
   update();
 
   pressed_ = false;
+
+  if (clickObjs.size() == 1)
+    app_->runTclCmd(QString("click {%1}").arg(clickObjs[0]->id()));
 }
 
 void
 Canvas3D::
 mouseMoveEvent(QMouseEvent *e)
 {
+  float xpos = float(e->x());
+  float ypos = float(e->y());
+
+  setMousePos(xpos, ypos);
+
   if (pressed_) {
-    float xpos = float(e->x());
-    float ypos = float(e->y());
-
-    //---
-
     auto type = this->type();
 
     if (type == Type::CAMERA) {
@@ -714,6 +981,90 @@ mouseMoveEvent(QMouseEvent *e)
 
     update();
   }
+}
+
+void
+Canvas3D::
+setMousePos(float xpos, float ypos)
+{
+  // unobserve
+  auto x1 = CMathUtil::map(xpos, 0, pixelWidth_  - 1, -1,  1);
+  auto y1 = CMathUtil::map(ypos, 0, pixelHeight_ - 1,  1, -1);
+  auto z1 = 0.1;
+
+  auto x2 = x1;
+  auto y2 = y1;
+  auto z2 = 10.0;
+
+  auto imatrix1 = projectionMatrix_.inverse();
+
+  float xp1, yp1, zp1;
+  imatrix1.multiplyPoint(x1, y1, z1, &xp1, &yp1, &zp1);
+  float xp2, yp2, zp2;
+  imatrix1.multiplyPoint(x2, y2, z2, &xp2, &yp2, &zp2);
+
+  const auto &viewMatrix = camera_->getViewMatrix();
+  auto imatrix2 = viewMatrix_.inverse();
+
+  float xv1, yv1, zv1;
+  imatrix2.multiplyPoint(xp1, yp1, zp1, &xv1, &yv1, &zv1);
+
+  float xv2, yv2, zv2;
+  imatrix2.multiplyPoint(xp2, yp2, zp2, &xv2, &yv2, &zv2);
+
+  app_->control3D()->setPos(QString("%1 %2 %3").arg(xv1).arg(yv1).arg(zv1));
+
+  CGLVector3D pe1(xv1, yv1, zv1);
+  CGLVector3D pe2(xv2, yv2, zv2);
+
+  eyeLine_->setLine(pe1, pe2);
+  eyeLine_->setVisible(true);
+
+  //---
+
+  intersectPoints_.clear();
+
+  for (auto *obj : objects_) {
+    if (! obj->isVisible())
+      continue;
+
+    auto imodelMatrix = obj->modelMatrix().inverse();
+
+    float mx1, my1, mz1;
+    imodelMatrix.multiplyPoint(xv1, yv1, zv1, &mx1, &my1, &mz1);
+
+    float mx2, my2, mz2;
+    imodelMatrix.multiplyPoint(xv2, yv2, zv2, &mx2, &my2, &mz2);
+
+    CGLVector3D pm1(mx1, my1, mz1);
+    CGLVector3D pm2(mx2, my2, mz2);
+
+    CPoint3D pi1, pi2;
+
+    bool inside = obj->intersect(pm1, pm2, pi1, pi2);
+
+    if (inside != obj->isInside()) {
+      obj->setInside(inside);
+
+      obj->setNeedsUpdate();
+    }
+
+    if (inside) {
+      auto mapPoint = [&](const CPoint3D &p) {
+        float x1, y1, z1;
+        obj->modelMatrix().multiplyPoint(p.x, p.y, p.z, &x1, &y1, &z1);
+        return CGLVector3D(x1, y1, z1);
+      };
+
+      intersectPoints_.push_back(mapPoint(pi1));
+
+      if (pi2 != pi1)
+        intersectPoints_.push_back(mapPoint(pi2));
+    }
+  }
+
+  intersectParticles_->setPoints(intersectPoints_);
+  intersectParticles_->setVisible(true);
 }
 
 void
@@ -736,6 +1087,8 @@ keyPressEvent(QKeyEvent *e)
 {
   bool isShift = (e->modifiers() & Qt::ShiftModifier);
 
+  //---
+
   auto dt = 0.01f; /* camera_->deltaTime(); */
   auto da = M_PI/180.0;
 
@@ -744,7 +1097,42 @@ keyPressEvent(QKeyEvent *e)
     da = -da;
   }
 
+  //---
+
   auto type = this->type();
+
+  if (e->key() == Qt::Key_Escape) {
+    if (type == Type::GAME)
+      setType(Type::CAMERA);
+    else
+      setType(Type::GAME);
+
+    update();
+
+    return;
+  }
+
+  //---
+
+  if (type == Type::GAME) {
+    QString text;
+
+    if      (e->key() == Qt::Key_Left ) text = "left";
+    else if (e->key() == Qt::Key_Right) text = "right";
+    else if (e->key() == Qt::Key_Up   ) text = "up";
+    else if (e->key() == Qt::Key_Down ) text = "down";
+    else if (e->key() == Qt::Key_Space) text = "space";
+    else                                text = e->text();
+
+    if (text == "")
+      text = QString("key.%1").arg(e->key());
+
+    app_->runTclCmd(QString("keyPress {%1}").arg(text));
+
+    update();
+
+    return;
+  }
 
   if      (e->key() == Qt::Key_W) {
     if      (type == Type::CAMERA) {
@@ -753,7 +1141,7 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      lightPos_ += CGLVector3D(0.0f, 0.1f, 0.0f);
+      light_->setPos(light_->pos() + CGLVector3D(0.0f, 0.1f, 0.0f));
   }
   else if (e->key() == Qt::Key_S) {
     if      (type == Type::CAMERA) {
@@ -762,7 +1150,7 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      lightPos_ -= CGLVector3D(0.0f, 0.1f, 0.0f);
+      light_->setPos(light_->pos() - CGLVector3D(0.0f, 0.1f, 0.0f));
   }
   else if (e->key() == Qt::Key_A) {
     if      (type == Type::CAMERA) {
@@ -771,7 +1159,7 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      lightPos_ -= CGLVector3D(0.1f, 0.0f, 0.0f);
+      light_->setPos(light_->pos() - CGLVector3D(0.1f, 0.0f, 0.0f));
   }
   else if (e->key() == Qt::Key_D) {
     if      (type == Type::CAMERA) {
@@ -780,7 +1168,7 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      lightPos_ += CGLVector3D(0.1f, 0.0f, 0.0f);
+      light_->setPos(light_->pos() + CGLVector3D(0.1f, 0.0f, 0.0f));
   }
   else if (e->key() == Qt::Key_C) {
     setType(Type::CAMERA);
@@ -811,11 +1199,11 @@ keyPressEvent(QKeyEvent *e)
   }
   else if (e->key() == Qt::Key_Up) {
     if (type == Type::LIGHT)
-      lightPos_ += CGLVector3D(0.0f, 0.0f, 0.1f);
+      light_->setPos(light_->pos() + CGLVector3D(0.0f, 0.0f, 0.1f));
   }
   else if (e->key() == Qt::Key_Down) {
     if (type == Type::LIGHT)
-      lightPos_ -= CGLVector3D(0.0f, 0.0f, 0.1f);
+      light_->setPos(light_->pos() - CGLVector3D(0.0f, 0.0f, 0.1f));
   }
 
   update();
@@ -882,7 +1270,14 @@ setPosition(const CPoint3D &p)
 
   updateModelMatrix();
 
-  needsUpdate_ = true;
+  setNeedsUpdate();
+}
+
+void
+Object3D::
+init()
+{
+  modelMatrix_ = CGLMatrix3D::identity();
 }
 
 QVariant
@@ -891,8 +1286,18 @@ getValue(const QString &name, const QStringList &)
 {
   auto *app = canvas()->app();
 
-  if (name == "id")
+  if      (name == "id")
     return id();
+  else if (name == "visible")
+    return QString(isVisible() ? "1" : "0");
+  else if (name == "position")
+    return Util::point3DToString(position());
+  else if (name == "x_angle")
+    return Util::realToString(xAngle());
+  else if (name == "y_angle")
+    return Util::realToString(yAngle());
+  else if (name == "z_angle")
+    return Util::realToString(zAngle());
   else {
     app->errorMsg(QString("Invalid get name '%1'").arg(name));
     return QVariant();
@@ -904,11 +1309,53 @@ Object3D::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
   auto *app = canvas()->app();
+  auto *tcl = app->tcl();
 
-  if (name == "id")
+  if      (name == "id")
     setId(value);
+  else if (name == "visible") {
+    setVisible(Util::stringToBool(value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "position") {
+    setPosition(stringToPoint3D(tcl, value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "x_angle") {
+    setXAngle(Util::stringToReal(value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "y_angle") {
+    setYAngle(Util::stringToReal(value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "z_angle") {
+    setZAngle(Util::stringToReal(value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "scale") {
+    setScale(Util::stringToReal(value));
+
+    setNeedsUpdate();
+  }
   else
     app->errorMsg(QString("Invalid set name '%1'").arg(name));
+}
+
+void
+Object3D::
+tick()
+{
+  auto *app = canvas()->app();
+
+  ++ticks_;
+
+  app->runTclCmd("tick");
 }
 
 void
@@ -919,10 +1366,127 @@ render()
 
 //---
 
-QOpenGLShaderProgram* Model3D::s_modelShaderProgram;
+QOpenGLShaderProgram* Light3D::s_shaderProgram;
 
-Model3D::
-Model3D(Canvas3D *canvas) :
+Light3D::
+Light3D(Canvas3D *canvas) :
+ canvas_(canvas)
+{
+}
+
+void
+Light3D::
+initBuffer()
+{
+  initShader();
+
+  // set up vertex data (and buffer(s)) and configure vertex attributes
+  buffer_ = new CQGLBuffer(s_shaderProgram);
+
+  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
+  buffer_->addPoint( 0.5f, -0.5f, -0.5f);
+  buffer_->addPoint( 0.5f,  0.5f, -0.5f);
+
+  buffer_->addPoint( 0.5f,  0.5f, -0.5f);
+  buffer_->addPoint(-0.5f,  0.5f, -0.5f);
+  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
+
+  buffer_->addPoint(-0.5f, -0.5f,  0.5f);
+  buffer_->addPoint( 0.5f, -0.5f,  0.5f);
+  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
+
+  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
+  buffer_->addPoint(-0.5f,  0.5f,  0.5f);
+  buffer_->addPoint(-0.5f, -0.5f,  0.5f);
+
+  buffer_->addPoint(-0.5f,  0.5f,  0.5f);
+  buffer_->addPoint(-0.5f,  0.5f, -0.5f);
+  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
+
+  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
+  buffer_->addPoint(-0.5f, -0.5f,  0.5f);
+  buffer_->addPoint(-0.5f,  0.5f,  0.5f);
+
+  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
+  buffer_->addPoint( 0.5f,  0.5f, -0.5f);
+  buffer_->addPoint( 0.5f, -0.5f, -0.5f);
+
+  buffer_->addPoint( 0.5f, -0.5f, -0.5f);
+  buffer_->addPoint( 0.5f, -0.5f,  0.5f);
+  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
+
+  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
+  buffer_->addPoint( 0.5f, -0.5f, -0.5f);
+  buffer_->addPoint( 0.5f, -0.5f,  0.5f);
+
+  buffer_->addPoint( 0.5f, -0.5f,  0.5f);
+  buffer_->addPoint(-0.5f, -0.5f,  0.5f);
+  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
+
+  buffer_->addPoint(-0.5f,  0.5f, -0.5f);
+  buffer_->addPoint( 0.5f,  0.5f, -0.5f);
+  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
+
+  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
+  buffer_->addPoint(-0.5f,  0.5f,  0.5f);
+  buffer_->addPoint(-0.5f,  0.5f, -0.5f);
+
+  buffer_->load();
+}
+
+void
+Light3D::
+initShader()
+{
+  if (! s_shaderProgram) {
+    QString buildDir = QUOTE(BUILD_DIR);
+
+    s_shaderProgram = new QOpenGLShaderProgram;
+
+    if (! s_shaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex,
+                                                   buildDir + "/shaders/light.vs"))
+      std::cerr << s_shaderProgram->log().toStdString() << "\n";
+
+    if (! s_shaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
+                                                   buildDir + "/shaders/light.fs"))
+      std::cerr << s_shaderProgram->log().toStdString() << "\n";
+
+    s_shaderProgram->link();
+  }
+}
+
+void
+Light3D::
+render()
+{
+  initBuffer();
+
+  // setup light shader
+  buffer_->bind();
+
+  s_shaderProgram->bind();
+
+  s_shaderProgram->setUniformValue("projection",
+    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_shaderProgram->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  auto lightMatrix = CGLMatrix3D::translation(pos());
+  lightMatrix.scaled(0.01f, 0.01f, 0.01f);
+  s_shaderProgram->setUniformValue("model", CQGLUtil::toQMatrix(lightMatrix));
+
+  // draw light
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  //buffer_->drawTriangles();
+
+  buffer_->unbind();
+}
+
+//---
+
+QOpenGLShaderProgram* Model3DObj::s_modelShaderProgram;
+
+Model3DObj::
+Model3DObj(Canvas3D *canvas) :
  Object3D(canvas)
 {
   if (! s_modelShaderProgram) {
@@ -943,7 +1507,7 @@ Model3D(Canvas3D *canvas) :
 }
 
 bool
-Model3D::
+Model3DObj::
 load(const QString &filename)
 {
   filename_ = filename;
@@ -973,11 +1537,12 @@ load(const QString &filename)
 }
 
 void
-Model3D::
+Model3DObj::
 render()
 {
   // lighting
-  CGLVector3D lightColor(1.0f, 1.0f, 1.0f);
+  auto lightPos   = canvas_->light()->pos();
+  auto lightColor = canvas_->light()->color();
 
   //---
 
@@ -998,7 +1563,7 @@ render()
     s_modelShaderProgram->bind();
 
     s_modelShaderProgram->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
-    s_modelShaderProgram->setUniformValue("lightPos"  , CQGLUtil::toVector(canvas_->lightPos()));
+    s_modelShaderProgram->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
     s_modelShaderProgram->setUniformValue("viewPos"   , CQGLUtil::toVector(canvas_->viewPos()));
 
     s_modelShaderProgram->setUniformValue("ambientStrength" , float(canvas_->ambient()));
@@ -1077,7 +1642,7 @@ render()
 }
 
 void
-Model3D::
+Model3DObj::
 updateObjectData()
 {
   // set up vertex data (and buffer(s)) and configure vertex attributes
@@ -1275,37 +1840,38 @@ void
 Shape3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *tcl = canvas_->app()->tcl();
+  auto *app = canvas_->app();
+  auto *tcl = app->tcl();
 
   if      (name == "points") {
     points_ = stringToVectors3D(tcl, value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "indices") {
     indices_ = stringToUIntArray(tcl, value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "colors") {
-    colors_ = stringToVectors3D(tcl, value);
+    colors_ = stringToColors(tcl, value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "tex_coords") {
     texCoords_ = stringToVectors2D(tcl, value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
+  }
+  else if (name == "color") {
+    setColor(stringToColor(tcl, value));
+
+    setNeedsUpdate();
   }
   else if (name == "texture") {
     setTexture(value);
 
-    needsUpdate_ = true;
-  }
-  else if (name == "scale") {
-    scale_ = Util::stringToReal(value);
-
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "angle") {
     auto p = stringToPoint3D(tcl, value);
@@ -1314,37 +1880,88 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     yAngle_ = p.getY();
     zAngle_ = p.getZ();
 
-    needsUpdate_ = true;
-  }
-  else if (name == "position") {
-    setPosition(stringToPoint3D(tcl, value));
+    setNeedsUpdate();
   }
   else if (name == "wireframe") {
     wireframe_ = Util::stringToBool(value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "cone") {
     QStringList strs;
     (void) tcl->splitList(value, strs);
-    if (strs.size() != 2) return;
+
+    if (strs.size() != 2) {
+      app->errorMsg("Invalid dimensions for cone");
+      return;
+    }
 
     double r = Util::stringToReal(strs[0]);
     double h = Util::stringToReal(strs[1]);
 
     addCone(r, h);
 
-    needsUpdate_ = true;
+    delete geom_;
+    geom_ = new CCone3D(r);
+
+    setNeedsUpdate();
+  }
+  else if (name == "cylinder") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.size() != 2) {
+      app->errorMsg("Invalid dimensions for cylinder");
+      return;
+    }
+
+    double r = Util::stringToReal(strs[0]);
+    double h = Util::stringToReal(strs[1]);
+
+    addCylinder(r, h);
+
+    delete geom_;
+    geom_ = new CCylinder3D(r);
+
+    setNeedsUpdate();
   }
   else if (name == "sphere") {
     double r = Util::stringToReal(value);
 
     addSphere(r);
+
+    delete geom_;
+    geom_ = new CSphere3D(r);
+
+    setNeedsUpdate();
   }
   else if (name == "cube") {
-    double s = Util::stringToReal(value);
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
 
-    addCube(s);
+    double sx = 1.0, sy = 1.0, sz = 1.0;
+
+    if      (strs.size() == 1) {
+      sx = Util::stringToReal(value);
+      sy = sx;
+      sz = sx;
+    }
+    else if (strs.size() == 3) {
+      sx = Util::stringToReal(strs[0]);
+      sy = Util::stringToReal(strs[1]);
+      sz = Util::stringToReal(strs[2]);
+    }
+    else {
+      app->errorMsg("bad sizes for cube");
+      return;
+    }
+
+    addCube(sx, sy, sz);
+
+    delete geom_;
+    geom_ = new CBox3D(sx, sy, sz);
+
+    setNeedsUpdate();
   }
   else
     Object3D::setValue(name, value, args);
@@ -1364,6 +1981,32 @@ addCone(double r, double h)
 
   x[0         ] = r; y[0         ] = 0;
   x[stacks - 1] = 0; y[stacks - 1] = h;
+
+  double dx = stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0;
+  double dy = stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0;
+
+  for (uint i = 1; i < stacks - 1; ++i) {
+    x[i] = x[i - 1] + dx;
+    y[i] = y[i - 1] + dy;
+  }
+
+  addBodyRev(&x[0], &y[0], stacks, slices);
+}
+
+void
+Shape3DObj::
+addCylinder(double r, double h)
+{
+  uint stacks = 20;
+  uint slices = 20;
+
+  std::vector<double> x, y;
+
+  x.resize(stacks);
+  y.resize(stacks);
+
+  x[0         ] = r; y[0         ] = 0;
+  x[stacks - 1] = r; y[stacks - 1] = h;
 
   double dx = stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0;
   double dy = stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0;
@@ -1404,7 +2047,7 @@ addSphere(double radius)
 
 void
 Shape3DObj::
-addCube(double s)
+addCube(double sx, double sy, double sz)
 {
   static CGLVector3D cube_normal[6] = {
     {-1.0,  0.0,  0.0},
@@ -1424,9 +2067,9 @@ addCube(double s)
     {7, 4, 0, 3}
   };
 
-  double xs = s/2.0;
-  double ys = s/2.0;
-  double zs = s/2.0;
+  double xs = sx/2.0;
+  double ys = sy/2.0;
+  double zs = sz/2.0;
 
   struct Point {
     float x;
@@ -1436,12 +2079,12 @@ addCube(double s)
 
   std::vector<Point> v; v.resize(8);
 
-  v[0].x = v[1].x = v[2].x = v[3].x = -xs/2;
-  v[4].x = v[5].x = v[6].x = v[7].x =  xs/2;
-  v[0].y = v[1].y = v[4].y = v[5].y = -ys/2;
-  v[2].y = v[3].y = v[6].y = v[7].y =  ys/2;
-  v[0].z = v[3].z = v[4].z = v[7].z = -zs/2;
-  v[1].z = v[2].z = v[5].z = v[6].z =  zs/2;
+  v[0].x = v[1].x = v[2].x = v[3].x = -xs;
+  v[4].x = v[5].x = v[6].x = v[7].x =  xs;
+  v[0].y = v[1].y = v[4].y = v[5].y = -ys;
+  v[2].y = v[3].y = v[6].y = v[7].y =  ys;
+  v[0].z = v[3].z = v[4].z = v[7].z = -zs;
+  v[1].z = v[2].z = v[5].z = v[6].z =  zs;
 
   points_   .resize(36);
   texCoords_.resize(36);
@@ -1631,7 +2274,7 @@ void
 Shape3DObj::
 init()
 {
-  modelMatrix_ = CGLMatrix3D::identity();
+  Object3D::init();
 
   //---
 
@@ -1640,14 +2283,14 @@ init()
       "#version 330 core\n"
       "layout (location = 0) in vec3 aPos;\n"
       "layout (location = 1) in vec3 aNormal;\n"
-      "layout (location = 2) in vec3 aColor;\n"
+      "layout (location = 2) in vec4 aColor;\n"
       "layout (location = 3) in vec2 aTexCoord;\n"
       "uniform highp mat4 projection;\n"
       "uniform highp mat4 view;\n"
       "uniform highp mat4 model;\n"
       "out vec3 FragPos;\n"
       "out vec3 Normal;\n"
-      "out vec3 Color;\n"
+      "out vec4 Color;\n"
       "out vec2 TexCoord;\n"
       "void main() {\n"
       "  FragPos  = vec3(model * vec4(aPos, 1.0));\n"
@@ -1660,7 +2303,7 @@ init()
       "#version 330 core\n"
       "in vec3 FragPos;\n"
       "in vec3 Normal;\n"
-      "in vec3 Color;\n"
+      "in vec4 Color;\n"
       "in vec2 TexCoord;\n"
       "out vec4 FragColor;\n"
       "uniform vec3 lightPos;\n"
@@ -1676,19 +2319,19 @@ init()
       "  vec3 norm = normalize(Normal);\n"
       "  vec3 lightDir = normalize(lightPos - FragPos);\n"
       "  float diff = max(dot(norm, lightDir), 0.0);\n"
-      "  vec3 diffuseColor = Color;\n"
+      "  vec4 diffuseColor = Color;\n"
       "  if (useTexture) {\n"
-      "    diffuseColor = texture(textureId, TexCoord).xyz;\n"
+      "    diffuseColor = texture(textureId, TexCoord);\n"
       "  }\n"
-      "  vec3 diffuse = diffuseStrength*diff*diffuseColor;\n"
-      "  vec3 ambient = ambientStrength*diffuseColor;\n"
+      "  vec4 diffuse = diffuseStrength*diff*diffuseColor;\n"
+      "  vec4 ambient = ambientStrength*diffuseColor;\n"
       "  vec3 viewDir = normalize(viewPos - FragPos);\n"
       "  vec3 reflectDir = reflect(-lightDir, norm);\n"
       "  float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
-      "  vec3 specColor = lightColor;\n"
-      "  vec3 specular = specularStrength*spec*specColor;\n"
-      "  vec3 result = ambient + diffuse + specular;\n"
-      "  FragColor = vec4(result, 1.0f);\n"
+      "  vec4 specColor = vec4(lightColor, 1.0);\n"
+      "  vec4 specular = specularStrength*spec*specColor;\n"
+      "  vec4 result = ambient + diffuse + specular;\n"
+      "  FragColor = result;\n"
       "}\n";
 
     s_program = new ProgramData;
@@ -1710,6 +2353,32 @@ init()
   canvas_->glGenBuffers(1, &colorsBufferId_);
   canvas_->glGenBuffers(1, &texCoordBufferId_);
   canvas_->glGenBuffers(1, &indBufferId_);
+}
+
+bool
+Shape3DObj::
+intersect(const CGLVector3D &p1, const CGLVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
+{
+  if (! geom_)
+    return false;
+
+  CLine3D line(p1.getX(), p1.getY(), p1.getZ(), p2.getX(), p2.getY(), p2.getZ());
+
+  double tmin, tmax;
+  if (! geom_->intersect(line, &tmin, &tmax))
+    return false;
+
+//if ((tmin < 0.0 || tmin > 1.0) && (tmax < 0.0 || tmax > 1.0))
+//  return false;
+
+  pi1 = line.interp(tmin);
+  pi2 = line.interp(tmax);
+
+//std::cerr << "Intersect: " << id().toStdString() << " " << tmin << " " <<  tmax << "\n";
+//std::cerr << "  " << Util::point3DToString(pi1).toStdString() << " " <<
+//                     Util::point3DToString(pi2).toStdString() << "\n";
+
+  return true;
 }
 
 void
@@ -1757,25 +2426,27 @@ updateGL()
   // store color data in array buffer
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
   if (nc > 0) {
-    canvas_->glBufferData(GL_ARRAY_BUFFER, nc*sizeof(CGLVector3D), &colors_[0], GL_STATIC_DRAW);
+    canvas_->glBufferData(GL_ARRAY_BUFFER, nc*sizeof(Color), &colors_[0], GL_STATIC_DRAW);
   }
   else {
     static Colors s_colors_;
 
-    if (int(s_colors_.size()) != np) {
+    if (int(s_colors_.size()) != np)
       s_colors_.resize(np);
 
-      for (int i = 0; i < np; ++i) {
-        s_colors_[i] = CGLVector3D(1.0, 1.0, 1.0);
-      }
-    }
+    auto c = this->color();
 
-    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D),
-                          &s_colors_[0], GL_STATIC_DRAW);
+    if (isInside())
+      c = Color(0.8, 0.4, 0.4, 0.5);
+
+    for (int i = 0; i < np; ++i)
+      s_colors_[i] = c;
+
+    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(Color), &s_colors_[0], GL_STATIC_DRAW);
   }
 
   // set colors attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
+  canvas_->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Color), nullptr);
   canvas_->glEnableVertexAttribArray(2);
 
   //---
@@ -1784,7 +2455,10 @@ updateGL()
 
   useTexture_ = (texture_ && nt > 0);
 
-  // store point data in array buffer
+  if (isInside())
+    useTexture_ = false;
+
+  // store texture point data in array buffer
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferId_);
   if (useTexture_) {
     canvas_->glBufferData(GL_ARRAY_BUFFER, nt*sizeof(CGLVector2D), &texCoords_[0], GL_STATIC_DRAW);
@@ -1803,7 +2477,7 @@ updateGL()
                           &s_texCoords[0], GL_STATIC_DRAW);
   }
 
-  // set points attrib data and format (for current buffer)
+  // set texture points attrib data and format (for current buffer)
   canvas_->glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(CGLVector2D), nullptr);
   canvas_->glEnableVertexAttribArray(3);
 
@@ -1853,14 +2527,15 @@ render()
 
   //---
 
-  CGLVector3D lightColor(1.0f, 1.0f, 1.0f);
+  auto lightPos   = canvas_->light()->pos();
+  auto lightColor = canvas_->light()->color();
 
   auto *program = s_program->program;
 
   program->bind();
 
   program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
-  program->setUniformValue("lightPos"  , CQGLUtil::toVector(canvas_->lightPos()));
+  program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
   program->setUniformValue("viewPos"   , CQGLUtil::toVector(canvas_->viewPos()));
 
   program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
@@ -1875,7 +2550,7 @@ render()
   modelMatrix_.translated(float(position().getX()),
                           float(position().getY()),
                           float(position().getZ()));
-  modelMatrix_.scaled(scale(), scale(), scale());
+  modelMatrix_.scaled(xscale(), yscale(), zscale());
   modelMatrix_.rotated(xAngle(), CGLVector3D(1.0, 0.0, 0.0));
   modelMatrix_.rotated(yAngle(), CGLVector3D(0.0, 1.0, 0.0));
   modelMatrix_.rotated(zAngle(), CGLVector3D(0.0, 0.0, 1.0));
@@ -1888,8 +2563,8 @@ render()
 
   //---
 
-  s_program->program->setUniformValue("useTexture", useTexture_);
-  s_program->program->setUniformValue("textureId", 0);
+  program->setUniformValue("useTexture", useTexture_);
+  program->setUniformValue("textureId", 0);
 
   if (useTexture_) {
     glEnable(GL_TEXTURE_2D);
@@ -1922,12 +2597,12 @@ render()
 //---
 
 bool
-CubeObj::
+Cube3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
   auto *tcl = canvas->app()->tcl();
 
-  auto *obj = new CubeObj(canvas);
+  auto *obj = new Cube3DObj(canvas);
 
   auto name = canvas->addNewObject(obj);
 
@@ -1938,16 +2613,20 @@ create(Canvas3D *canvas, const QStringList &)
   return true;
 }
 
-CubeObj::
-CubeObj(Canvas3D *canvas) :
+Cube3DObj::
+Cube3DObj(Canvas3D *canvas) :
  Shape3DObj(canvas)
 {
 }
 
 void
-CubeObj::
+Cube3DObj::
 init()
 {
+  Object3D::init();
+
+  //---
+
   static Points points = {
     CGLVector3D(-0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f, -0.5f),
@@ -2045,12 +2724,12 @@ init()
 //---
 
 bool
-ShaderObj::
+Shader3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
   auto *tcl = canvas->app()->tcl();
 
-  auto *obj = new ShaderObj(canvas);
+  auto *obj = new Shader3DObj(canvas);
 
   auto name = canvas->addNewObject(obj);
 
@@ -2061,16 +2740,20 @@ create(Canvas3D *canvas, const QStringList &)
   return true;
 }
 
-ShaderObj::
-ShaderObj(Canvas3D *canvas) :
+Shader3DObj::
+Shader3DObj(Canvas3D *canvas) :
  Object3D(canvas)
 {
 }
 
 void
-ShaderObj::
+Shader3DObj::
 init()
 {
+  Object3D::init();
+
+  //---
+
   fragmentShader_ = QString("\
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {\n\
   vec2 uv = fragCoord/iResolution;\n\
@@ -2088,14 +2771,14 @@ void main() {\n\
 }
 
 QVariant
-ShaderObj::
+Shader3DObj::
 getValue(const QString &name, const QStringList &args)
 {
   return Object3D::getValue(name, args);
 }
 
 void
-ShaderObj::
+Shader3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if      (name == "vertex_shader") {
@@ -2111,7 +2794,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 }
 
 void
-ShaderObj::
+Shader3DObj::
 updateShaders()
 {
   if (shaderValid_)
@@ -2155,16 +2838,16 @@ void main() {\n\
 }
 
 void
-ShaderObj::
+Shader3DObj::
 tick()
 {
   elapsed_ += canvas_->redrawTimeOut()/1000.0;
 
-  ++frame_;
+  Object3D::tick();
 }
 
 void
-ShaderObj::
+Shader3DObj::
 render()
 {
   updateShaders();
@@ -2179,7 +2862,7 @@ render()
   //---
 
   int frameLocation = program_->uniformLocation("iFrame");
-  program_->setUniformValue(frameLocation, GLint(frame_));
+  program_->setUniformValue(frameLocation, GLint(ticks_));
 
   //---
 
@@ -2213,16 +2896,16 @@ render()
 
 //---
 
-size_t                                    ParticleListObj::s_maxPoints = 10000;
-ParticleListObj::ParticleListProgramData *ParticleListObj::s_program   = nullptr;
+size_t                                      ParticleList3DObj::s_maxPoints = 10000;
+ParticleList3DObj::ParticleListProgramData *ParticleList3DObj::s_program   = nullptr;
 
 bool
-ParticleListObj::
+ParticleList3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
   auto *tcl = canvas->app()->tcl();
 
-  auto *obj = new ParticleListObj(canvas);
+  auto *obj = new ParticleList3DObj(canvas);
 
   auto name = canvas->addNewObject(obj);
 
@@ -2233,14 +2916,14 @@ create(Canvas3D *canvas, const QStringList &)
   return true;
 }
 
-ParticleListObj::
-ParticleListObj(Canvas3D *canvas) :
+ParticleList3DObj::
+ParticleList3DObj(Canvas3D *canvas) :
  Object3D(canvas)
 {
 }
 
 QVariant
-ParticleListObj::
+ParticleList3DObj::
 getValue(const QString &name, const QStringList &args)
 {
   if      (name == "size") {
@@ -2275,7 +2958,7 @@ getValue(const QString &name, const QStringList &args)
 }
 
 void
-ParticleListObj::
+ParticleList3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas_->app();
@@ -2405,7 +3088,16 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 }
 
 void
-ParticleListObj::
+ParticleList3DObj::
+setPoints(const Points &points)
+{
+  setNumPoints(points.size());
+
+  points_ = points;
+}
+
+void
+ParticleList3DObj::
 setNumPoints(int n)
 {
   auto n1 = int(points_.size());
@@ -2425,9 +3117,13 @@ setNumPoints(int n)
 }
 
 void
-ParticleListObj::
+ParticleList3DObj::
 init()
 {
+  Object3D::init();
+
+  //---
+
   if (! s_program) {
     static const char *vertexShaderSource =
       "#version 330 core\n"
@@ -2506,7 +3202,7 @@ init()
 }
 
 void
-ParticleListObj::
+ParticleList3DObj::
 tick()
 {
   if      (flocking_) {
@@ -2514,7 +3210,7 @@ tick()
 
     updateFlocking();
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (fireworks_) {
     fireworks_->step();
@@ -2525,12 +3221,14 @@ tick()
 
     updateFireworks();
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
+
+  Object3D::tick();
 }
 
 void
-ParticleListObj::
+ParticleList3DObj::
 updateFlocking()
 {
   double w = CFlock::getWorld().getXSize()/2;
@@ -2557,7 +3255,7 @@ updateFlocking()
 }
 
 void
-ParticleListObj::
+ParticleList3DObj::
 updateFireworks()
 {
   const auto &particles = fireworks_->currentParticles();
@@ -2583,7 +3281,7 @@ updateFireworks()
 }
 
 void
-ParticleListObj::
+ParticleList3DObj::
 render()
 {
   s_program->program->bind();
@@ -2767,6 +3465,10 @@ void
 Graph3DObj::
 init()
 {
+  Object3D::init();
+
+  //---
+
   if (! s_program1) {
     static const char *vertexShader1 =
       "#version 330 core\n"
@@ -2929,6 +3631,8 @@ tick()
   updatePoints();
 
   updateTextObjs();
+
+  Object3D::tick();
 }
 
 void
@@ -3120,15 +3824,15 @@ render()
 
 //---
 
-ProgramData *SurfaceObj::s_program   = nullptr;
+ProgramData *Surface3DObj::s_program   = nullptr;
 
 bool
-SurfaceObj::
+Surface3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
   auto *tcl = canvas->app()->tcl();
 
-  auto *obj = new SurfaceObj(canvas);
+  auto *obj = new Surface3DObj(canvas);
 
   auto name = canvas->addNewObject(obj);
 
@@ -3139,21 +3843,21 @@ create(Canvas3D *canvas, const QStringList &)
   return true;
 }
 
-SurfaceObj::
-SurfaceObj(Canvas3D *canvas) :
+Surface3DObj::
+Surface3DObj(Canvas3D *canvas) :
  Object3D(canvas)
 {
 }
 
 QVariant
-SurfaceObj::
+Surface3DObj::
 getValue(const QString &name, const QStringList &args)
 {
   return Object3D::getValue(name, args);
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas_->app();
@@ -3171,7 +3875,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     resizePoints();
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "water_surface") {
     bool ok;
@@ -3253,7 +3957,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else
       app->errorMsg("Missing index for point");
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "color") {
     int ix = -1, iy = -1;
@@ -3285,19 +3989,19 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else
       app->errorMsg("Missing index for color");
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "wireframe") {
     wireframe_ = Util::stringToBool(value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else
     Object3D::setValue(name, value, args);
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 resizePoints()
 {
   auto np = nx_*ny_;
@@ -3345,10 +4049,10 @@ resizePoints()
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 init()
 {
-  modelMatrix_ = CGLMatrix3D::identity();
+  Object3D::init();
 
   //---
 
@@ -3420,7 +4124,7 @@ init()
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 tick()
 {
   if      (waterSurface_) {
@@ -3428,19 +4132,21 @@ tick()
 
     updateWaterSurface();
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (flag_) {
     flag_->step(0.0005);
 
     updateFlag();
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
+
+  Object3D::tick();
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 updateWaterSurface()
 {
   uint nxy = nx_*ny_;
@@ -3451,7 +4157,7 @@ updateWaterSurface()
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 updateFlag()
 {
   int i = 0;
@@ -3472,7 +4178,7 @@ updateFlag()
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 updateGL()
 {
   if (! needsUpdate_)
@@ -3537,7 +4243,7 @@ updateGL()
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 calcNormals()
 {
   auto np = points_.size();
@@ -3566,7 +4272,7 @@ calcNormals()
 }
 
 void
-SurfaceObj::
+Surface3DObj::
 render()
 {
   updateGL();
@@ -3578,14 +4284,15 @@ render()
 
   //---
 
-  CGLVector3D lightColor(1.0f, 1.0f, 1.0f);
+  auto lightPos   = canvas_->light()->pos();
+  auto lightColor = canvas_->light()->color();
 
   auto *program = s_program->program;
 
   program->bind();
 
   program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
-  program->setUniformValue("lightPos"  , CQGLUtil::toVector(canvas_->lightPos()));
+  program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
   program->setUniformValue("viewPos"   , CQGLUtil::toVector(canvas_->viewPos()));
 
   program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
@@ -3667,6 +4374,10 @@ void
 Text3DObj::
 init()
 {
+  Object3D::init();
+
+  //---
+
   if (! s_program) {
     static const char *vertexShaderSource =
       "#version 330 core\n"
@@ -3823,7 +4534,7 @@ updateTextData()
   indexes_ .clear();
   colors_  .clear();
 
-  const auto &color = color_;
+  const auto &color = this->color();
 
   uint16_t lastIndex = 0;
 
@@ -4075,7 +4786,7 @@ void
 Path3DObj::
 init()
 {
-  modelMatrix_ = CGLMatrix3D::identity();
+  Object3D::init();
 
   //---
 
@@ -4123,7 +4834,7 @@ setLine(const CGLVector3D &p1, const CGLVector3D &p2)
 
   updatePoints();
 
-  needsUpdate_ = true;
+  setNeedsUpdate();
 }
 
 QVariant
@@ -4166,7 +4877,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     updatePoints();
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else
     Object3D::setValue(name, value, args);
@@ -4287,6 +4998,7 @@ void
 Axis3DObj::
 init()
 {
+  Object3D::init();
 }
 
 QVariant
@@ -4306,22 +5018,50 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   if      (name == "start") {
     start_ = stringToVector3D(tcl, value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "end") {
     end_ = stringToVector3D(tcl, value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "min") {
     min_ = Util::stringToReal(value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "max") {
     max_ = Util::stringToReal(value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
+  }
+  else if (name == "auto_range") {
+    if      (value == "x") {
+      const auto &xrange = canvas_->xrange();
+
+      start_ = CGLVector3D(-1, -0.5, -0.5);
+      end_   = CGLVector3D( 1, -0.5, -0.5);
+      min_   = xrange.min();
+      max_   = xrange.max();
+    }
+    else if (value == "y") {
+      const auto &yrange = canvas_->yrange();
+
+      start_ = CGLVector3D(-0.5, -1, -0.5);
+      end_   = CGLVector3D(-0.5,  1, -0.5);
+      min_   = yrange.min();
+      max_   = yrange.max();
+    }
+    else if (value == "z") {
+      const auto &zrange = canvas_->zrange();
+
+      start_ = CGLVector3D(-0.5, -0.5,  1);
+      end_   = CGLVector3D(-0.5, -0.5, -1);
+      min_   = zrange.min();
+      max_   = zrange.max();
+    }
+
+    setNeedsUpdate();
   }
   else {
     Object3D::setValue(name, value, args);
@@ -4333,6 +5073,8 @@ Axis3DObj::
 tick()
 {
   updateObjects();
+
+  Object3D::tick();
 }
 
 void
@@ -4428,6 +5170,649 @@ void
 Axis3DObj::
 render()
 {
+}
+
+//---
+
+ProgramData *Sprite3DObj::s_program = nullptr;
+
+bool
+Sprite3DObj::
+create(Canvas3D *canvas, const QStringList &)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new Sprite3DObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  obj->init();
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+Sprite3DObj::
+Sprite3DObj(Canvas3D *canvas) :
+ Object3D(canvas)
+{
+}
+
+void
+Sprite3DObj::
+init()
+{
+  Object3D::init();
+
+  //---
+
+  if (! s_program) {
+    static const char *vertexShaderSource =
+      "#version 330 core\n"
+      "layout (location = 0) in vec3 aPos;\n"
+      "layout (location = 1) in vec2 aTexCoord;\n"
+      "out vec2 TexCoord;\n"
+      "uniform mat4 model;\n"
+      "uniform mat4 view;\n"
+      "void main() {\n"
+      "  TexCoord = aTexCoord;\n"
+      "  //gl_Position = vec4(aPos, 1.0);\n"
+      "  gl_Position = view * model * vec4(aPos, 1.0);\n"
+      "}\n";
+    static const char *fragmentShaderSource =
+      "#version 330 core\n"
+      "out vec4 FragColor;\n"
+      "in vec2 TexCoord;\n"
+      "uniform sampler2D textureId;\n"
+      "void main() {\n"
+      "  vec4 texColor = texture(textureId, TexCoord);\n"
+      " if(texColor.a < 0.1)\n"
+      "   discard;\n"
+      " FragColor = texColor;\n"
+      "}\n";
+
+    s_program = new ProgramData;
+
+    s_program->program = new QOpenGLShaderProgram(this);
+
+    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    s_program->program->link();
+  }
+
+  //---
+
+  updateBuffer();
+}
+
+void
+Sprite3DObj::
+updateBuffer()
+{
+  delete buffer_;
+
+  buffer_ = new CQGLBuffer(s_program->program);
+
+  auto z = position().z;
+
+  buffer_->addPoint(-1.0f,  1.0f, float(z)); buffer_->addTexturePoint(0.0f, 0.0f);
+  buffer_->addPoint(-1.0f, -1.0f, float(z)); buffer_->addTexturePoint(0.0f, 1.0f);
+  buffer_->addPoint( 1.0f,  1.0f, float(z)); buffer_->addTexturePoint(1.0f, 0.0f);
+  buffer_->addPoint( 1.0f, -1.0f, float(z)); buffer_->addTexturePoint(1.0f, 1.0f);
+
+  buffer_->load();
+}
+
+void
+Sprite3DObj::
+setTexture(CQGLTexture *texture)
+{
+  textures_.clear();
+
+  textures_.push_back(texture);
+}
+
+QVariant
+Sprite3DObj::
+getValue(const QString &name, const QStringList &args)
+{
+  return Object3D::getValue(name, args);
+}
+
+void
+Sprite3DObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto *app = canvas_->app();
+  auto *tcl = app->tcl();
+
+  if      (name == "add_image") {
+    auto *texture = new CQGLTexture;
+
+    if (texture->load(value, /*flip*/false))
+      textures_.push_back(texture);
+    else
+      delete texture;
+  }
+  else if (name == "image_start") {
+    textureStart_ = Util::stringToInt(value);
+  }
+  else if (name == "image_end") {
+    textureEnd_ = Util::stringToInt(value);
+  }
+  else if (name == "velocity") {
+    auto v = stringToPoint2D(tcl, value);
+
+    xv_ = v.x;
+    yv_ = v.y;
+  }
+  else
+    Object3D::setValue(name, value, args);
+}
+
+void
+Sprite3DObj::
+tick()
+{
+  updateObjects();
+
+  Object3D::tick();
+
+  position_ = CPoint3D(position_.x + xv_, position_.y + yv_, position_.z);
+
+  if (ticks_ % 100) {
+    int textureEnd = textureEnd_;
+
+    if (textureEnd < 0)
+      textureEnd = int(textures_.size()) - 1;
+
+    int numTextures = std::max(textureEnd - textureStart_ + 1, 0);
+
+    ++textureNum_;
+
+    if (textureNum_ >= numTextures)
+      textureNum_ = 0;
+  }
+}
+
+void
+Sprite3DObj::
+updateObjects()
+{
+  if (! needsUpdate_)
+    return;
+
+  needsUpdate_ = false;
+
+  //---
+
+  updateModelMatrix();
+}
+
+void
+Sprite3DObj::
+updateModelMatrix()
+{
+  modelMatrix_ = CGLMatrix3D::identity();
+
+  modelMatrix_.translated(float(position().getX()),
+                          float(position().getY()),
+                          float(position().getZ()));
+
+//modelMatrix_.rotated(xAngle(), CGLVector3D(1.0, 0.0, 0.0));
+//modelMatrix_.rotated(yAngle(), CGLVector3D(0.0, 1.0, 0.0));
+  modelMatrix_.rotated(zAngle(), CGLVector3D(0.0, 0.0, 1.0));
+
+  modelMatrix_.scaled(xscale(), yscale(), 1.0);
+}
+
+void
+Sprite3DObj::
+render()
+{
+  buffer_->bind();
+
+  //---
+
+  auto *program = s_program->program;
+
+  program->bind();
+
+  program->setUniformValue("textureId", 0);
+
+  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  updateModelMatrix();
+
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+
+  glActiveTexture(GL_TEXTURE0);
+
+  int textureNum = textureNum_ + textureStart_;
+
+  if (textureNum >= 0 && textureNum < int(textures_.size()))
+    textures_[textureNum]->bind();
+
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+  buffer_->unbind();
+}
+
+//---
+
+bool
+Othello3DObj::
+create(Canvas3D *canvas, const QStringList &)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new Othello3DObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  obj->init();
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+Othello3DObj::
+Othello3DObj(Canvas3D *canvas) :
+ Object3D(canvas)
+{
+  board_ = new COthelloBoard;
+}
+
+void
+Othello3DObj::
+init()
+{
+  Object3D::init();
+}
+
+QVariant
+Othello3DObj::
+getValue(const QString &name, const QStringList &args)
+{
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
+  struct Index {
+    int ix { -1 };
+    int iy { -1 };
+
+    bool isValid() { return (ix >= 0 && iy >= 0); }
+  };
+
+  auto argsToIndex = [&]() {
+    Index ind;
+
+    if (args.size() < 1) {
+      app->errorMsg("Missing index for " + name);
+      return ind;
+    }
+
+    QStringList strs;
+    (void) tcl->splitList(args[0], strs);
+
+    if (strs.size() != 2) {
+      app->errorMsg("Missing index for " + name);
+      return ind;
+    }
+
+    ind.ix = Util::stringToInt(strs[0]);
+    ind.iy = Util::stringToInt(strs[1]);
+
+    return ind;
+  };
+
+  auto stringToPiece = [](const QString &str) {
+    if      (str.toLower() == "white")
+      return COTHELLO_PIECE_WHITE;
+    else if (str.toLower() == "black")
+      return COTHELLO_PIECE_BLACK;
+    else
+      return COTHELLO_PIECE_NONE;
+  };
+
+  if      (name == "init_board") {
+  }
+  else if (name == "board_piece") {
+  }
+  else if (name == "can_move_anywhere") {
+  }
+  else if (name == "can_move") {
+    if (args.size() != 2) {
+      app->errorMsg("Invalid args for " + name);
+      return QVariant();
+    }
+
+    auto ind = argsToIndex();
+    if (! ind.isValid()) return QVariant();
+
+    auto b = board_->canMove(ind.ix, ind.iy, stringToPiece(args[1]));
+
+    return QVariant(b);
+  }
+  else if (name == "do_move") {
+    if (args.size() != 2) {
+      app->errorMsg("Invalid args for " + name);
+      return QVariant();
+    }
+
+    auto ind = argsToIndex();
+    if (! ind.isValid()) return QVariant();
+
+    board_->doMove(ind.ix, ind.iy, stringToPiece(args[1]));
+
+    return QVariant();
+  }
+  else if (name == "is_white_piece") {
+    auto ind = argsToIndex();
+    if (! ind.isValid()) return QVariant();
+
+    return QVariant(board_->getPiece(ind.ix, ind.iy) == COTHELLO_PIECE_WHITE ? 1 : 0);
+  }
+  else if (name == "is_black_piece") {
+    auto ind = argsToIndex();
+    if (! ind.isValid()) return QVariant();
+
+    return QVariant(board_->getPiece(ind.ix, ind.iy) == COTHELLO_PIECE_BLACK ? 1 : 0);
+  }
+  else if (name == "num_white") {
+  }
+  else if (name == "num_black") {
+  }
+  else if (name == "num") {
+  }
+  else if (name == "best_move") {
+    if (args.size() != 1) {
+      app->errorMsg("Invalid args for " + name);
+      return QVariant();
+    }
+
+    int depth = 1;
+
+    int ix, iy;
+
+    auto b = board_->getBestMove(stringToPiece(args[0]), depth, &ix, &iy);
+
+    QString res;
+
+    if (b)
+      res = QString("%1 %2").arg(ix).arg(iy);
+    else
+      res = QString("-1 -1");
+
+    return QVariant(res);
+  }
+  return Object3D::getValue(name, args);
+}
+
+void
+Othello3DObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  Object3D::setValue(name, value, args);
+}
+
+void
+Othello3DObj::
+render()
+{
+}
+
+//---
+
+bool
+FieldRunners3DObj::
+create(Canvas3D *canvas, const QStringList &)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new FieldRunners3DObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  obj->init();
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+FieldRunners3DObj::
+FieldRunners3DObj(Canvas3D *canvas) :
+ Object3D(canvas)
+{
+  enum { NUM_ROWS = 15 };
+  enum { NUM_COLS = 26 };
+
+  runners_ = new CFieldRunners;
+
+  runners_->init();
+
+  runners_->build(NUM_ROWS, NUM_COLS);
+}
+
+void
+FieldRunners3DObj::
+init()
+{
+  Object3D::init();
+}
+
+void
+FieldRunners3DObj::
+tick()
+{
+  runners_->update();
+}
+
+QVariant
+FieldRunners3DObj::
+getValue(const QString &name, const QStringList &args)
+{
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
+  struct Index {
+    int ix { -1 };
+    int iy { -1 };
+
+    bool isValid() { return (ix >= 0 && iy >= 0); }
+  };
+
+  auto argsToIndex = [&]() {
+    Index ind;
+
+    if (args.size() < 1) {
+      app->errorMsg("Missing index for " + name);
+      return ind;
+    }
+
+    QStringList strs;
+    (void) tcl->splitList(args[0], strs);
+
+    if (strs.size() != 2) {
+      app->errorMsg("Missing index for " + name);
+      return ind;
+    }
+
+    ind.ix = Util::stringToInt(strs[0]);
+    ind.iy = Util::stringToInt(strs[1]);
+
+    return ind;
+  };
+
+  if (name == "cell_bg") {
+    (void) argsToIndex();
+  }
+  return Object3D::getValue(name, args);
+}
+
+void
+FieldRunners3DObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto setTexture = [&](const QString &id, const QString &filename) {
+    auto p = textures_.find(id);
+
+    if (p != textures_.end()) {
+      delete (*p).second;
+
+      textures_.erase(p);
+    }
+
+    auto *texture = new CQGLTexture;
+
+    if (! texture->load(filename, /*flip*/false)) {
+      delete texture;
+      return;
+    }
+
+    textures_[id] = texture;
+  };
+
+  if      (name == "map") {
+    runners_->loadMap(value.toStdString());
+  }
+  else if (name.left(8) == "texture.") {
+    auto id = name.mid(8);
+
+    setTexture(id, value);
+  }
+  else
+    Object3D::setValue(name, value, args);
+}
+
+void
+FieldRunners3DObj::
+render()
+{
+  auto resizeSprites = [&](Sprites &sprites, uint n) {
+    while (sprites.size() > n) {
+      auto *obj = sprites.back();
+
+      sprites.pop_back();
+
+      canvas_->removeObject(obj);
+
+      delete obj;
+    }
+
+    while (sprites.size() < n) {
+      auto *obj = new Sprite3DObj(canvas_);
+
+      (void) canvas_->addNewObject(obj);
+
+      obj->init();
+
+      sprites.push_back(obj);
+    }
+  };
+
+  //---
+
+  auto nr = runners_->getNumRows();
+  auto nc = runners_->getNumCols();
+
+  auto dx = 1.0/nc;
+  auto dy = 1.0/nr;
+
+  auto mapX = [&](int ix) { return CMathUtil::map(ix, 0, nc - 1, -1, 1); };
+  auto mapY = [&](int iy) { return CMathUtil::map(iy, 0, nr - 1, 1, -1); };
+
+  //---
+
+  {
+  auto n = uint(std::max(nr*nc, 0));
+
+  resizeSprites(bgSprites_, n);
+
+  int i = 0;
+
+  for (int r = 0; r < nr; ++r) {
+    auto y = mapY(r);
+
+    for (int c = 0; c < nc; ++c, ++i) {
+      auto x = mapX(c);
+
+      CFieldRunners::FieldCell *cell;
+      runners_->getCell(CFieldRunners::CellPos(r, c), &cell);
+
+      auto *sprite = bgSprites_[i];
+
+      sprite->setPosition(CPoint3D(x, y, 1.0));
+      sprite->setScale   (dx, dy, 1.0);
+
+      auto cellType    = CFieldRunners::CellType::EMPTY;
+      auto cellSubType = CFieldRunners::CellSubType::NONE;
+
+      if (cell) {
+        cellType    = cell->type();
+        cellSubType = cell->subType();
+      }
+
+      QString id;
+
+      if      (cellType == CFieldRunners::CellType::BORDER)
+        id = "border";
+      else if (cellType == CFieldRunners::CellType::BLOCK)
+        id = "block";
+      else if (cellType == CFieldRunners::CellType::GUN)
+        id = "gun";
+      else if (cellType == CFieldRunners::CellType::EMPTY) {
+        if      (cellSubType == CFieldRunners::CellSubType::GRASS)
+          id = "grass";
+        else if (cellSubType == CFieldRunners::CellSubType::STONE)
+          id = "stone";
+        else
+          id = "grass";
+      }
+
+      auto p = textures_.find(id);
+
+      if (p != textures_.end())
+        sprite->setTexture((*p).second);
+    }
+  }
+  }
+
+  //---
+
+  {
+  uint nr = runners_->getNumRunners();
+
+  resizeSprites(runnerSprites_, nr);
+
+  for (uint i = 0; i < nr; ++i) {
+    auto *runner = runners_->getRunner(i);
+
+    const auto &pos = runner->getPos();
+
+    auto *sprite = runnerSprites_[i];
+
+    auto x = mapX(pos.col);
+    auto y = mapY(pos.row);
+
+    sprite->setPosition(CPoint3D(x, y, 0.5));
+    sprite->setScale   (dx, dy, 1.0);
+
+    QString id;
+
+    if (runner->type() == CFieldRunners::RunnerType::SOLDIER)
+      id = "soldier";
+
+    auto p = textures_.find(id);
+
+    if (p != textures_.end())
+      sprite->setTexture((*p).second);
+  }
+  }
 }
 
 //---

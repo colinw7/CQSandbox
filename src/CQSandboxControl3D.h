@@ -15,6 +15,9 @@ class CanvasControl3D : public QFrame {
 
  private Q_SLOTS:
   void bgColorSlot(const QColor &c);
+  void nearSlot(double r);
+  void farSlot(double r);
+  void lightColorSlot(const QColor &c);
 
  private:
   Canvas3D* canvas_ { nullptr };

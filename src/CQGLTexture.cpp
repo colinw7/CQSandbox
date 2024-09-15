@@ -86,7 +86,7 @@ setImage(const QImage &image)
 
 bool
 CQGLTexture::
-init(const QImage &image, bool /*flip*/)
+init(const QImage &image, bool flip)
 {
   if (image.isNull()) {
     std::cerr << "Invalid image data\n";
@@ -109,8 +109,10 @@ init(const QImage &image, bool /*flip*/)
   int i = 0;
 
   for (int y = 0; y < h; ++y) {
+    int y1 = (flip ? h - 1 - y : y);
+
     for (int x = 0; x < w; ++x) {
-      auto rgba = image_.pixel(x, y);
+      auto rgba = image_.pixel(x, y1);
 
       imageData_[i++] = qBlue (rgba);
       imageData_[i++] = qGreen(rgba);
