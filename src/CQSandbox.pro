@@ -15,7 +15,7 @@ CONFIG += debug
 SOURCES += \
 CQSandboxMain.cpp \
 CQSandboxApp.cpp \
-CQSandbox.cpp \
+CQSandboxCanvas.cpp \
 CQSandboxEditor.cpp \
 CQSandboxCanvas3D.cpp \
 CQSandboxControl3D.cpp \
@@ -29,7 +29,9 @@ CQAxis.cpp \
 CLorenzCalc.cpp \
 CQGLUtil.cpp \
 CGLTexture.cpp \
+CGLCamera.cpp \
 CQArrow.cpp \
+CQPoint3DEdit.cpp \
 CQTclUtil.cpp \
 CTclUtil.cpp \
 \
@@ -45,7 +47,7 @@ CProfile.cpp \
 
 HEADERS += \
 CQSandboxApp.h \
-CQSandbox.h \
+CQSandboxCanvas.h \
 CQSandboxEditor.h \
 CQSandboxCanvas3D.h \
 CQSandboxControl3D.h \
@@ -54,10 +56,11 @@ CQSandboxUtil.h \
 CQHtmlTextPainter.h \
 CQTclUtil.h \
 CQArrow.h \
+CQPoint3DEdit.h \
 CQGLTexture.h \
+CGLCamera.h \
 CQSVGUtil.h \
 CSVGUtil.h \
-CGLCamera.h \
 CQGLBuffer.h \
 CQAxis.h \
 

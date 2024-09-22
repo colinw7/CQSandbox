@@ -36,11 +36,13 @@ proc init { } {
       set dz [expr {$z2 - $z1}]
       set z3 [expr {($z1 + $z2)/2.0}]
 
-      puts "$x $y $z1 $z2"
+      #puts "$x $y $z1 $z2"
+
+      set b [expr {$x + 0.5}]
 
       $::bar($i) set cube     [list $dx $dz $dy]
       $::bar($i) set position [list $x $z3 $y]
-      $::bar($i) set color    [list 0.4 0.4 0.8 0.9]
+      $::bar($i) set color    [list 0.4 0.4 $b 0.95]
 
       incr i
     }

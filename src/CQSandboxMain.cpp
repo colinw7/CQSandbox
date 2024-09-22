@@ -1,5 +1,5 @@
 #include <CQSandboxApp.h>
-#include <CQSandbox.h>
+#include <CQSandboxCanvas.h>
 
 #include <QApplication>
 

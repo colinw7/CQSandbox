@@ -1,5 +1,6 @@
 #include <CQSandboxControl3D.h>
 #include <CQSandboxCanvas3D.h>
+#include <CGLCamera.h>
 
 #include <CQColorEdit.h>
 #include <CQPoint3DEdit.h>
@@ -51,7 +52,7 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
 
   auto *nearEdit = new CQRealSpin;
 
-  nearEdit->setValue(canvas_->near());
+  nearEdit->setValue(canvas_->camera()->near());
 
   connect(nearEdit, &CQRealSpin::realValueChanged, this, &CanvasControl3D::nearSlot);
 
@@ -59,7 +60,7 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
 
   auto *farEdit = new CQRealSpin;
 
-  farEdit->setValue(canvas_->far());
+  farEdit->setValue(canvas_->camera()->far());
 
   connect(farEdit, &CQRealSpin::realValueChanged, this, &CanvasControl3D::farSlot);
 
@@ -148,7 +149,7 @@ void
 CanvasControl3D::
 nearSlot(double r)
 {
-  canvas_->setNear(r);
+  canvas_->camera()->setNear(r);
   canvas_->update();
 }
 
@@ -156,7 +157,7 @@ void
 CanvasControl3D::
 farSlot(double r)
 {
-  canvas_->setFar(r);
+  canvas_->camera()->setFar(r);
   canvas_->update();
 }
 

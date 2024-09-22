@@ -1,5 +1,5 @@
 #include <CQSandboxEditor.h>
-#include <CQSandbox.h>
+#include <CQSandboxCanvas.h>
 
 #include <QListWidget>
 #include <QCheckBox>

@@ -54,7 +54,7 @@ OBJECTS_DIR   = ../obj/
 
 SOURCES       = CQSandboxMain.cpp \
 		CQSandboxApp.cpp \
-		CQSandbox.cpp \
+		CQSandboxCanvas.cpp \
 		CQSandboxEditor.cpp \
 		CQSandboxCanvas3D.cpp \
 		CQSandboxControl3D.cpp \
@@ -67,7 +67,9 @@ SOURCES       = CQSandboxMain.cpp \
 		CLorenzCalc.cpp \
 		CQGLUtil.cpp \
 		CGLTexture.cpp \
+		CGLCamera.cpp \
 		CQArrow.cpp \
+		CQPoint3DEdit.cpp \
 		CQTclUtil.cpp \
 		CTclUtil.cpp \
 		CForceDirected3D.cpp \
@@ -79,16 +81,17 @@ SOURCES       = CQSandboxMain.cpp \
 		CBoid.cpp \
 		CWaterSurface.cpp \
 		CProfile.cpp .moc/moc_CQSandboxApp.cpp \
-		.moc/moc_CQSandbox.cpp \
+		.moc/moc_CQSandboxCanvas.cpp \
 		.moc/moc_CQSandboxEditor.cpp \
 		.moc/moc_CQSandboxCanvas3D.cpp \
 		.moc/moc_CQSandboxControl3D.cpp \
 		.moc/moc_CQHtmlTextPainter.cpp \
 		.moc/moc_CQTclUtil.cpp \
-		.moc/moc_CQArrow.cpp
+		.moc/moc_CQArrow.cpp \
+		.moc/moc_CQPoint3DEdit.cpp
 OBJECTS       = ../obj/CQSandboxMain.o \
 		../obj/CQSandboxApp.o \
-		../obj/CQSandbox.o \
+		../obj/CQSandboxCanvas.o \
 		../obj/CQSandboxEditor.o \
 		../obj/CQSandboxCanvas3D.o \
 		../obj/CQSandboxControl3D.o \
@@ -101,7 +104,9 @@ OBJECTS       = ../obj/CQSandboxMain.o \
 		../obj/CLorenzCalc.o \
 		../obj/CQGLUtil.o \
 		../obj/CGLTexture.o \
+		../obj/CGLCamera.o \
 		../obj/CQArrow.o \
+		../obj/CQPoint3DEdit.o \
 		../obj/CQTclUtil.o \
 		../obj/CTclUtil.o \
 		../obj/CForceDirected3D.o \
@@ -114,13 +119,14 @@ OBJECTS       = ../obj/CQSandboxMain.o \
 		../obj/CWaterSurface.o \
 		../obj/CProfile.o \
 		../obj/moc_CQSandboxApp.o \
-		../obj/moc_CQSandbox.o \
+		../obj/moc_CQSandboxCanvas.o \
 		../obj/moc_CQSandboxEditor.o \
 		../obj/moc_CQSandboxCanvas3D.o \
 		../obj/moc_CQSandboxControl3D.o \
 		../obj/moc_CQHtmlTextPainter.o \
 		../obj/moc_CQTclUtil.o \
-		../obj/moc_CQArrow.o
+		../obj/moc_CQArrow.o \
+		../obj/moc_CQPoint3DEdit.o
 DIST          = /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf \
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/common/unix.conf \
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/common/linux.conf \
@@ -212,7 +218,7 @@ DIST          = /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf \
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/yacc.prf \
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/lex.prf \
 		CQSandbox.pro CQSandboxApp.h \
-		CQSandbox.h \
+		CQSandboxCanvas.h \
 		CQSandboxEditor.h \
 		CQSandboxCanvas3D.h \
 		CQSandboxControl3D.h \
@@ -220,14 +226,15 @@ DIST          = /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf \
 		CQHtmlTextPainter.h \
 		CQTclUtil.h \
 		CQArrow.h \
+		CQPoint3DEdit.h \
 		CQGLTexture.h \
+		CGLCamera.h \
 		CQSVGUtil.h \
 		CSVGUtil.h \
-		CGLCamera.h \
 		CQGLBuffer.h \
 		CQAxis.h CQSandboxMain.cpp \
 		CQSandboxApp.cpp \
-		CQSandbox.cpp \
+		CQSandboxCanvas.cpp \
 		CQSandboxEditor.cpp \
 		CQSandboxCanvas3D.cpp \
 		CQSandboxControl3D.cpp \
@@ -240,7 +247,9 @@ DIST          = /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf \
 		CLorenzCalc.cpp \
 		CQGLUtil.cpp \
 		CGLTexture.cpp \
+		CGLCamera.cpp \
 		CQArrow.cpp \
+		CQPoint3DEdit.cpp \
 		CQTclUtil.cpp \
 		CTclUtil.cpp \
 		CForceDirected3D.cpp \
@@ -462,8 +471,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents CQSandboxApp.h CQSandbox.h CQSandboxEditor.h CQSandboxCanvas3D.h CQSandboxControl3D.h CQSandboxUtil.h CQHtmlTextPainter.h CQTclUtil.h CQArrow.h CQGLTexture.h CQSVGUtil.h CSVGUtil.h CGLCamera.h CQGLBuffer.h CQAxis.h $(DISTDIR)/
-	$(COPY_FILE) --parents CQSandboxMain.cpp CQSandboxApp.cpp CQSandbox.cpp CQSandboxEditor.cpp CQSandboxCanvas3D.cpp CQSandboxControl3D.cpp CQHtmlTextPainter.cpp CCircleFactor.cpp CQGLTexture.cpp CQSVGUtil.cpp CSVGUtil.cpp CQAxis.cpp CLorenzCalc.cpp CQGLUtil.cpp CGLTexture.cpp CQArrow.cpp CQTclUtil.cpp CTclUtil.cpp CForceDirected3D.cpp CFlag.cpp CDotParse.cpp CFireworks.cpp CFlocking.cpp CFlock.cpp CBoid.cpp CWaterSurface.cpp CProfile.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents CQSandboxApp.h CQSandboxCanvas.h CQSandboxEditor.h CQSandboxCanvas3D.h CQSandboxControl3D.h CQSandboxUtil.h CQHtmlTextPainter.h CQTclUtil.h CQArrow.h CQPoint3DEdit.h CQGLTexture.h CGLCamera.h CQSVGUtil.h CSVGUtil.h CQGLBuffer.h CQAxis.h $(DISTDIR)/
+	$(COPY_FILE) --parents CQSandboxMain.cpp CQSandboxApp.cpp CQSandboxCanvas.cpp CQSandboxEditor.cpp CQSandboxCanvas3D.cpp CQSandboxControl3D.cpp CQHtmlTextPainter.cpp CCircleFactor.cpp CQGLTexture.cpp CQSVGUtil.cpp CSVGUtil.cpp CQAxis.cpp CLorenzCalc.cpp CQGLUtil.cpp CGLTexture.cpp CGLCamera.cpp CQArrow.cpp CQPoint3DEdit.cpp CQTclUtil.cpp CTclUtil.cpp CForceDirected3D.cpp CFlag.cpp CDotParse.cpp CFireworks.cpp CFlocking.cpp CFlock.cpp CBoid.cpp CWaterSurface.cpp CProfile.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -495,16 +504,16 @@ compiler_moc_predefs_clean:
 .moc/moc_predefs.h: /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/data/dummy.cpp
 	g++ -pipe -std=c++17 -g -Wall -Wextra -dM -E -o .moc/moc_predefs.h /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/data/dummy.cpp
 
-compiler_moc_header_make_all: .moc/moc_CQSandboxApp.cpp .moc/moc_CQSandbox.cpp .moc/moc_CQSandboxEditor.cpp .moc/moc_CQSandboxCanvas3D.cpp .moc/moc_CQSandboxControl3D.cpp .moc/moc_CQHtmlTextPainter.cpp .moc/moc_CQTclUtil.cpp .moc/moc_CQArrow.cpp
+compiler_moc_header_make_all: .moc/moc_CQSandboxApp.cpp .moc/moc_CQSandboxCanvas.cpp .moc/moc_CQSandboxEditor.cpp .moc/moc_CQSandboxCanvas3D.cpp .moc/moc_CQSandboxControl3D.cpp .moc/moc_CQHtmlTextPainter.cpp .moc/moc_CQTclUtil.cpp .moc/moc_CQArrow.cpp .moc/moc_CQPoint3DEdit.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) .moc/moc_CQSandboxApp.cpp .moc/moc_CQSandbox.cpp .moc/moc_CQSandboxEditor.cpp .moc/moc_CQSandboxCanvas3D.cpp .moc/moc_CQSandboxControl3D.cpp .moc/moc_CQHtmlTextPainter.cpp .moc/moc_CQTclUtil.cpp .moc/moc_CQArrow.cpp
+	-$(DEL_FILE) .moc/moc_CQSandboxApp.cpp .moc/moc_CQSandboxCanvas.cpp .moc/moc_CQSandboxEditor.cpp .moc/moc_CQSandboxCanvas3D.cpp .moc/moc_CQSandboxControl3D.cpp .moc/moc_CQHtmlTextPainter.cpp .moc/moc_CQTclUtil.cpp .moc/moc_CQArrow.cpp .moc/moc_CQPoint3DEdit.cpp
 .moc/moc_CQSandboxApp.cpp: CQSandboxApp.h \
 		CTclUtil.h \
 		.moc/moc_predefs.h \
 		/usr/lib/qt5/bin/moc
 	/usr/lib/qt5/bin/moc $(DEFINES) --include /home/colinw/git/CQSandbox/src/.moc/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/include -I/home/colinw/git/CQUtil/include -I/home/colinw/git/CGeometry3D/include -I/home/colinw/git/CImportModel/include -I/home/colinw/git/CQBaseModel/include -I/home/colinw/git/CImageLib/include -I/home/colinw/git/CFont/include -I/home/colinw/git/CCsv/qinclude -I/home/colinw/git/CConfig/include -I/home/colinw/git/CUtil/include -I/home/colinw/git/CFile/include -I/home/colinw/git/CMath/include -I/home/colinw/git/CStrUtil/include -I/home/colinw/git/COS/include -I/usr/include/tcl -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -I/usr/include/c++/11 -I/usr/include/x86_64-linux-gnu/c++/11 -I/usr/include/c++/11/backward -I/usr/lib/gcc/x86_64-linux-gnu/11/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include CQSandboxApp.h -o .moc/moc_CQSandboxApp.cpp
 
-.moc/moc_CQSandbox.cpp: CQSandbox.h \
+.moc/moc_CQSandboxCanvas.cpp: CQSandboxCanvas.h \
 		CTclUtil.h \
 		../../CUtil/include/CDisplayRange2D.h \
 		../../CMath/include/CMathRound.h \
@@ -520,7 +529,7 @@ compiler_moc_header_clean:
 		../../CMath/include/CISize2D.h \
 		.moc/moc_predefs.h \
 		/usr/lib/qt5/bin/moc
-	/usr/lib/qt5/bin/moc $(DEFINES) --include /home/colinw/git/CQSandbox/src/.moc/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/include -I/home/colinw/git/CQUtil/include -I/home/colinw/git/CGeometry3D/include -I/home/colinw/git/CImportModel/include -I/home/colinw/git/CQBaseModel/include -I/home/colinw/git/CImageLib/include -I/home/colinw/git/CFont/include -I/home/colinw/git/CCsv/qinclude -I/home/colinw/git/CConfig/include -I/home/colinw/git/CUtil/include -I/home/colinw/git/CFile/include -I/home/colinw/git/CMath/include -I/home/colinw/git/CStrUtil/include -I/home/colinw/git/COS/include -I/usr/include/tcl -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -I/usr/include/c++/11 -I/usr/include/x86_64-linux-gnu/c++/11 -I/usr/include/c++/11/backward -I/usr/lib/gcc/x86_64-linux-gnu/11/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include CQSandbox.h -o .moc/moc_CQSandbox.cpp
+	/usr/lib/qt5/bin/moc $(DEFINES) --include /home/colinw/git/CQSandbox/src/.moc/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/include -I/home/colinw/git/CQUtil/include -I/home/colinw/git/CGeometry3D/include -I/home/colinw/git/CImportModel/include -I/home/colinw/git/CQBaseModel/include -I/home/colinw/git/CImageLib/include -I/home/colinw/git/CFont/include -I/home/colinw/git/CCsv/qinclude -I/home/colinw/git/CConfig/include -I/home/colinw/git/CUtil/include -I/home/colinw/git/CFile/include -I/home/colinw/git/CMath/include -I/home/colinw/git/CStrUtil/include -I/home/colinw/git/COS/include -I/usr/include/tcl -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -I/usr/include/c++/11 -I/usr/include/x86_64-linux-gnu/c++/11 -I/usr/include/c++/11/backward -I/usr/lib/gcc/x86_64-linux-gnu/11/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include CQSandboxCanvas.h -o .moc/moc_CQSandboxCanvas.cpp
 
 .moc/moc_CQSandboxEditor.cpp: CQSandboxEditor.h \
 		.moc/moc_predefs.h \
@@ -567,6 +576,14 @@ compiler_moc_header_clean:
 		/usr/lib/qt5/bin/moc
 	/usr/lib/qt5/bin/moc $(DEFINES) --include /home/colinw/git/CQSandbox/src/.moc/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/include -I/home/colinw/git/CQUtil/include -I/home/colinw/git/CGeometry3D/include -I/home/colinw/git/CImportModel/include -I/home/colinw/git/CQBaseModel/include -I/home/colinw/git/CImageLib/include -I/home/colinw/git/CFont/include -I/home/colinw/git/CCsv/qinclude -I/home/colinw/git/CConfig/include -I/home/colinw/git/CUtil/include -I/home/colinw/git/CFile/include -I/home/colinw/git/CMath/include -I/home/colinw/git/CStrUtil/include -I/home/colinw/git/COS/include -I/usr/include/tcl -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -I/usr/include/c++/11 -I/usr/include/x86_64-linux-gnu/c++/11 -I/usr/include/c++/11/backward -I/usr/lib/gcc/x86_64-linux-gnu/11/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include CQArrow.h -o .moc/moc_CQArrow.cpp
 
+.moc/moc_CQPoint3DEdit.cpp: CQPoint3DEdit.h \
+		../../CMath/include/CPoint3D.h \
+		../../CMath/include/CPoint2D.h \
+		../../CMath/include/CIPoint3D.h \
+		.moc/moc_predefs.h \
+		/usr/lib/qt5/bin/moc
+	/usr/lib/qt5/bin/moc $(DEFINES) --include /home/colinw/git/CQSandbox/src/.moc/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/include -I/home/colinw/git/CQUtil/include -I/home/colinw/git/CGeometry3D/include -I/home/colinw/git/CImportModel/include -I/home/colinw/git/CQBaseModel/include -I/home/colinw/git/CImageLib/include -I/home/colinw/git/CFont/include -I/home/colinw/git/CCsv/qinclude -I/home/colinw/git/CConfig/include -I/home/colinw/git/CUtil/include -I/home/colinw/git/CFile/include -I/home/colinw/git/CMath/include -I/home/colinw/git/CStrUtil/include -I/home/colinw/git/COS/include -I/usr/include/tcl -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -I/usr/include/c++/11 -I/usr/include/x86_64-linux-gnu/c++/11 -I/usr/include/c++/11/backward -I/usr/lib/gcc/x86_64-linux-gnu/11/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include CQPoint3DEdit.h -o .moc/moc_CQPoint3DEdit.cpp
+
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
 compiler_moc_source_make_all:
@@ -585,7 +602,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 
 ../obj/CQSandboxMain.o: CQSandboxMain.cpp CQSandboxApp.h \
 		CTclUtil.h \
-		CQSandbox.h \
+		CQSandboxCanvas.h \
 		../../CUtil/include/CDisplayRange2D.h \
 		../../CMath/include/CMathRound.h \
 		../../CMath/include/CMatrix2D.h \
@@ -602,7 +619,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 
 ../obj/CQSandboxApp.o: CQSandboxApp.cpp CQSandboxApp.h \
 		CTclUtil.h \
-		CQSandbox.h \
+		CQSandboxCanvas.h \
 		../../CUtil/include/CDisplayRange2D.h \
 		../../CMath/include/CMathRound.h \
 		../../CMath/include/CMatrix2D.h \
@@ -639,7 +656,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		svg/settings_svg.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxApp.o CQSandboxApp.cpp
 
-../obj/CQSandbox.o: CQSandbox.cpp CQSandbox.h \
+../obj/CQSandboxCanvas.o: CQSandboxCanvas.cpp CQSandboxCanvas.h \
 		CTclUtil.h \
 		../../CUtil/include/CDisplayRange2D.h \
 		../../CMath/include/CMathRound.h \
@@ -667,10 +684,10 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CQBaseModel/include/CQBaseModel.h \
 		../../CQBaseModel/include/CQBaseModelTypes.h \
 		CCircleFactor.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandbox.o CQSandbox.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxCanvas.o CQSandboxCanvas.cpp
 
 ../obj/CQSandboxEditor.o: CQSandboxEditor.cpp CQSandboxEditor.h \
-		CQSandbox.h \
+		CQSandboxCanvas.h \
 		CTclUtil.h \
 		../../CUtil/include/CDisplayRange2D.h \
 		../../CMath/include/CMathRound.h \
@@ -705,6 +722,12 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		CQSandboxUtil.h \
 		CQTclUtil.h \
 		CQGLUtil.h \
+		CQGLBuffer.h \
+		CQGLTexture.h \
+		../../CCsv/qinclude/CQCsvModel.h \
+		../../CQBaseModel/include/CQDataModel.h \
+		../../CQBaseModel/include/CQBaseModel.h \
+		../../CQBaseModel/include/CQBaseModelTypes.h \
 		../../CImportModel/include/CImportBase.h \
 		../../CUtil/include/CGeom3DType.h \
 		../../CGeometry3D/include/CGeomScene3D.h \
@@ -720,7 +743,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CUtil/include/CRGB.h \
 		../../CUtil/include/CRGBName.h \
 		../../CUtil/include/CClipSide.h \
-		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomPoint3D.h \
 		../../CUtil/include/accessor.h \
 		../../CMath/include/CCoordFrame3D.h \
@@ -730,6 +752,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CUtil/include/CLineDash.h \
 		../../CUtil/include/CILineDash.h \
 		../../CMath/include/CPolygonOrientation.h \
+		../../CUtil/include/COptVal.h \
 		../../CMath/include/CBBox3D.h \
 		../../CGeometry3D/include/CGeomLight3D.h \
 		../../CGeometry3D/include/CGeomAxes3D.h \
@@ -773,8 +796,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		CDotParse.h \
 		../../CFile/include/CFileParse.h \
 		../../CUtil/include/CInterval.h \
-		CQGLBuffer.h \
-		CQGLTexture.h \
 		CGLTexture.h \
 		../../CImageLib/include/CImageLib.h \
 		../../CImageLib/include/CImageState.h \
@@ -796,6 +817,10 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CLine3D.h \
 		../../CMath/include/CCone3D.h \
 		../../CMath/include/CCylinder3D.h \
+		../../CMath/include/CCenteredBox3D.h \
+		../../CMath/include/CPlane3D.h \
+		../../CMath/include/CMathGeom3D.h \
+		../../CMath/include/CTriangle3D.h \
 		stb_truetype.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxCanvas3D.o CQSandboxCanvas3D.cpp
 
@@ -815,7 +840,9 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
 		../../CMath/include/CMinMax.h \
+		CGLCamera.h \
 		../../CQUtil/include/CQColorEdit.h \
+		CQPoint3DEdit.h \
 		../../CQUtil/include/CQRealSpin.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxControl3D.o CQSandboxControl3D.cpp
 
@@ -914,6 +941,19 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CImageLib/include/CImageFile.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CGLTexture.o CGLTexture.cpp
 
+../obj/CGLCamera.o: CGLCamera.cpp CGLCamera.h \
+		../../CMath/include/CGLMatrix3D.h \
+		../../CMath/include/CMathGen.h \
+		../../CMath/include/CIPoint2D.h \
+		../../CMath/include/CPoint3D.h \
+		../../CMath/include/CPoint2D.h \
+		../../CMath/include/CIPoint3D.h \
+		../../CMath/include/CGLVector3D.h \
+		../../CMath/include/CMathUtil.h \
+		../../COS/include/COSNaN.h \
+		../../CMath/include/CMathMacros.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CGLCamera.o CGLCamera.cpp
+
 ../obj/CQArrow.o: CQArrow.cpp CQArrow.h \
 		../../CMath/include/CMathGeom2D.h \
 		../../CMath/include/CPoint2D.h \
@@ -932,6 +972,13 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/C3Bezier2D.h \
 		../../CMath/include/C2Bezier2D.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQArrow.o CQArrow.cpp
+
+../obj/CQPoint3DEdit.o: CQPoint3DEdit.cpp CQPoint3DEdit.h \
+		../../CMath/include/CPoint3D.h \
+		../../CMath/include/CPoint2D.h \
+		../../CMath/include/CIPoint3D.h \
+		../../CStrUtil/include/CStrUtil.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQPoint3DEdit.o CQPoint3DEdit.cpp
 
 ../obj/CQTclUtil.o: CQTclUtil.cpp CQTclUtil.h \
 		CTclUtil.h
@@ -1003,7 +1050,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CGeometry3D/include/CGeometry3D.h \
 		../../CGeometry3D/include/CGeomVertex3D.h \
 		../../CUtil/include/CClipSide.h \
-		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomPoint3D.h \
 		../../CUtil/include/accessor.h \
 		../../CMath/include/CCoordFrame3D.h \
@@ -1016,6 +1062,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CImageLib/include/CImagePtr.h \
 		../../CUtil/include/CRefPtr.h \
 		../../CMath/include/CPolygonOrientation.h \
+		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomScene3D.h \
 		../../CGeometry3D/include/CGeomObject3D.h \
 		../../CGeometry3D/include/CGeomLight3D.h \
@@ -1079,7 +1126,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CGeometry3D/include/CGeometry3D.h \
 		../../CGeometry3D/include/CGeomVertex3D.h \
 		../../CUtil/include/CClipSide.h \
-		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomPoint3D.h \
 		../../CUtil/include/accessor.h \
 		../../CMath/include/CCoordFrame3D.h \
@@ -1092,6 +1138,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CImageLib/include/CImagePtr.h \
 		../../CUtil/include/CRefPtr.h \
 		../../CMath/include/CPolygonOrientation.h \
+		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomScene3D.h \
 		../../CGeometry3D/include/CGeomObject3D.h \
 		../../CGeometry3D/include/CGeomLight3D.h \
@@ -1153,7 +1200,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CGeometry3D/include/CGeometry3D.h \
 		../../CGeometry3D/include/CGeomVertex3D.h \
 		../../CUtil/include/CClipSide.h \
-		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomPoint3D.h \
 		../../CUtil/include/accessor.h \
 		../../CMath/include/CCoordFrame3D.h \
@@ -1166,6 +1212,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CImageLib/include/CImagePtr.h \
 		../../CUtil/include/CRefPtr.h \
 		../../CMath/include/CPolygonOrientation.h \
+		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomScene3D.h \
 		../../CGeometry3D/include/CGeomObject3D.h \
 		../../CGeometry3D/include/CGeomLight3D.h \
@@ -1229,7 +1276,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CUtil/include/CRGB.h \
 		../../CUtil/include/CRGBName.h \
 		../../CUtil/include/CClipSide.h \
-		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomPoint3D.h \
 		../../CUtil/include/accessor.h \
 		../../CMath/include/CCoordFrame3D.h \
@@ -1242,6 +1288,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CImageLib/include/CImagePtr.h \
 		../../CUtil/include/CRefPtr.h \
 		../../CMath/include/CPolygonOrientation.h \
+		../../CUtil/include/COptVal.h \
 		../../CGeometry3D/include/CGeomScene3D.h \
 		../../CGeometry3D/include/CGeomObject3D.h \
 		../../CMath/include/CBBox3D.h \
@@ -1292,8 +1339,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 ../obj/moc_CQSandboxApp.o: .moc/moc_CQSandboxApp.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/moc_CQSandboxApp.o .moc/moc_CQSandboxApp.cpp
 
-../obj/moc_CQSandbox.o: .moc/moc_CQSandbox.cpp 
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/moc_CQSandbox.o .moc/moc_CQSandbox.cpp
+../obj/moc_CQSandboxCanvas.o: .moc/moc_CQSandboxCanvas.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/moc_CQSandboxCanvas.o .moc/moc_CQSandboxCanvas.cpp
 
 ../obj/moc_CQSandboxEditor.o: .moc/moc_CQSandboxEditor.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/moc_CQSandboxEditor.o .moc/moc_CQSandboxEditor.cpp
@@ -1312,6 +1359,9 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 
 ../obj/moc_CQArrow.o: .moc/moc_CQArrow.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/moc_CQArrow.o .moc/moc_CQArrow.cpp
+
+../obj/moc_CQPoint3DEdit.o: .moc/moc_CQPoint3DEdit.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/moc_CQPoint3DEdit.o .moc/moc_CQPoint3DEdit.cpp
 
 ####### Install
 

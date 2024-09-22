@@ -7,6 +7,8 @@ proc init { } {
 
   set ::othello [sb3d::othello]
 
+  set ::board [sb3d::group]
+
   set y -0.35
 
   for {set iy 0} {$iy < 8} {incr iy} {
@@ -34,6 +36,8 @@ proc init { } {
       $shape set sphere 0.04
       $shape set position [list $x $y 0.04]
       $shape set id "sphere:$ix:$iy"
+
+      $shape set group $::board
 
       set x [expr {$x + 0.1}]
     }

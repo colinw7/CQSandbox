@@ -13,19 +13,40 @@
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_3_3_Core>
 
-class CImportBase;
+class CQCsvModel;
 class CQGLBuffer;
 class CQGLTexture;
+class CImportBase;
 class CGLTexture;
 class CGLCamera;
 class CGeomObject3D;
+class CGeomTexture;
 class CForceDirected3D;
+
+#ifdef CQSANDBOX_WATER_SURFACE
 class CWaterSurface;
+#endif
+
+#ifdef CQSANDBOX_OTHELLO
 class COthelloBoard;
+#endif
+
+#ifdef CQSANDBOX_FIELD_RUNNERS
 class CFieldRunners;
+#endif
+
+#ifdef CQSANDBOX_FLAG
 class CFlag;
+#endif
+
+#ifdef CQSANDBOX_FLOCKING
 class CFlocking;
+#endif
+
+#ifdef CQSANDBOX_FIREWORKS
 class CFireworks;
+#endif
+
 class CShape3D;
 
 class QOpenGLShaderProgram;
@@ -93,9 +114,19 @@ struct ProgramData {
 //---
 
 class Canvas3D;
+class Group3DObj;
 
 class Object3D : public QObject {
   Q_OBJECT
+
+ public:
+  enum ModelMatrixFlags : unsigned int {
+    NONE      = 0,
+    TRANSLATE = (1<<0),
+    SCALE     = (1<<1),
+    ROTATE    = (1<<2),
+    ALL       = (TRANSLATE|SCALE|ROTATE)
+  };
 
  public:
   Object3D(Canvas3D *canvas);
@@ -146,14 +177,25 @@ class Object3D : public QObject {
 
   //---
 
+  Group3DObj *group() const { return group_; }
+  void setGroup(Group3DObj *group) { group_ = group; }
+
+  //---
+
   void setNeedsUpdate() { needsUpdate_ = true; }
 
   //---
 
   virtual void init();
 
+  void setModelMatrix(uint flags=ModelMatrixFlags::ALL);
+
   virtual QVariant getValue(const QString &name, const QStringList &args);
   virtual void setValue(const QString &name, const QString &value, const QStringList &args);
+
+  virtual QVariant exec(const QString &, const QStringList &) { return QVariant(); }
+
+  //---
 
   virtual void updateModelMatrix() { }
 
@@ -188,6 +230,8 @@ class Object3D : public QObject {
 
   int ticks_ { 0 };
 
+  Group3DObj *group_ { nullptr };
+
   bool needsUpdate_ { true };
 };
 
@@ -197,9 +241,14 @@ class Model3DObj : public Object3D {
   Q_OBJECT
 
  public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
   Model3DObj(Canvas3D *canvas);
 
   const char *typeName() const override { return "Model"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  void setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   bool load(const QString &filename);
 
@@ -236,13 +285,72 @@ class Model3DObj : public Object3D {
 
   CImportBase* import_ { nullptr };
 
-  float       sceneScale_  { 1.0 };
+  CGLTexture *diffuseTexture_  { nullptr };
+  CGLTexture *specularTexture_ { nullptr };
+  CGLTexture *normalTexture_   { nullptr };
+
   CPoint3D    sceneCenter_ { 0 , 0, 0 };
   ObjectDatas objectDatas_;
 
   bool flipYZ_ { false };
 
   GLTextures glTextures_;
+};
+
+//---
+
+class Csv3DObj : public Object3D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  Csv3DObj(Canvas3D *canvas, const QString &filename);
+
+  const char *typeName() const override { return "Csv"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  QVariant exec(const QString &op, const QStringList &args) override;
+
+  //---
+
+  void init() override;
+
+ protected:
+  QString filename_;
+
+  CQCsvModel *csv_ { nullptr };
+};
+
+//---
+
+class Group3DObj : public Object3D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  Group3DObj(Canvas3D *canvas);
+
+  const char *typeName() const override { return "Group"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  void init() override;
+
+  void addObject(Object3D *obj);
+  void removeObject(Object3D *obj);
+
+ Q_SIGNALS:
+  void objectsChanged();
+
+ protected:
+  using Objects = std::vector<Object3D *>;
+
+  Objects objects_;
 };
 
 //---
@@ -276,6 +384,7 @@ class Shape3DObj : public Object3D {
   void setColor(const Color &c) { color_ = c; }
 
   void setTexture(const QString &filename);
+  void setNormalTexture(const QString &filename);
 
   void init() override;
 
@@ -316,9 +425,11 @@ class Shape3DObj : public Object3D {
   TexCoords texCoords_;
   bool      wireframe_ { false };
 
-  CQGLTexture *texture_ { nullptr };
+  CQGLTexture *texture_       { nullptr };
+  CQGLTexture *normalTexture_ { nullptr };
 
   bool useTexture_       { false };
+  bool useNormalTexture_ { false };
   bool useTriangleStrip_ { false };
   bool useTriangleFan_   { false };
 
@@ -408,8 +519,13 @@ class ParticleList3DObj : public Object3D {
  protected:
   void setNumPoints(int n);
 
+#ifdef CQSANDBOX_FLOCKING
   void updateFlocking();
+#endif
+
+#ifdef CQSANDBOX_FIREWORKS
   void updateFireworks();
+#endif
 
  protected:
   struct ParticleListProgramData : public ProgramData {
@@ -431,8 +547,13 @@ class ParticleList3DObj : public Object3D {
   GLuint particles_color_buffer_    { 0 };
   GLuint billboard_vertex_buffer_   { 0 };
 
-  CFlocking*  flocking_  { nullptr };
+#ifdef CQSANDBOX_FLOCKING
+  CFlocking* flocking_ { nullptr };
+#endif
+
+#ifdef CQSANDBOX_FIREWORKS
   CFireworks* fireworks_ { nullptr };
+#endif
 };
 
 //---
@@ -456,8 +577,13 @@ class Surface3DObj : public Object3D {
 
   void tick() override;
 
+#ifdef CQSANDBOX_WATER_SURFACE
   void updateWaterSurface();
+#endif
+
+#ifdef CQSANDBOX_FLAG
   void updateFlag();
+#endif
 
   void updateGL();
 
@@ -481,9 +607,13 @@ class Surface3DObj : public Object3D {
 
   bool wireframe_ { false };
 
+#ifdef CQSANDBOX_WATER_SURFACE
   CWaterSurface *waterSurface_ { nullptr };
+#endif
 
+#ifdef CQSANDBOX_FLAG
   CFlag *flag_ { nullptr };
+#endif
 
   unsigned int pointsBufferId_  { 0 };
   unsigned int normalsBufferId_ { 0 };
@@ -700,6 +830,7 @@ class Sprite3DObj : public Object3D {
 
 //---
 
+#ifdef CQSANDBOX_OTHELLO
 class Othello3DObj : public Object3D {
   Q_OBJECT
 
@@ -720,9 +851,11 @@ class Othello3DObj : public Object3D {
  private:
   COthelloBoard* board_ { nullptr };
 };
+#endif
 
 //---
 
+#ifdef CQSANDBOX_FIELD_RUNNERS
 class FieldRunners3DObj : public Object3D {
   Q_OBJECT
 
@@ -752,6 +885,7 @@ class FieldRunners3DObj : public Object3D {
   Sprites  runnerSprites_;
   Textures textures_;
 };
+#endif
 
 //---
 
@@ -868,9 +1002,6 @@ class Canvas3D : public OpenGLWindow {
   const QColor &bgColor() const { return bgColor_; }
   void setBgColor(const QColor &c) { bgColor_ = c; }
 
-  bool isPolygonLine() const { return polygonLine_; }
-  void setPolygonLine(bool b) { polygonLine_ = b; }
-
   //---
 
   double ambient() const { return ambient_; }
@@ -886,6 +1017,9 @@ class Canvas3D : public OpenGLWindow {
   void setShininess(double r) { shininess_ = r; }
 
   //---
+
+  bool isPolygonLine() const { return polygonLine_; }
+  void setPolygonLine(bool b) { polygonLine_ = b; }
 
   bool isWireframe() const { return wireframe_; }
   void setWireframe(bool b) { wireframe_ = b; }
@@ -904,16 +1038,17 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  double near() const { return near_; }
-  void setNear(double r) { near_ = r; }
-
-  double far() const { return far_; }
-  void setFar(double r) { far_ = r; }
+  const Type &type() const { return type_; }
+  void setType(const Type &type);
 
   //---
 
-  const Type &type() const { return type_; }
-  void setType(const Type &type);
+  bool isDepthTest  () { return true; }
+  bool isCullFace   () { return true; }
+  bool isLighting   () { return true; }
+  bool isFrontFace  () { return true; }
+  bool isSmoothShade() { return true; }
+  bool isOutline    () { return false; }
 
   //---
 
@@ -944,6 +1079,8 @@ class Canvas3D : public OpenGLWindow {
 
   void removeObject(Object3D *obj);
 
+  Object3D *getObjectByName(const QString &name) const;
+
   //---
 
   void initialize() override;
@@ -970,9 +1107,12 @@ class Canvas3D : public OpenGLWindow {
  private:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
-  static int canvasProc   (void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
-  static int cameraProc   (void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+  static int canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+  static int cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+
+#if 0
   static int loadModelProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+#endif
 
   QVariant getValue(const QString &name, const QStringList &args);
   void setValue(const QString &name, const QString &value, const QStringList &args);
@@ -985,6 +1125,8 @@ class Canvas3D : public OpenGLWindow {
 
  Q_SIGNALS:
   void cameraChanged();
+
+  void objectsChanged();
 
  private:
   using Objects = std::vector<Object3D *>;
@@ -1009,9 +1151,6 @@ class Canvas3D : public OpenGLWindow {
 
   double pixelWidth_  { 100.0 };
   double pixelHeight_ { 100.0 };
-
-  double near_ { 0.1 };
-  double far_  { 100.0 };
 
   Type type_ { Type::CAMERA };
 
@@ -1038,6 +1177,7 @@ class Canvas3D : public OpenGLWindow {
   float modelZAngle_ { 0.0f };
 
   Objects objects_;
+  Objects allObjects_;
 
   Points intersectPoints_;
 

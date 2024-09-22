@@ -172,7 +172,7 @@ class CQGLBuffer {
     int  vid  = 0;
     uint span = 0;
 
-    // store points in vertex array
+    // store points in vertex array (location 0)
     if (data_.types & static_cast<unsigned int>(Parts::POINT)) {
       data_.program->setAttributeArray(vid, reinterpret_cast<float *>(span*sizeof(float)),
                                        3, int(data_.span*sizeof(float)));
@@ -180,7 +180,7 @@ class CQGLBuffer {
       span += 3;
     }
 
-    // store normals in vertex array
+    // store normals in vertex array (location 1)
     if (data_.types & static_cast<unsigned int>(Parts::NORMAL)) {
       data_.program->setAttributeArray(vid, reinterpret_cast<float *>(span*sizeof(float)),
                                        3, int(data_.span*sizeof(float)));
@@ -188,7 +188,7 @@ class CQGLBuffer {
       span += 3;
     }
 
-    // store colors in vertex array
+    // store colors in vertex array (location 2)
     if (data_.types & static_cast<unsigned int>(Parts::COLOR)) {
       data_.program->setAttributeArray(vid, reinterpret_cast<float *>(span*sizeof(float)),
                                        3, int(data_.span*sizeof(float)));
@@ -196,7 +196,7 @@ class CQGLBuffer {
       span += 3;
     }
 
-    // store texture points in vertex array
+    // store texture points in vertex array (location 3)
     if (data_.types & static_cast<unsigned int>(Parts::TEXTURE)) {
       data_.program->setAttributeArray(vid, reinterpret_cast<float *>(span*sizeof(float)),
                                        2, int(data_.span*sizeof(float)));
