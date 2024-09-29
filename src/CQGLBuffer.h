@@ -87,10 +87,35 @@ class CQGLBuffer {
 
   //---
 
-  void clearPoints() { data_.points.clear(); }
-  void clearNormals() { data_.normals.clear(); }
-  void clearColors() { data_.colors.clear(); }
-  void clearTexturePoints() { data_.texturePoints.clear(); }
+  void clearAll() {
+    data_.types = 0;
+
+    delete [] data_.data;
+    delete [] data_.indData;
+
+    data_.data    = nullptr;
+    data_.numData = 0;
+
+    data_.indData    = nullptr;
+    data_.numIndData = 0;
+
+    data_.span = 0;
+
+    data_.dataValid = false;
+
+    data_.points       .clear();
+    data_.normals      .clear();
+    data_.colors       .clear();
+    data_.texturePoints.clear();
+
+    data_.indices.clear();
+    data_.indicesSet = false;
+  }
+
+  void clearPoints() { data_.points.clear(); data_.dataValid = false; }
+  void clearNormals() { data_.normals.clear(); data_.dataValid = false; }
+  void clearColors() { data_.colors.clear(); data_.dataValid = false; }
+  void clearTexturePoints() { data_.texturePoints.clear(); data_.dataValid = false; }
 
   //---
 
@@ -105,6 +130,8 @@ class CQGLBuffer {
 
     data_.dataValid = false;
   }
+
+  uint numPoints() const { return data_.points.size(); }
 
   void addNormal(float x, float y, float z) {
     addNormal(Point(x, y, z));
@@ -288,6 +315,7 @@ class CQGLBuffer {
       //---
 
       data_.numData = 0;
+      data_.span    = 0;
 
       if (data_.types & static_cast<unsigned int>(Parts::POINT)) {
         data_.numData += data_.points.size()*3;

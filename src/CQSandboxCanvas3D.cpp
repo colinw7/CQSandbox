@@ -6,6 +6,7 @@
 #include <CQGLUtil.h>
 #include <CQGLBuffer.h>
 #include <CQGLTexture.h>
+#include <CQGLCubemap.h>
 
 #include <CQCsvModel.h>
 
@@ -55,6 +56,7 @@
 #include <QFileInfo>
 #include <QMouseEvent>
 #include <QTimer>
+#include <QPainter>
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
@@ -462,6 +464,10 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Sprite3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  tcl->createObjCommand("sb3d::skybox",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Skybox3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
 #ifdef CQSANDBOX_OTHELLO
   tcl->createObjCommand("sb3d::othello",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Othello3DObj>),
@@ -699,7 +705,7 @@ getValue(const QString &name, const QStringList &args)
   }
 }
 
-void
+bool
 Canvas3D::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
@@ -713,7 +719,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     if (strs.size() != 2) {
       app_->errorMsg("Invalid values for range");
-      return;
+      return false;
     }
 
     double xmin = Util::stringToReal(strs[0]);
@@ -727,7 +733,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     if (strs.size() != 2) {
       app_->errorMsg("Invalid values for range");
-      return;
+      return false;
     }
 
     double xmin = Util::stringToReal(strs[0]);
@@ -741,7 +747,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     if (strs.size() != 2) {
       app_->errorMsg("Invalid values for range");
-      return;
+      return false;
     }
 
     double xmin = Util::stringToReal(strs[0]);
@@ -749,8 +755,12 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     zrange_ = CRMinMax(xmin, xmax);
   }
-  else
+  else {
     app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+    return false;
+  }
+
+  return true;
 }
 
 QVariant
@@ -907,10 +917,6 @@ initialize()
 
   //---
 
-  light_ = new Light3D(this);
-
-  //---
-
   eyeLine_ = new Path3DObj(this);
 
   (void) addNewObject(eyeLine_);
@@ -932,6 +938,136 @@ initialize()
   app_->runTclCmd("init");
 }
 
+Light3D *
+Canvas3D::
+currentLight() const
+{
+  auto *th = const_cast<Canvas3D *>(this);
+
+  if (lights_.empty())
+    th->lights_.push_back(new Light3D(th, Light3D::Type::DIRECTIONAL));
+
+  while (th->lightNum_ >= lights_.size())
+    th->lightNum_ -= int(lights_.size());
+
+  return lights_[lightNum_];
+}
+
+void
+Canvas3D::
+updateLights()
+{
+  auto numLights = numDirectionalLights_ + numPointLights_ + numSpotLights_;
+  if (numLights == lights_.size()) return;
+
+  while (lights_.size() < numLights)
+    lights_.push_back(new Light3D(this, Light3D::Type::DIRECTIONAL));
+
+  int il = 0;
+
+  lights_[il]->setType     (Light3D::Type::DIRECTIONAL);
+  lights_[il]->setEnabled  (true);
+  lights_[il]->setDirection(CGLVector3D(1, -1, -1));
+  lights_[il]->setColor    (CGLVector3D(1, 1, 0));
+//lights_[il]->setIntensity(1.0f);
+
+  ++il;
+
+  lights_[il]->setType     (Light3D::Type::POINT);
+  lights_[il]->setEnabled  (true);
+  lights_[il]->setPosition (CGLVector3D(-0.5, 0.35, 0.25));
+  lights_[il]->setColor    (CGLVector3D(1, 0, 0));
+  lights_[il]->setRadius   (1.0f);
+//lights_[il]->setIntensity(1.0f);
+
+  ++il;
+
+  lights_[il]->setType     (Light3D::Type::POINT);
+  lights_[il]->setEnabled  (true);
+  lights_[il]->setPosition (CGLVector3D(0.5, 0.35, 0.25));
+  lights_[il]->setColor    (CGLVector3D(0, 1, 0));
+  lights_[il]->setRadius   (1.0f);
+//lights_[il]->setIntensity(1.0f);
+
+  ++il;
+
+  auto cpos = camera()->position();
+
+  lights_[il]->setType     (Light3D::Type::SPOT);
+  lights_[il]->setEnabled  (true);
+  lights_[il]->setPosition (cpos + CGLVector3D(0.0, 0.5, 0));
+  lights_[il]->setDirection(CGLVector3D(0, 0, -1));
+  lights_[il]->setColor    (CGLVector3D(0, 0, 1));
+//lights_[il]->setIntensity(1.0);
+  lights_[il]->setCutoff   (cos(35.0f));
+
+  ++il;
+
+  lights_[il]->setType     (Light3D::Type::SPOT);
+  lights_[il]->setEnabled  (true);
+  lights_[il]->setPosition (cpos + CGLVector3D(0.0, -0.5, 0));
+  lights_[il]->setDirection(CGLVector3D(0, 0, -1));
+  lights_[il]->setColor    (CGLVector3D(0, 1, 1));
+//lights_[il]->setIntensity(1.5);
+  lights_[il]->setCutoff   (cos(15.0f));
+
+  //++il;
+}
+
+void
+Canvas3D::
+setProgramLights(QOpenGLShaderProgram *program)
+{
+  static char nameStr[256];
+
+  auto STR = [&](const QString &str) {
+    assert(str.length() < 255);
+    strcpy(nameStr, str.toStdString().c_str());
+    return nameStr;
+  };
+
+  int indD = 0, indP = 0, indS = 0;
+
+  for (const auto *light : lights()) {
+    if (light->type() == Light3D::Type::DIRECTIONAL) {
+      auto lightName = QString("directionalLights[%1]").arg(indD++);
+
+      program->setUniformValue(
+       STR(lightName + ".enabled"  ), light->isEnabled());
+      program->setUniformValue(
+       STR(lightName + ".direction"), CQGLUtil::toVector(light->direction()));
+      program->setUniformValue(
+       STR(lightName + ".color"    ), CQGLUtil::toVector(light->color()));
+    }
+    else if (light->type() == Light3D::Type::POINT) {
+      auto lightName = QString("pointLights[%1]").arg(indP++);
+
+      program->setUniformValue(
+       STR(lightName + ".enabled" ), light->isEnabled());
+      program->setUniformValue(
+       STR(lightName + ".position"), CQGLUtil::toVector(light->position()));
+      program->setUniformValue(
+       STR(lightName + ".color"   ), CQGLUtil::toVector(light->color()));
+      program->setUniformValue(
+       STR(lightName + ".radius"  ), light->radius());
+    }
+    else if (light->type() == Light3D::Type::SPOT) {
+      auto lightName = QString("spotLights[%1]").arg(indS++);
+
+      program->setUniformValue(
+       STR(lightName + ".enabled"  ), light->isEnabled());
+      program->setUniformValue(
+       STR(lightName + ".position" ), CQGLUtil::toVector(light->position()));
+      program->setUniformValue(
+       STR(lightName + ".direction"), CQGLUtil::toVector(light->direction()));
+      program->setUniformValue(
+       STR(lightName + ".color"    ), CQGLUtil::toVector(light->color()));
+      program->setUniformValue(
+       STR(lightName + ".cutoff"   ), light->cutoff());
+    }
+  }
+}
+
 void
 Canvas3D::
 timerSlot()
@@ -950,6 +1086,10 @@ void
 Canvas3D::
 render()
 {
+  updateLights();
+
+  //---
+
   const qreal retinaScale = devicePixelRatio();
 
   pixelWidth_  = width ()*retinaScale;
@@ -967,9 +1107,9 @@ render()
   isCullFace () ? glEnable(GL_CULL_FACE ) : glDisable(GL_CULL_FACE );
 //isLighting () ? glEnable(GL_LIGHTING  ) : glDisable(GL_LIGHTING  );
 
-//isFrontFace() ? glFrontFace(GL_CW) : glFrontFace(GL_CCW);
+  isFrontFace() ? glFrontFace(GL_CW) : glFrontFace(GL_CCW);
 
-//isSmoothShade() ? glShadeModel(GL_SMOOTH) : glShadeModel(GL_FLAT);
+  isSmoothShade() ? glShadeModel(GL_SMOOTH) : glShadeModel(GL_FLAT);
 
 //isOutline() ? glPolygonMode(GL_FRONT_AND_BACK, GL_LINE) :
 //              glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -999,7 +1139,9 @@ render()
 
   //---
 
-  light_->render();
+  for (auto *light : lights())
+    light->render();
+
 }
 
 void
@@ -1229,13 +1371,15 @@ keyPressEvent(QKeyEvent *e)
     return;
   }
 
+  auto *light = currentLight();
+
   if      (e->key() == Qt::Key_W) {
     if      (type == Type::CAMERA) {
       camera_->processKeyboard(CGLCamera::Movement::FORWARD, dt);
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      light_->setPos(light_->pos() + CGLVector3D(0.0f, 0.1f, 0.0f));
+      light->setPosition(light->position() + CGLVector3D(0.0f, 0.1f, 0.0f));
   }
   else if (e->key() == Qt::Key_S) {
     if      (type == Type::CAMERA) {
@@ -1243,7 +1387,7 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      light_->setPos(light_->pos() - CGLVector3D(0.0f, 0.1f, 0.0f));
+      light->setPosition(light->position() - CGLVector3D(0.0f, 0.1f, 0.0f));
   }
   else if (e->key() == Qt::Key_A) {
     if      (type == Type::CAMERA) {
@@ -1251,7 +1395,7 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      light_->setPos(light_->pos() - CGLVector3D(0.1f, 0.0f, 0.0f));
+      light->setPosition(light->position() - CGLVector3D(0.1f, 0.0f, 0.0f));
   }
   else if (e->key() == Qt::Key_D) {
     if      (type == Type::CAMERA) {
@@ -1259,13 +1403,21 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      light_->setPos(light_->pos() + CGLVector3D(0.1f, 0.0f, 0.0f));
+      light->setPosition(light->position() + CGLVector3D(0.1f, 0.0f, 0.0f));
   }
   else if (e->key() == Qt::Key_C) {
     setType(Type::CAMERA);
   }
   else if (e->key() == Qt::Key_L) {
-    setType(Type::LIGHT);
+    if (type == Type::LIGHT) {
+      setLightNum(lightNum() + 1);
+    }
+    else {
+      setType(Type::LIGHT);
+      setLightNum(0);
+    }
+
+    Q_EMIT typeChanged();
   }
   else if (e->key() == Qt::Key_M) {
     setType(Type::MODEL);
@@ -1294,7 +1446,7 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      light_->setPos(light_->pos() + CGLVector3D(0.0f, 0.0f, 0.1f));
+      light->setPosition(light->position() + CGLVector3D(0.0f, 0.0f, 0.1f));
   }
   else if (e->key() == Qt::Key_Down) {
     if      (type == Type::CAMERA) {
@@ -1302,7 +1454,7 @@ keyPressEvent(QKeyEvent *e)
       Q_EMIT cameraChanged();
     }
     else if (type == Type::LIGHT)
-      light_->setPos(light_->pos() - CGLVector3D(0.0f, 0.0f, 0.1f));
+      light->setPosition(light->position() - CGLVector3D(0.0f, 0.0f, 0.1f));
   }
 
   update();
@@ -1426,7 +1578,7 @@ getValue(const QString &name, const QStringList &)
   }
 }
 
-void
+bool
 Object3D::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
@@ -1480,8 +1632,12 @@ setValue(const QString &name, const QString &value, const QStringList &)
         canvas()->addObject(this);
     }
   }
-  else
+  else {
     app->errorMsg(QString("Invalid set name '%1'").arg(name));
+    return false;
+  }
+
+  return true;
 }
 
 void
@@ -1490,7 +1646,7 @@ tick()
 {
   auto *app = canvas()->app();
 
-  ++ticks_;
+  ticks_ += dt_;
 
   app->runTclCmd("tick");
 }
@@ -1506,8 +1662,8 @@ render()
 QOpenGLShaderProgram* Light3D::s_shaderProgram;
 
 Light3D::
-Light3D(Canvas3D *canvas) :
- canvas_(canvas)
+Light3D(Canvas3D *canvas, const Type &type) :
+ canvas_(canvas), type_(type)
 {
 }
 
@@ -1607,7 +1763,7 @@ render()
     CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_shaderProgram->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
-  auto lightMatrix = CGLMatrix3D::translation(pos());
+  auto lightMatrix = CGLMatrix3D::translation(position());
   lightMatrix.scaled(0.01f, 0.01f, 0.01f);
   s_shaderProgram->setUniformValue("model", CQGLUtil::toQMatrix(lightMatrix));
 
@@ -1649,21 +1805,28 @@ Model3DObj::
 Model3DObj(Canvas3D *canvas) :
  Object3D(canvas)
 {
-  if (! s_modelShaderProgram) {
-    QString buildDir = QUOTE(BUILD_DIR);
+  QString buildDir = QUOTE(BUILD_DIR);
 
-    s_modelShaderProgram = new QOpenGLShaderProgram;
+  vertShaderFile_ = buildDir + "/shaders/model.vs";
+  fragShaderFile_ = buildDir + "/shaders/model.fs";
+}
 
-    if (! s_modelShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex,
-                                                        buildDir + "/shaders/model.vs"))
-      std::cerr << s_modelShaderProgram->log().toStdString() << "\n";
+void
+Model3DObj::
+initShader()
+{
+  if (s_modelShaderProgram)
+    return;
 
-    if (! s_modelShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
-                                                        buildDir + "/shaders/model.fs"))
-      std::cerr << s_modelShaderProgram->log().toStdString() << "\n";
+  s_modelShaderProgram = new QOpenGLShaderProgram;
 
-    s_modelShaderProgram->link();
-  }
+  if (! s_modelShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, vertShaderFile_))
+    std::cerr << s_modelShaderProgram->log().toStdString() << "\n";
+
+  if (! s_modelShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, fragShaderFile_))
+    std::cerr << s_modelShaderProgram->log().toStdString() << "\n";
+
+  s_modelShaderProgram->link();
 }
 
 QVariant
@@ -1673,11 +1836,11 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Model3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto fileToTexture = [&](const QString filename, bool flipY=false) {
+  auto fileToTexture = [&](const QString filename, bool flipY=true) {
     CFile imageFile(filename.toStdString());
 
     if (! imageFile.exists())
@@ -1693,25 +1856,43 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     return new CGLTexture(image);
   };
 
+  auto resetShader = [&]() {
+    delete s_modelShaderProgram;
+
+    s_modelShaderProgram = nullptr;
+  };
+
   //---
 
   if      (name == "diffuse_texture") {
     diffuseTexture_ = fileToTexture(value);
 
-    updateObjectData();
+    needsUpdate_ = true;
   }
   else if (name == "specular_texture") {
     specularTexture_ = fileToTexture(value);
 
-    updateObjectData();
+    needsUpdate_ = true;
   }
   else if (name == "normal_texture") {
     normalTexture_ = fileToTexture(value);
 
-    updateObjectData();
+    needsUpdate_ = true;
+  }
+  else if (name == "vert_shader") {
+    vertShaderFile_ = value;
+
+    resetShader();
+  }
+  else if (name == "frag_shader") {
+    fragShaderFile_ = value;
+
+    resetShader();
   }
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 bool
@@ -1739,18 +1920,35 @@ load(const QString &filename)
     return false;
   }
 
-  updateObjectData();
+  needsUpdate_ = true;
 
   return true;
 }
 
 void
 Model3DObj::
+tick()
+{
+  Object3D::tick();
+
+  canvas_->update();
+}
+
+void
+Model3DObj::
 render()
 {
+  initShader();
+
+  updateObjectData();
+
+  //---
+
   // lighting
-  auto lightPos   = canvas_->light()->pos();
-  auto lightColor = canvas_->light()->color();
+  auto *light = canvas_->currentLight();
+
+  auto lightPos   = light->position();
+  auto lightColor = light->color();
 
   //---
 
@@ -1766,32 +1964,41 @@ render()
   modelMatrix_.translated(float(-sceneCenter_.getX()),
                           float(-sceneCenter_.getY()),
                           float(-sceneCenter_.getZ()));
+
+  auto t = 1.0*ticks_/100.0;
+
+  if (t >= 1.0)
+    dt_ = -dt_;
+
+  auto *program = s_modelShaderProgram;
+
   // setup model shader
   for (auto &po : objectDatas_) {
     auto *objectData = po.second;
 
     objectData->buffer->bind();
 
-    s_modelShaderProgram->bind();
+    program->bind();
 
-    s_modelShaderProgram->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
-    s_modelShaderProgram->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
-    s_modelShaderProgram->setUniformValue("viewPos"   , CQGLUtil::toVector(canvas_->viewPos()));
+    program->setUniformValue("ticks", float(t));
 
-    s_modelShaderProgram->setUniformValue("ambientStrength" , float(canvas_->ambient()));
-    s_modelShaderProgram->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
-    s_modelShaderProgram->setUniformValue("specularStrength", float(canvas_->specular()));
-    s_modelShaderProgram->setUniformValue("shininess"       , float(canvas_->shininess()));
+    canvas_->setProgramLights(program);
+
+    program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
+
+    program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
+    program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
+    program->setUniformValue("specularStrength", float(canvas_->specular()));
+    program->setUniformValue("shininess"       , float(canvas_->shininess()));
 
     // pass projection matrix to shader (note that in this case it could change every frame)
-    s_modelShaderProgram->setUniformValue("projection",
-      CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+    program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
 
     // camera/view transformation
-    s_modelShaderProgram->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+    program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
     // model rotation
-    s_modelShaderProgram->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+    program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
 
     // render model
     for (const auto &faceData : objectData->faceDatas) {
@@ -1803,13 +2010,13 @@ render()
 
       bool useDiffuseTexture = !!diffuseTexture;
 
-      s_modelShaderProgram->setUniformValue("useDiffuseTexture", useDiffuseTexture);
+      program->setUniformValue("diffuseTexture.enabled", useDiffuseTexture);
 
       if (useDiffuseTexture) {
         glActiveTexture(GL_TEXTURE0);
         diffuseTexture->bind();
 
-        s_modelShaderProgram->setUniformValue("diffuseTexture", 0);
+        program->setUniformValue("diffuseTexture.texture", 0);
       }
 
       //---
@@ -1822,13 +2029,13 @@ render()
 
       bool useSpecularTexture = !!specularTexture;
 
-      s_modelShaderProgram->setUniformValue("useSpecularTexture", useSpecularTexture);
+      program->setUniformValue("specularTexture.enabled", useSpecularTexture);
 
       if (useSpecularTexture) {
         glActiveTexture(GL_TEXTURE1);
         specularTexture->bind();
 
-        s_modelShaderProgram->setUniformValue("specularTexture", 1);
+        program->setUniformValue("specularTexture.texture", 1);
       }
 
       //---
@@ -1841,32 +2048,30 @@ render()
 
       bool useNormalTexture = !!normalTexture;
 
-      s_modelShaderProgram->setUniformValue("useNormalTexture", useNormalTexture);
+      program->setUniformValue("normalTexture.enabled", useNormalTexture);
 
       if (useNormalTexture) {
         glActiveTexture(GL_TEXTURE2);
         normalTexture->bind();
 
-        s_modelShaderProgram->setUniformValue("normalTexture", 2);
+        program->setUniformValue("normalTexture.texture", 2);
       }
 
       //---
 
-      if (! canvas_->isWireframe()) {
-        s_modelShaderProgram->setUniformValue("isWireframe", 0);
+      program->setUniformValue("isWireframe", canvas_->isWireframe() ? 1 : 0);
 
+      if (! canvas_->isWireframe()) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
       }
 
       if (canvas_->isPolygonLine() || canvas_->isWireframe()) {
-        s_modelShaderProgram->setUniformValue("isWireframe", 1);
-
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-        //glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
-        glDrawArrays(GL_TRIANGLES, faceData.pos, faceData.len);
+        glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
+        //glDrawArrays(GL_TRIANGLES, faceData.pos, faceData.len);
       }
     }
 
@@ -1878,6 +2083,11 @@ void
 Model3DObj::
 updateObjectData()
 {
+  if (! needsUpdate_)
+    return;
+
+  needsUpdate_ = false;
+
   // set up vertex data (and buffer(s)) and configure vertex attributes
   CVector3D sceneSize(1, 1, 1);
 
@@ -1910,10 +2120,7 @@ updateObjectData()
 
       auto *buffer = objectData->buffer;
 
-      buffer->clearPoints();
-      buffer->clearNormals();
-      buffer->clearColors();
-      buffer->clearTexturePoints();
+      buffer->clearAll();
 
       objectData->faceDatas.clear();
 
@@ -2013,12 +2220,15 @@ updateObjectData()
 
           buffer->addColor(vcolor.getRedF(), vcolor.getGreenF(), vcolor.getBlueF());
 
-          auto *diffuseTexture = faceData.diffuseTexture;
+          auto *diffuseTexture  = faceData.diffuseTexture;
+          auto *specularTexture = faceData.specularTexture;
+          auto *normalTexture   = faceData.normalTexture;
 
-          if (! diffuseTexture)
-            diffuseTexture = diffuseTexture_;
+          if (! diffuseTexture ) diffuseTexture  = diffuseTexture_;
+          if (! specularTexture) specularTexture = specularTexture_;
+          if (! normalTexture  ) normalTexture   = normalTexture_;
 
-          if (diffuseTexture) {
+          if (diffuseTexture || specularTexture || normalTexture) {
             const auto &tpoint = vertex.getTextureMap();
 
             buffer->addTexturePoint(float(tpoint.x), float(tpoint.y));
@@ -2046,6 +2256,61 @@ updateObjectData()
   xscale_ = sceneScale;
   yscale_ = sceneScale;
   zscale_ = sceneScale;
+}
+
+void
+Model3DObj::
+calcTangents()
+{
+  if (! import_)
+    return;
+
+  auto &scene = import_->getScene();
+
+  for (auto *object : scene.getObjects()) {
+    std::vector<CVector3D> tangents;
+
+    auto nv = object->getNumVertices();
+
+    tangents.resize(nv);
+
+    const auto &faces = object->getFaces();
+
+    for (const auto *face : faces) {
+      const auto &vertices = face->getVertices();
+      if (vertices.size() < 3) continue;
+
+      const auto &v0 = object->getVertex(vertices[0]);
+      const auto &v1 = object->getVertex(vertices[1]);
+      const auto &v2 = object->getVertex(vertices[2]);
+
+      auto uv0 = v0.getTextureMap();
+      auto uv1 = v1.getTextureMap();
+      auto uv2 = v2.getTextureMap();
+
+      auto edge1 = v1.getViewed() - v0.getViewed();
+      auto edge2 = v2.getViewed() - v0.getViewed();
+
+      auto dUV1 = uv1 - uv0;
+      auto dUV2 = uv2 - uv0;
+
+      double f = 1.0/(dUV1.x*dUV2.y - dUV2.x*dUV1.y);
+
+      auto tx = f*(dUV2.y*edge1.x - dUV1.y*edge2.x);
+      auto ty = f*(dUV2.y*edge1.y - dUV1.y*edge2.y);
+      auto tz = f*(dUV2.y*edge1.z - dUV1.y*edge2.z);
+
+      auto tan = CVector3D(tx, ty, tz);
+      tan.normalize();
+
+      tangents[vertices[0]] += tan;
+      tangents[vertices[1]] += tan;
+      tangents[vertices[2]] += tan;
+    }
+
+    for (uint i = 0; i < tangents.size(); ++i)
+      tangents[i].normalize();
+  }
 }
 
 //---
@@ -2122,7 +2387,7 @@ getValue(const QString &name, const QStringList &args)
     return Object3D::getValue(name, args);
 }
 
-void
+bool
 Csv3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -2135,7 +2400,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "first_column_header")
     csv_->setFirstColumnHeader(Util::stringToBool(value));
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 QVariant
@@ -2191,11 +2458,11 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Group3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  Object3D::setValue(name, value, args);
+  return Object3D::setValue(name, value, args);
 }
 
 void
@@ -2259,7 +2526,7 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Shape3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -2321,7 +2588,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     if (strs.size() != 2) {
       app->errorMsg("Invalid dimensions for cone");
-      return;
+      return false;
     }
 
     double r = Util::stringToReal(strs[0]);
@@ -2340,7 +2607,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     if (strs.size() != 2) {
       app->errorMsg("Invalid dimensions for cylinder");
-      return;
+      return false;
     }
 
     double r = Util::stringToReal(strs[0]);
@@ -2381,7 +2648,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     }
     else {
       app->errorMsg("bad sizes for cube");
-      return;
+      return false;
     }
 
     addCube(sx, sy, sz);
@@ -2392,7 +2659,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void
@@ -2754,13 +3023,14 @@ init()
       "uniform float specularStrength;\n"
       "uniform float shininess;\n"
       "uniform sampler2D textureId;\n"
+      "uniform sampler2D normTex;\n"
       "uniform bool useTexture;\n"
       "uniform bool useNormalTexture;\n"
       "void main() {\n"
       "  vec3 norm;\n"
       "  if (useNormalTexture) {\n"
       "    norm = texture(normTex, TextCoord).rgb();\n"
-      "    norm = normalize(nrom*2.0 - 1.0).rgb();\n"
+      "    norm = normalize(norm*2.0 - 1.0).rgb();\n"
       "  } else {\n"
       "    norm = normalize(Normal);\n"
       "  }\n"
@@ -2785,10 +3055,12 @@ init()
 
     s_program->program = new QOpenGLShaderProgram(this);
 
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+    auto *program = s_program->program;
 
-    s_program->program->link();
+    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    program->link();
   }
 
   //---
@@ -2981,8 +3253,10 @@ render()
 
   //---
 
-  auto lightPos   = canvas_->light()->pos();
-  auto lightColor = canvas_->light()->color();
+  auto *light = canvas_->currentLight();
+
+  auto lightPos   = light->position();
+  auto lightColor = light->color();
 
   auto *program = s_program->program;
 
@@ -3013,16 +3287,16 @@ render()
   program->setUniformValue("useNormalTexture", useNormalTexture_);
   program->setUniformValue("textureId", 0);
 
-  if (useTexture_) {
+  if (useTexture_ || useNormalTexture_)
     glEnable(GL_TEXTURE_2D);
-    glActiveTexture(GL_TEXTURE0);
 
+  if (useTexture_) {
+    glActiveTexture(GL_TEXTURE0);
     texture_->bind();
   }
 
   if (useNormalTexture_) {
     glActiveTexture(GL_TEXTURE1);
-
     normalTexture_->bind();
   }
 
@@ -3042,9 +3316,8 @@ render()
 
   //canvas_->glBindVertexArray(0);
 
-  if (texture_) {
+  if (useTexture_ || useNormalTexture_)
     glDisable(GL_TEXTURE_2D);
-  }
 }
 
 //---
@@ -3230,7 +3503,7 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Shader3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -3243,7 +3516,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     shaderValid_    = false;
   }
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void
@@ -3430,7 +3705,7 @@ getValue(const QString &name, const QStringList &args)
     return Object3D::getValue(name, args);
 }
 
-void
+bool
 ParticleList3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -3448,7 +3723,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       auto i = Util::stringToInt(args[0]);
 
       if (i < 0 || i >= int(points_.size()))
-        return;
+        return false;
 
       points_[i] = stringToPoint3D(tcl, value);
     }
@@ -3461,7 +3736,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       auto i = Util::stringToInt(args[0]);
 
       if (i < 0 || i >= int(colors_.size()))
-        return;
+        return false;
 
       colors_[i] = stringToColor(tcl, value);
     }
@@ -3565,7 +3840,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   }
 #endif
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void
@@ -3631,25 +3908,27 @@ init()
 
     s_program->program = new QOpenGLShaderProgram(this);
 
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+    auto *program = s_program->program;
 
-    s_program->program->link();
+    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    program->link();
 
     // get program variables
-    s_program->positionAttr = s_program->program->attributeLocation("position");
+    s_program->positionAttr = program->attributeLocation("position");
     Q_ASSERT(s_program->positionAttr != -1);
 
-    s_program->centerAttr = s_program->program->attributeLocation("center");
+    s_program->centerAttr = program->attributeLocation("center");
     Q_ASSERT(s_program->centerAttr != -1);
 
-    s_program->colorAttr = s_program->program->attributeLocation("color");
+    s_program->colorAttr = program->attributeLocation("color");
     Q_ASSERT(s_program->colorAttr != -1);
 
-    s_program->projectionUniform = s_program->program->uniformLocation("projection");
+    s_program->projectionUniform = program->uniformLocation("projection");
     Q_ASSERT(s_program->projectionUniform != -1);
 
-    s_program->viewUniform = s_program->program->uniformLocation("view");
+    s_program->viewUniform = program->uniformLocation("view");
     Q_ASSERT(s_program->viewUniform != -1);
   }
 
@@ -3774,17 +4053,18 @@ void
 ParticleList3DObj::
 render()
 {
+  auto *program = s_program->program;
+
   glDisable(GL_CULL_FACE);
 
-  s_program->program->bind();
+  program->bind();
 
-  s_program->program->setUniformValue("projection",
-    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   setModelMatrix();
 
-  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
 
   auto n = points_.size();
 
@@ -3862,7 +4142,7 @@ render()
   // but faster.
   canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, n);
 
-  s_program->program->release();
+  program->release();
 }
 
 //---
@@ -3996,11 +4276,13 @@ init()
 
     s_program1->program = new QOpenGLShaderProgram(this);
 
-    s_program1->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShader1);
-    s_program1->program->addShaderFromSourceCode(QOpenGLShader::Geometry, geometryShader1);
-    s_program1->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader1);
+    auto *program1 = s_program1->program;
 
-    s_program1->program->link();
+    program1->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShader1);
+    program1->addShaderFromSourceCode(QOpenGLShader::Geometry, geometryShader1);
+    program1->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader1);
+
+    program1->link();
 
     //---
 
@@ -4026,10 +4308,12 @@ init()
 
     s_program2->program = new QOpenGLShaderProgram(this);
 
-    s_program2->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShader2);
-    s_program2->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader2);
+    auto *program2 = s_program2->program;
 
-    s_program2->program->link();
+    program2->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShader2);
+    program2->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader2);
+
+    program2->link();
   }
 
   //---
@@ -4047,7 +4331,7 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Graph3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -4055,7 +4339,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     (void) loadDotFile(value);
   }
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 bool
@@ -4262,13 +4548,14 @@ void
 Graph3DObj::
 render()
 {
-  s_program1->program->bind();
+  auto *program1 = s_program1->program;
 
-  s_program1->program->setUniformValue("projection",
-    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program1->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  program1->bind();
 
-  s_program1->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+  program1->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  program1->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  program1->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
 
   canvas_->glBindVertexArray(pointsArrayId_);
 
@@ -4277,19 +4564,20 @@ render()
   glDrawArrays(GL_POINTS, 0, np);
 //glDrawArrays(GL_TRIANGLES, 0, np);
 
-  s_program1->program->release();
+  program1->release();
 
   //------
 
-  s_program2->program->bind();
+  auto *program2 = s_program2->program;
 
-  s_program2->program->setUniformValue("lineColor", toVector(lineColor_));
+  program2->bind();
 
-  s_program2->program->setUniformValue("projection",
-    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program2->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  program2->setUniformValue("lineColor", toVector(lineColor_));
 
-  s_program2->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+  program2->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  program2->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  program2->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
 
   canvas_->glBindVertexArray(pointsArrayId_);
 
@@ -4297,7 +4585,7 @@ render()
 
   glDrawArrays(GL_LINES, 0, nl);
 
-  s_program2->program->release();
+  program2->release();
 }
 
 //---
@@ -4334,7 +4622,7 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Surface3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -4432,7 +4720,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       }
 
       if (ix < 0 || ix >= nx_ || iy < 0 || iy >= ny_)
-        return;
+        return false;
 
       int ixy = iy*nx_ + ix;
 
@@ -4459,7 +4747,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       }
 
       if (ix < 0 || ix >= nx_ || iy < 0 || iy >= ny_)
-        return;
+        return false;
 
       int ixy = iy*nx_ + ix;
 
@@ -4483,7 +4771,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void
@@ -4593,10 +4883,12 @@ init()
 
     s_program->program = new QOpenGLShaderProgram(this);
 
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+    auto *program = s_program->program;
 
-    s_program->program->link();
+    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    program->link();
   }
 
   //---
@@ -4779,8 +5071,10 @@ render()
 
   //---
 
-  auto lightPos   = canvas_->light()->pos();
-  auto lightColor = canvas_->light()->color();
+  auto *light = canvas_->currentLight();
+
+  auto lightPos   = light->position();
+  auto lightColor = light->color();
 
   auto *program = s_program->program;
 
@@ -4887,9 +5181,9 @@ init()
       "#version 330 core\n"
       "varying lowp vec3 col;\n"
       "varying highp vec2 uv0;\n"
-      "uniform sampler2D mainTex;\n"
+      "uniform sampler2D textureId;\n"
       "void main() {\n"
-       " vec4 tc = texture(mainTex, uv0);\n"
+       " vec4 tc = texture(textureId, uv0);\n"
       "  gl_FragColor = vec4(col.r, col.g, col.b, tc.r);\n"
       "}\n";
 
@@ -4897,29 +5191,31 @@ init()
 
     s_program->program = new QOpenGLShaderProgram(this);
 
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+    auto *program = s_program->program;
 
-    s_program->program->link();
+    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    program->link();
 
     //---
 
-    s_program->posAttr = s_program->program->attributeLocation("position");
+    s_program->posAttr = program->attributeLocation("position");
     Q_ASSERT(s_program->posAttr != -1);
 
-    s_program->colAttr = s_program->program->attributeLocation("color");
+    s_program->colAttr = program->attributeLocation("color");
   //Q_ASSERT(s_program->colAttr != -1);
 
-    s_program->texPosAttr = s_program->program->attributeLocation("texCoord0");
+    s_program->texPosAttr = program->attributeLocation("texCoord0");
     Q_ASSERT(s_program->texPosAttr != -1);
 
-    s_program->projectionUniform = s_program->program->uniformLocation("projection");
+    s_program->projectionUniform = program->uniformLocation("projection");
     Q_ASSERT(s_program->projectionUniform != -1);
 
-    s_program->viewUniform = s_program->program->uniformLocation("view");
+    s_program->viewUniform = program->uniformLocation("view");
     Q_ASSERT(s_program->viewUniform != -1);
 
-    s_program->textureUniform = s_program->program->uniformLocation("mainTex");
+    s_program->textureUniform = program->uniformLocation("textureId");
     Q_ASSERT(s_program->textureUniform != -1);
   }
 
@@ -5003,14 +5299,16 @@ getValue(const QString &name, const QStringList &args)
     return Object3D::getValue(name, args);
 }
 
-void
+bool
 Text3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if (name == "text")
     setText(value);
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void
@@ -5151,13 +5449,14 @@ render()
 
   //------
 
-  s_program->program->bind();
+  auto *program = s_program->program;
 
-  s_program->program->setUniformValue("projection",
-    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program->program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  program->bind();
 
-  s_program->program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
 
   //---
 
@@ -5219,7 +5518,7 @@ render()
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
   glActiveTexture(GL_TEXTURE0);
 
-  s_program->program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
+  program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
 
   canvas_->glBindVertexArray(glData_.vao);
   canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glData_.indexBuffer);
@@ -5237,7 +5536,7 @@ render()
 
   //---
 
-  s_program->program->release();
+  program->release();
 
   glPopAttrib();
 }
@@ -5277,6 +5576,15 @@ init()
 
   //---
 
+  canvas_->glGenVertexArrays(1, &vertexArrayId_);
+
+  canvas_->glGenBuffers(1, &pointsBufferId_);
+}
+
+void
+Path3DObj::
+initShader()
+{
   if (! s_program) {
     static const char *vertexShaderSource =
       "#version 330 core\n"
@@ -5297,17 +5605,13 @@ init()
 
     s_program->program = new QOpenGLShaderProgram(this);
 
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+    auto *program = s_program->program;
 
-    s_program->program->link();
+    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    program->link();
   }
-
-  //---
-
-  canvas_->glGenVertexArrays(1, &vertexArrayId_);
-
-  canvas_->glGenBuffers(1, &pointsBufferId_);
 }
 
 void
@@ -5331,7 +5635,7 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Path3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -5367,7 +5671,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void
@@ -5419,6 +5725,8 @@ void
 Path3DObj::
 render()
 {
+  initShader();
+
   updateGL();
 
   //---
@@ -5488,7 +5796,7 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Axis3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -5543,9 +5851,10 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     setNeedsUpdate();
   }
-  else {
-    Object3D::setValue(name, value, args);
-  }
+  else
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void
@@ -5699,8 +6008,9 @@ init()
       "uniform sampler2D textureId;\n"
       "void main() {\n"
       "  vec4 texColor = texture(textureId, TexCoord);\n"
-      " if(texColor.a < 0.1)\n"
-      "   discard;\n"
+      "  if (texColor.a < 0.1) {\n"
+      "    discard;\n"
+      "  }\n"
       " FragColor = texColor;\n"
       "}\n";
 
@@ -5708,10 +6018,12 @@ init()
 
     s_program->program = new QOpenGLShaderProgram(this);
 
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    s_program->program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+    auto *program = s_program->program;
 
-    s_program->program->link();
+    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    program->link();
   }
 
   //---
@@ -5723,9 +6035,11 @@ void
 Sprite3DObj::
 updateBuffer()
 {
+  auto *program = s_program->program;
+
   delete buffer_;
 
-  buffer_ = new CQGLBuffer(s_program->program);
+  buffer_ = new CQGLBuffer(program);
 
   auto z = position().z;
 
@@ -5753,7 +6067,7 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Sprite3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -5781,7 +6095,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     yv_ = v.y;
   }
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void
@@ -5864,6 +6180,377 @@ render()
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
   buffer_->unbind();
+}
+
+//---
+
+ProgramData *Skybox3DObj::s_program = nullptr;
+
+bool
+Skybox3DObj::
+create(Canvas3D *canvas, const QStringList &)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new Skybox3DObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  obj->init();
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+Skybox3DObj::
+Skybox3DObj(Canvas3D *canvas) :
+ Object3D(canvas)
+{
+  (void) load();
+}
+
+void
+Skybox3DObj::
+init()
+{
+  Object3D::init();
+}
+
+void
+Skybox3DObj::
+initShader()
+{
+  if (! s_program) {
+    static const char *vertexShaderSource =
+      "#version 330 core\n"
+      "layout (location = 0) in vec3 pos;\n"
+      "out vec3 fragPos;\n"
+      "uniform mat4 projection;\n"
+      "uniform mat4 view;\n"
+      "uniform mat4 model;\n"
+      "void main() {\n"
+      "  fragPos = pos;\n"
+      "  //gl_Position = projection * view * model * vec4(pos, 1.0);\n"
+      "  gl_Position = (projection * view * model * vec4(pos, 1.0)).xyww;\n"
+      "  //gl_Position = view * model * vec4(pos, 1.0);\n"
+      "}\n";
+    static const char *fragmentShaderSource =
+      "#version 330 core\n"
+      "uniform samplerCube textureId;\n"
+      "//uniform sampler2D textureId;\n"
+      "uniform bool isWireframe;\n"
+      "in vec3 fragPos;\n"
+      "out vec4 outCol;\n"
+      "void main() {\n"
+      "  if (isWireframe) {\n"
+      "    outCol = vec4(fragPos, 1.0);\n"
+      "  } else {\n"
+      "    outCol = texture(textureId, fragPos);\n"
+      "    //outCol = texture(textureId, 0.5*(fragPos.xy + 1.0));\n"
+      "    //outCol = vec4(fragPos, 1.0);\n"
+      "  }\n"
+      "}\n";
+
+    s_program = new ProgramData;
+
+    s_program->program = new QOpenGLShaderProgram(this);
+
+    auto *program = s_program->program;
+
+    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    program->link();
+  }
+}
+
+bool
+Skybox3DObj::
+load()
+{
+  QString buildDir = QUOTE(BUILD_DIR);
+
+  auto filename = buildDir + "/models/ply/cube.ply";
+
+  QFileInfo fi(filename);
+
+  auto suffix = fi.suffix().toLower();
+  auto type   = CImportBase::suffixToType(suffix.toStdString());
+
+  import_ = CImportBase::createModel(type);
+
+  if (! import_) {
+    canvas_->app()->errorMsg(QString("Invalid model type for '%1'").arg(filename));
+    return false;
+  }
+
+  CFile file(filename.toStdString());
+
+  if (! import_->read(file)) {
+    canvas_->app()->errorMsg(QString("Failed to load file '%1'").arg(filename));
+    return false;
+  }
+
+  needsUpdate_ = true;
+
+  return true;
+}
+
+QVariant
+Skybox3DObj::
+getValue(const QString &name, const QStringList &args)
+{
+  return Object3D::getValue(name, args);
+}
+
+bool
+Skybox3DObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
+  if      (name == "images") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.length() != 6)
+      return false;
+
+    images_.resize(6);
+
+    for (int i = 0; i < 6; ++i) {
+      images_[i] = QImage(strs[i]);
+
+      if (images_[i].isNull())
+        std::cerr << "Invalid image '" << strs[i].toStdString() << "'\n";
+    }
+
+    delete cubemap_;
+
+    cubemap_ = new CQGLCubemap;
+    cubemap_->setImages(images_);
+
+    canvas_->glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+    delete texture_;
+
+    texture_ = new CQGLTexture;
+    texture_->setImage(images_[0]);
+
+    needsUpdate_ = true;
+  }
+  else if (name == "cubemap") {
+    useCubemap_ = Util::stringToBool(value);
+  }
+  else
+    return Object3D::setValue(name, value, args);
+
+  return true;
+}
+
+void
+Skybox3DObj::
+updateObjectData()
+{
+  if (! needsUpdate_)
+    return;
+
+  needsUpdate_ = false;
+
+  auto *program = s_program->program;
+
+  // set up vertex data (and buffer(s)) and configure vertex attributes
+  CVector3D sceneSize(1, 1, 1);
+
+  if (import_) {
+    auto &scene = import_->getScene();
+
+    CBBox3D bbox;
+
+    scene.getBBox(bbox);
+
+    sceneSize    = bbox.getSize();
+    sceneCenter_ = bbox.getCenter();
+    //std::cerr << "Scene Center : " << sceneCenter_.getX() << " " <<
+    //             sceneCenter_.getY() << " " << sceneCenter_.getZ() << "\n";
+
+    for (auto *object : scene.getObjects()) {
+      ObjectData *objectData { nullptr };
+
+      auto pd = objectDatas_.find(object);
+
+      if (pd == objectDatas_.end())
+        pd = objectDatas_.insert(pd, ObjectDatas::value_type(object, new ObjectData));
+
+      objectData = (*pd).second;
+
+      if (! objectData->buffer)
+        objectData->buffer = new CQGLBuffer(program);
+
+      //---
+
+      auto *buffer = objectData->buffer;
+
+      buffer->clearAll();
+
+      objectData->faceDatas.clear();
+
+      //---
+
+      const auto &faces = object->getFaces();
+
+      int pos = 0;
+
+      for (const auto *face : faces) {
+        FaceData faceData;
+
+        //---
+
+        const auto &vertices = face->getVertices();
+
+        faceData.pos = pos;
+        faceData.len = int(vertices.size());
+
+        for (const auto &v : vertices) {
+          auto &vertex = object->getVertex(v);
+
+          const auto &model = vertex.getModel();
+
+          if (! flipYZ_)
+            buffer->addPoint(float(model.x), float(model.y), float(model.z));
+          else
+            buffer->addPoint(float(model.x), float(model.z), float(model.y));
+        }
+
+        pos += faceData.len;
+
+        objectData->faceDatas.push_back(faceData);
+      }
+
+      objectData->buffer->load();
+    }
+  }
+
+  auto max3 = [](double x, double y, double z) {
+    return std::max(std::max(x, y), z);
+  };
+
+  auto sceneScale = float(1.0/max3(sceneSize.getX(), sceneSize.getY(), sceneSize.getZ()));
+  //std::cerr << "Scene Scale : " << sceneScale << "\n";
+
+  xscale_ = sceneScale;
+  yscale_ = sceneScale;
+  zscale_ = sceneScale;
+}
+
+void
+Skybox3DObj::
+render()
+{
+  initShader();
+
+  updateObjectData();
+
+  //---
+
+//glDepthMask(GL_FALSE);
+  glDepthFunc(GL_LEQUAL);
+
+  auto *program = s_program->program;
+
+  // setup model shader
+  for (auto &po : objectDatas_) {
+    auto *objectData = po.second;
+
+    objectData->buffer->bind();
+
+    program->bind();
+
+    if (useCubemap_) {
+      if (cubemap_) {
+        cubemap_->enable(/*enable*/true);
+
+        glActiveTexture(GL_TEXTURE0);
+
+        cubemap_->bind();
+
+        //cubemap_->setParameters();
+      }
+    }
+    else {
+      if (texture_) {
+        texture_->enable(/*enable*/true);
+
+        glActiveTexture(GL_TEXTURE0);
+
+        texture_->bind();
+      }
+    }
+
+    program->setUniformValue("textureId", 0);
+
+    // pass projection matrix to shader (note that in this case it could change every frame)
+    program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+
+    // camera/view transformation
+    program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+    // model rotation
+    program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+
+    program->setUniformValue("isWireframe", canvas_->isWireframe() ? 1 : 0);
+
+#if 0
+    // render model
+    for (const auto &faceData : objectData->faceDatas) {
+      if (! canvas_->isWireframe()) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
+      }
+      else {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+        glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
+      }
+    }
+#else
+    if (! canvas_->isWireframe()) {
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
+    else {
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
+#endif
+
+    if (useCubemap_) {
+      if (cubemap_) {
+        cubemap_->enable(/*enable*/false);
+
+        cubemap_->unbind();
+
+        //cubemap_->setParameters();
+      }
+    }
+    else {
+      if (texture_) {
+        texture_->enable(/*enable*/false);
+
+        texture_->unbind();
+      }
+    }
+
+    objectData->buffer->unbind();
+  }
+
+//glDepthMask(GL_TRUE);
+  glDepthFunc(GL_LESS);
 }
 
 //---
@@ -6019,11 +6706,11 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 Othello3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  Object3D::setValue(name, value, args);
+  return Object3D::setValue(name, value, args);
 }
 
 void
@@ -6123,7 +6810,7 @@ getValue(const QString &name, const QStringList &args)
   return Object3D::getValue(name, args);
 }
 
-void
+bool
 FieldRunners3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -6155,7 +6842,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setTexture(id, value);
   }
   else
-    Object3D::setValue(name, value, args);
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 void

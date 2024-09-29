@@ -26,6 +26,8 @@ bool checkError() {
 
 }
 
+//---
+
 CQGLTexture::
 CQGLTexture()
 {
@@ -81,7 +83,7 @@ void
 CQGLTexture::
 setImage(const QImage &image)
 {
-  init(image, false);
+  init(image, /*flip*/false);
 }
 
 bool
@@ -186,20 +188,28 @@ init(const QImage &image, bool flip)
   return true;
 }
 
-#if 0
 void
-CQGLTexture::bindTo(GLenum num) const
-{
-  glActiveTexture(num);
-
-  bind();
-}
-#endif
-
-void
-CQGLTexture::bind() const
+CQGLTexture::
+bind() const
 {
   glBindTexture(GL_TEXTURE_2D, id_);
+}
+
+void
+CQGLTexture::
+unbind() const
+{
+  glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void
+CQGLTexture::
+enable(bool b)
+{
+  if (b)
+    glEnable(GL_TEXTURE_2D);
+  else
+    glDisable(GL_TEXTURE_2D);
 }
 
 void
@@ -223,7 +233,7 @@ draw(double x1, double y1, double z1, double x2, double y2, double z2,
 {
   //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  glEnable(GL_TEXTURE_2D);
+  enable(true);
 
   bind();
 
@@ -254,5 +264,5 @@ draw(double x1, double y1, double z1, double x2, double y2, double z2,
 
   glEnd();
 
-  glDisable(GL_TEXTURE_2D);
+  enable(false);
 }

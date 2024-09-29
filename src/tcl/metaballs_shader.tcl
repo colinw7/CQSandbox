@@ -11,6 +11,6 @@ proc read_file { f } {
 proc init { } {
   set ::shader [sb3d::shader]
 
-# $::shader set fragment_shader [read_file shaders/metaballs.fs]
-  $::shader set fragment_shader [read_file shaders/shader_1.fs]
+# $::shader set fragment_shader [read_file shader3d/metaballs.fs]
+  $::shader set fragment_shader [read_file shader3d/shader_1.fs]
 }

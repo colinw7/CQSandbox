@@ -23,6 +23,7 @@ CQSandboxControl3D.cpp \
 CQHtmlTextPainter.cpp \
 CCircleFactor.cpp \
 CQGLTexture.cpp \
+CQGLCubemap.cpp \
 CQSVGUtil.cpp \
 CSVGUtil.cpp \
 CQAxis.cpp \
@@ -58,6 +59,7 @@ CQTclUtil.h \
 CQArrow.h \
 CQPoint3DEdit.h \
 CQGLTexture.h \
+CQGLCubemap.h \
 CGLCamera.h \
 CQSVGUtil.h \
 CSVGUtil.h \

@@ -29,10 +29,12 @@ class CQGLTexture {
 
   void setImage(const QImage &image);
 
-//void bindTo(GLenum num) const;
   void bind() const;
+  void unbind() const;
 
   uint getId() const { return id_; }
+
+  void enable(bool b);
 
   void draw();
   void draw(double x1, double y1, double x2, double y2);
@@ -53,6 +55,7 @@ class CQGLTexture {
   uint     id_       { 0 };
   bool     valid_    { false };
   WrapType wrapType_ { WrapType::REPEAT };
+  bool     cubeMap_  { false };
   bool     useAlpha_ { true };
 };
 

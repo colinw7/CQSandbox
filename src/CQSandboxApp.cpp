@@ -352,6 +352,7 @@ updateInfo()
   }
   else if (type == Canvas3D::Type::LIGHT) {
     text += "Mode: Light";
+    text += " #" + QString::number(canvas_->lightNum());
   }
   else if (type == Canvas3D::Type::MODEL) {
     text += "Mode: Model";
@@ -401,6 +402,8 @@ settingsSlot()
 {
   if (! canvasControl_)
     canvasControl_ = new CanvasControl3D(canvas_);
+
+  canvasControl_->update();
 
   canvasControl_->show();
 }

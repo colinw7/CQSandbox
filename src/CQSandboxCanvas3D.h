@@ -18,6 +18,7 @@ class CQGLBuffer;
 class CQGLTexture;
 class CImportBase;
 class CGLTexture;
+class CQGLCubemap;
 class CGLCamera;
 class CGeomObject3D;
 class CGeomTexture;
@@ -191,7 +192,7 @@ class Object3D : public QObject {
   void setModelMatrix(uint flags=ModelMatrixFlags::ALL);
 
   virtual QVariant getValue(const QString &name, const QStringList &args);
-  virtual void setValue(const QString &name, const QString &value, const QStringList &args);
+  virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
 
   virtual QVariant exec(const QString &, const QStringList &) { return QVariant(); }
 
@@ -229,10 +230,69 @@ class Object3D : public QObject {
   CGLMatrix3D modelMatrix_;
 
   int ticks_ { 0 };
+  int dt_    { 1 };
 
   Group3DObj *group_ { nullptr };
 
   bool needsUpdate_ { true };
+};
+
+//---
+
+class Light3D {
+ public:
+  enum class Type {
+    DIRECTIONAL,
+    POINT,
+    SPOT
+  };
+
+ public:
+  Light3D(Canvas3D *canvas, const Type &type=Type::DIRECTIONAL);
+
+  const Type &type() const { return type_; }
+  void setType(const Type &t) { type_ = t; }
+
+  bool isEnabled() const { return enabled_; }
+  void setEnabled(bool b) { enabled_ = b; }
+
+  const CGLVector3D &position() const { return position_; }
+  void setPosition(const CGLVector3D &p) { position_ = p; }
+
+  const CGLVector3D &direction() const { return direction_; }
+  void setDirection(const CGLVector3D &p) { direction_ = p; }
+
+  const CGLVector3D &color() const { return color_; }
+  void setColor(const CGLVector3D &c) { color_ = c; }
+
+  float cutoff() const { return cutoff_; }
+  void setCutoff(float r) { cutoff_ = r; }
+
+  float radius() const { return radius_; }
+  void setRadius(float r) { radius_ = r; }
+
+  void initBuffer();
+  void initShader();
+
+  void render();
+
+ private:
+  static QOpenGLShaderProgram* s_shaderProgram;
+
+  Canvas3D* canvas_ { nullptr };
+
+  Type type_ { Type::DIRECTIONAL };
+
+  bool enabled_ { false };
+
+  CGLVector3D position_  { 0.4f, 0.4f, 0.4f };
+  CGLVector3D color_     { 1.0f, 1.0f, 1.0f };
+  CGLVector3D direction_ { 0.0f, 0.0f, 0.0f };
+
+  CQGLBuffer* buffer_ { nullptr };
+
+  float cutoff_ { 0.1f };
+  float radius_ { 0.1f };
 };
 
 //---
@@ -248,13 +308,19 @@ class Model3DObj : public Object3D {
   const char *typeName() const override { return "Model"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   bool load(const QString &filename);
 
+  void tick() override;
+
   void render() override;
 
+  void initShader();
+
   void updateObjectData();
+
+  void calcTangents();
 
  protected:
   struct FaceData {
@@ -281,7 +347,12 @@ class Model3DObj : public Object3D {
 
   static QOpenGLShaderProgram* s_modelShaderProgram;
 
+  QString vertShaderFile_;
+  QString fragShaderFile_;
+
   QString filename_;
+
+  bool needsUpdate_ { true };
 
   CImportBase* import_ { nullptr };
 
@@ -310,7 +381,7 @@ class Csv3DObj : public Object3D {
   const char *typeName() const override { return "Csv"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   QVariant exec(const QString &op, const QStringList &args) override;
 
@@ -337,7 +408,7 @@ class Group3DObj : public Object3D {
   const char *typeName() const override { return "Group"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 
@@ -378,7 +449,7 @@ class Shape3DObj : public Object3D {
   const char *typeName() const override { return "Shape"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   const Color &color() const { return color_; }
   void setColor(const Color &c) { color_ = c; }
@@ -469,7 +540,7 @@ class Shader3DObj : public Object3D {
   const char *typeName() const override { return "Shader"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 
@@ -506,7 +577,7 @@ class ParticleList3DObj : public Object3D {
   const char *typeName() const override { return "ParticleList"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void setPoints(const Points &points);
 
@@ -571,7 +642,7 @@ class Surface3DObj : public Object3D {
   void init() override;
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void resizePoints();
 
@@ -661,7 +732,7 @@ class Text3DObj : public Object3D {
   void setRotated(bool b) { rotated_ = b; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 
@@ -722,9 +793,11 @@ class Path3DObj : public Object3D {
   void setLine(const CGLVector3D &p1, const CGLVector3D &p2);
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
+
+  void initShader();
 
   void render() override;
 
@@ -759,7 +832,7 @@ class Axis3DObj : public Object3D {
   const char *typeName() const override { return "Axis"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 
@@ -801,7 +874,7 @@ class Sprite3DObj : public Object3D {
   void setTexture(CQGLTexture *texture);
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 
@@ -830,6 +903,66 @@ class Sprite3DObj : public Object3D {
 
 //---
 
+class Skybox3DObj : public Object3D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  Skybox3DObj(Canvas3D *canvas);
+
+  const char *typeName() const override { return "Skybox"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  void init() override;
+
+  bool load();
+
+  void initShader();
+
+  void updateObjectData();
+
+  void render() override;
+
+ private:
+  struct FaceData {
+    int         pos             { 0 };
+    int         len             { 0 };
+    CGLTexture *diffuseTexture  { nullptr };
+    CGLTexture *specularTexture { nullptr };
+    CGLTexture *normalTexture   { nullptr };
+  };
+
+  using FaceDatas = std::vector<FaceData>;
+
+  FaceDatas faceDatas;
+
+  struct ObjectData {
+    CQGLBuffer* buffer { nullptr };
+    FaceDatas   faceDatas;
+  };
+
+  using ObjectDatas = std::map<CGeomObject3D*, ObjectData *>;
+
+  static ProgramData* s_program;
+
+  CImportBase* import_ { nullptr };
+
+  std::vector<QImage> images_;
+  CQGLTexture*        texture_ { nullptr };
+  CQGLCubemap*        cubemap_ { nullptr };
+  bool                useCubemap_ { true };
+
+  CPoint3D    sceneCenter_ { 0 , 0, 0 };
+  ObjectDatas objectDatas_;
+
+  bool flipYZ_ { false };
+};
+
+//---
+
 #ifdef CQSANDBOX_OTHELLO
 class Othello3DObj : public Object3D {
   Q_OBJECT
@@ -842,7 +975,7 @@ class Othello3DObj : public Object3D {
   const char *typeName() const override { return "Othello"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 
@@ -867,7 +1000,7 @@ class FieldRunners3DObj : public Object3D {
   const char *typeName() const override { return "FieldRunners"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 
@@ -900,7 +1033,7 @@ class Graph3DObj : public Object3D {
   const char *typeName() const override { return "Graph"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 
@@ -945,34 +1078,6 @@ class Graph3DObj : public Object3D {
   unsigned int linesBufferId_  { 0 };
   unsigned int pointsArrayId_  { 0 };
   unsigned int linesArrayId_   { 0 };
-};
-
-//---
-
-class Light3D {
- public:
-  Light3D(Canvas3D *canvas);
-
-  const CGLVector3D &pos() const { return pos_; }
-  void setPos(const CGLVector3D &p) { pos_ = p; }
-
-  const CGLVector3D &color() const { return color_; }
-  void setColor(const CGLVector3D &c) { color_ = c; }
-
-  void initBuffer();
-  void initShader();
-
-  void render();
-
- private:
-  static QOpenGLShaderProgram* s_shaderProgram;
-
-  Canvas3D* canvas_ { nullptr };
-
-  CGLVector3D pos_   { 0.4f, 0.4f, 0.4f };
-  CGLVector3D color_ { 1.0f, 1.0f, 1.0f };
-
-  CQGLBuffer* buffer_ { nullptr };
 };
 
 //---
@@ -1034,7 +1139,16 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  Light3D *light() const { return light_; }
+  Light3D *currentLight() const;
+
+  void updateLights();
+
+  void setProgramLights(QOpenGLShaderProgram *program);
+
+  const std::vector<Light3D *> lights() const { return lights_; }
+
+  int lightNum() const { return lightNum_; }
+  void setLightNum(int i) { lightNum_ = i; }
 
   //---
 
@@ -1043,12 +1157,22 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  bool isDepthTest  () { return true; }
-  bool isCullFace   () { return true; }
-  bool isLighting   () { return true; }
-  bool isFrontFace  () { return true; }
-  bool isSmoothShade() { return true; }
-  bool isOutline    () { return false; }
+  bool isDepthTest() { return depthTest_; }
+  void setDepthTest(bool b) { depthTest_ = b; }
+
+  bool isCullFace() { return cullFace_; }
+  void setCullFace(bool b) { cullFace_ = b; }
+
+  bool isLighting() { return lighting_; }
+  void setLighting(bool b) { lighting_ = b; }
+
+  bool isFrontFace() { return frontFace_; }
+  void setFrontFace(bool b) { frontFace_ = b; }
+
+  bool isSmoothShade() { return smoothShade_; }
+  void setSmoothShade(bool b) { smoothShade_ = b; }
+
+  bool isOutline() { return outline_; }
 
   //---
 
@@ -1115,7 +1239,7 @@ class Canvas3D : public OpenGLWindow {
 #endif
 
   QVariant getValue(const QString &name, const QStringList &args);
-  void setValue(const QString &name, const QString &value, const QStringList &args);
+  bool setValue(const QString &name, const QString &value, const QStringList &args);
 
   QVariant getCameraValue(const QString &name, const QStringList &args);
   void setCameraValue(const QString &name, const QString &value, const QStringList &args);
@@ -1154,6 +1278,13 @@ class Canvas3D : public OpenGLWindow {
 
   Type type_ { Type::CAMERA };
 
+  bool depthTest_   { true };
+  bool cullFace_    { true };
+  bool lighting_    { true };
+  bool frontFace_   { false };
+  bool smoothShade_ { true };
+  bool outline_     { false };
+
   double aspect_ { 1.0 };
 
   CRMinMax xrange_ { -1.0, 1.0 };
@@ -1166,9 +1297,14 @@ class Canvas3D : public OpenGLWindow {
 
   CGLCamera* camera_ { nullptr };
 
-  Light3D* light_ { nullptr };
-
   Path3DObj* eyeLine_ { nullptr };
+
+  uint numDirectionalLights_ { 1 };
+  uint numPointLights_ { 2 };
+  uint numSpotLights_ { 2 };
+
+  std::vector<Light3D *> lights_;
+  uint                   lightNum_ { 0 };
 
   ParticleList3DObj* intersectParticles_ { nullptr };
 

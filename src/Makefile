@@ -61,6 +61,7 @@ SOURCES       = CQSandboxMain.cpp \
 		CQHtmlTextPainter.cpp \
 		CCircleFactor.cpp \
 		CQGLTexture.cpp \
+		CQGLCubemap.cpp \
 		CQSVGUtil.cpp \
 		CSVGUtil.cpp \
 		CQAxis.cpp \
@@ -98,6 +99,7 @@ OBJECTS       = ../obj/CQSandboxMain.o \
 		../obj/CQHtmlTextPainter.o \
 		../obj/CCircleFactor.o \
 		../obj/CQGLTexture.o \
+		../obj/CQGLCubemap.o \
 		../obj/CQSVGUtil.o \
 		../obj/CSVGUtil.o \
 		../obj/CQAxis.o \
@@ -228,6 +230,7 @@ DIST          = /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf \
 		CQArrow.h \
 		CQPoint3DEdit.h \
 		CQGLTexture.h \
+		CQGLCubemap.h \
 		CGLCamera.h \
 		CQSVGUtil.h \
 		CSVGUtil.h \
@@ -241,6 +244,7 @@ DIST          = /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf \
 		CQHtmlTextPainter.cpp \
 		CCircleFactor.cpp \
 		CQGLTexture.cpp \
+		CQGLCubemap.cpp \
 		CQSVGUtil.cpp \
 		CSVGUtil.cpp \
 		CQAxis.cpp \
@@ -471,8 +475,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents CQSandboxApp.h CQSandboxCanvas.h CQSandboxEditor.h CQSandboxCanvas3D.h CQSandboxControl3D.h CQSandboxUtil.h CQHtmlTextPainter.h CQTclUtil.h CQArrow.h CQPoint3DEdit.h CQGLTexture.h CGLCamera.h CQSVGUtil.h CSVGUtil.h CQGLBuffer.h CQAxis.h $(DISTDIR)/
-	$(COPY_FILE) --parents CQSandboxMain.cpp CQSandboxApp.cpp CQSandboxCanvas.cpp CQSandboxEditor.cpp CQSandboxCanvas3D.cpp CQSandboxControl3D.cpp CQHtmlTextPainter.cpp CCircleFactor.cpp CQGLTexture.cpp CQSVGUtil.cpp CSVGUtil.cpp CQAxis.cpp CLorenzCalc.cpp CQGLUtil.cpp CGLTexture.cpp CGLCamera.cpp CQArrow.cpp CQPoint3DEdit.cpp CQTclUtil.cpp CTclUtil.cpp CForceDirected3D.cpp CFlag.cpp CDotParse.cpp CFireworks.cpp CFlocking.cpp CFlock.cpp CBoid.cpp CWaterSurface.cpp CProfile.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents CQSandboxApp.h CQSandboxCanvas.h CQSandboxEditor.h CQSandboxCanvas3D.h CQSandboxControl3D.h CQSandboxUtil.h CQHtmlTextPainter.h CQTclUtil.h CQArrow.h CQPoint3DEdit.h CQGLTexture.h CQGLCubemap.h CGLCamera.h CQSVGUtil.h CSVGUtil.h CQGLBuffer.h CQAxis.h $(DISTDIR)/
+	$(COPY_FILE) --parents CQSandboxMain.cpp CQSandboxApp.cpp CQSandboxCanvas.cpp CQSandboxEditor.cpp CQSandboxCanvas3D.cpp CQSandboxControl3D.cpp CQHtmlTextPainter.cpp CCircleFactor.cpp CQGLTexture.cpp CQGLCubemap.cpp CQSVGUtil.cpp CSVGUtil.cpp CQAxis.cpp CLorenzCalc.cpp CQGLUtil.cpp CGLTexture.cpp CGLCamera.cpp CQArrow.cpp CQPoint3DEdit.cpp CQTclUtil.cpp CTclUtil.cpp CForceDirected3D.cpp CFlag.cpp CDotParse.cpp CFireworks.cpp CFlocking.cpp CFlock.cpp CBoid.cpp CWaterSurface.cpp CProfile.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -724,6 +728,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		CQGLUtil.h \
 		CQGLBuffer.h \
 		CQGLTexture.h \
+		CQGLCubemap.h \
 		../../CCsv/qinclude/CQCsvModel.h \
 		../../CQBaseModel/include/CQDataModel.h \
 		../../CQBaseModel/include/CQBaseModel.h \
@@ -857,6 +862,11 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CMathGen.h \
 		../../CMath/include/CIPoint2D.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQGLTexture.o CQGLTexture.cpp
+
+../obj/CQGLCubemap.o: CQGLCubemap.cpp CQGLCubemap.h \
+		../../CMath/include/CMathGen.h \
+		../../CMath/include/CIPoint2D.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQGLCubemap.o CQGLCubemap.cpp
 
 ../obj/CQSVGUtil.o: CQSVGUtil.cpp CQSVGUtil.h \
 		CSVGUtil.h \
