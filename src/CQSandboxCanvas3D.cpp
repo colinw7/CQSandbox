@@ -755,6 +755,9 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     zrange_ = CRMinMax(xmin, xmax);
   }
+  else if (name == "lights.simple") {
+    setSimpleLights(true);
+  }
   else {
     app_->errorMsg(QString("Invalid value name '%1'").arg(name));
     return false;
@@ -957,6 +960,11 @@ void
 Canvas3D::
 updateLights()
 {
+  if (isSimpleLights())
+    return;
+
+  //---
+
   auto numLights = numDirectionalLights_ + numPointLights_ + numSpotLights_;
   if (numLights == lights_.size()) return;
 
@@ -965,29 +973,34 @@ updateLights()
 
   int il = 0;
 
+  for (auto *light : lights_)
+    light->setId(il++);
+
+  il = 0;
+
   lights_[il]->setType     (Light3D::Type::DIRECTIONAL);
   lights_[il]->setEnabled  (true);
-  lights_[il]->setDirection(CGLVector3D(1, -1, -1));
   lights_[il]->setColor    (CGLVector3D(1, 1, 0));
-//lights_[il]->setIntensity(1.0f);
+  lights_[il]->setDirection(CGLVector3D(1, -1, -1));
+  lights_[il]->setIntensity(1.0f);
 
   ++il;
 
   lights_[il]->setType     (Light3D::Type::POINT);
   lights_[il]->setEnabled  (true);
-  lights_[il]->setPosition (CGLVector3D(-0.5, 0.35, 0.25));
   lights_[il]->setColor    (CGLVector3D(1, 0, 0));
+  lights_[il]->setPosition (CGLVector3D(-0.5, 0.35, 0.25));
   lights_[il]->setRadius   (1.0f);
-//lights_[il]->setIntensity(1.0f);
+  lights_[il]->setIntensity(1.0f);
 
   ++il;
 
   lights_[il]->setType     (Light3D::Type::POINT);
   lights_[il]->setEnabled  (true);
-  lights_[il]->setPosition (CGLVector3D(0.5, 0.35, 0.25));
   lights_[il]->setColor    (CGLVector3D(0, 1, 0));
+  lights_[il]->setPosition (CGLVector3D(0.5, 0.35, 0.25));
   lights_[il]->setRadius   (1.0f);
-//lights_[il]->setIntensity(1.0f);
+  lights_[il]->setIntensity(1.0f);
 
   ++il;
 
@@ -995,19 +1008,19 @@ updateLights()
 
   lights_[il]->setType     (Light3D::Type::SPOT);
   lights_[il]->setEnabled  (true);
+  lights_[il]->setColor    (CGLVector3D(0, 0, 1));
   lights_[il]->setPosition (cpos + CGLVector3D(0.0, 0.5, 0));
   lights_[il]->setDirection(CGLVector3D(0, 0, -1));
-  lights_[il]->setColor    (CGLVector3D(0, 0, 1));
-//lights_[il]->setIntensity(1.0);
+  lights_[il]->setIntensity(1.0);
   lights_[il]->setCutoff   (cos(35.0f));
 
   ++il;
 
   lights_[il]->setType     (Light3D::Type::SPOT);
   lights_[il]->setEnabled  (true);
+  lights_[il]->setColor    (CGLVector3D(0, 1, 1));
   lights_[il]->setPosition (cpos + CGLVector3D(0.0, -0.5, 0));
   lights_[il]->setDirection(CGLVector3D(0, 0, -1));
-  lights_[il]->setColor    (CGLVector3D(0, 1, 1));
 //lights_[il]->setIntensity(1.5);
   lights_[il]->setCutoff   (cos(15.0f));
 
@@ -1018,6 +1031,17 @@ void
 Canvas3D::
 setProgramLights(QOpenGLShaderProgram *program)
 {
+  if (isSimpleLights()) {
+    auto *light = lights_[0];
+
+    program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->position()));
+    program->setUniformValue("lightColor", CQGLUtil::toVector(light->color()));
+
+    return;
+  }
+
+  //---
+
   static char nameStr[256];
 
   auto STR = [&](const QString &str) {
@@ -1659,7 +1683,7 @@ render()
 
 //---
 
-QOpenGLShaderProgram* Light3D::s_shaderProgram;
+ProgramData* Light3D::s_program;
 
 Light3D::
 Light3D(Canvas3D *canvas, const Type &type) :
@@ -1674,55 +1698,26 @@ initBuffer()
   initShader();
 
   // set up vertex data (and buffer(s)) and configure vertex attributes
-  buffer_ = new CQGLBuffer(s_shaderProgram);
+  auto *program = s_program->program;
 
-  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
-  buffer_->addPoint( 0.5f, -0.5f, -0.5f);
-  buffer_->addPoint( 0.5f,  0.5f, -0.5f);
+  buffer_ = new CQGLBuffer(program);
 
-  buffer_->addPoint( 0.5f,  0.5f, -0.5f);
-  buffer_->addPoint(-0.5f,  0.5f, -0.5f);
-  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
+  auto addPoint = [&](double x, double y, double z) {
+    buffer_->addPoint(x, y, z);
+  };
 
-  buffer_->addPoint(-0.5f, -0.5f,  0.5f);
-  buffer_->addPoint( 0.5f, -0.5f,  0.5f);
-  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
-
-  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
-  buffer_->addPoint(-0.5f,  0.5f,  0.5f);
-  buffer_->addPoint(-0.5f, -0.5f,  0.5f);
-
-  buffer_->addPoint(-0.5f,  0.5f,  0.5f);
-  buffer_->addPoint(-0.5f,  0.5f, -0.5f);
-  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
-
-  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
-  buffer_->addPoint(-0.5f, -0.5f,  0.5f);
-  buffer_->addPoint(-0.5f,  0.5f,  0.5f);
-
-  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
-  buffer_->addPoint( 0.5f,  0.5f, -0.5f);
-  buffer_->addPoint( 0.5f, -0.5f, -0.5f);
-
-  buffer_->addPoint( 0.5f, -0.5f, -0.5f);
-  buffer_->addPoint( 0.5f, -0.5f,  0.5f);
-  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
-
-  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
-  buffer_->addPoint( 0.5f, -0.5f, -0.5f);
-  buffer_->addPoint( 0.5f, -0.5f,  0.5f);
-
-  buffer_->addPoint( 0.5f, -0.5f,  0.5f);
-  buffer_->addPoint(-0.5f, -0.5f,  0.5f);
-  buffer_->addPoint(-0.5f, -0.5f, -0.5f);
-
-  buffer_->addPoint(-0.5f,  0.5f, -0.5f);
-  buffer_->addPoint( 0.5f,  0.5f, -0.5f);
-  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
-
-  buffer_->addPoint( 0.5f,  0.5f,  0.5f);
-  buffer_->addPoint(-0.5f,  0.5f,  0.5f);
-  buffer_->addPoint(-0.5f,  0.5f, -0.5f);
+  addPoint(-0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f,  0.5f, -0.5f);
+  addPoint( 0.5f,  0.5f, -0.5f); addPoint(-0.5f,  0.5f, -0.5f); addPoint(-0.5f, -0.5f, -0.5f);
+  addPoint(-0.5f, -0.5f,  0.5f); addPoint( 0.5f, -0.5f,  0.5f); addPoint( 0.5f,  0.5f,  0.5f);
+  addPoint( 0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f, -0.5f,  0.5f);
+  addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f, -0.5f); addPoint(-0.5f, -0.5f, -0.5f);
+  addPoint(-0.5f, -0.5f, -0.5f); addPoint(-0.5f, -0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f);
+  addPoint( 0.5f,  0.5f,  0.5f); addPoint( 0.5f,  0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f);
+  addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f,  0.5f); addPoint( 0.5f,  0.5f,  0.5f);
+  addPoint(-0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f,  0.5f);
+  addPoint( 0.5f, -0.5f,  0.5f); addPoint(-0.5f, -0.5f,  0.5f); addPoint(-0.5f, -0.5f, -0.5f);
+  addPoint(-0.5f,  0.5f, -0.5f); addPoint( 0.5f,  0.5f, -0.5f); addPoint( 0.5f,  0.5f,  0.5f);
+  addPoint( 0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f, -0.5f);
 
   buffer_->load();
 }
@@ -1731,20 +1726,22 @@ void
 Light3D::
 initShader()
 {
-  if (! s_shaderProgram) {
+  if (! s_program) {
     QString buildDir = QUOTE(BUILD_DIR);
 
-    s_shaderProgram = new QOpenGLShaderProgram;
+    s_program = new ProgramData;
 
-    if (! s_shaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex,
-                                                   buildDir + "/shaders/light.vs"))
-      std::cerr << s_shaderProgram->log().toStdString() << "\n";
+    s_program->program = new QOpenGLShaderProgram;
 
-    if (! s_shaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment,
-                                                   buildDir + "/shaders/light.fs"))
-      std::cerr << s_shaderProgram->log().toStdString() << "\n";
+    auto *program = s_program->program;
 
-    s_shaderProgram->link();
+    if (! program->addShaderFromSourceFile(QOpenGLShader::Vertex, buildDir + "/shaders/light.vs"))
+      std::cerr << program->log().toStdString() << "\n";
+
+    if (! program->addShaderFromSourceFile(QOpenGLShader::Fragment, buildDir + "/shaders/light.fs"))
+      std::cerr << program->log().toStdString() << "\n";
+
+    program->link();
   }
 }
 
@@ -1757,15 +1754,18 @@ render()
   // setup light shader
   buffer_->bind();
 
-  s_shaderProgram->bind();
+  auto *program = s_program->program;
 
-  s_shaderProgram->setUniformValue("projection",
-    CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_shaderProgram->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  program->bind();
+
+  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   auto lightMatrix = CGLMatrix3D::translation(position());
   lightMatrix.scaled(0.01f, 0.01f, 0.01f);
-  s_shaderProgram->setUniformValue("model", CQGLUtil::toQMatrix(lightMatrix));
+  program->setUniformValue("model", CQGLUtil::toQMatrix(lightMatrix));
+
+  program->setUniformValue("color", CQGLUtil::toVector(color()));
 
   // draw light
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -1776,7 +1776,7 @@ render()
 
 //---
 
-QOpenGLShaderProgram* Model3DObj::s_modelShaderProgram;
+ProgramData* Model3DObj::s_program;
 
 bool
 Model3DObj::
@@ -1815,18 +1815,22 @@ void
 Model3DObj::
 initShader()
 {
-  if (s_modelShaderProgram)
+  if (s_program)
     return;
 
-  s_modelShaderProgram = new QOpenGLShaderProgram;
+  s_program = new ProgramData;
 
-  if (! s_modelShaderProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, vertShaderFile_))
-    std::cerr << s_modelShaderProgram->log().toStdString() << "\n";
+  s_program->program = new QOpenGLShaderProgram;
 
-  if (! s_modelShaderProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, fragShaderFile_))
-    std::cerr << s_modelShaderProgram->log().toStdString() << "\n";
+  auto *program = s_program->program;
 
-  s_modelShaderProgram->link();
+  if (! program->addShaderFromSourceFile(QOpenGLShader::Vertex, vertShaderFile_))
+    std::cerr << program->log().toStdString() << "\n";
+
+  if (! program->addShaderFromSourceFile(QOpenGLShader::Fragment, fragShaderFile_))
+    std::cerr << program->log().toStdString() << "\n";
+
+  program->link();
 }
 
 QVariant
@@ -1857,9 +1861,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   };
 
   auto resetShader = [&]() {
-    delete s_modelShaderProgram;
+    if (s_program) {
+      delete s_program->program;
+      delete s_program;
 
-    s_modelShaderProgram = nullptr;
+      s_program = nullptr;
+    }
   };
 
   //---
@@ -1970,7 +1977,7 @@ render()
   if (t >= 1.0)
     dt_ = -dt_;
 
-  auto *program = s_modelShaderProgram;
+  auto *program = s_program->program;
 
   // setup model shader
   for (auto &po : objectDatas_) {
@@ -2114,7 +2121,7 @@ updateObjectData()
       objectData = (*pd).second;
 
       if (! objectData->buffer)
-        objectData->buffer = new CQGLBuffer(s_modelShaderProgram);
+        objectData->buffer = new CQGLBuffer(s_program->program);
 
       //---
 
@@ -3006,7 +3013,7 @@ init()
       "  Normal   = mat3(transpose(inverse(model)))*aNormal;\n"
       "  Color    = aColor;\n"
       "  TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n"
-      "  gl_Position = projection * view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+      "  gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
       "}";
     static const char *fragmentShaderSource =
       "#version 330 core\n"
@@ -3015,8 +3022,8 @@ init()
       "in vec4 Color;\n"
       "in vec2 TexCoord;\n"
       "out vec4 FragColor;\n"
-      "uniform vec3 lightPos;\n"
       "uniform vec3 viewPos;\n"
+      "uniform vec3 lightPos;\n"
       "uniform vec3 lightColor;\n"
       "uniform float ambientStrength;\n"
       "uniform float diffuseStrength;\n"
@@ -3024,7 +3031,7 @@ init()
       "uniform float shininess;\n"
       "uniform sampler2D textureId;\n"
       "uniform sampler2D normTex;\n"
-      "uniform bool useTexture;\n"
+      "uniform bool useDiffuseTexture;\n"
       "uniform bool useNormalTexture;\n"
       "void main() {\n"
       "  vec3 norm;\n"
@@ -3037,7 +3044,7 @@ init()
       "  vec3 lightDir = normalize(lightPos - FragPos);\n"
       "  float diff = max(dot(norm, lightDir), 0.0);\n"
       "  vec4 diffuseColor = Color;\n"
-      "  if (useTexture) {\n"
+      "  if (useDiffuseTexture) {\n"
       "    diffuseColor = texture(textureId, TexCoord);\n"
       "  }\n"
       "  vec3 diffuse = diffuseStrength*diff*vec3(diffuseColor);\n"
@@ -3175,17 +3182,17 @@ updateGL()
 
   int nt = texCoords_.size();
 
-  useTexture_       = (texture_       && nt > 0);
-  useNormalTexture_ = (normalTexture_ && nt > 0);
+  useDiffuseTexture_ = (texture_       && nt > 0);
+  useNormalTexture_  = (normalTexture_ && nt > 0);
 
   if (isInside()) {
-    useTexture_       = false;
-    useNormalTexture_ = false;
+    useDiffuseTexture_ = false;
+    useNormalTexture_  = false;
   }
 
   // store texture point data in array buffer
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferId_);
-  if (useTexture_) {
+  if (useDiffuseTexture_) {
     canvas_->glBufferData(GL_ARRAY_BUFFER, nt*sizeof(CGLVector2D), &texCoords_[0], GL_STATIC_DRAW);
   }
   else {
@@ -3203,9 +3210,9 @@ updateGL()
   }
 
   // set texture points attrib data and format (for current buffer) (vec2, location 3)
-  uint aTexCoords = 3;
-  canvas_->glVertexAttribPointer(aTexCoords, 2, GL_FLOAT, GL_FALSE, sizeof(CGLVector2D), nullptr);
-  canvas_->glEnableVertexAttribArray(aTexCoords);
+  uint aTexCoord = 3;
+  canvas_->glVertexAttribPointer(aTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(CGLVector2D), nullptr);
+  canvas_->glEnableVertexAttribArray(aTexCoord);
 
   //---
 
@@ -3262,9 +3269,10 @@ render()
 
   program->bind();
 
-  program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
+  program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
+
   program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
-  program->setUniformValue("viewPos"   , CQGLUtil::toVector(canvas_->viewPos()));
+  program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
 
   program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
   program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
@@ -3283,14 +3291,14 @@ render()
 
   //---
 
-  program->setUniformValue("useTexture", useTexture_);
+  program->setUniformValue("useDiffuseTexture", useDiffuseTexture_);
   program->setUniformValue("useNormalTexture", useNormalTexture_);
   program->setUniformValue("textureId", 0);
 
-  if (useTexture_ || useNormalTexture_)
+  if (useDiffuseTexture_ || useNormalTexture_)
     glEnable(GL_TEXTURE_2D);
 
-  if (useTexture_) {
+  if (useDiffuseTexture_) {
     glActiveTexture(GL_TEXTURE0);
     texture_->bind();
   }
@@ -3316,7 +3324,7 @@ render()
 
   //canvas_->glBindVertexArray(0);
 
-  if (useTexture_ || useNormalTexture_)
+  if (useDiffuseTexture_ || useNormalTexture_)
     glDisable(GL_TEXTURE_2D);
 }
 
@@ -3839,6 +3847,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     updateFireworks();
   }
 #endif
+  else if (name == "texture") {
+    setTexture(value);
+  }
   else
     return Object3D::setValue(name, value, args);
 
@@ -3876,6 +3887,18 @@ setNumPoints(int n)
 
 void
 ParticleList3DObj::
+setTexture(const QString &filename)
+{
+  texture_ = new CQGLTexture;
+
+  if (! texture_->load(filename, /*flip*/true)) {
+    delete texture_;
+    texture_ = nullptr;
+  }
+}
+
+void
+ParticleList3DObj::
 init()
 {
   Object3D::init();
@@ -3887,21 +3910,34 @@ init()
       "#version 330 core\n"
       "attribute highp vec4 position;\n"
       "attribute highp vec4 center;\n"
-      "attribute lowp  vec4 color;\n"
+      "attribute lowp vec4 color;\n"
       "uniform highp mat4 projection;\n"
       "uniform highp mat4 view;\n"
       "uniform highp mat4 model;\n"
       "varying lowp vec4 col;\n"
+      "varying highp vec2 texPos;\n"
       "void main() {\n"
       "  col = color;\n"
-      "  gl_Position = (projection*view*model*center) + 0.005*position;\n"
+      "  texPos = position.xy + 0.5;\n"
+      "  gl_Position = (projection*view*model*center) + 0.05*position;\n"
       "}\n";
 
     static const char *fragmentShaderSource =
       "#version 330 core\n"
       "varying lowp vec4 col;\n"
+      "varying highp vec2 texPos;\n"
+      "uniform bool useTexture;\n"
+      "uniform sampler2D textureId;\n"
       "void main() {\n"
-      "  gl_FragColor = col;\n"
+      "  if (useTexture) {\n"
+      "    vec4 tc = texture(textureId, texPos);\n"
+      "    if (tc.a < 0.1) {\n"
+      "      discard;\n"
+      "    }\n"
+      "    gl_FragColor = col*tc;\n"
+      "  } else {\n"
+      "    gl_FragColor = col;\n"
+      "  }\n"
       "}\n";
 
     s_program = new ParticleListProgramData;
@@ -4065,6 +4101,16 @@ render()
   setModelMatrix();
 
   program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+
+  bool useTexture = !!texture_;
+
+  program->setUniformValue("useTexture", useTexture);
+  program->setUniformValue("textureId", 0);
+
+  if (useTexture) {
+    glActiveTexture(GL_TEXTURE0);
+    texture_->bind();
+  }
 
   auto n = points_.size();
 
@@ -4856,8 +4902,8 @@ init()
       "in vec3 Normal;\n"
       "in vec3 Color;\n"
       "out vec4 FragColor;\n"
-      "uniform vec3 lightPos;\n"
       "uniform vec3 viewPos;\n"
+      "uniform vec3 lightPos;\n"
       "uniform vec3 lightColor;\n"
       "uniform float ambientStrength;\n"
       "uniform float diffuseStrength;\n"
@@ -5080,9 +5126,10 @@ render()
 
   program->bind();
 
-  program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
+  program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
+
   program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
-  program->setUniformValue("viewPos"   , CQGLUtil::toVector(canvas_->viewPos()));
+  program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
 
   program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
   program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
@@ -5598,7 +5645,7 @@ initShader()
     static const char *fragmentShaderSource =
       "#version 330 core\n"
       "void main() {\n"
-      " gl_FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
+      "  gl_FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
       "}\n";
 
     s_program = new ProgramData;

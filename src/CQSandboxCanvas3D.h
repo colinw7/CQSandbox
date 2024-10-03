@@ -250,24 +250,34 @@ class Light3D {
  public:
   Light3D(Canvas3D *canvas, const Type &type=Type::DIRECTIONAL);
 
+  int id() const { return id_; }
+  void setId(int i) { id_ = i; }
+
   const Type &type() const { return type_; }
   void setType(const Type &t) { type_ = t; }
 
   bool isEnabled() const { return enabled_; }
   void setEnabled(bool b) { enabled_ = b; }
 
-  const CGLVector3D &position() const { return position_; }
-  void setPosition(const CGLVector3D &p) { position_ = p; }
-
-  const CGLVector3D &direction() const { return direction_; }
-  void setDirection(const CGLVector3D &p) { direction_ = p; }
-
   const CGLVector3D &color() const { return color_; }
   void setColor(const CGLVector3D &c) { color_ = c; }
 
+  // position (for directional light)
+  const CGLVector3D &position() const { return position_; }
+  void setPosition(const CGLVector3D &p) { position_ = p; }
+
+  // direction (for point or spot)
+  const CGLVector3D &direction() const { return direction_; }
+  void setDirection(const CGLVector3D &p) { direction_ = p; }
+
+  float intensity() const { return intensity_; }
+  void setIntensity(float r) { intensity_ = r; }
+
+  // cut off (for spot light)
   float cutoff() const { return cutoff_; }
   void setCutoff(float r) { cutoff_ = r; }
 
+  // radius (for point light)
   float radius() const { return radius_; }
   void setRadius(float r) { radius_ = r; }
 
@@ -277,19 +287,24 @@ class Light3D {
   void render();
 
  private:
-  static QOpenGLShaderProgram* s_shaderProgram;
+  static ProgramData* s_program;
 
   Canvas3D* canvas_ { nullptr };
+
+  int id_ { 0 };
 
   Type type_ { Type::DIRECTIONAL };
 
   bool enabled_ { false };
 
+  CGLVector3D color_ { 1.0f, 1.0f, 1.0f };
+
   CGLVector3D position_  { 0.4f, 0.4f, 0.4f };
-  CGLVector3D color_     { 1.0f, 1.0f, 1.0f };
   CGLVector3D direction_ { 0.0f, 0.0f, 0.0f };
 
   CQGLBuffer* buffer_ { nullptr };
+
+  float intensity_ { 1.0f };
 
   float cutoff_ { 0.1f };
   float radius_ { 0.1f };
@@ -345,7 +360,7 @@ class Model3DObj : public Object3D {
 
   //---
 
-  static QOpenGLShaderProgram* s_modelShaderProgram;
+  static ProgramData* s_program;
 
   QString vertShaderFile_;
   QString fragShaderFile_;
@@ -499,10 +514,10 @@ class Shape3DObj : public Object3D {
   CQGLTexture *texture_       { nullptr };
   CQGLTexture *normalTexture_ { nullptr };
 
-  bool useTexture_       { false };
-  bool useNormalTexture_ { false };
-  bool useTriangleStrip_ { false };
-  bool useTriangleFan_   { false };
+  bool useDiffuseTexture_ { false };
+  bool useNormalTexture_  { false };
+  bool useTriangleStrip_  { false };
+  bool useTriangleFan_    { false };
 
   unsigned int pointsBufferId_   { 0 };
   unsigned int normalsBufferId_  { 0 };
@@ -581,6 +596,8 @@ class ParticleList3DObj : public Object3D {
 
   void setPoints(const Points &points);
 
+  void setTexture(const QString &filename);
+
   void init() override;
 
   void tick() override;
@@ -617,6 +634,8 @@ class ParticleList3DObj : public Object3D {
   GLuint particles_position_buffer_ { 0 };
   GLuint particles_color_buffer_    { 0 };
   GLuint billboard_vertex_buffer_   { 0 };
+
+  CQGLTexture *texture_ { nullptr };
 
 #ifdef CQSANDBOX_FLOCKING
   CFlocking* flocking_ { nullptr };
@@ -1150,6 +1169,9 @@ class Canvas3D : public OpenGLWindow {
   int lightNum() const { return lightNum_; }
   void setLightNum(int i) { lightNum_ = i; }
 
+  bool isSimpleLights() const { return simpleLights_; }
+  void setSimpleLights(bool b) { simpleLights_ = b; }
+
   //---
 
   const Type &type() const { return type_; }
@@ -1305,6 +1327,7 @@ class Canvas3D : public OpenGLWindow {
 
   std::vector<Light3D *> lights_;
   uint                   lightNum_ { 0 };
+  bool                   simpleLights_ { false };
 
   ParticleList3DObj* intersectParticles_ { nullptr };
 
