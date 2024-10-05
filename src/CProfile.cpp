@@ -66,7 +66,7 @@ getSample(const char *name)
   }
 
   if (i >= NUM_PROFILE_SAMPLES ) {
-    assert(! "Exceeded Max Available Profile Samples");
+    assert(! bool("Exceeded Max Available Profile Samples"));
     return NULL;
   }
 
@@ -107,12 +107,12 @@ dump(FILE *fp)
 
   while (i < NUM_PROFILE_SAMPLES && samples_[i].valid_ == true ) {
     char ave[16], min[16], max[16], num[16];
-    char name[256], indentedName[256];
+    char name[256 + 16], indentedName[256];
 
     if      (samples_[i].open_profiles_ < 0)
-      assert(! "ProfileEnd() called without a ProfileBegin()");
+      assert(! bool("ProfileEnd() called without a ProfileBegin()"));
     else if (samples_[i].open_profiles_ > 0)
-      assert(! "ProfileBegin() called without a ProfileEnd()");
+      assert(! bool("ProfileBegin() called without a ProfileEnd()"));
 
     double sampleTime  = samples_[i].accumulator_ -
                          samples_[i].child_sample_time_;
@@ -133,21 +133,19 @@ dump(FILE *fp)
 
     strcpy(indentedName, samples_[i].name_);
 
-    for (uint indent = 0;
-           indent < samples_[i].num_parents_; ++indent) {
+    for (uint indent = 0; indent < samples_[i].num_parents_; ++indent) {
       sprintf(name, "   %s", indentedName);
 
-      strcpy(indentedName, name );
+      strcpy(indentedName, name);
     }
 
-    fprintf(fp, "%5s : %5s : %5s : %3s : %s\n",
-            ave, min, max, num, indentedName);
+    fprintf(fp, "%5s : %5s : %5s : %3s : %s\n", ave, min, max, num, indentedName);
 
     ++i;
   }
 
-  for (uint i = 0; i < NUM_PROFILE_SAMPLES; ++i)
-     samples_[i].valid_ = false;
+  for (uint ip = 0; ip < NUM_PROFILE_SAMPLES; ++ip)
+    samples_[ip].valid_ = false;
 
   start_profile_ = COSTime::getFTime();
 }
@@ -197,7 +195,7 @@ addHistory(const char *name, double percent)
     history_[i].max_   = percent;
   }
   else
-    assert(! "Exceeded Max Available Profile Samples!");
+    assert(! bool("Exceeded Max Available Profile Samples!"));
 }
 
 void
