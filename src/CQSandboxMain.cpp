@@ -6,6 +6,8 @@
 int
 main(int argc, char **argv)
 {
+  setenv("QT_SCALE_FACTOR", "1", 1);
+
   QApplication qapp(argc, argv);
 
   qapp.setFont(QFont("Sans", 20));

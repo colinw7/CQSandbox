@@ -32,8 +32,13 @@ class CanvasControl3D : public QFrame {
 
   void bgColorSlot(const QColor &c);
 
-  void nearSlot(double r);
-  void farSlot(double r);
+  void cameraRotateSlot(int b);
+  void cameraZoomSlot(double r);
+  void cameraNearSlot(double r);
+  void cameraFarSlot(double r);
+  void cameraYawSlot(double r);
+  void cameraPitchSlot(double r);
+  void cameraPosSlot();
 
   void lightSelectedSlot(QListWidgetItem *, QListWidgetItem *);
 
@@ -43,6 +48,8 @@ class CanvasControl3D : public QFrame {
   void lightDirSlot();
   void lightCutoffSlot(double);
   void lightRadiusSlot(double);
+
+  void objectSelectedSlot(QListWidgetItem *, QListWidgetItem *);
 
  private Q_SLOTS:
   void updateSlot();
@@ -55,8 +62,14 @@ class CanvasControl3D : public QFrame {
   QCheckBox*   cullFaceCheck_  { nullptr };
   QCheckBox*   frontFaceCheck_ { nullptr };
   CQColorEdit* bgColorEdit_    { nullptr };
-  CQRealSpin*  nearEdit_       { nullptr };
-  CQRealSpin*  farEdit_        { nullptr };
+
+  QCheckBox*     cameraRotateCheck_ { nullptr };
+  CQRealSpin*    cameraZoomEdit_    { nullptr };
+  CQRealSpin*    cameraNearEdit_    { nullptr };
+  CQRealSpin*    cameraFarEdit_     { nullptr };
+  CQRealSpin*    cameraYawEdit_     { nullptr };
+  CQRealSpin*    cameraPitchEdit_   { nullptr };
+  CQPoint3DEdit* cameraPosEdit_     { nullptr };
 
   QListWidget*   lightsList_      { nullptr };
   QComboBox*     lightTypeCombo_  { nullptr };
@@ -66,6 +79,8 @@ class CanvasControl3D : public QFrame {
   CQPoint3DEdit* lightDirEdit_    { nullptr };
   CQRealSpin*    lightCutoffEdit_ { nullptr };
   CQRealSpin*    lightRadiusEdit_ { nullptr };
+
+  QListWidget* objectsList_ { nullptr };
 
   CQRealSpin* ambientEdit_    { nullptr };
   CQRealSpin* diffuseEdit_    { nullptr };

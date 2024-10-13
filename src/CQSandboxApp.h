@@ -113,6 +113,7 @@ class Control3D : public QFrame {
   void modelSlot();
   void lightSlot();
   void wireSlot();
+  void bboxSlot();
   void settingsSlot();
 
  private:
@@ -122,6 +123,7 @@ class Control3D : public QFrame {
   QToolButton* modelButton_    { nullptr };
   QToolButton* lightButton_    { nullptr };
   QToolButton* wireButton_     { nullptr };
+  QToolButton* bboxButton_     { nullptr };
   QToolButton* settingsButton_ { nullptr };
   QLabel*      infoLabel_      { nullptr };
   QLabel*      posLabel_       { nullptr };

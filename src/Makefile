@@ -557,6 +557,8 @@ compiler_moc_header_clean:
 		../../CMath/include/CMathMacros.h \
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
+		../../CMath/include/CBBox3D.h \
+		../../CMath/include/CVector3D.h \
 		../../CMath/include/CMinMax.h \
 		.moc/moc_predefs.h \
 		/usr/lib/qt5/bin/moc
@@ -648,6 +650,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CMathMacros.h \
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
+		../../CMath/include/CBBox3D.h \
+		../../CMath/include/CVector3D.h \
 		../../CMath/include/CMinMax.h \
 		CQSandboxControl3D.h \
 		../../CQUtil/include/CQIconButton.h \
@@ -660,6 +664,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		svg/model_svg.h \
 		svg/light_svg.h \
 		svg/wireframe_svg.h \
+		svg/bbox_svg.h \
 		svg/settings_svg.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxApp.o CQSandboxApp.cpp
 
@@ -724,6 +729,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CMathMacros.h \
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
+		../../CMath/include/CBBox3D.h \
+		../../CMath/include/CVector3D.h \
 		../../CMath/include/CMinMax.h \
 		CQSandboxApp.h \
 		CQSandboxUtil.h \
@@ -745,7 +752,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CUtil/include/CRefPtr.h \
 		../../CGeometry3D/include/CGeomVertex3D.h \
 		../../CMath/include/CMatrix3D.h \
-		../../CMath/include/CVector3D.h \
 		../../CMath/include/CGaussianMatrix.h \
 		../../CUtil/include/CRGBA.h \
 		../../CUtil/include/CRGB.h \
@@ -761,7 +767,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CUtil/include/CILineDash.h \
 		../../CMath/include/CPolygonOrientation.h \
 		../../CUtil/include/COptVal.h \
-		../../CMath/include/CBBox3D.h \
 		../../CGeometry3D/include/CGeomLight3D.h \
 		../../CGeometry3D/include/CGeomAxes3D.h \
 		../../CGeometry3D/include/CGeomZBuffer.h \
@@ -847,6 +852,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CMathMacros.h \
 		CGLPath3D.h \
 		../../CMath/include/CGLVector2D.h \
+		../../CMath/include/CBBox3D.h \
+		../../CMath/include/CVector3D.h \
 		../../CMath/include/CMinMax.h \
 		CGLCamera.h \
 		../../CQUtil/include/CQColorEdit.h \

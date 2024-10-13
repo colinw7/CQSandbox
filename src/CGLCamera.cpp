@@ -74,25 +74,25 @@ processKeyboard(Movement direction, float deltaTime)
   else if (direction == Movement::BACKWARD)
     moveOut(deltaTime);
   else if (direction == Movement::LEFT) {
-    if (rotate_)
+    if (isRotate())
       rotateLeft(1);
     else
       moveLeft(deltaTime);
   }
   else if (direction == Movement::RIGHT) {
-    if (rotate_)
+    if (isRotate())
       rotateRight(1);
     else
       moveRight(deltaTime);
   }
   else if (direction == Movement::UP) {
-    if (rotate_)
+    if (isRotate())
       rotateUp(1);
     else
       moveUp(deltaTime);
   }
   else if (direction == Movement::DOWN) {
-    if (rotate_)
+    if (isRotate())
       rotateDown(1);
     else
       moveDown(deltaTime);

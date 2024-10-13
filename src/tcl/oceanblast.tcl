@@ -81,6 +81,9 @@ proc init { } {
 
     $::torpedo($i) set visible 0
   }
+
+  sb3d::camera set yaw -89
+  sb3d::camera set pitch 89
 }
 
 proc updateSubImages { d } {

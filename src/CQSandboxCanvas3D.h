@@ -7,11 +7,14 @@
 #include <CGLVector3D.h>
 #include <CGLVector2D.h>
 #include <CPoint3D.h>
+#include <CBBox3D.h>
 #include <CMinMax.h>
 
 #include <QFrame>
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_3_3_Core>
+
+#include <optional>
 
 class CQCsvModel;
 class CQGLBuffer;
@@ -34,6 +37,10 @@ class COthelloBoard;
 
 #ifdef CQSANDBOX_FIELD_RUNNERS
 class CFieldRunners;
+#endif
+
+#ifdef CQSANDBOX_DUNGEON
+class CDungeon;
 #endif
 
 #ifdef CQSANDBOX_FLAG
@@ -116,6 +123,7 @@ struct ProgramData {
 
 class Canvas3D;
 class Group3DObj;
+class BBox3DObj;
 
 class Object3D : public QObject {
   Q_OBJECT
@@ -150,29 +158,45 @@ class Object3D : public QObject {
   void setVisible(bool b) { visible_ = b; }
 
   bool isSelected() const { return selected_; }
-  void setSelected(bool b) { selected_ = b; }
+  void setSelected(bool b);
 
   bool isInside() const { return inside_; }
   void setInside(bool b) { inside_ = b; }
 
+  //---
+
+  bool isPseudo() const { return pseudo_; }
+  void setPseudo(bool b) { pseudo_ = b; }
+
+  //---
+
   double xAngle() const { return xAngle_; }
-  void setXAngle(double r) { xAngle_ = r; updateModelMatrix(); }
+  virtual void setXAngle(double a);
 
   double yAngle() const { return yAngle_; }
-  void setYAngle(double r) { yAngle_ = r; updateModelMatrix(); }
+  virtual void setYAngle(double a);
 
   double zAngle() const { return zAngle_; }
-  void setZAngle(double r) { zAngle_ = r; updateModelMatrix(); }
+  virtual void setZAngle(double a);
 
   const CPoint3D &position() const { return position_; }
-  void setPosition(const CPoint3D &p);
+  virtual void setPosition(const CPoint3D &p);
+
+  virtual CPoint3D origin() const;
+  virtual void setOrigin(const CPoint3D &p);
+
+  //---
 
   double xscale() const { return xscale_; }
   double yscale() const { return yscale_; }
   double zscale() const { return zscale_; }
 
-  void setScale(double s) { xscale_ = s; yscale_ = s; zscale_ = s; }
-  void setScale(double xs, double ys, double zs) { xscale_ = xs; yscale_ = ys; zscale_ = zs; }
+  void setScale(double s) { setScale(s, s, s); }
+
+  virtual void setScale(double xs, double ys, double zs) {
+    xscale_ = xs; yscale_ = ys; zscale_ = zs; }
+
+  //---
 
   const CGLMatrix3D &modelMatrix() const { return modelMatrix_; }
 
@@ -183,13 +207,13 @@ class Object3D : public QObject {
 
   //---
 
-  void setNeedsUpdate() { needsUpdate_ = true; }
+  void setNeedsUpdate();
 
   //---
 
   virtual void init();
 
-  void setModelMatrix(uint flags=ModelMatrixFlags::ALL);
+  virtual void setModelMatrix(uint flags=ModelMatrixFlags::ALL);
 
   virtual QVariant getValue(const QString &name, const QStringList &args);
   virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
@@ -198,7 +222,7 @@ class Object3D : public QObject {
 
   //---
 
-  virtual void updateModelMatrix() { }
+  virtual void updateModelMatrix();
 
   virtual void tick();
 
@@ -210,7 +234,15 @@ class Object3D : public QObject {
 
   QString getCommandName() const;
 
+  const CBBox3D &bbox() { return bbox_; }
+
+  virtual CBBox3D calcBBox() { return bbox_; }
+
+  void createBBoxObj();
+
  protected:
+  using OptPoint = std::optional<CPoint3D>;
+
   Canvas3D* canvas_ { nullptr };
   size_t    ind_    { 0 };
 
@@ -218,11 +250,13 @@ class Object3D : public QObject {
   bool    visible_  { true };
   bool    selected_ { false };
   bool    inside_   { false };
+  bool    pseudo_   { false };
 
   double   xAngle_   { 0.0 };
   double   yAngle_   { 0.0 };
   double   zAngle_   { 0.0 };
   CPoint3D position_ { 0, 0, 0 };
+  OptPoint origin_;
   double   xscale_   { 1.0 };
   double   yscale_   { 1.0 };
   double   zscale_   { 1.0 };
@@ -233,6 +267,10 @@ class Object3D : public QObject {
   int dt_    { 1 };
 
   Group3DObj *group_ { nullptr };
+
+  CBBox3D    bbox_;
+  BBox3DObj *bboxObj_   { nullptr };
+  bool       bboxValid_ { false };
 
   bool needsUpdate_ { true };
 };
@@ -337,6 +375,8 @@ class Model3DObj : public Object3D {
 
   void calcTangents();
 
+  void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
+
  protected:
   struct FaceData {
     int         pos             { 0 };
@@ -416,6 +456,9 @@ class Group3DObj : public Object3D {
   Q_OBJECT
 
  public:
+  using Objects = std::vector<Object3D *>;
+
+ public:
   static bool create(Canvas3D *canvas, const QStringList &args);
 
   Group3DObj(Canvas3D *canvas);
@@ -430,13 +473,56 @@ class Group3DObj : public Object3D {
   void addObject(Object3D *obj);
   void removeObject(Object3D *obj);
 
+  void render() override;
+
+  CPoint3D origin() const override;
+
+  void initOrigin();
+
+  CBBox3D calcBBox() override;
+
+  void setXAngle(double a) override;
+  void setYAngle(double a) override;
+  void setZAngle(double a) override;
+
+  void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
+
  Q_SIGNALS:
   void objectsChanged();
 
  protected:
-  using Objects = std::vector<Object3D *>;
-
   Objects objects_;
+};
+
+//---
+
+class BBox3DObj : public Object3D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  BBox3DObj(Canvas3D *canvas);
+
+  const char *typeName() const override { return "BBox"; }
+
+  void init() override;
+
+  void initShader();
+
+  void updateGL();
+
+  void render() override;
+
+ protected:
+  using Points = std::vector<CGLVector3D>;
+
+  static ProgramData* s_program;
+
+  Points points_;
+
+  unsigned int pointsBufferId_ { 0 };
+  unsigned int vertexArrayId_  { 0 };
 };
 
 //---
@@ -470,7 +556,10 @@ class Shape3DObj : public Object3D {
   void setColor(const Color &c) { color_ = c; }
 
   void setTexture(const QString &filename);
+  void setTexture(CQGLTexture *texture) { texture_ = texture; }
+
   void setNormalTexture(const QString &filename);
+  void setNormalTexture(CQGLTexture *texture) { normalTexture_ = texture; }
 
   void init() override;
 
@@ -479,11 +568,12 @@ class Shape3DObj : public Object3D {
   bool intersect(const CGLVector3D &p1, const CGLVector3D &p2,
                  CPoint3D &pi1, CPoint3D &pi2) const override;
 
+  CBBox3D calcBBox() override;
+
   void calcNormals();
 
   void render() override;
 
- protected:
   void addCone(double r, double h);
   void addCylinder(double r, double h);
   void addSphere(double r);
@@ -1041,6 +1131,51 @@ class FieldRunners3DObj : public Object3D {
 
 //---
 
+#ifdef CQSANDBOX_DUNGEON
+class Dungeon3DObj : public Object3D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  Dungeon3DObj(Canvas3D *canvas);
+
+  const char *typeName() const override { return "Dungeon"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  void init() override;
+
+  void tick() override;
+
+  void updateObjs();
+
+  void render() override;
+
+  void updatePlayerCamera(bool isGame);
+
+  void setTexture(const QString &id, const QString &filename);
+  CQGLTexture *getTexture(const QString &id) const;
+
+ private:
+  using Textures = std::map<QString, CQGLTexture *>;
+
+  CDungeon* dungeon_ { nullptr };
+
+  double s_  { 1.0 };
+  double dx_ { 1.0 };
+  double dy_ { 1.0 };
+  double dz_ { 1.0 };
+
+  Group3DObj *group_ { nullptr };
+
+  Textures textures_;
+};
+#endif
+
+//---
+
 class Graph3DObj : public Object3D {
   Q_OBJECT
 
@@ -1068,8 +1203,6 @@ class Graph3DObj : public Object3D {
   bool loadDotFile(const QString &name);
 
   void updatePoints();
-
-  void updateModelMatrix() override;
 
   void updateTextObjs();
 
@@ -1112,6 +1245,8 @@ class Canvas3D : public OpenGLWindow {
     GAME   = 3
   };
 
+  using Objects = std::vector<Object3D *>;
+
  public:
   Canvas3D(App *app);
 
@@ -1148,6 +1283,9 @@ class Canvas3D : public OpenGLWindow {
   bool isWireframe() const { return wireframe_; }
   void setWireframe(bool b) { wireframe_ = b; }
 
+  bool isBBox() const { return bbox_; }
+  void setBBox(bool b) { bbox_ = b; }
+
   //---
 
   CGLCamera *camera() const { return camera_; }
@@ -1171,6 +1309,14 @@ class Canvas3D : public OpenGLWindow {
 
   bool isSimpleLights() const { return simpleLights_; }
   void setSimpleLights(bool b) { simpleLights_ = b; }
+
+  //---
+
+  const Objects objects() const { return objects_; }
+
+  Object3D *objectFromInd(uint ind) const;
+
+  Object3D *getCurrentObject() const;
 
   //---
 
@@ -1275,8 +1421,7 @@ class Canvas3D : public OpenGLWindow {
   void objectsChanged();
 
  private:
-  using Objects = std::vector<Object3D *>;
-  using Points  = std::vector<CGLVector3D>;
+  using Points = std::vector<CGLVector3D>;
 
   App* app_ { nullptr };
 
@@ -1294,6 +1439,7 @@ class Canvas3D : public OpenGLWindow {
 
   bool polygonLine_ { false };
   bool wireframe_   { false };
+  bool bbox_        { false };
 
   double pixelWidth_  { 100.0 };
   double pixelHeight_ { 100.0 };

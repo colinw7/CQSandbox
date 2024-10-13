@@ -20,6 +20,7 @@
 #include <svg/model_svg.h>
 #include <svg/light_svg.h>
 #include <svg/wireframe_svg.h>
+#include <svg/bbox_svg.h>
 #include <svg/settings_svg.h>
 
 namespace CQSandbox {
@@ -303,8 +304,10 @@ Control3D(Canvas3D *canvas) :
   layout->addWidget(lightButton_);
 
   wireButton_ = addCheckButton("wire", "WIREFRAME", "Wireframe", SLOT(wireSlot()));
+  bboxButton_ = addCheckButton("bbox", "BBOX"     , "Model"    , SLOT(bboxSlot()));
 
   layout->addWidget(wireButton_);
+  layout->addWidget(bboxButton_);
 
   infoLabel_ = new QLabel(" ");
 
@@ -392,6 +395,17 @@ wireSlot()
   auto *button = qobject_cast<CQIconButton *>(sender());
 
   canvas_->setWireframe(button->isChecked());
+
+  canvas_->update();
+}
+
+void
+Control3D::
+bboxSlot()
+{
+  auto *button = qobject_cast<CQIconButton *>(sender());
+
+  canvas_->setBBox(button->isChecked());
 
   canvas_->update();
 }

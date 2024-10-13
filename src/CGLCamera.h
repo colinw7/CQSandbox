@@ -41,6 +41,11 @@ class CGLCamera {
 
   //---
 
+  bool isRotate() const { return rotate_; }
+  void setRotate(bool b) { rotate_ = b; }
+
+  //---
+
   const CGLVector3D &position() const { return position_; }
   void setPosition(const CGLVector3D &p);
 

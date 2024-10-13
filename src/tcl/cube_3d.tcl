@@ -3,6 +3,8 @@ proc mapV { v v1 v2 } {
 }
 
 proc init { } {
+  sb3d::canvas set lights.simple 1
+
   set nc 10
 
   for {set i 0} {$i < $nc} {incr i} {
