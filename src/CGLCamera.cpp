@@ -1,34 +1,28 @@
 #include <CGLCamera.h>
 
-namespace {
-
-float DegToRad(float d) {
-  return float(M_PI*d/180.0);
-}
-
-}
-
-//---
-
 CGLCamera::
 CGLCamera(const CGLVector3D &position, const CGLVector3D &up, float yaw, float pitch)
 {
-  position_ = position;
-  worldUp_  = up;
-  yaw_      = yaw;
-  pitch_    = pitch;
-
-  init();
+  init(position, up, yaw, pitch);
 }
 
 CGLCamera::
 CGLCamera(float posX, float posY, float posZ, float upX, float upY, float upZ,
           float yaw, float pitch)
 {
-  position_ = CGLVector3D(posX, posY, posZ);
-  worldUp_  = CGLVector3D(upX, upY, upZ);
-  yaw_      = yaw;
-  pitch_    = pitch;
+  init(CGLVector3D(posX, posY, posZ), CGLVector3D(upX, upY, upZ), yaw, pitch);
+}
+
+void
+CGLCamera::
+init(const CGLVector3D &position, const CGLVector3D &up, float yaw, float pitch)
+{
+  position_ = position;
+  worldUp_  = up;
+
+  yaw_   = yaw;
+  pitch_ = pitch;
+  roll_  = CMathGen::RadToDeg(std::atan2(up.y(), up.x()));
 
   init();
 }
@@ -271,18 +265,29 @@ updateFrameTime()
 
 void
 CGLCamera::
-setYaw(double r)
+setYaw(float a)
 {
-  yaw_ = r;
+  yaw_ = a;
 
   updateCameraVectors();
 }
 
 void
 CGLCamera::
-setPitch(double r)
+setPitch(float a)
 {
-  pitch_ = r;
+  pitch_ = a;
+
+  updateCameraVectors();
+}
+
+void
+CGLCamera::
+setRoll(float a)
+{
+  worldUp_ = CGLVector3D(std::cos(CMathGen::DegToRad(a)),
+                         std::sin(CMathGen::DegToRad(a)),
+                         0.0);
 
   updateCameraVectors();
 }
@@ -292,9 +297,9 @@ CGLCamera::
 updateCameraVectors(bool rotate)
 {
   // calculate the new front_ vector
-  CGLVector3D front(std::cos(DegToRad(yaw  ()))*std::cos(DegToRad(pitch())),
-                    std::sin(DegToRad(pitch())),
-                    std::sin(DegToRad(yaw  ()))*std::cos(DegToRad(pitch())));
+  CGLVector3D front(std::cos(CMathGen::DegToRad(yaw  ()))*std::cos(CMathGen::DegToRad(pitch())),
+                    std::sin(CMathGen::DegToRad(pitch())),
+                    std::sin(CMathGen::DegToRad(yaw  ()))*std::cos(CMathGen::DegToRad(pitch())));
 
   front_ = front.normalized();
 

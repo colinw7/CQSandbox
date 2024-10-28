@@ -16,8 +16,8 @@ SOURCES += \
 CQSandboxMain.cpp \
 CQSandboxApp.cpp \
 CQSandboxCanvas.cpp \
-CQSandboxEditor.cpp \
 CQSandboxCanvas3D.cpp \
+CQSandboxControl2D.cpp \
 CQSandboxControl3D.cpp \
 \
 CQHtmlTextPainter.cpp \
@@ -49,8 +49,8 @@ CProfile.cpp \
 HEADERS += \
 CQSandboxApp.h \
 CQSandboxCanvas.h \
-CQSandboxEditor.h \
 CQSandboxCanvas3D.h \
+CQSandboxControl2D.h \
 CQSandboxControl3D.h \
 CQSandboxUtil.h \
 \
@@ -73,6 +73,7 @@ LIB_DIR     = ../lib
 INCLUDEPATH += \
 . \
 ../include \
+../../CQPropertyView/include \
 ../../CQUtil/include \
 ../../CGeometry3D/include \
 ../../CImportModel/include \
@@ -92,6 +93,7 @@ unix:LIBS += \
 -L$$LIB_DIR \
 -L../../CCsv/lib \
 -L../../CQBaseModel/lib \
+-L../../CQPropertyView/lib \
 -L../../CQUtil/lib \
 -L../../CImportModel/lib \
 -L../../CGeometry3D/lib \
@@ -108,6 +110,7 @@ unix:LIBS += \
 -lCQCsv \
 -lCQBaseModel \
 -lCCsv \
+-lCQPropertyView \
 -lCQUtil \
 -lCImportModel \
 -lCGeometry3D \

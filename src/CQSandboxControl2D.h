@@ -1,5 +1,5 @@
-#ifndef CQSandboxEditor_H
-#define CQSandboxEditor_H
+#ifndef CQSandboxControl2D_H
+#define CQSandboxControl2D_H
 
 #include <QFrame>
 
@@ -12,11 +12,11 @@ namespace CQSandbox {
 class Canvas;
 class Object;
 
-class Editor : public QFrame {
+class Control2D : public QFrame {
   Q_OBJECT
 
  public:
-  Editor(Canvas *canvas);
+  Control2D(Canvas *canvas);
 
  public Q_SLOTS:
   void updateObjects();

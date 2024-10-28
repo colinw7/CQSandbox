@@ -37,8 +37,6 @@ class CGLCamera {
   CGLCamera(float posX, float posY, float posZ, float upX, float upY, float upZ,
             float yaw, float pitch);
 
-  void init();
-
   //---
 
   bool isRotate() const { return rotate_; }
@@ -104,10 +102,17 @@ class CGLCamera {
   float deltaTime() const;
 
   float yaw() const { return yaw_; }
-  void setYaw(double r);
+  void setYaw(float a);
 
   float pitch() const { return pitch_; }
-  void setPitch(double r);
+  void setPitch(float a);
+
+  float roll() const { return roll_; }
+  void setRoll(float r);
+
+ private:
+  void init(const CGLVector3D &position, const CGLVector3D &up, float yaw, float pitch);
+  void init();
 
  private:
   // calculates the front vector from the Camera's (updated) Euler Angles
@@ -118,15 +123,16 @@ class CGLCamera {
  private:
   // Default camera values
   static constexpr float YAW         = -90.0f;
-  static constexpr float PITCH       =  0.0f;
-  static constexpr float SPEED       =  2.5f;
-  static constexpr float SENSITIVITY =  0.1f;
+  static constexpr float PITCH       =   0.0f;
+  static constexpr float SPEED       =   2.5f;
+  static constexpr float ROLL        =  90.0f;
+  static constexpr float SENSITIVITY =   0.1f;
   static constexpr float ZOOM        =  45.0f;
 
   // camera Attributes
-  CGLVector3D origin_ { 0.0f, 0.0f, 0.0f };
+  CGLVector3D origin_ { 0.0f, 0.0f,  0.0f };
   CGLVector3D position_;
-  CGLVector3D front_ { 0.0f, 0.0f, -1.0f };
+  CGLVector3D front_  { 0.0f, 0.0f, -1.0f };
   CGLVector3D up_;
   CGLVector3D right_;
   CGLVector3D worldUp_;
@@ -134,6 +140,7 @@ class CGLCamera {
   // euler Angles
   float yaw_   { YAW };
   float pitch_ { PITCH };
+  float roll_  { ROLL };
 
   // camera options
   float movementSpeed_    { SPEED };

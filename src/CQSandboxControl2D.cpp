@@ -1,4 +1,4 @@
-#include <CQSandboxEditor.h>
+#include <CQSandboxControl2D.h>
 #include <CQSandboxCanvas.h>
 
 #include <QListWidget>
@@ -7,8 +7,8 @@
 
 namespace CQSandbox {
 
-Editor::
-Editor(Canvas *canvas) :
+Control2D::
+Control2D(Canvas *canvas) :
  canvas_(canvas)
 {
   auto *layout = new QVBoxLayout(this);
@@ -27,7 +27,8 @@ Editor(Canvas *canvas) :
 
   updateObjects();
 
-  connect(canvas_, &Canvas::objectsChanged, this, &Editor::updateObjects);
+  if (canvas_)
+    connect(canvas_, &Canvas::objectsChanged, this, &Control2D::updateObjects);
 
   connect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
           this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));
@@ -36,14 +37,14 @@ Editor(Canvas *canvas) :
 }
 
 void
-Editor::
+Control2D::
 listItemSlot(QListWidgetItem *, QListWidgetItem *)
 {
   updateCurrent();
 }
 
 void
-Editor::
+Control2D::
 updateObjects()
 {
   disconnect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
@@ -51,8 +52,10 @@ updateObjects()
 
   list_->clear();
 
-  for (auto *obj : canvas_->objects())
-    list_->addItem(obj->calcId());
+  if (canvas_) {
+    for (auto *obj : canvas_->objects())
+      list_->addItem(obj->calcId());
+  }
 
   connect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
           this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));
@@ -61,7 +64,7 @@ updateObjects()
 }
 
 void
-Editor::
+Control2D::
 updateCurrent()
 {
   auto *obj = getCurrentObject();
@@ -73,7 +76,7 @@ updateCurrent()
 }
 
 void
-Editor::
+Control2D::
 visibleSlot(int i)
 {
   auto *obj = getCurrentObject();
@@ -84,7 +87,7 @@ visibleSlot(int i)
 
 
 Object *
-Editor::
+Control2D::
 getCurrentObject() const
 {
   auto *item = list_->currentItem();
@@ -92,7 +95,10 @@ getCurrentObject() const
 
   auto id = item->text();
 
-  return canvas_->getObjectByName(id);
+  if (canvas_)
+    return canvas_->getObjectByName(id);
+
+  return nullptr;
 }
 
 }

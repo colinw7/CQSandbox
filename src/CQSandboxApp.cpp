@@ -1,14 +1,12 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxCanvas.h>
-#include <CQSandboxEditor.h>
 #include <CQSandboxCanvas3D.h>
+#include <CQSandboxControl2D.h>
 #include <CQSandboxControl3D.h>
 
 #include <CQIconButton.h>
 #include <CQTclUtil.h>
 
-#include <QToolButton>
-#include <QPushButton>
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QFile>
@@ -42,25 +40,49 @@ init()
 {
   auto *layout = new QVBoxLayout(this);
 
+  auto *clayout = new QHBoxLayout;
+
+  //---
+
   if (is3D()) {
     canvas3D_  = new Canvas3D(this);
-    control3D_ = new Control3D(canvas3D_);
+    toolbar3D_ = new Toolbar3D(canvas3D_);
 
     canvas3D_->init();
 
-    layout->addWidget(control3D_);
-    layout->addWidget(canvas3D_);
+    layout->addWidget(toolbar3D_);
+    layout->addLayout(clayout);
 
-    connect(canvas3D_, &Canvas3D::typeChanged, control3D_, &Control3D::updateInfo);
+    clayout->addWidget(canvas3D_);
+
+    connect(canvas3D_, &Canvas3D::typeChanged, toolbar3D_, &Toolbar3D::updateInfo);
+
+    //---
+
+    control3D_ = new Control3D(canvas3D_);
+
+    clayout->addWidget(control3D_);
+
+    control3D_->hide();
   }
   else {
-    canvas_  = new Canvas(this);
-    control_ = new Control(canvas_);
+    canvas_    = new Canvas(this);
+    toolbar2D_ = new Toolbar2D(canvas_);
 
     canvas_->init();
 
-    layout->addWidget(control_);
-    layout->addWidget(canvas_);
+    layout->addWidget(toolbar2D_);
+    layout->addLayout(clayout);
+
+    clayout->addWidget(canvas_);
+
+    //---
+
+    control2D_ = new Control2D(canvas_);
+
+    clayout->addWidget(control2D_);
+
+    control2D_->hide();
   }
 }
 
@@ -78,7 +100,8 @@ void
 App::
 setInfo(const QString &label)
 {
-  control_->setInfo(label);
+  if (toolbar2D_)
+    toolbar2D_->setInfo(label);
 }
 
 bool
@@ -172,8 +195,8 @@ errorMsg(const QString &msg) const
 
 //---
 
-Control::
-Control(Canvas *canvas) :
+Toolbar2D::
+Toolbar2D(Canvas *canvas) :
  QFrame(canvas), canvas_(canvas)
 {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -195,6 +218,22 @@ Control(Canvas *canvas) :
     return button;
   };
 
+  auto addCheckButton = [&](const QString &name, const QString &iconName,
+                            const QString &tip, const char *slotName) {
+    auto *button = new CQIconButton;
+
+    button->setObjectName(name);
+    button->setCheckable(true);
+    button->setIcon(iconName);
+    button->setIconSize(QSize(32, 32));
+    button->setAutoRaise(true);
+    button->setToolTip(tip);
+
+    connect(button, SIGNAL(clicked()), this, slotName);
+
+    return button;
+  };
+
   playButton_  = addToolButton("play" , "PLAY"    , "Play" , SLOT(playSlot()));
   pauseButton_ = addToolButton("pause", "PAUSE"   , "Pause", SLOT(pauseSlot()));
   stepButton_  = addToolButton("step" , "PLAY_ONE", "Step" , SLOT(stepSlot()));
@@ -203,61 +242,64 @@ Control(Canvas *canvas) :
   layout->addWidget(pauseButton_);
   layout->addWidget(stepButton_);
 
-  editButton_ = new QPushButton("Edit");
-
-  connect(editButton_, SIGNAL(clicked()), this, SLOT(editSlot()));
-
-  layout->addWidget(editButton_);
+  //---
 
   infoLabel_ = new QLabel(" ");
 
   layout->addWidget(infoLabel_);
 
   layout->addStretch(1);
+
+  //---
+
+  settingsButton_ = addCheckButton("settings", "SETTINGS" , "Settings", SLOT(settingsSlot()));
+
+  layout->addWidget(settingsButton_);
 }
 
 void
-Control::
+Toolbar2D::
 setInfo(const QString &label)
 {
   infoLabel_->setText(label);
 }
 
 void
-Control::
+Toolbar2D::
 playSlot()
 {
   canvas()->play();
 }
 
 void
-Control::
+Toolbar2D::
 pauseSlot()
 {
   canvas()->pause();
 }
 
 void
-Control::
+Toolbar2D::
 stepSlot()
 {
   canvas()->step();
 }
 
 void
-Control::
-editSlot()
+Toolbar2D::
+settingsSlot()
 {
-  if (! editor_)
-    editor_ = new Editor(canvas());
+  auto *button = qobject_cast<CQIconButton *>(sender());
 
-  editor_->show();
+  auto *app = canvas()->app();
+
+  app->control2D()->setVisible(button->isChecked());
 }
 
 //---
 
-Control3D::
-Control3D(Canvas3D *canvas) :
+Toolbar3D::
+Toolbar3D(Canvas3D *canvas) :
  QFrame(canvas), canvas_(canvas)
 {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -309,6 +351,8 @@ Control3D(Canvas3D *canvas) :
   layout->addWidget(wireButton_);
   layout->addWidget(bboxButton_);
 
+  //---
+
   infoLabel_ = new QLabel(" ");
 
   layout->addWidget(infoLabel_);
@@ -319,7 +363,9 @@ Control3D(Canvas3D *canvas) :
 
   layout->addStretch(1);
 
-  settingsButton_ = addToolButton("settings", "SETTINGS" , "Settings", SLOT(settingsSlot()));
+  //---
+
+  settingsButton_ = addCheckButton("settings", "SETTINGS" , "Settings", SLOT(settingsSlot()));
 
   layout->addWidget(settingsButton_);
 
@@ -329,21 +375,21 @@ Control3D(Canvas3D *canvas) :
 }
 
 void
-Control3D::
+Toolbar3D::
 setInfo(const QString &label)
 {
   infoLabel_->setText(label);
 }
 
 void
-Control3D::
+Toolbar3D::
 setPos(const QString &label)
 {
   posLabel_->setText(label);
 }
 
 void
-Control3D::
+Toolbar3D::
 updateInfo()
 {
   auto type = canvas_->type();
@@ -368,28 +414,28 @@ updateInfo()
 }
 
 void
-Control3D::
+Toolbar3D::
 cameraSlot()
 {
   canvas_->setType(Canvas3D::Type::CAMERA);
 }
 
 void
-Control3D::
+Toolbar3D::
 modelSlot()
 {
   canvas_->setType(Canvas3D::Type::MODEL);
 }
 
 void
-Control3D::
+Toolbar3D::
 lightSlot()
 {
   canvas_->setType(Canvas3D::Type::LIGHT);
 }
 
 void
-Control3D::
+Toolbar3D::
 wireSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
@@ -400,7 +446,7 @@ wireSlot()
 }
 
 void
-Control3D::
+Toolbar3D::
 bboxSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
@@ -411,15 +457,40 @@ bboxSlot()
 }
 
 void
-Control3D::
+Toolbar3D::
 settingsSlot()
 {
-  if (! canvasControl_)
-    canvasControl_ = new CanvasControl3D(canvas_);
+  auto *button = qobject_cast<CQIconButton *>(sender());
 
-  canvasControl_->update();
+  auto *app     = canvas()->app();
+  auto *control = app->control3D();
 
-  canvasControl_->show();
+  auto geom = app->geometry();
+
+  int w = control->sizeHint().width();
+
+  QRect geom1;
+
+  if (button->isChecked()) {
+    geom1 = QRect(geom.x(), geom.y(), geom.width() + w + 6, geom.height());
+
+    control->update();
+    control->show();
+  }
+  else {
+    geom1 = QRect(geom.x(), geom.y(), geom.width() - w - 6, geom.height());
+
+    control->hide();
+  }
+
+  app->setGeometry(geom1);
+
+  if (button->isChecked())
+    control->setFixedWidth(w);
+  else {
+    control->setMinimumWidth(0);
+    control->setMaximumWidth(QWIDGETSIZE_MAX);
+  }
 }
 
 //---

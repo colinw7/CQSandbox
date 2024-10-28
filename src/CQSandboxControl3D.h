@@ -6,21 +6,23 @@
 class CQPoint3DEdit;
 class CQColorEdit;
 class CQRealSpin;
+class CQPropertyViewTree;
 
 class QListWidget;
 class QListWidgetItem;
 class QCheckBox;
 class QComboBox;
+class QTabWidget;
 
 namespace CQSandbox {
 
 class Canvas3D;
 
-class CanvasControl3D : public QFrame {
+class Control3D : public QFrame {
   Q_OBJECT
 
  public:
-  CanvasControl3D(Canvas3D *canvas);
+  Control3D(Canvas3D *canvas);
 
   void update();
   void updateLights();
@@ -38,6 +40,7 @@ class CanvasControl3D : public QFrame {
   void cameraFarSlot(double r);
   void cameraYawSlot(double r);
   void cameraPitchSlot(double r);
+  void cameraRollSlot(double r);
   void cameraPosSlot();
 
   void lightSelectedSlot(QListWidgetItem *, QListWidgetItem *);
@@ -58,6 +61,8 @@ class CanvasControl3D : public QFrame {
  private:
   Canvas3D* canvas_ { nullptr };
 
+  QTabWidget* tab_ { nullptr };
+
   QCheckBox*   depthTestCheck_ { nullptr };
   QCheckBox*   cullFaceCheck_  { nullptr };
   QCheckBox*   frontFaceCheck_ { nullptr };
@@ -69,6 +74,7 @@ class CanvasControl3D : public QFrame {
   CQRealSpin*    cameraFarEdit_     { nullptr };
   CQRealSpin*    cameraYawEdit_     { nullptr };
   CQRealSpin*    cameraPitchEdit_   { nullptr };
+  CQRealSpin*    cameraRollEdit_    { nullptr };
   CQPoint3DEdit* cameraPosEdit_     { nullptr };
 
   QListWidget*   lightsList_      { nullptr };
@@ -80,7 +86,8 @@ class CanvasControl3D : public QFrame {
   CQRealSpin*    lightCutoffEdit_ { nullptr };
   CQRealSpin*    lightRadiusEdit_ { nullptr };
 
-  QListWidget* objectsList_ { nullptr };
+  QListWidget*        objectsList_ { nullptr };
+  CQPropertyViewTree* objectTree_  { nullptr };
 
   CQRealSpin* ambientEdit_    { nullptr };
   CQRealSpin* diffuseEdit_    { nullptr };

@@ -15,10 +15,10 @@ namespace CQSandbox {
 
 class Canvas;
 class Canvas3D;
-class Control;
+class Toolbar2D;
+class Toolbar3D;
+class Control2D;
 class Control3D;
-class CanvasControl3D;
-class Editor;
 
 class App : public QFrame {
   Q_OBJECT
@@ -28,14 +28,17 @@ class App : public QFrame {
 
   CQTcl *tcl() const { return tcl_; }
 
-  Canvas  *canvas () const { return canvas_; }
-  Control *control() const { return control_; }
+  Canvas    *canvas   () const { return canvas_; }
+  Toolbar2D *toolbar2D() const { return toolbar2D_; }
 
   Canvas3D  *canvas3D () const { return canvas3D_; }
-  Control3D *control3D() const { return control3D_; }
+  Toolbar3D *toolbar3D() const { return toolbar3D_; }
 
   bool is3D() const { return is3D_; }
   void set3D(bool b) { is3D_ = b; }
+
+  Control2D *control2D() { return control2D_; }
+  Control3D *control3D() { return control3D_; }
 
   bool load(const QString &filename);
 
@@ -54,19 +57,21 @@ class App : public QFrame {
   CQTcl* tcl_ { nullptr };
 
   Canvas*    canvas_    { nullptr };
-  Control*   control_   { nullptr };
+  Toolbar2D* toolbar2D_ { nullptr };
   Canvas3D*  canvas3D_  { nullptr };
-  Control3D* control3D_ { nullptr };
+  Toolbar3D* toolbar3D_ { nullptr };
   bool       is3D_      { false };
+  Control2D* control2D_ { nullptr };
+  Control3D* control3D_ { nullptr };
 };
 
 //---
 
-class Control : public QFrame {
+class Toolbar2D : public QFrame {
   Q_OBJECT
 
  public:
-  Control(Canvas *canvas);
+  Toolbar2D(Canvas *canvas);
 
   Canvas *canvas() const { return canvas_; }
 
@@ -76,7 +81,8 @@ class Control : public QFrame {
   void playSlot();
   void pauseSlot();
   void stepSlot();
-  void editSlot();
+
+  void settingsSlot();
 
  private:
   Canvas* canvas_ { nullptr };
@@ -85,20 +91,18 @@ class Control : public QFrame {
   QToolButton* pauseButton_ { nullptr };
   QToolButton* stepButton_  { nullptr };
 
-  QPushButton *editButton_ { nullptr };
+  QToolButton *settingsButton_ { nullptr };
 
   QLabel* infoLabel_ { nullptr };
-
-  Editor* editor_ { nullptr };
 };
 
 //---
 
-class Control3D : public QFrame {
+class Toolbar3D : public QFrame {
   Q_OBJECT
 
  public:
-  Control3D(Canvas3D *canvas);
+  Toolbar3D(Canvas3D *canvas);
 
   Canvas3D *canvas() const { return canvas_; }
 
@@ -127,8 +131,6 @@ class Control3D : public QFrame {
   QToolButton* settingsButton_ { nullptr };
   QLabel*      infoLabel_      { nullptr };
   QLabel*      posLabel_       { nullptr };
-
-  CanvasControl3D *canvasControl_ { nullptr };
 };
 
 }

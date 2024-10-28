@@ -5,7 +5,10 @@
 #include <CQColorEdit.h>
 #include <CQPoint3DEdit.h>
 #include <CQRealSpin.h>
+#include <CQPropertyViewTree.h>
+#include <CQUtil.h>
 
+#include <QTabWidget>
 #include <QGroupBox>
 #include <QListWidget>
 #include <QComboBox>
@@ -30,18 +33,24 @@ CGLVector3D colorToVector(const QColor &c) {
   return CGLVector3D(c.redF(), c.greenF(), c.blueF());
 }
 
-CanvasControl3D::
-CanvasControl3D(CQSandbox::Canvas3D *canvas) :
+Control3D::
+Control3D(CQSandbox::Canvas3D *canvas) :
  QFrame(nullptr), canvas_(canvas)
 {
   auto *layout = new QVBoxLayout(this);
 
   //---
 
+  tab_ = new QTabWidget;
+
+  layout->addWidget(tab_);
+
+  //---
+
   auto *controlFrame  = new QFrame(this);
   auto *controlLayout = new QGridLayout(controlFrame);
 
-  layout->addWidget(controlFrame);
+  tab_->addTab(controlFrame, "Control");
 
   //---
 
@@ -56,41 +65,63 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
   //---
 
   depthTestCheck_ = new QCheckBox;
-
-  connect(depthTestCheck_, &QCheckBox::stateChanged, this, &CanvasControl3D::depthTestSlot);
-
+  connect(depthTestCheck_, &QCheckBox::stateChanged, this, &Control3D::depthTestSlot);
   addLabelEdit("Depth Test", depthTestCheck_);
 
   //---
 
   cullFaceCheck_ = new QCheckBox;
-
-  connect(cullFaceCheck_, &QCheckBox::stateChanged, this, &CanvasControl3D::cullFaceSlot);
-
+  connect(cullFaceCheck_, &QCheckBox::stateChanged, this, &Control3D::cullFaceSlot);
   addLabelEdit("Cull Face", cullFaceCheck_);
 
   //---
 
   frontFaceCheck_ = new QCheckBox;
-
-  connect(frontFaceCheck_, &QCheckBox::stateChanged, this, &CanvasControl3D::frontFaceSlot);
-
+  connect(frontFaceCheck_, &QCheckBox::stateChanged, this, &Control3D::frontFaceSlot);
   addLabelEdit("Front Face", frontFaceCheck_);
 
   //---
 
   bgColorEdit_ = new CQColorEdit;
-
-  connect(bgColorEdit_, &CQColorEdit::colorChanged, this, &CanvasControl3D::bgColorSlot);
-
+  connect(bgColorEdit_, &CQColorEdit::colorChanged, this, &Control3D::bgColorSlot);
   addLabelEdit("Bg Color", bgColorEdit_);
 
   //---
 
-  auto *cameraGroup  = new QGroupBox("Camera");
-  auto *cameraLayout = new QHBoxLayout(cameraGroup);
+  ambientEdit_ = new CQRealSpin;
+  ambientEdit_->setRange(0.0, 1.0);
+//connect(ambientEdit_, &CQRealSpin::realValueChanged, this, &Control3D::ambientSlot);
+  addLabelEdit("Ambient", ambientEdit_);
 
-  layout->addWidget(cameraGroup);
+  //---
+
+  diffuseEdit_ = new CQRealSpin;
+  diffuseEdit_->setRange(0.0, 1.0);
+//connect(diffuseEdit_, &CQRealSpin::realValueChanged, this, &Control3D::diffuseSlot);
+  addLabelEdit("Diffuse", diffuseEdit_);
+
+  //---
+
+  specularEdit_ = new CQRealSpin;
+  specularEdit_->setRange(0.0, 1.0);
+//connect(specularEdit_, &CQRealSpin::realValueChanged, this, &Control3D::specularSlot);
+  addLabelEdit("Specular", specularEdit_);
+
+  //---
+
+  shininessEdit_ = new CQRealSpin;
+  shininessEdit_->setRange(0.0, 100.0);
+//connect(shininessEdit_, &CQRealSpin::realValueChanged, this, &Control3D::shininessSlot);
+  addLabelEdit("Shininess", shininessEdit_);
+
+  controlLayout->setRowStretch(controlRow, 1);
+
+  //---
+
+  auto *cameraFrame  = new QFrame;
+  auto *cameraLayout = new QHBoxLayout(cameraFrame);
+
+  tab_->addTab(cameraFrame, "Camera");
 
   auto *cameraControlFrame  = new QFrame;
   auto *cameraControlLayout = new QGridLayout(cameraControlFrame);
@@ -109,83 +140,47 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
 
   cameraRotateCheck_ = new QCheckBox;
   connect(cameraRotateCheck_, &QCheckBox::stateChanged,
-          this, &CanvasControl3D::cameraRotateSlot);
+          this, &Control3D::cameraRotateSlot);
   addCameraLabelEdit("Rotate", cameraRotateCheck_);
 
   cameraZoomEdit_ = new CQRealSpin;
-  connect(cameraZoomEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::cameraZoomSlot);
+  connect(cameraZoomEdit_, &CQRealSpin::realValueChanged, this, &Control3D::cameraZoomSlot);
   addCameraLabelEdit("Zoom", cameraZoomEdit_);
 
   cameraNearEdit_ = new CQRealSpin;
-  connect(cameraNearEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::cameraNearSlot);
+  connect(cameraNearEdit_, &CQRealSpin::realValueChanged, this, &Control3D::cameraNearSlot);
   addCameraLabelEdit("Near", cameraNearEdit_);
 
   cameraFarEdit_ = new CQRealSpin;
-  connect(cameraFarEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::cameraFarSlot);
+  connect(cameraFarEdit_, &CQRealSpin::realValueChanged, this, &Control3D::cameraFarSlot);
   addCameraLabelEdit("Far", cameraFarEdit_);
 
   cameraYawEdit_ = new CQRealSpin;
-  connect(cameraYawEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::cameraYawSlot);
+  connect(cameraYawEdit_, &CQRealSpin::realValueChanged, this, &Control3D::cameraYawSlot);
   addCameraLabelEdit("Yaw", cameraYawEdit_);
 
   cameraPitchEdit_ = new CQRealSpin;
-  connect(cameraPitchEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::cameraPitchSlot);
+  connect(cameraPitchEdit_, &CQRealSpin::realValueChanged, this, &Control3D::cameraPitchSlot);
   addCameraLabelEdit("Pitch", cameraPitchEdit_);
 
+  cameraRollEdit_ = new CQRealSpin;
+  connect(cameraRollEdit_, &CQRealSpin::realValueChanged, this, &Control3D::cameraRollSlot);
+  addCameraLabelEdit("Roll", cameraRollEdit_);
+
   cameraPosEdit_ = new CQPoint3DEdit;
-  connect(cameraPosEdit_, &CQPoint3DEdit::editingFinished, this, &CanvasControl3D::cameraPosSlot);
+  connect(cameraPosEdit_, &CQPoint3DEdit::editingFinished, this, &Control3D::cameraPosSlot);
   addCameraLabelEdit("Position", cameraPosEdit_);
 
   //---
 
-  ambientEdit_ = new CQRealSpin;
-
-  ambientEdit_->setRange(0.0, 1.0);
-
-//connect(ambientEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::ambientSlot);
-
-  addLabelEdit("Ambient", ambientEdit_);
+  cameraControlLayout->setRowStretch(cameraRow, 1);
 
   //---
 
-  diffuseEdit_ = new CQRealSpin;
+  auto *lightFrame  = new QFrame;
+  auto *lightLayout = new QHBoxLayout(lightFrame);
 
-  diffuseEdit_->setRange(0.0, 1.0);
-
-//connect(diffuseEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::diffuseSlot);
-
-  addLabelEdit("Diffuse", diffuseEdit_);
-
-  //---
-
-  specularEdit_ = new CQRealSpin;
-
-  specularEdit_->setRange(0.0, 1.0);
-
-//connect(specularEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::specularSlot);
-
-  addLabelEdit("Specular", specularEdit_);
-
-  //---
-
-  shininessEdit_ = new CQRealSpin;
-
-  shininessEdit_->setRange(0.0, 100.0);
-
-//connect(shininessEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::shininessSlot);
-
-  addLabelEdit("Shininess", shininessEdit_);
-
-  //---
-
-  controlLayout->setRowStretch(controlRow, 1);
-
-  //---
-
-  auto *lightGroup  = new QGroupBox("Lights");
-  auto *lightLayout = new QHBoxLayout(lightGroup);
-
-  layout->addWidget(lightGroup);
+  tab_->addTab(lightFrame, "Lights");
 
   auto *lightControlFrame  = new QFrame;
   auto *lightControlLayout = new QGridLayout(lightControlFrame);
@@ -205,7 +200,7 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
   lightsList_->setSelectionMode(QListWidget::SingleSelection);
 
   connect(lightsList_, &QListWidget::currentItemChanged,
-          this, &CanvasControl3D::lightSelectedSlot);
+          this, &Control3D::lightSelectedSlot);
 
   lightLayout->addWidget(lightsList_);
 
@@ -221,57 +216,51 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
 
   lightCheck_ = new QCheckBox;
 
-  connect(lightCheck_, &QCheckBox::stateChanged, this, &CanvasControl3D::lightCheckSlot);
+  connect(lightCheck_, &QCheckBox::stateChanged, this, &Control3D::lightCheckSlot);
 
   addLightLabelEdit("Enabled", lightCheck_);
 
   lightColorEdit_ = new CQColorEdit;
-
-  connect(lightColorEdit_, &CQColorEdit::colorChanged, this, &CanvasControl3D::lightColorSlot);
-
+  connect(lightColorEdit_, &CQColorEdit::colorChanged, this, &Control3D::lightColorSlot);
   addLightLabelEdit("Color", lightColorEdit_);
 
   //---
 
   lightPosEdit_ = new CQPoint3DEdit;
-
-  connect(lightPosEdit_, &CQPoint3DEdit::editingFinished, this, &CanvasControl3D::lightPosSlot);
-
+  connect(lightPosEdit_, &CQPoint3DEdit::editingFinished, this, &Control3D::lightPosSlot);
   addLightLabelEdit("Position", lightPosEdit_);
 
   //---
 
   lightDirEdit_ = new CQPoint3DEdit;
-
-  connect(lightDirEdit_, &CQPoint3DEdit::editingFinished, this, &CanvasControl3D::lightDirSlot);
-
+  connect(lightDirEdit_, &CQPoint3DEdit::editingFinished, this, &Control3D::lightDirSlot);
   addLightLabelEdit("Direction", lightDirEdit_);
 
   //---
 
   lightCutoffEdit_ = new CQRealSpin;
-
-  connect(lightCutoffEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::lightCutoffSlot);
-
+  connect(lightCutoffEdit_, &CQRealSpin::realValueChanged, this, &Control3D::lightCutoffSlot);
   addLightLabelEdit("Cut Off", lightCutoffEdit_);
 
   //---
 
   lightRadiusEdit_ = new CQRealSpin;
-
-  connect(lightRadiusEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::lightRadiusSlot);
-
+  connect(lightRadiusEdit_, &CQRealSpin::realValueChanged, this, &Control3D::lightRadiusSlot);
   addLightLabelEdit("Radius", lightRadiusEdit_);
 
   //---
 
-  auto *objectsGroup  = new QGroupBox("Objects");
-  auto *objectsLayout = new QHBoxLayout(objectsGroup);
+  lightControlLayout->setRowStretch(lightRow, 1);
 
-  layout->addWidget(objectsGroup);
+  //---
+
+  auto *objectsFrame  = new QFrame;
+  auto *objectsLayout = new QVBoxLayout(objectsFrame);
+
+  tab_->addTab(objectsFrame, "Objects");
 
   auto *objectsControlFrame  = new QFrame;
-//auto *objectsControlLayout = new QGridLayout(objectsControlFrame);
+  auto *objectsControlLayout = new QVBoxLayout(objectsControlFrame);
 
   objectsLayout->addWidget(objectsControlFrame);
 
@@ -280,9 +269,13 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
   objectsList_->setSelectionMode(QListWidget::SingleSelection);
 
   connect(objectsList_, &QListWidget::currentItemChanged,
-          this, &CanvasControl3D::objectSelectedSlot);
+          this, &Control3D::objectSelectedSlot);
 
-  objectsLayout->addWidget(objectsList_);
+  objectsControlLayout->addWidget(objectsList_);
+
+  objectTree_ = new CQPropertyViewTree(this);
+
+  objectsLayout->addWidget(objectTree_);
 
   //---
 
@@ -298,8 +291,8 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
   buttonLayout->addWidget(updateButton);
   buttonLayout->addWidget(closeButton);
 
-  connect(updateButton, &QPushButton::clicked, this, &CanvasControl3D::updateSlot);
-  connect(closeButton, &QPushButton::clicked, this, &CanvasControl3D::closeSlot);
+  connect(updateButton, &QPushButton::clicked, this, &Control3D::updateSlot);
+  connect(closeButton, &QPushButton::clicked, this, &Control3D::closeSlot);
 
   //---
 
@@ -307,47 +300,49 @@ CanvasControl3D(CQSandbox::Canvas3D *canvas) :
 }
 
 void
-CanvasControl3D::
+Control3D::
 updateSlot()
 {
   update();
 }
 
 void
-CanvasControl3D::
+Control3D::
 closeSlot()
 {
   close();
 }
 
 void
-CanvasControl3D::
+Control3D::
 update()
 {
-  disconnect(depthTestCheck_, &QCheckBox::stateChanged, this, &CanvasControl3D::depthTestSlot);
-  disconnect(cullFaceCheck_ , &QCheckBox::stateChanged, this, &CanvasControl3D::cullFaceSlot);
-  disconnect(frontFaceCheck_, &QCheckBox::stateChanged, this, &CanvasControl3D::frontFaceSlot);
-  disconnect(bgColorEdit_   , &CQColorEdit::colorChanged, this, &CanvasControl3D::bgColorSlot);
+  disconnect(depthTestCheck_, &QCheckBox::stateChanged, this, &Control3D::depthTestSlot);
+  disconnect(cullFaceCheck_ , &QCheckBox::stateChanged, this, &Control3D::cullFaceSlot);
+  disconnect(frontFaceCheck_, &QCheckBox::stateChanged, this, &Control3D::frontFaceSlot);
+  disconnect(bgColorEdit_   , &CQColorEdit::colorChanged, this, &Control3D::bgColorSlot);
 
   disconnect(cameraRotateCheck_, &QCheckBox::stateChanged,
-             this, &CanvasControl3D::cameraRotateSlot);
+             this, &Control3D::cameraRotateSlot);
   disconnect(cameraZoomEdit_, &CQRealSpin::realValueChanged,
-             this, &CanvasControl3D::cameraZoomSlot);
+             this, &Control3D::cameraZoomSlot);
   disconnect(cameraNearEdit_, &CQRealSpin::realValueChanged,
-             this, &CanvasControl3D::cameraNearSlot);
+             this, &Control3D::cameraNearSlot);
   disconnect(cameraFarEdit_, &CQRealSpin::realValueChanged,
-             this, &CanvasControl3D::cameraFarSlot);
+             this, &Control3D::cameraFarSlot);
   disconnect(cameraYawEdit_, &CQRealSpin::realValueChanged,
-             this, &CanvasControl3D::cameraYawSlot);
+             this, &Control3D::cameraYawSlot);
   disconnect(cameraPitchEdit_, &CQRealSpin::realValueChanged,
-             this, &CanvasControl3D::cameraPitchSlot);
+             this, &Control3D::cameraPitchSlot);
+  disconnect(cameraRollEdit_, &CQRealSpin::realValueChanged,
+             this, &Control3D::cameraRollSlot);
   disconnect(cameraPosEdit_, &CQPoint3DEdit::editingFinished,
-             this, &CanvasControl3D::cameraPosSlot);
+             this, &Control3D::cameraPosSlot);
 
-//disconnect(ambientEdit_  , &CQRealSpin::realValueChanged, this, &CanvasControl3D::ambientSlot);
-//disconnect(diffuseEdit_  , &CQRealSpin::realValueChanged, this, &CanvasControl3D::diffuseSlot);
-//disconnect(specularEdit_ , &CQRealSpin::realValueChanged, this, &CanvasControl3D::specularSlot);
-//disconnect(shininessEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::shininessSlot);
+//disconnect(ambientEdit_  , &CQRealSpin::realValueChanged, this, &Control3D::ambientSlot);
+//disconnect(diffuseEdit_  , &CQRealSpin::realValueChanged, this, &Control3D::diffuseSlot);
+//disconnect(specularEdit_ , &CQRealSpin::realValueChanged, this, &Control3D::specularSlot);
+//disconnect(shininessEdit_, &CQRealSpin::realValueChanged, this, &Control3D::shininessSlot);
 
   //---
 
@@ -360,13 +355,16 @@ update()
 
   auto *camera = canvas_->camera();
 
-  cameraRotateCheck_->setChecked(camera->isRotate());
-  cameraZoomEdit_   ->setValue  (camera->zoom());
-  cameraNearEdit_   ->setValue  (camera->near());
-  cameraFarEdit_    ->setValue  (camera->far());
-  cameraYawEdit_    ->setValue  (camera->yaw());
-  cameraPitchEdit_  ->setValue  (camera->pitch());
-  cameraPosEdit_    ->setValue  (vectorToPoint(camera->position()));
+  if (camera) {
+    cameraRotateCheck_->setChecked(camera->isRotate());
+    cameraZoomEdit_   ->setValue  (camera->zoom());
+    cameraNearEdit_   ->setValue  (camera->near());
+    cameraFarEdit_    ->setValue  (camera->far());
+    cameraYawEdit_    ->setValue  (camera->yaw());
+    cameraPitchEdit_  ->setValue  (camera->pitch());
+    cameraRollEdit_   ->setValue  (camera->roll());
+    cameraPosEdit_    ->setValue  (vectorToPoint(camera->position()));
+  }
 
   //---
 
@@ -377,30 +375,32 @@ update()
 
   //---
 
-  connect(depthTestCheck_, &QCheckBox::stateChanged, this, &CanvasControl3D::depthTestSlot);
-  connect(cullFaceCheck_ , &QCheckBox::stateChanged, this, &CanvasControl3D::cullFaceSlot);
-  connect(frontFaceCheck_, &QCheckBox::stateChanged, this, &CanvasControl3D::frontFaceSlot);
-  connect(bgColorEdit_   , &CQColorEdit::colorChanged, this, &CanvasControl3D::bgColorSlot);
+  connect(depthTestCheck_, &QCheckBox::stateChanged, this, &Control3D::depthTestSlot);
+  connect(cullFaceCheck_ , &QCheckBox::stateChanged, this, &Control3D::cullFaceSlot);
+  connect(frontFaceCheck_, &QCheckBox::stateChanged, this, &Control3D::frontFaceSlot);
+  connect(bgColorEdit_   , &CQColorEdit::colorChanged, this, &Control3D::bgColorSlot);
 
   connect(cameraRotateCheck_, &QCheckBox::stateChanged,
-          this, &CanvasControl3D::cameraRotateSlot);
+          this, &Control3D::cameraRotateSlot);
   connect(cameraZoomEdit_, &CQRealSpin::realValueChanged,
-          this, &CanvasControl3D::cameraZoomSlot);
+          this, &Control3D::cameraZoomSlot);
   connect(cameraNearEdit_, &CQRealSpin::realValueChanged,
-          this, &CanvasControl3D::cameraNearSlot);
-  connect(cameraFarEdit_ , &CQRealSpin::realValueChanged,
-          this, &CanvasControl3D::cameraFarSlot);
-  connect(cameraYawEdit_ , &CQRealSpin::realValueChanged,
-          this, &CanvasControl3D::cameraYawSlot);
-  connect(cameraPitchEdit_ , &CQRealSpin::realValueChanged,
-          this, &CanvasControl3D::cameraPitchSlot);
+          this, &Control3D::cameraNearSlot);
+  connect(cameraFarEdit_, &CQRealSpin::realValueChanged,
+          this, &Control3D::cameraFarSlot);
+  connect(cameraYawEdit_, &CQRealSpin::realValueChanged,
+          this, &Control3D::cameraYawSlot);
+  connect(cameraPitchEdit_, &CQRealSpin::realValueChanged,
+          this, &Control3D::cameraPitchSlot);
+  connect(cameraRollEdit_, &CQRealSpin::realValueChanged,
+          this, &Control3D::cameraRollSlot);
   connect(cameraPosEdit_, &CQPoint3DEdit::editingFinished,
-          this, &CanvasControl3D::cameraPosSlot);
+          this, &Control3D::cameraPosSlot);
 
-//connect(ambientEdit_  , &CQRealSpin::realValueChanged, this, &CanvasControl3D::ambientSlot);
-//connect(diffuseEdit_  , &CQRealSpin::realValueChanged, this, &CanvasControl3D::diffuseSlot);
-//connect(specularEdit_ , &CQRealSpin::realValueChanged, this, &CanvasControl3D::specularSlot);
-//connect(shininessEdit_, &CQRealSpin::realValueChanged, this, &CanvasControl3D::shininessSlot);
+//connect(ambientEdit_  , &CQRealSpin::realValueChanged, this, &Control3D::ambientSlot);
+//connect(diffuseEdit_  , &CQRealSpin::realValueChanged, this, &Control3D::diffuseSlot);
+//connect(specularEdit_ , &CQRealSpin::realValueChanged, this, &Control3D::specularSlot);
+//connect(shininessEdit_, &CQRealSpin::realValueChanged, this, &Control3D::shininessSlot);
 
   //---
 
@@ -408,24 +408,24 @@ update()
 }
 
 void
-CanvasControl3D::
+Control3D::
 updateLights()
 {
-  disconnect(lightCheck_     , &QCheckBox::stateChanged, this, &CanvasControl3D::lightCheckSlot);
-  disconnect(lightColorEdit_ , &CQColorEdit::colorChanged, this, &CanvasControl3D::lightColorSlot);
+  disconnect(lightCheck_     , &QCheckBox::stateChanged, this, &Control3D::lightCheckSlot);
+  disconnect(lightColorEdit_ , &CQColorEdit::colorChanged, this, &Control3D::lightColorSlot);
   disconnect(lightPosEdit_   , &CQPoint3DEdit::editingFinished,
-             this, &CanvasControl3D::lightPosSlot);
+             this, &Control3D::lightPosSlot);
   disconnect(lightDirEdit_   , &CQPoint3DEdit::editingFinished,
-             this, &CanvasControl3D::lightDirSlot);
+             this, &Control3D::lightDirSlot);
   disconnect(lightCutoffEdit_, &CQRealSpin::realValueChanged,
-             this, &CanvasControl3D::lightCutoffSlot);
+             this, &Control3D::lightCutoffSlot);
   disconnect(lightRadiusEdit_, &CQRealSpin::realValueChanged,
-             this, &CanvasControl3D::lightRadiusSlot);
+             this, &Control3D::lightRadiusSlot);
 
   disconnect(lightsList_, &QListWidget::currentItemChanged,
-             this, &CanvasControl3D::lightSelectedSlot);
+             this, &Control3D::lightSelectedSlot);
   disconnect(objectsList_, &QListWidget::currentItemChanged,
-             this, &CanvasControl3D::objectSelectedSlot);
+             this, &Control3D::objectSelectedSlot);
 
   //---
 
@@ -474,25 +474,25 @@ updateLights()
 
   //---
 
-  connect(lightCheck_     , &QCheckBox::stateChanged, this, &CanvasControl3D::lightCheckSlot);
-  connect(lightColorEdit_ , &CQColorEdit::colorChanged, this, &CanvasControl3D::lightColorSlot);
+  connect(lightCheck_     , &QCheckBox::stateChanged, this, &Control3D::lightCheckSlot);
+  connect(lightColorEdit_ , &CQColorEdit::colorChanged, this, &Control3D::lightColorSlot);
   connect(lightPosEdit_   , &CQPoint3DEdit::editingFinished,
-          this, &CanvasControl3D::lightPosSlot);
+          this, &Control3D::lightPosSlot);
   connect(lightDirEdit_   , &CQPoint3DEdit::editingFinished,
-          this, &CanvasControl3D::lightDirSlot);
+          this, &Control3D::lightDirSlot);
   connect(lightCutoffEdit_, &CQRealSpin::realValueChanged,
-          this, &CanvasControl3D::lightCutoffSlot);
+          this, &Control3D::lightCutoffSlot);
   connect(lightRadiusEdit_, &CQRealSpin::realValueChanged,
-          this, &CanvasControl3D::lightRadiusSlot);
+          this, &Control3D::lightRadiusSlot);
 
   connect(lightsList_, &QListWidget::currentItemChanged,
-          this, &CanvasControl3D::lightSelectedSlot);
+          this, &Control3D::lightSelectedSlot);
   connect(objectsList_, &QListWidget::currentItemChanged,
-          this, &CanvasControl3D::objectSelectedSlot);
+          this, &Control3D::objectSelectedSlot);
 }
 
 void
-CanvasControl3D::
+Control3D::
 depthTestSlot(int b)
 {
   canvas_->setDepthTest(b);
@@ -500,7 +500,7 @@ depthTestSlot(int b)
 }
 
 void
-CanvasControl3D::
+Control3D::
 cullFaceSlot(int b)
 {
   canvas_->setCullFace(b);
@@ -508,7 +508,7 @@ cullFaceSlot(int b)
 }
 
 void
-CanvasControl3D::
+Control3D::
 frontFaceSlot(int b)
 {
   canvas_->setFrontFace(b);
@@ -516,7 +516,7 @@ frontFaceSlot(int b)
 }
 
 void
-CanvasControl3D::
+Control3D::
 bgColorSlot(const QColor &c)
 {
   canvas_->setBgColor(c);
@@ -524,7 +524,7 @@ bgColorSlot(const QColor &c)
 }
 
 void
-CanvasControl3D::
+Control3D::
 cameraZoomSlot(double r)
 {
   canvas_->camera()->setZoom(r);
@@ -532,7 +532,7 @@ cameraZoomSlot(double r)
 }
 
 void
-CanvasControl3D::
+Control3D::
 cameraNearSlot(double r)
 {
   canvas_->camera()->setNear(r);
@@ -540,7 +540,7 @@ cameraNearSlot(double r)
 }
 
 void
-CanvasControl3D::
+Control3D::
 cameraRotateSlot(int b)
 {
   canvas_->camera()->setRotate(b);
@@ -548,7 +548,7 @@ cameraRotateSlot(int b)
 }
 
 void
-CanvasControl3D::
+Control3D::
 cameraFarSlot(double r)
 {
   canvas_->camera()->setFar(r);
@@ -556,7 +556,7 @@ cameraFarSlot(double r)
 }
 
 void
-CanvasControl3D::
+Control3D::
 cameraYawSlot(double r)
 {
   canvas_->camera()->setYaw(r);
@@ -564,7 +564,7 @@ cameraYawSlot(double r)
 }
 
 void
-CanvasControl3D::
+Control3D::
 cameraPitchSlot(double r)
 {
   canvas_->camera()->setPitch(r);
@@ -572,7 +572,15 @@ cameraPitchSlot(double r)
 }
 
 void
-CanvasControl3D::
+Control3D::
+cameraRollSlot(double r)
+{
+  canvas_->camera()->setRoll(r);
+  canvas_->update();
+}
+
+void
+Control3D::
 cameraPosSlot()
 {
   auto p = cameraPosEdit_->getValue();
@@ -582,7 +590,7 @@ cameraPosSlot()
 }
 
 void
-CanvasControl3D::
+Control3D::
 lightSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
 {
   int id = item->data(Qt::UserRole).toInt();
@@ -593,7 +601,7 @@ lightSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
 }
 
 void
-CanvasControl3D::
+Control3D::
 lightCheckSlot(int b)
 {
   auto *light = canvas_->currentLight();
@@ -603,7 +611,7 @@ lightCheckSlot(int b)
 }
 
 void
-CanvasControl3D::
+Control3D::
 lightColorSlot(const QColor &c)
 {
   auto *light = canvas_->currentLight();
@@ -613,7 +621,7 @@ lightColorSlot(const QColor &c)
 }
 
 void
-CanvasControl3D::
+Control3D::
 lightPosSlot()
 {
   auto *light = canvas_->currentLight();
@@ -624,7 +632,7 @@ lightPosSlot()
 }
 
 void
-CanvasControl3D::
+Control3D::
 lightDirSlot()
 {
   auto *light = canvas_->currentLight();
@@ -635,7 +643,7 @@ lightDirSlot()
 }
 
 void
-CanvasControl3D::
+Control3D::
 lightCutoffSlot(double r)
 {
   auto *light = canvas_->currentLight();
@@ -645,7 +653,7 @@ lightCutoffSlot(double r)
 }
 
 void
-CanvasControl3D::
+Control3D::
 lightRadiusSlot(double r)
 {
   auto *light = canvas_->currentLight();
@@ -655,17 +663,25 @@ lightRadiusSlot(double r)
 }
 
 void
-CanvasControl3D::
+Control3D::
 objectSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
 {
   int ind = item->data(Qt::UserRole).toInt();
-
-  std::cerr << ind << "\n";
 
   auto *indObj = canvas_->objectFromInd(ind);
 
   for (auto *obj : canvas_->objects())
     obj->setSelected(obj == indObj);
+
+  objectTree_->clear();
+
+  if (indObj) {
+    auto properties = CQUtil::getPropertyList(indObj);
+
+    for (auto &prop : properties) {
+      objectTree_->addProperty("", indObj, prop);
+    }
+  }
 }
 
 }

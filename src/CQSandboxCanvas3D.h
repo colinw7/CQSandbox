@@ -87,6 +87,8 @@ class App;
 class OpenGLWindow : public QOpenGLWidget, public QOpenGLFunctions_3_3_Core {
   Q_OBJECT
 
+  Q_PROPERTY(bool animating READ isAnimating WRITE setAnimating)
+
  public:
   explicit OpenGLWindow(QWidget *parent=nullptr);
  ~OpenGLWindow();
@@ -99,6 +101,7 @@ class OpenGLWindow : public QOpenGLWidget, public QOpenGLFunctions_3_3_Core {
 
   virtual void render();
 
+  bool isAnimating() const { return animating_; }
   void setAnimating(bool animating);
 
  protected:
@@ -128,6 +131,18 @@ class BBox3DObj;
 class Object3D : public QObject {
   Q_OBJECT
 
+  Q_PROPERTY(QString id       READ id)
+  Q_PROPERTY(bool    visible  READ isVisible  WRITE setVisible )
+  Q_PROPERTY(bool    selected READ isSelected WRITE setSelected)
+  Q_PROPERTY(bool    inside   READ isInside   WRITE setInside  )
+  Q_PROPERTY(bool    pseudo   READ isPseudo)
+  Q_PROPERTY(double  xangle   READ xAngle     WRITE setXAngle)
+  Q_PROPERTY(double  yangle   READ yAngle     WRITE setYAngle)
+  Q_PROPERTY(double  zangle   READ zAngle     WRITE setZAngle)
+  Q_PROPERTY(double  xscale   READ xscale     WRITE setXScale)
+  Q_PROPERTY(double  yscale   READ yscale     WRITE setYScale)
+  Q_PROPERTY(double  zscale   READ zscale     WRITE setZScale)
+
  public:
   enum ModelMatrixFlags : unsigned int {
     NONE      = 0,
@@ -154,6 +169,8 @@ class Object3D : public QObject {
 
   QString calcId() const;
 
+  //---
+
   bool isVisible() const { return visible_; }
   void setVisible(bool b) { visible_ = b; }
 
@@ -171,13 +188,17 @@ class Object3D : public QObject {
   //---
 
   double xAngle() const { return xAngle_; }
-  virtual void setXAngle(double a);
+  void setXAngle(double a);
 
   double yAngle() const { return yAngle_; }
-  virtual void setYAngle(double a);
+  void setYAngle(double a);
 
   double zAngle() const { return zAngle_; }
-  virtual void setZAngle(double a);
+  void setZAngle(double a);
+
+  virtual void setAngles(double xa, double ya, double za);
+
+  //---
 
   const CPoint3D &position() const { return position_; }
   virtual void setPosition(const CPoint3D &p);
@@ -188,13 +209,17 @@ class Object3D : public QObject {
   //---
 
   double xscale() const { return xscale_; }
+  void setXScale(double s) { setScales(s, yscale_, zscale_); }
+
   double yscale() const { return yscale_; }
+  void setYScale(double s) { setScales(xscale_, s, zscale_); }
+
   double zscale() const { return zscale_; }
+  void setZScale(double s) { setScales(xscale_, yscale_, s); }
 
-  void setScale(double s) { setScale(s, s, s); }
+  void setScale(double s) { setScales(s, s, s); }
 
-  virtual void setScale(double xs, double ys, double zs) {
-    xscale_ = xs; yscale_ = ys; zscale_ = zs; }
+  virtual void setScales(double xs, double ys, double zs);
 
   //---
 
@@ -277,7 +302,14 @@ class Object3D : public QObject {
 
 //---
 
-class Light3D {
+class Light3D : public QObject {
+  Q_OBJECT
+
+  Q_PROPERTY(bool  enabled   READ isEnabled WRITE setEnabled)
+  Q_PROPERTY(float intensity READ intensity WRITE setIntensity)
+  Q_PROPERTY(float cutoff    READ cutoff    WRITE setCutoff)
+  Q_PROPERTY(float radius    READ radius    WRITE setRadius)
+
  public:
   enum class Type {
     DIRECTIONAL,
@@ -481,9 +513,7 @@ class Group3DObj : public Object3D {
 
   CBBox3D calcBBox() override;
 
-  void setXAngle(double a) override;
-  void setYAngle(double a) override;
-  void setZAngle(double a) override;
+  void setAngles(double xa, double ya, double za) override;
 
   void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
 
@@ -527,8 +557,66 @@ class BBox3DObj : public Object3D {
 
 //---
 
+class Plane3DObj : public Object3D {
+  Q_OBJECT
+
+  Q_PROPERTY(QColor  color   READ color       WRITE setColor      )
+  Q_PROPERTY(QString texture READ textureFile WRITE setTextureFile)
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  Plane3DObj(Canvas3D *canvas);
+
+  const char *typeName() const override { return "Plane"; }
+
+  const QColor &color() const { return color_; }
+  void setColor(const QColor &c);
+
+  const QString &textureFile() const { return textureFile_; }
+  void setTextureFile(const QString &filename);
+
+  void setTexture(CQGLTexture *texture) { texture_ = texture; }
+
+  void init() override;
+
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  void initShader();
+
+  void updateGL();
+
+  void render() override;
+
+ protected:
+  using Points    = std::vector<CGLVector3D>;
+  using Colors    = std::vector<Color>;
+  using TexCoords = std::vector<CGLVector2D>;
+
+  static ProgramData* s_program;
+
+  QColor color_;
+
+  QString      textureFile_;
+  CQGLTexture *texture_    { nullptr };
+  bool         useTexture_ { false };
+
+  Points    points_;
+  Colors    colors_;
+  TexCoords texCoords_;
+
+  unsigned int pointsBufferId_   { 0 };
+  unsigned int colorsBufferId_   { 0 };
+  unsigned int texCoordBufferId_ { 0 };
+  unsigned int vertexArrayId_    { 0 };
+};
+
+//---
+
 class Shape3DObj : public Object3D {
   Q_OBJECT
+
+  Q_PROPERTY(QString texture READ textureFile WRITE setTextureFile)
 
  public:
   struct VertexData {
@@ -555,7 +643,9 @@ class Shape3DObj : public Object3D {
   const Color &color() const { return color_; }
   void setColor(const Color &c) { color_ = c; }
 
-  void setTexture(const QString &filename);
+  const QString &textureFile() const { return textureFile_; }
+  void setTextureFile(const QString &filename);
+
   void setTexture(CQGLTexture *texture) { texture_ = texture; }
 
   void setNormalTexture(const QString &filename);
@@ -601,6 +691,7 @@ class Shape3DObj : public Object3D {
   TexCoords texCoords_;
   bool      wireframe_ { false };
 
+  QString      textureFile_;
   CQGLTexture *texture_       { nullptr };
   CQGLTexture *normalTexture_ { nullptr };
 
@@ -686,13 +777,16 @@ class ParticleList3DObj : public Object3D {
 
   void setPoints(const Points &points);
 
-  void setTexture(const QString &filename);
+  const QString &textureFile() const { return textureFile_; }
+  void setTextureFile(const QString &filename);
 
   void init() override;
 
   void tick() override;
 
   void render() override;
+
+  CBBox3D calcBBox() override;
 
  protected:
   void setNumPoints(int n);
@@ -725,6 +819,7 @@ class ParticleList3DObj : public Object3D {
   GLuint particles_color_buffer_    { 0 };
   GLuint billboard_vertex_buffer_   { 0 };
 
+  QString      textureFile_;
   CQGLTexture *texture_ { nullptr };
 
 #ifdef CQSANDBOX_FLOCKING
@@ -808,6 +903,8 @@ class FontData;
 
 class Text3DObj : public Object3D {
   Q_OBJECT
+
+  Q_PROPERTY(QString text READ text WRITE setText)
 
  public:
   struct GlyphInfo {
@@ -1236,6 +1333,24 @@ class Graph3DObj : public Object3D {
 
 class Canvas3D : public OpenGLWindow {
   Q_OBJECT
+
+  Q_PROPERTY(QColor bgColor   READ bgColor   WRITE setBgColor)
+  Q_PROPERTY(double ambient   READ ambient   WRITE setAmbient)
+  Q_PROPERTY(double diffuse   READ diffuse   WRITE setDiffuse)
+  Q_PROPERTY(double specular  READ specular  WRITE setSpecular)
+  Q_PROPERTY(double shininess READ shininess WRITE setShininess)
+
+  Q_PROPERTY(bool polygonLine READ isPolygonLine WRITE setPolygonLine)
+  Q_PROPERTY(bool wireframe   READ isWireframe   WRITE setWireframe)
+  Q_PROPERTY(bool showBBox    READ isBBox        WRITE setBBox)
+
+  Q_PROPERTY(bool simpleLights READ isSimpleLights WRITE setSimpleLights)
+
+  Q_PROPERTY(bool depthTest   READ isDepthTest   WRITE setDepthTest)
+  Q_PROPERTY(bool cullFace    READ isCullFace    WRITE setCullFace)
+  Q_PROPERTY(bool lighting    READ isLighting    WRITE setLighting)
+  Q_PROPERTY(bool frontFace   READ isFrontFace   WRITE setFrontFace)
+  Q_PROPERTY(bool smoothShade READ isSmoothShade WRITE setSmoothShade)
 
  public:
   enum class Type {

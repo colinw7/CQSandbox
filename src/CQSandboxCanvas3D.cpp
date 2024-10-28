@@ -257,8 +257,27 @@ stringToColor(CQTcl *tcl, const QString &str) {
     c.b = b;
     c.a = a;
   }
+  else {
+    QColor c1(str);
+
+    c.r = c1.redF  ();
+    c.g = c1.greenF();
+    c.b = c1.blueF ();
+    c.a = 1.0;
+  }
 
   return c;
+}
+
+QColor
+stringToQColor(CQTcl *tcl, const QString &str) {
+  auto c = stringToColor(tcl, str);
+
+  QColor c1;
+
+  c1.setRgbF(c.r, c.g, c.b, c.a);
+
+  return c1;
 }
 
 std::vector<Color>
@@ -275,6 +294,12 @@ stringToColors(CQTcl *tcl, const QString &str) {
   }
 
   return colors;
+}
+
+Color
+qcolorToColor(const QColor &c)
+{
+  return Color(c.redF(), c.greenF(), c.blueF(), c.alphaF());
 }
 
 CGLVector3D
@@ -446,6 +471,10 @@ addCommands()
 
   tcl->createObjCommand("sb3d::bbox",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<BBox3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::plane",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Plane3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::particle_list",
@@ -1391,7 +1420,7 @@ setMousePos(float xpos, float ypos)
   float xv2, yv2, zv2;
   imatrix2.multiplyPoint(xp2, yp2, zp2, &xv2, &yv2, &zv2);
 
-  app_->control3D()->setPos(QString("%1 %2 %3").arg(xv1).arg(yv1).arg(zv1));
+  app_->toolbar3D()->setPos(QString("%1 %2 %3").arg(xv1).arg(yv1).arg(zv1));
 
   CGLVector3D pe1(xv1, yv1, zv1);
   CGLVector3D pe2(xv2, yv2, zv2);
@@ -1674,18 +1703,30 @@ void
 Object3D::
 setXAngle(double a)
 {
-  xAngle_ = a;
-
-  updateModelMatrix();
-
-  setNeedsUpdate();
+  setAngles(a, yAngle_, zAngle_);
 }
 
 void
 Object3D::
 setYAngle(double a)
 {
-  yAngle_ = a;
+  setAngles(xAngle_, a, zAngle_);
+}
+
+void
+Object3D::
+setZAngle(double a)
+{
+  setAngles(xAngle_, yAngle_, a);
+}
+
+void
+Object3D::
+setAngles(double xa, double ya, double za)
+{
+  xAngle_ = xa;
+  yAngle_ = ya;
+  zAngle_ = za;
 
   updateModelMatrix();
 
@@ -1694,11 +1735,11 @@ setYAngle(double a)
 
 void
 Object3D::
-setZAngle(double a)
+setScales(double xs, double ys, double zs)
 {
-  zAngle_ = a;
-
-  updateModelMatrix();
+  xscale_ = xs;
+  yscale_ = ys;
+  zscale_ = zs;
 
   setNeedsUpdate();
 }
@@ -1898,7 +1939,7 @@ createBBoxObj()
 
   bboxObj_->setPosition(bbox_.getCenter());
 
-  bboxObj_->setScale(bbox_.getXSize(), bbox_.getYSize(), bbox_.getZSize());
+  bboxObj_->setScales(bbox_.getXSize(), bbox_.getYSize(), bbox_.getZSize());
 }
 
 //---
@@ -2820,36 +2861,14 @@ origin() const
 
 void
 Group3DObj::
-setXAngle(double a)
+setAngles(double xa, double ya, double za)
 {
-  xAngle_ = a;
+  xAngle_ = xa;
+  yAngle_ = ya;
+  zAngle_ = za;
 
   for (auto *obj : objects_)
-    obj->setXAngle(a);
-
-  bboxValid_ = false;
-}
-
-void
-Group3DObj::
-setYAngle(double a)
-{
-  yAngle_ = a;
-
-  for (auto *obj : objects_)
-    obj->setYAngle(a);
-
-  bboxValid_ = false;
-}
-
-void
-Group3DObj::
-setZAngle(double a)
-{
-  zAngle_ = a;
-
-  for (auto *obj : objects_)
-    obj->setZAngle(a);
+    obj->setAngles(xa, ya, za);
 
   bboxValid_ = false;
 }
@@ -2937,7 +2956,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else if (name == "texture") {
-    setTexture(value);
+    setTextureFile(value);
 
     setNeedsUpdate();
   }
@@ -3339,11 +3358,19 @@ addBodyRev(double *x, double *y, uint num_xy, uint num_patches,
 
 void
 Shape3DObj::
-setTexture(const QString &filename)
+setTextureFile(const QString &filename)
 {
-  texture_ = new CQGLTexture;
+  textureFile_ = filename;
 
-  if (! texture_->load(filename, /*flip*/true)) {
+  if (textureFile_ != "") {
+    texture_ = new CQGLTexture;
+
+    if (! texture_->load(textureFile_, /*flip*/true)) {
+      delete texture_;
+      texture_ = nullptr;
+    }
+  }
+  else {
     delete texture_;
     texture_ = nullptr;
   }
@@ -3614,21 +3641,25 @@ CBBox3D
 Shape3DObj::
 calcBBox()
 {
-  const auto &mm = modelMatrix();
+  if (! bboxValid_) {
+    const auto &mm = modelMatrix();
 
-  bbox_ = CBBox3D();
+    bbox_ = CBBox3D();
 
-  auto np = points_.size();
+    auto np = points_.size();
 
-  for (uint i = 0; i < np; ++i) {
-    const auto &p = points_[i];
+    for (uint i = 0; i < np; ++i) {
+      const auto &p = points_[i];
 
-    CPoint3D p1(p.x(), p.y(), p.z());
+      CPoint3D p1(p.x(), p.y(), p.z());
 
-    CPoint3D p2;
-    mm.multiplyPoint(p1, p2);
+      CPoint3D p2;
+      mm.multiplyPoint(p1, p2);
 
-    bbox_ += CPoint3D(p2.x, p2.y, p2.z);
+      bbox_ += CPoint3D(p2.x, p2.y, p2.z);
+    }
+
+    bboxValid_ = true;
   }
 
   return bbox_;
@@ -4063,6 +4094,300 @@ render()
 
 //---
 
+ProgramData *Plane3DObj::s_program = nullptr;
+
+bool
+Plane3DObj::
+create(Canvas3D *canvas, const QStringList &)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new Plane3DObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  obj->init();
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+Plane3DObj::
+Plane3DObj(Canvas3D *canvas) :
+ Object3D(canvas)
+{
+}
+
+void
+Plane3DObj::
+init()
+{
+  Object3D::init();
+
+  //---
+
+  initShader();
+
+  //---
+
+  canvas_->glGenVertexArrays(1, &vertexArrayId_);
+
+  canvas_->glGenBuffers(1, &pointsBufferId_);
+  canvas_->glGenBuffers(1, &colorsBufferId_);
+  canvas_->glGenBuffers(1, &texCoordBufferId_);
+
+  //---
+
+  static Points points = {
+    CGLVector3D(-0.5f, -0.5f, 0.0f),
+    CGLVector3D( 0.5f, -0.5f, 0.0f),
+    CGLVector3D( 0.5f,  0.5f, 0.0f),
+    CGLVector3D( 0.5f,  0.5f, 0.0f),
+    CGLVector3D(-0.5f,  0.5f, 0.0f),
+    CGLVector3D(-0.5f, -0.5f, 0.0f),
+  };
+
+  static TexCoords texCoords = {
+    CGLVector2D(0.0f, 0.0f),
+    CGLVector2D(1.0f, 0.0f),
+    CGLVector2D(1.0f, 1.0f),
+    CGLVector2D(1.0f, 1.0f),
+    CGLVector2D(0.0f, 1.0f),
+    CGLVector2D(0.0f, 0.0f),
+  };
+
+  points_    = points;
+  texCoords_ = texCoords;
+
+  Object3D::init();
+}
+
+bool
+Plane3DObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto *app = canvas_->app();
+  auto *tcl = app->tcl();
+
+  if      (name == "color")
+    setColor(stringToQColor(tcl, value));
+  else if (name == "texture")
+    setTextureFile(value);
+  else
+    return Object3D::setValue(name, value, args);
+
+  return true;
+}
+
+void
+Plane3DObj::
+setColor(const QColor &c)
+{
+  color_ = c;
+
+  setNeedsUpdate();
+}
+
+void
+Plane3DObj::
+setTextureFile(const QString &filename)
+{
+  textureFile_ = filename;
+
+  if (textureFile_ != "") {
+    texture_ = new CQGLTexture;
+
+    if (! texture_->load(textureFile_, /*flip*/true)) {
+      delete texture_;
+      texture_ = nullptr;
+    }
+  }
+  else {
+    delete texture_;
+    texture_ = nullptr;
+  }
+
+  setNeedsUpdate();
+}
+
+void
+Plane3DObj::
+initShader()
+{
+  if (! s_program) {
+    static const char *vertexShaderSource =
+      "#version 330 core\n"
+      "layout (location = 0) in vec3 aPos;\n"
+      "layout (location = 1) in vec4 aColor;\n"
+      "layout (location = 2) in vec4 aTexCoord;\n"
+      "uniform highp mat4 projection;\n"
+      "uniform highp mat4 view;\n"
+      "uniform highp mat4 model;\n"
+      "out vec4 Color;\n"
+      "out vec2 TexCoord;\n"
+      "void main() {\n"
+      "  Color    = aColor;\n"
+      "  TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n"
+      "  gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
+      "}";
+    static const char *fragmentShaderSource =
+      "#version 330 core\n"
+      "in vec4 Color;\n"
+      "in vec2 TexCoord;\n"
+      "out vec4 FragColor;\n"
+      "uniform sampler2D textureId;\n"
+      "uniform bool useTexture;\n"
+      "void main() {\n"
+      "  if (useTexture) {\n"
+      "    FragColor = texture(textureId, TexCoord);\n"
+      "  } else {\n"
+      "    FragColor = Color;\n"
+      "  }\n"
+      "}";
+
+    s_program = new ProgramData;
+
+    s_program->program = new QOpenGLShaderProgram(this);
+
+    auto *program = s_program->program;
+
+    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
+    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+
+    program->link();
+  }
+}
+
+void
+Plane3DObj::
+updateGL()
+{
+  if (! needsUpdate_)
+    return;
+
+  needsUpdate_ = false;
+
+  //---
+
+  // bind the Vertex Array Object
+  canvas_->glBindVertexArray(vertexArrayId_);
+
+  //---
+
+  auto np = points_.size();
+
+  // store point data in array buffer (vec3, location 0)
+  uint aPos = 0;
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &points_[0], GL_STATIC_DRAW);
+
+  // set points attrib data and format (for current buffer)
+  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
+  canvas_->glEnableVertexAttribArray(aPos);
+
+  //---
+
+  // set colors attrib data and format (for current buffer) (vec4, location 2)
+  std::vector<Color> colors1;
+
+  if (colors_.size() != np) {
+    auto c  = this->color();
+    auto c1 = qcolorToColor(c);
+
+    while (colors1.size() < np)
+      colors1.push_back(c1);
+  }
+  else
+    colors1 = colors_;
+
+  uint aColor = 1;
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(Color), &colors1[0], GL_STATIC_DRAW);
+
+  canvas_->glVertexAttribPointer(aColor, 4, GL_FLOAT, GL_FALSE, sizeof(Color), nullptr);
+  canvas_->glEnableVertexAttribArray(aColor);
+
+  //---
+
+  assert(texCoords_.size() == np);
+
+  uint aTexCoord = 2;
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferId_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector2D), &texCoords_[0], GL_STATIC_DRAW);
+
+  canvas_->glVertexAttribPointer(aTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(CGLVector2D), nullptr);
+  canvas_->glEnableVertexAttribArray(aTexCoord);
+
+  //---
+
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  canvas_->glBindVertexArray(0);
+}
+
+void
+Plane3DObj::
+render()
+{
+  initShader();
+
+  updateGL();
+
+  //---
+
+  auto *program = s_program->program;
+
+  program->bind();
+
+  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  setModelMatrix();
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+
+  //---
+
+  canvas_->glBindVertexArray(vertexArrayId_);
+
+  //---
+
+  useTexture_ = (! canvas_->isWireframe() && !!texture_);
+
+  program->setUniformValue("useTexture", useTexture_);
+  program->setUniformValue("textureId", 0);
+
+  if (useTexture_)
+    glEnable(GL_TEXTURE_2D);
+
+  if (useTexture_) {
+    glActiveTexture(GL_TEXTURE0);
+    texture_->bind();
+  }
+
+  //---
+
+  int np = points_.size();
+
+  if (canvas_->isWireframe()) {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    glDrawArrays(GL_TRIANGLES, 0, np);
+  }
+  else {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    glDrawArrays(GL_TRIANGLES, 0, np);
+  }
+
+  //---
+
+  if (useTexture_)
+    glDisable(GL_TEXTURE_2D);
+}
+
+//---
+
 bool
 Shader3DObj::
 create(Canvas3D *canvas, const QStringList &)
@@ -4296,27 +4621,45 @@ getValue(const QString &name, const QStringList &args)
       return QVariant();
   }
   else if (name == "range") {
-    CRMinMax xrange, yrange, zrange;
-
-    for (const auto &p : points_) {
-      xrange.add(p.x());
-      yrange.add(p.y());
-      zrange.add(p.z());
-    }
+    calcBBox();
 
     QStringList strs;
 
-    strs << QString::number(xrange.min());
-    strs << QString::number(yrange.min());
-    strs << QString::number(zrange.min());
-    strs << QString::number(xrange.max());
-    strs << QString::number(yrange.max());
-    strs << QString::number(zrange.max());
+    strs << QString::number(bbox_.getXMin());
+    strs << QString::number(bbox_.getYMin());
+    strs << QString::number(bbox_.getZMin());
+    strs << QString::number(bbox_.getXMax());
+    strs << QString::number(bbox_.getYMax());
+    strs << QString::number(bbox_.getZMax());
 
     return strs.join(" ");
   }
   else
     return Object3D::getValue(name, args);
+}
+
+CBBox3D
+ParticleList3DObj::
+calcBBox()
+{
+  if (! bboxValid_) {
+    if (! points_.empty()) {
+      CRMinMax xrange, yrange, zrange;
+
+      for (const auto &p : points_) {
+        xrange.add(p.x());
+        yrange.add(p.y());
+        zrange.add(p.z());
+      }
+
+      bbox_ = CBBox3D(xrange.min(), yrange.min(), zrange.min(),
+                      xrange.max(), yrange.max(), zrange.max());
+
+      bboxValid_ = true;
+    }
+  }
+
+  return bbox_;
 }
 
 bool
@@ -4343,6 +4686,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     }
     else
       app->errorMsg("Missing index for position");
+
+    bboxValid_ = false;
   }
   else if (name == "color") {
     // get index from args
@@ -4420,6 +4765,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
         points_[i] = CGLVector3D(x1, y1, z1);
       }
     }
+
+    bboxValid_ = false;
   }
 #ifdef CQSANDBOX_FLOCKING
   else if (name == "flocking") {
@@ -4454,7 +4801,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   }
 #endif
   else if (name == "texture") {
-    setTexture(value);
+    setTextureFile(value);
   }
   else
     return Object3D::setValue(name, value, args);
@@ -4469,6 +4816,8 @@ setPoints(const Points &points)
   setNumPoints(points.size());
 
   points_ = points;
+
+  bboxValid_ = false;
 }
 
 void
@@ -4482,22 +4831,34 @@ setNumPoints(int n)
       points_.emplace_back();
       colors_.emplace_back(1.0, 1.0, 1.0);
     }
+
+    bboxValid_ = false;
   }
   else if (n < n1) {
     for (int i = 0; i < n1 - n; ++i) {
       points_.pop_back();
       colors_.pop_back();
     }
+
+    bboxValid_ = false;
   }
 }
 
 void
 ParticleList3DObj::
-setTexture(const QString &filename)
+setTextureFile(const QString &filename)
 {
-  texture_ = new CQGLTexture;
+  textureFile_ = filename;
 
-  if (! texture_->load(filename, /*flip*/true)) {
+  if (textureFile_ != "") {
+    texture_ = new CQGLTexture;
+
+    if (! texture_->load(textureFile_, /*flip*/true)) {
+      delete texture_;
+      texture_ = nullptr;
+    }
+  }
+  else {
     delete texture_;
     texture_ = nullptr;
   }
@@ -4660,6 +5021,8 @@ updateFlocking()
 
     ++i;
   }
+
+  bboxValid_ = false;
 }
 #endif
 
@@ -4688,6 +5051,8 @@ updateFireworks()
 
     colors_[i] = Color(c.getRed(), c.getGreen(), c.getBlue());
   }
+
+  bboxValid_ = false;
 }
 #endif
 
@@ -4695,6 +5060,16 @@ void
 ParticleList3DObj::
 render()
 {
+  if (canvas_->isBBox() || isSelected()) {
+    calcBBox();
+
+    createBBoxObj();
+
+    bboxObj_->render();
+  }
+
+  //---
+
   auto *program = s_program->program;
 
   glDisable(GL_CULL_FACE);
