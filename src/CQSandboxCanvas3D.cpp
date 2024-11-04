@@ -2417,6 +2417,12 @@ updateObjectData()
 
       //---
 
+      auto *diffuseTexture  = object->getDiffuseTexture();
+      auto *specularTexture = object->getSpecularTexture();
+      auto *normalTexture   = object->getNormalTexture();
+
+      //---
+
       const auto &faces = object->getFaces();
 
       int pos = 0;
@@ -2428,47 +2434,62 @@ updateObjectData()
 
         const auto &color = face->getColor();
 
-        auto *diffuseTexture  = face->getDiffuseTexture();
-        auto *specularTexture = face->getSpecularTexture();
-        auto *normalTexture   = face->getNormalTexture();
+        //---
 
-        if (diffuseTexture) {
-          auto pt = glTextures_.find(diffuseTexture->id());
+        auto *diffuseTexture1 = face->getDiffuseTexture();
+
+        if (! diffuseTexture1)
+          diffuseTexture1 = diffuseTexture;
+
+        auto *specularTexture1 = face->getSpecularTexture();
+
+        if (! specularTexture1)
+          specularTexture1 = specularTexture;
+
+        auto *normalTexture1 = face->getNormalTexture();
+
+        if (! normalTexture1)
+          normalTexture1 = normalTexture;
+
+        //---
+
+        if (diffuseTexture1) {
+          auto pt = glTextures_.find(diffuseTexture1->id());
 
           if (pt == glTextures_.end()) {
-            const auto &image = diffuseTexture->image()->image();
+            const auto &image = diffuseTexture1->image()->image();
 
             auto *glTexture = new CGLTexture(image);
 
-            pt = glTextures_.insert(pt, GLTextures::value_type(diffuseTexture->id(), glTexture));
+            pt = glTextures_.insert(pt, GLTextures::value_type(diffuseTexture1->id(), glTexture));
           }
 
           faceData.diffuseTexture = (*pt).second;
         }
 
-        if (specularTexture) {
-          auto pt = glTextures_.find(specularTexture->id());
+        if (specularTexture1) {
+          auto pt = glTextures_.find(specularTexture1->id());
 
           if (pt == glTextures_.end()) {
-            const auto &image = specularTexture->image()->image();
+            const auto &image = specularTexture1->image()->image();
 
             auto *glTexture = new CGLTexture(image);
 
-            pt = glTextures_.insert(pt, GLTextures::value_type(specularTexture->id(), glTexture));
+            pt = glTextures_.insert(pt, GLTextures::value_type(specularTexture1->id(), glTexture));
           }
 
           faceData.specularTexture = (*pt).second;
         }
 
-        if (normalTexture) {
-          auto pt = glTextures_.find(normalTexture->id());
+        if (normalTexture1) {
+          auto pt = glTextures_.find(normalTexture1->id());
 
           if (pt == glTextures_.end()) {
-            const auto &image = normalTexture->image()->image();
+            const auto &image = normalTexture1->image()->image();
 
             auto *glTexture = new CGLTexture(image);
 
-            pt = glTextures_.insert(pt, GLTextures::value_type(normalTexture->id(), glTexture));
+            pt = glTextures_.insert(pt, GLTextures::value_type(normalTexture1->id(), glTexture));
           }
 
           faceData.normalTexture = (*pt).second;

@@ -100,6 +100,7 @@ unix:LIBS += \
 -L../../CImageLib/lib \
 -L../../CRGBName/lib \
 -L../../CConfig/lib \
+-L../../CJson/lib \
 -L../../CUtil/lib \
 -L../../CFileUtil/lib \
 -L../../CFile/lib \
@@ -117,6 +118,7 @@ unix:LIBS += \
 -lCImageLib \
 -lCRGBName \
 -lCConfig \
+-lCJson \
 -lCUtil \
 -lCFileUtil \
 -lCFile \
