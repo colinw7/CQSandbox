@@ -405,6 +405,7 @@ update()
   //---
 
   updateLights();
+  updateObjects();
 }
 
 void
@@ -424,8 +425,6 @@ updateLights()
 
   disconnect(lightsList_, &QListWidget::currentItemChanged,
              this, &Control3D::lightSelectedSlot);
-  disconnect(objectsList_, &QListWidget::currentItemChanged,
-             this, &Control3D::objectSelectedSlot);
 
   //---
 
@@ -460,6 +459,30 @@ updateLights()
 
   //---
 
+  connect(lightCheck_     , &QCheckBox::stateChanged, this, &Control3D::lightCheckSlot);
+  connect(lightColorEdit_ , &CQColorEdit::colorChanged, this, &Control3D::lightColorSlot);
+  connect(lightPosEdit_   , &CQPoint3DEdit::editingFinished,
+          this, &Control3D::lightPosSlot);
+  connect(lightDirEdit_   , &CQPoint3DEdit::editingFinished,
+          this, &Control3D::lightDirSlot);
+  connect(lightCutoffEdit_, &CQRealSpin::realValueChanged,
+          this, &Control3D::lightCutoffSlot);
+  connect(lightRadiusEdit_, &CQRealSpin::realValueChanged,
+          this, &Control3D::lightRadiusSlot);
+
+  connect(lightsList_, &QListWidget::currentItemChanged,
+          this, &Control3D::lightSelectedSlot);
+}
+
+void
+Control3D::
+updateObjects()
+{
+  disconnect(objectsList_, &QListWidget::currentItemChanged,
+             this, &Control3D::objectSelectedSlot);
+
+  //---
+
   objectsList_->clear();
 
   for (auto *object : canvas_->objects()) {
@@ -474,19 +497,6 @@ updateLights()
 
   //---
 
-  connect(lightCheck_     , &QCheckBox::stateChanged, this, &Control3D::lightCheckSlot);
-  connect(lightColorEdit_ , &CQColorEdit::colorChanged, this, &Control3D::lightColorSlot);
-  connect(lightPosEdit_   , &CQPoint3DEdit::editingFinished,
-          this, &Control3D::lightPosSlot);
-  connect(lightDirEdit_   , &CQPoint3DEdit::editingFinished,
-          this, &Control3D::lightDirSlot);
-  connect(lightCutoffEdit_, &CQRealSpin::realValueChanged,
-          this, &Control3D::lightCutoffSlot);
-  connect(lightRadiusEdit_, &CQRealSpin::realValueChanged,
-          this, &Control3D::lightRadiusSlot);
-
-  connect(lightsList_, &QListWidget::currentItemChanged,
-          this, &Control3D::lightSelectedSlot);
   connect(objectsList_, &QListWidget::currentItemChanged,
           this, &Control3D::objectSelectedSlot);
 }

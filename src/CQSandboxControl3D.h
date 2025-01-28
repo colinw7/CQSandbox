@@ -26,6 +26,7 @@ class Control3D : public QFrame {
 
   void update();
   void updateLights();
+  void updateObjects();
 
  private Q_SLOTS:
   void depthTestSlot(int b);

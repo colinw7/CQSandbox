@@ -19,6 +19,8 @@ CQSandboxCanvas.cpp \
 CQSandboxCanvas3D.cpp \
 CQSandboxControl2D.cpp \
 CQSandboxControl3D.cpp \
+CQSandboxToolbar2D.cpp \
+CQSandboxToolbar3D.cpp \
 \
 CQHtmlTextPainter.cpp \
 CCircleFactor.cpp \
@@ -52,6 +54,8 @@ CQSandboxCanvas.h \
 CQSandboxCanvas3D.h \
 CQSandboxControl2D.h \
 CQSandboxControl3D.h \
+CQSandboxToolbar2D.h \
+CQSandboxToolbar3D.h \
 CQSandboxUtil.h \
 \
 CQHtmlTextPainter.h \

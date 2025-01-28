@@ -1,4 +1,5 @@
 #include <CQSandboxCanvas3D.h>
+#include <CQSandboxToolbar3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
