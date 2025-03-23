@@ -22,7 +22,6 @@ CQSandboxControl3D.cpp \
 CQSandboxToolbar2D.cpp \
 CQSandboxToolbar3D.cpp \
 \
-CQHtmlTextPainter.cpp \
 CCircleFactor.cpp \
 CQGLTexture.cpp \
 CQGLCubemap.cpp \
@@ -58,7 +57,6 @@ CQSandboxToolbar2D.h \
 CQSandboxToolbar3D.h \
 CQSandboxUtil.h \
 \
-CQHtmlTextPainter.h \
 CQTclUtil.h \
 CQArrow.h \
 CQPoint3DEdit.h \
