@@ -1,31 +1,9 @@
 #ifndef CFLOCKING_H
 #define CFLOCKING_H
 
-#define MaxSpeed        1.0f
-#define MinUrgency      0.05f
-#define MaxUrgency      0.1f
-#define MaxChange       (MaxSpeed * MaxUrgency)
-#define DesiredSpeed    (MaxSpeed/2)
-#define KeepAwayDist    6.0f
-#define SeparationDist  3.0f
-
-#define Max_Friends_Visible      10
-#define Default_Perception_Range 8.0
-
-#define UseTruth       false
-#define ReactToEnemies true
-
-#define HALF_PI (M_PI/2)
-
-#define GRAVITY 9.806650
-
-#define MY_INFINITY 999999.0
-
-#define RAND() double(rand()/(RAND_MAX * 1.0))
-#define SIGN(x) (((x) < 0) ? -1 : 1)
-
 #include <CBoid.h>
 #include <CFlock.h>
+#include <CFlockingUtil.h>
 
 #include <CGeometry3D.h>
 

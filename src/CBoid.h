@@ -1,6 +1,7 @@
 #ifndef CBOID_H
 #define CBOID_H
 
+#include <CFlockingUtil.h>
 #include <CVector3D.h>
 #include <CMatrix3D.h>
 
@@ -59,11 +60,11 @@ class CBoid {
   void ComputeRPY();
 
  private:
-  static CBoid *VisibleFriendsList[Max_Friends_Visible];
+  static CBoid *VisibleFriendsList[CFlockingUtil::Max_Friends_Visible];
 
   CFlock *  flock_ { nullptr };
   short     id_ { 0 };
-  double    perception_range_ { Default_Perception_Range };
+  double    perception_range_ { CFlockingUtil::Default_Perception_Range };
   CVector3D pos_;
   CVector3D vel_;
   CVector3D ang_;
@@ -71,11 +72,11 @@ class CBoid {
 
   short  num_flockmates_seen_       { 0 };
   CBoid* nearest_flockmate_         { nullptr };
-  double dist_to_nearest_flockmate_ { MY_INFINITY };
+  double dist_to_nearest_flockmate_ { CFlockingUtil::MY_INFINITY };
 
   short  num_enemies_seen_      { 0 };
   CBoid* nearest_enemy_         { nullptr };
-  double dist_to_nearest_enemy_ { MY_INFINITY };
+  double dist_to_nearest_enemy_ { CFlockingUtil::MY_INFINITY };
 
   CVector3D oldpos_;
   CVector3D oldvel_;

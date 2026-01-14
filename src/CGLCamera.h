@@ -101,6 +101,9 @@ class CGLCamera {
 
   float deltaTime() const;
 
+  const CGLVector3D &up() const { return up_; }
+  const CGLVector3D &right() const { return right_; }
+
   float yaw() const { return yaw_; }
   void setYaw(float a);
 

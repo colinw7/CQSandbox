@@ -88,6 +88,79 @@ setImage(const QImage &image)
 
 bool
 CQGLTexture::
+setTarget(int w, int h)
+{
+  if (! valid_ || w != targetWidth_ ||  h != targetHeight_) {
+    targetWidth_  = w;
+    targetHeight_ = h;
+
+    // The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
+    if (frameBufferId_ == 0)
+      functions_->glGenFramebuffers(1, &frameBufferId_);
+
+    functions_->glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId_);
+    if (! checkError()) return false;
+
+    // The texture we're going to render to
+    if (id_ == 0) {
+      glGenTextures(1, &id_);
+      if (! checkError()) return false;
+    }
+
+    // generate texture
+    glBindTexture(GL_TEXTURE_2D, id_);
+    if (! checkError()) return false;
+
+    // Give an empty image to OpenGL ( the last "0" )
+    // no difference for GL_RGBA and GL_RGB
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, targetWidth_, targetHeight_,
+                 /*border*/0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    if (! checkError()) return false;
+
+    // Poor filtering (need min filter to avoid mip map use - not set)
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+//  glBindTexture(GL_TEXTURE_2D, 0);
+//  if (! checkError()) return false;
+
+    if (depthRenderBuffer_ == 0)
+      functions_->glGenRenderbuffers(1, &depthRenderBuffer_);
+
+    functions_->glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBuffer_);
+    functions_->glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24,
+                                      targetWidth_, targetHeight_);
+//  functions_->glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    functions_->glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                                          GL_RENDERBUFFER, depthRenderBuffer_);
+
+    // attach it to currently bound framebuffer object
+    //functions_->glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, id_, 0);
+    functions_->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, id_, 0);
+
+    // generate render buffer
+    // Set the list of draw buffers.
+    GLenum drawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+    functions_->glDrawBuffers(1, drawBuffers); // "1" is the size of DrawBuffers
+
+    if (functions_->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      std::cerr << "Framebuffer error\n";
+      return false;
+    }
+
+    valid_ = true;
+  }
+
+  return true;
+}
+
+bool
+CQGLTexture::
 init(const QImage &image, bool flip)
 {
   if (image.isNull()) {
@@ -103,6 +176,9 @@ init(const QImage &image, bool flip)
 //if (flip)
 //  image_ = image_.flippedH();
 
+  //------
+
+  // convert to GL compatible data
   auto w = image_.width ();
   auto h = image_.height();
 
@@ -192,14 +268,49 @@ void
 CQGLTexture::
 bind() const
 {
-  glBindTexture(GL_TEXTURE_2D, id_);
+  glEnable(GL_TEXTURE_2D);
+
+  if (frameBufferId_ > 0) {
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    functions_->glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId_);
+    functions_->glViewport(0, 0, targetWidth_, targetHeight_);
+
+    // Clear the screen
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  }
+  else {
+    glBindTexture(GL_TEXTURE_2D, id_);
+  }
 }
 
 void
 CQGLTexture::
 unbind() const
 {
-  glBindTexture(GL_TEXTURE_2D, 0);
+  if (frameBufferId_ > 0) {
+    functions_->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+  else
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void
+CQGLTexture::
+bindBuffer() const
+{
+  glEnable(GL_TEXTURE_2D);
+
+  if (frameBufferId_)
+    glBindTexture(GL_TEXTURE_2D, id_);
+}
+
+void
+CQGLTexture::
+unbindBuffer() const
+{
+  if (frameBufferId_)
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void
@@ -266,3 +377,31 @@ draw(double x1, double y1, double z1, double x2, double y2, double z2,
 
   enable(false);
 }
+
+#if 0
+void
+CQGLTexture::
+displayFramebufferTexture(ShaderProgram *program, int vertexId)
+{
+  if (! notInitialized) {
+    // initialize shader and vao w/ NDC vertex coordinates at top-right of the screen
+    [...]
+  }
+
+  glActiveTexture(GL_TEXTURE0);
+
+  program->bind();
+
+  bind();
+
+  glBindVertexArray(vertexId);
+
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  glBindVertexArray(0);
+
+  unbind();
+
+  program->unbind();
+}
+#endif

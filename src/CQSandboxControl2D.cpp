@@ -85,7 +85,6 @@ visibleSlot(int i)
     obj->setVisible(i);
 }
 
-
 Object *
 Control2D::
 getCurrentObject() const

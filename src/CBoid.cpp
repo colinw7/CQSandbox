@@ -1,7 +1,12 @@
 #include <CFlocking.h>
 #include <CGeometry3D.h>
 #include <CGeomPyramid3D.h>
+
+#ifdef USE_CPROFILE
 #include <CProfile.h>
+#else
+#define CPROFILE(S)
+#endif
 
 #define VOIDP(P) static_cast<void *>(P)
 
@@ -16,19 +21,19 @@ CBoid(short id_v)
 
   id_ = id_v;
 
-  pos_.setX(RAND() * CFlock::getWorld().getXSize()/3);
-  pos_.setY(RAND() * CFlock::getWorld().getYSize()/3);
-  pos_.setZ(RAND() * CFlock::getWorld().getZSize()/3);
+  pos_.setX(CFlockingUtil::RAND() * CFlock::getWorld().getXSize()/3);
+  pos_.setY(CFlockingUtil::RAND() * CFlock::getWorld().getYSize()/3);
+  pos_.setZ(CFlockingUtil::RAND() * CFlock::getWorld().getZSize()/3);
 
-  if (RAND() > 0.5) pos_.setX(-pos_.getX());
-  if (RAND() > 0.5) pos_.setY(-pos_.getY());
-  if (RAND() > 0.5) pos_.setZ(-pos_.getZ());
+  if (CFlockingUtil::RAND() > 0.5) pos_.setX(-pos_.getX());
+  if (CFlockingUtil::RAND() > 0.5) pos_.setY(-pos_.getY());
+  if (CFlockingUtil::RAND() > 0.5) pos_.setZ(-pos_.getZ());
 
-  vel_.setX(RAND());
-  vel_.setZ(RAND());
+  vel_.setX(CFlockingUtil::RAND());
+  vel_.setZ(CFlockingUtil::RAND());
 
-  if (RAND() > 0.5) vel_.setX(-vel_.getX());
-  if (RAND() > 0.5) vel_.setZ(-vel_.getZ());
+  if (CFlockingUtil::RAND() > 0.5) vel_.setX(-vel_.getX());
+  if (CFlockingUtil::RAND() > 0.5) vel_.setZ(-vel_.getZ());
 
   ang_.setXYZ(0, 0, 0);
 
@@ -99,7 +104,7 @@ FlockIt(CFlock *flock, double deltaTime)
     }
   }
 
-  if (ReactToEnemies) {
+  if (CFlockingUtil::ReactToEnemies) {
     SeeEnemies(flock);
 
     AccumulateChanges(acc, FleeEnemies());
@@ -107,29 +112,29 @@ FlockIt(CFlock *flock, double deltaTime)
 
   AccumulateChanges(acc, Cruising());
 
-  if (acc.length() > MaxChange) {
+  if (acc.length() > CFlockingUtil::MaxChange) {
 #ifdef BOID_DEBUG
     printf("WARNING: constraining acceleration for boid %p!\n", VOIDP(this));
 #endif
 
-    acc.setMagnitude(MaxChange);
+    acc.setMagnitude(CFlockingUtil::MaxChange);
   }
 
   oldvel_ = vel_;
 
   vel_ += acc;
 
-  vel_.scaleY(MaxUrgency);
+  vel_.scaleY(CFlockingUtil::MaxUrgency);
 
-  if ((speed_ = vel_.length()) > MaxSpeed) {
+  if ((speed_ = vel_.length()) > CFlockingUtil::MaxSpeed) {
 #ifdef BOID_DEBUG
     printf("WARNING: constraining speed for boid %p!\n", VOIDP(this));
-    printf("         current speed = %lf new speed = %lf\n", speed_, MaxSpeed);
+    printf("         current speed = %lf new speed = %lf\n", speed_, CFlockingUtil::MaxSpeed);
 #endif
 
-    vel_.setMagnitude(MaxSpeed);
+    vel_.setMagnitude(CFlockingUtil::MaxSpeed);
 
-    speed_ = MaxSpeed;
+    speed_ = CFlockingUtil::MaxSpeed;
   }
 
   ComputeRPY();
@@ -149,14 +154,14 @@ Cruising()
 {
   CVector3D change = vel_;
 
-  double diff = (speed_ - DesiredSpeed)/MaxSpeed;
+  double diff = (speed_ - CFlockingUtil::DesiredSpeed)/CFlockingUtil::MaxSpeed;
 
   double urgency = double(fabs(diff));
 
 #ifdef BOID_DEBUG
   printf("\nInside Cruising\n");
   printf("   diff = %lf  urgency = %lf\n", diff, urgency);
-  printf("   speed_ = %lf  desired speed = %lf\n", speed_, DesiredSpeed);
+  printf("   speed_ = %lf  desired speed = %lf\n", speed_, CFlockingUtil::DesiredSpeed);
   printf("   initial change CVector3D from Cruising = %lf %lf %lf\n",
          change.getX(), change.getY(), change.getZ());
 
@@ -166,17 +171,17 @@ Cruising()
     printf("   speeding up to meet cruising speed...\n");
 #endif
 
-  if (urgency < MinUrgency) urgency = MinUrgency;
-  if (urgency > MaxUrgency) urgency = MaxUrgency;
+  if (urgency < CFlockingUtil::MinUrgency) urgency = CFlockingUtil::MinUrgency;
+  if (urgency > CFlockingUtil::MaxUrgency) urgency = CFlockingUtil::MaxUrgency;
 
-  double jitter = RAND();
+  double jitter = CFlockingUtil::RAND();
 
   if      (jitter < 0.45)
-    change.incX(MinUrgency * SIGN(diff));
+    change.incX(CFlockingUtil::MinUrgency * CFlockingUtil::SIGN(diff));
   else if (jitter < 0.90)
-    change.incZ(MinUrgency * SIGN(diff));
+    change.incZ(CFlockingUtil::MinUrgency * CFlockingUtil::SIGN(diff));
   else
-    change.incY(MinUrgency * SIGN(diff));
+    change.incY(CFlockingUtil::MinUrgency * CFlockingUtil::SIGN(diff));
 
 #ifdef BOID_DEBUG
   printf("   intermediate change CVector3D from Cruising = %lf %lf %lf\n",
@@ -203,7 +208,7 @@ FleeEnemies()
   printf("\nInside FleeEnemies\n");
 #endif
 
-  if (dist_to_nearest_enemy_ < KeepAwayDist) {
+  if (dist_to_nearest_enemy_ < CFlockingUtil::KeepAwayDist) {
 #ifdef BOID_DEBUG
     printf("   too close to %p\n", VOIDP(nearest_enemy_));
 #endif
@@ -223,7 +228,7 @@ CVector3D
 CBoid::
 KeepDistance()
 {
-  double ratio = dist_to_nearest_flockmate_/SeparationDist;
+  double ratio = dist_to_nearest_flockmate_/CFlockingUtil::SeparationDist;
 
   CVector3D change = nearest_flockmate_->pos_ - pos_;
 
@@ -231,22 +236,22 @@ KeepDistance()
   printf("\nInside KeepDistance\n");
 #endif
 
-  if (ratio < MinUrgency) ratio = MinUrgency;
-  if (ratio > MaxUrgency) ratio = MaxUrgency;
+  if (ratio < CFlockingUtil::MinUrgency) ratio = CFlockingUtil::MinUrgency;
+  if (ratio > CFlockingUtil::MaxUrgency) ratio = CFlockingUtil::MaxUrgency;
 
 #ifdef BOID_DEBUG
   printf("   dist_to_nearest_flockmate = %lf  Sep = %lf  ratio = %lf\n",
-         dist_to_nearest_flockmate_, SeparationDist, ratio);
+         dist_to_nearest_flockmate_, CFlockingUtil::SeparationDist, ratio);
 #endif
 
-  if      (dist_to_nearest_flockmate_ < SeparationDist) {
+  if      (dist_to_nearest_flockmate_ < CFlockingUtil::SeparationDist) {
 #ifdef BOID_DEBUG
     printf("   too close!\n");
 #endif
 
     change.setMagnitude(-ratio);
   }
-  else if (dist_to_nearest_flockmate_ > SeparationDist) {
+  else if (dist_to_nearest_flockmate_ > CFlockingUtil::SeparationDist) {
 #ifdef BOID_DEBUG
     printf("   too far away!\n");
 #endif
@@ -279,7 +284,7 @@ MatchHeading()
   printf("\nInside MatchHeading\n");
 #endif
 
-  change.setMagnitude(MinUrgency);
+  change.setMagnitude(CFlockingUtil::MinUrgency);
 
 #ifdef BOID_DEBUG
   printf("   final change CVector3D from MatchHeading = %lf %lf %lf\n",
@@ -303,7 +308,7 @@ SeeEnemies(CFlock *flock)
 
   num_enemies_seen_      = 0;
   nearest_enemy_         = nullptr;
-  dist_to_nearest_enemy_ = MY_INFINITY;
+  dist_to_nearest_enemy_ = CFlockingUtil::MY_INFINITY;
 
   uint num_flocks = CFlock::getNumFlocks();
 
@@ -321,7 +326,7 @@ SeeEnemies(CFlock *flock)
       printf("   looking at %p\n", VOIDP(boid));
 #endif
 
-      if ((dist = CanISee(boid)) != MY_INFINITY) {
+      if ((dist = CanISee(boid)) != CFlockingUtil::MY_INFINITY) {
         ++num_enemies_seen_;
 
         if (dist < dist_to_nearest_enemy_) {
@@ -364,7 +369,7 @@ SeeFriends(CFlock *flock)
     printf("   looking at %p\n", boid);
 #endif
 
-    if ((dist = CanISee(boid)) != MY_INFINITY) {
+    if ((dist = CanISee(boid)) != CFlockingUtil::MY_INFINITY) {
       AddToVisibleList(boid);
 
       if (dist < dist_to_nearest_flockmate_) {
@@ -413,7 +418,7 @@ SteerToCenter()
 
   CVector3D change = center - pos_;
 
-  change.setMagnitude(MinUrgency);
+  change.setMagnitude(CFlockingUtil::MinUrgency);
 
 #ifdef BOID_DEBUG
   printf("   final change CVector3D from SteerToCenter = %lf %lf %lf\n",
@@ -470,7 +475,7 @@ void
 CBoid::
 AddToVisibleList(CBoid *ptr)
 {
-  if (num_flockmates_seen_ < Max_Friends_Visible) {
+  if (num_flockmates_seen_ < CFlockingUtil::Max_Friends_Visible) {
     VisibleFriendsList[num_flockmates_seen_] = ptr;
 
     num_flockmates_seen_++;
@@ -494,12 +499,12 @@ void
 CBoid::
 ClearVisibleList()
 {
-  for (int i = 0; i < Max_Friends_Visible; i++)
+  for (int i = 0; i < CFlockingUtil::Max_Friends_Visible; i++)
     VisibleFriendsList[i] = nullptr;
 
   num_flockmates_seen_       = 0;
   nearest_flockmate_         = nullptr;
-  dist_to_nearest_flockmate_ = MY_INFINITY;
+  dist_to_nearest_flockmate_ = CFlockingUtil::MY_INFINITY;
 }
 
 double
@@ -510,7 +515,7 @@ CanISee(CBoid *ptr)
   printf("\n   Inside CanISee.\n");
 #endif
 
-  if (this == ptr) return MY_INFINITY;
+  if (this == ptr) return CFlockingUtil::MY_INFINITY;
 
   double dist = (pos_ - ptr->pos_).length();
 
@@ -518,11 +523,11 @@ CanISee(CBoid *ptr)
   printf("   dist between %p and %p = %lf\n", this, ptr, dist);
 #endif
 
-  if (UseTruth) return dist;
+  if (CFlockingUtil::UseTruth) return dist;
 
   if (perception_range_ > dist) return dist;
 
-  return MY_INFINITY;
+  return CFlockingUtil::MY_INFINITY;
 }
 
 void
@@ -541,7 +546,7 @@ ComputeRPY()
   double roll = 0.0;
 
   if (lateralMag != 0)
-    roll = -atan2(GRAVITY, lateralMag) + HALF_PI;
+    roll = -atan2(CFlockingUtil::GRAVITY, lateralMag) + CFlockingUtil::HALF_PI;
 
   double pitch = -atan(vel_.getY() / sqrt((vel_.getZ()*vel_.getZ()) + (vel_.getX()*vel_.getX())));
   double yaw   = atan2(vel_.getX(), vel_.getZ());
@@ -607,7 +612,7 @@ CBoid::
 getObject()
 {
   if (! object_) {
-    object_ = CGeometryInst->createObject3D(nullptr, "boid");
+    object_ = CGeometry3DInst->createObject3D(nullptr, "boid");
 
     CGeomPyramid3D::addGeometry(object_, 0.0, 0.0, 0.0, 0.5, 1);
 

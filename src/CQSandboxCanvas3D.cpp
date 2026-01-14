@@ -2,12 +2,13 @@
 #include <CQSandboxToolbar3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
+#include <CQSandboxShaderToyProgram.h>
 
 #include <CQTclUtil.h>
-#include <CQGLUtil.h>
-#include <CQGLBuffer.h>
 #include <CQGLTexture.h>
 #include <CQGLCubemap.h>
+#include <CQGLBuffer.h>
+#include <CQGLUtil.h>
 
 #include <CQCsvModel.h>
 
@@ -18,6 +19,7 @@
 #include <CForceDirected3D.h>
 #include <CDotParse.h>
 #include <CInterval.h>
+#include <CUtil.h>
 
 #ifdef CQSANDBOX_OTHELLO
 #include <COthello.h>
@@ -68,13 +70,18 @@
 
 #include <fstream>
 
+#include <GL/glut.h>
+
 #define Q(x) #x
 #define QUOTE(x) Q(x)
 
 namespace CQSandbox {
 
-QVector3D toVector(const Color &c)
-{
+//---
+
+static QString buildDir = QUOTE(BUILD_DIR);
+
+QVector3D toVector(const CGLColor &c) {
   return QVector3D(c.r, c.g, c.b);
 }
 
@@ -93,11 +100,15 @@ int createObjectProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
 
 QString
 vector3DToString(const CGLVector3D &p) {
+#if 1
   auto xstr = QString::number(p.x());
   auto ystr = QString::number(p.y());
   auto zstr = QString::number(p.z());
 
   return xstr + " " + ystr + " " + zstr;
+#else
+  return QString::fromStdString(CUtil::toString(p));
+#endif
 }
 
 CGLVector3D
@@ -227,7 +238,7 @@ stringToUIntArray(CQTcl *tcl, const QString &str) {
 }
 
 QString
-colorToString(const Color &c) {
+colorToString(const CGLColor &c) {
   auto rstr = QString::number(c.r);
   auto gstr = QString::number(c.g);
   auto bstr = QString::number(c.b);
@@ -236,12 +247,12 @@ colorToString(const Color &c) {
   return rstr + " " + gstr + " " + bstr + " " + astr;
 }
 
-Color
+CGLColor
 stringToColor(CQTcl *tcl, const QString &str) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  Color c;
+  CGLColor c;
 
   if (strs.size() >= 3) {
     bool ok;
@@ -281,12 +292,12 @@ stringToQColor(CQTcl *tcl, const QString &str) {
   return c1;
 }
 
-std::vector<Color>
+std::vector<CGLColor>
 stringToColors(CQTcl *tcl, const QString &str) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  std::vector<Color> colors;
+  std::vector<CGLColor> colors;
 
   for (const auto &str : strs) {
     auto c = stringToColor(tcl, str);
@@ -297,16 +308,10 @@ stringToColors(CQTcl *tcl, const QString &str) {
   return colors;
 }
 
-Color
+CGLColor
 qcolorToColor(const QColor &c)
 {
-  return Color(c.redF(), c.greenF(), c.blueF(), c.alphaF());
-}
-
-CGLVector3D
-pointToVector(const CPoint3D &p)
-{
-  return CGLVector3D(p.x, p.y, p.z);
+  return CGLColor(c.redF(), c.greenF(), c.blueF(), c.alphaF());
 }
 
 //---
@@ -323,7 +328,6 @@ OpenGLWindow::
 {
 }
 
-
 void
 OpenGLWindow::
 initializeGL()
@@ -331,6 +335,25 @@ initializeGL()
   initializeOpenGLFunctions();
 
   initialize();
+
+//std::cerr << "OpenGL: " << glGetString(GL_VERSION) << "\n";
+
+#if 0
+  auto strs = QString(reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS))).split(" ");
+  strs.sort();
+
+  for (const auto &str : strs)
+    std::cerr << " " << str.toStdString() << "\n";
+#endif
+
+//if (! hasOpenGLFeature(QOpenGLFunctions::Framebuffers))
+//  std::cerr << "No frame buffer support\n";
+
+#if 0
+  int argc = 1;
+  const char *argv[] = { "test", nullptr };
+  glutInit(&argc, (char **) argv);
+#endif
 }
 
 void
@@ -398,11 +421,11 @@ init()
   app_->runTclCmd("proc tick { args } { }");
   app_->runTclCmd("proc setMode { args } { }");
 
-  timer_ = new QTimer;
+  timer_ = new QTimer(this);
 
   connect(timer_, &QTimer::timeout, this, &Canvas3D::timerSlot);
 
-  timer_->start(redrawTimeOut_);
+  timer_->start(redrawTimeOut());
 }
 
 void
@@ -464,6 +487,10 @@ addCommands()
 
   tcl->createObjCommand("sb3d::shape",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Shape3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::shader_shape",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ShaderShape3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::cube",
@@ -535,6 +562,10 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Dungeon3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 #endif
+
+  tcl->createObjCommand("sb3d::custom_form",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::customFormProc),
+    static_cast<CQTcl::ObjCmdData>(this));
 }
 
 void
@@ -704,6 +735,50 @@ cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   }
   else
     return TCL_ERROR;
+
+  return TCL_OK;
+}
+
+int
+Canvas3D::
+customFormProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas3D *>(clientData);
+  assert(th);
+
+  auto args = th->app()->getArgs(objc, objv);
+  auto nargs = args.size();
+
+  if (nargs < 1) return TCL_ERROR;
+
+//auto *tcl = th->app_->tcl();
+
+  if      (args[0] == "string") {
+    QString label, proc;
+
+    for (int i = 1; i < nargs; ++i) {
+      if      (args[i] == "-label") {
+        ++i;
+
+        if (i >= nargs)
+          return TCL_ERROR;
+
+        label = args[i];
+      }
+      else if (args[i] == "-proc") {
+        ++i;
+
+        if (i >= nargs)
+          return TCL_ERROR;
+
+        proc = args[i];
+      }
+      else
+        return TCL_ERROR;
+    }
+  }
+  else if (args[0] == "number") {
+  }
 
   return TCL_OK;
 }
@@ -1051,6 +1126,17 @@ initialize()
   app_->runTclCmd("init");
 }
 
+void
+Canvas3D::
+setRedrawTimeOut(int t)
+{
+  redrawTimeOut_ = t;
+
+  timer_->stop();
+
+  timer_->start(redrawTimeOut());
+}
+
 Light3D *
 Canvas3D::
 currentLight() const
@@ -1139,7 +1225,7 @@ updateLights()
 
 void
 Canvas3D::
-setProgramLights(QOpenGLShaderProgram *program)
+setProgramLights(ShaderProgram *program)
 {
   if (isSimpleLights()) {
     auto *light = lights_[0];
@@ -1251,6 +1337,19 @@ void
 Canvas3D::
 render()
 {
+  glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+  for (auto *obj : objects_) {
+    if (! obj || ! obj->isVisible())
+      continue;
+
+    obj->preRender();
+  }
+
+  glPopAttrib();
+
+  //---
+
   updateLights();
 
   //---
@@ -1297,12 +1396,16 @@ render()
 
   //---
 
+  glPushAttrib(GL_ALL_ATTRIB_BITS);
+
   for (auto *obj : objects_) {
     if (! obj || ! obj->isVisible())
       continue;
 
     obj->render();
   }
+
+  glPopAttrib();
 
   //---
 
@@ -1919,6 +2022,8 @@ tick()
 
   ticks_ += dt_;
 
+  elapsed_ += canvas_->redrawTimeOut()/1000.0;
+
   app->runTclCmd("tick");
 }
 
@@ -1945,12 +2050,18 @@ createBBoxObj()
 
 //---
 
-ProgramData* Light3D::s_program;
+ShaderProgram* Light3D::s_program;
 
 Light3D::
 Light3D(Canvas3D *canvas, const Type &type) :
  canvas_(canvas), type_(type)
 {
+}
+
+Light3D::
+~Light3D()
+{
+  delete buffer_;
 }
 
 void
@@ -1960,28 +2071,28 @@ initBuffer()
   initShader();
 
   // set up vertex data (and buffer(s)) and configure vertex attributes
-  auto *program = s_program->program;
+  if (! buffer_) {
+    buffer_ = s_program->createBuffer();
 
-  buffer_ = new CQGLBuffer(program);
+    auto addPoint = [&](double x, double y, double z) {
+      buffer_->addPoint(x, y, z);
+    };
 
-  auto addPoint = [&](double x, double y, double z) {
-    buffer_->addPoint(x, y, z);
-  };
+    addPoint(-0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f,  0.5f, -0.5f);
+    addPoint( 0.5f,  0.5f, -0.5f); addPoint(-0.5f,  0.5f, -0.5f); addPoint(-0.5f, -0.5f, -0.5f);
+    addPoint(-0.5f, -0.5f,  0.5f); addPoint( 0.5f, -0.5f,  0.5f); addPoint( 0.5f,  0.5f,  0.5f);
+    addPoint( 0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f, -0.5f,  0.5f);
+    addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f, -0.5f); addPoint(-0.5f, -0.5f, -0.5f);
+    addPoint(-0.5f, -0.5f, -0.5f); addPoint(-0.5f, -0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f);
+    addPoint( 0.5f,  0.5f,  0.5f); addPoint( 0.5f,  0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f);
+    addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f,  0.5f); addPoint( 0.5f,  0.5f,  0.5f);
+    addPoint(-0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f,  0.5f);
+    addPoint( 0.5f, -0.5f,  0.5f); addPoint(-0.5f, -0.5f,  0.5f); addPoint(-0.5f, -0.5f, -0.5f);
+    addPoint(-0.5f,  0.5f, -0.5f); addPoint( 0.5f,  0.5f, -0.5f); addPoint( 0.5f,  0.5f,  0.5f);
+    addPoint( 0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f, -0.5f);
 
-  addPoint(-0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f,  0.5f, -0.5f);
-  addPoint( 0.5f,  0.5f, -0.5f); addPoint(-0.5f,  0.5f, -0.5f); addPoint(-0.5f, -0.5f, -0.5f);
-  addPoint(-0.5f, -0.5f,  0.5f); addPoint( 0.5f, -0.5f,  0.5f); addPoint( 0.5f,  0.5f,  0.5f);
-  addPoint( 0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f, -0.5f,  0.5f);
-  addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f, -0.5f); addPoint(-0.5f, -0.5f, -0.5f);
-  addPoint(-0.5f, -0.5f, -0.5f); addPoint(-0.5f, -0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f);
-  addPoint( 0.5f,  0.5f,  0.5f); addPoint( 0.5f,  0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f);
-  addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f,  0.5f); addPoint( 0.5f,  0.5f,  0.5f);
-  addPoint(-0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f, -0.5f); addPoint( 0.5f, -0.5f,  0.5f);
-  addPoint( 0.5f, -0.5f,  0.5f); addPoint(-0.5f, -0.5f,  0.5f); addPoint(-0.5f, -0.5f, -0.5f);
-  addPoint(-0.5f,  0.5f, -0.5f); addPoint( 0.5f,  0.5f, -0.5f); addPoint( 0.5f,  0.5f,  0.5f);
-  addPoint( 0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f,  0.5f); addPoint(-0.5f,  0.5f, -0.5f);
-
-  buffer_->load();
+    buffer_->load();
+  }
 }
 
 void
@@ -1989,21 +2100,12 @@ Light3D::
 initShader()
 {
   if (! s_program) {
-    QString buildDir = QUOTE(BUILD_DIR);
+    s_program = new ShaderProgram;
 
-    s_program = new ProgramData;
+    s_program->addVertexFile  (buildDir + "/shaders/light.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/light.fs");
 
-    s_program->program = new QOpenGLShaderProgram;
-
-    auto *program = s_program->program;
-
-    if (! program->addShaderFromSourceFile(QOpenGLShader::Vertex, buildDir + "/shaders/light.vs"))
-      std::cerr << program->log().toStdString() << "\n";
-
-    if (! program->addShaderFromSourceFile(QOpenGLShader::Fragment, buildDir + "/shaders/light.fs"))
-      std::cerr << program->log().toStdString() << "\n";
-
-    program->link();
+    s_program->link();
   }
 }
 
@@ -2016,29 +2118,29 @@ render()
   // setup light shader
   buffer_->bind();
 
-  auto *program = s_program->program;
+  s_program->bind();
 
-  program->bind();
-
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   auto lightMatrix = CGLMatrix3D::translation(position());
   lightMatrix.scaled(0.01f, 0.01f, 0.01f);
-  program->setUniformValue("model", CQGLUtil::toQMatrix(lightMatrix));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(lightMatrix));
 
-  program->setUniformValue("color", CQGLUtil::toVector(color()));
+  s_program->setUniformValue("color", CQGLUtil::toVector(color()));
 
   // draw light
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   //buffer_->drawTriangles();
+
+  s_program->release();
 
   buffer_->unbind();
 }
 
 //---
 
-ProgramData* Model3DObj::s_program;
+ShaderProgram* Model3DObj::s_program;
 
 bool
 Model3DObj::
@@ -2067,8 +2169,6 @@ Model3DObj::
 Model3DObj(Canvas3D *canvas) :
  Object3D(canvas)
 {
-  QString buildDir = QUOTE(BUILD_DIR);
-
   vertShaderFile_ = buildDir + "/shaders/model.vs";
   fragShaderFile_ = buildDir + "/shaders/model.fs";
 }
@@ -2080,19 +2180,12 @@ initShader()
   if (s_program)
     return;
 
-  s_program = new ProgramData;
+  s_program = new ShaderProgram;
 
-  s_program->program = new QOpenGLShaderProgram;
+  s_program->addVertexFile  (vertShaderFile_);
+  s_program->addFragmentFile(fragShaderFile_);
 
-  auto *program = s_program->program;
-
-  if (! program->addShaderFromSourceFile(QOpenGLShader::Vertex, vertShaderFile_))
-    std::cerr << program->log().toStdString() << "\n";
-
-  if (! program->addShaderFromSourceFile(QOpenGLShader::Fragment, fragShaderFile_))
-    std::cerr << program->log().toStdString() << "\n";
-
-  program->link();
+  s_program->link();
 }
 
 QVariant
@@ -2124,7 +2217,6 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
   auto resetShader = [&]() {
     if (s_program) {
-      delete s_program->program;
       delete s_program;
 
       s_program = nullptr;
@@ -2250,10 +2342,10 @@ render()
   //---
 
   // lighting
-  auto *light = canvas_->currentLight();
+//auto *light = canvas_->currentLight();
 
-  auto lightPos   = light->position();
-  auto lightColor = light->color();
+//auto lightPos   = light->position();
+//auto lightColor = light->color();
 
   //---
 
@@ -2264,35 +2356,33 @@ render()
   if (t >= 1.0)
     dt_ = -dt_;
 
-  auto *program = s_program->program;
-
   // setup model shader
   for (auto &po : objectDatas_) {
     auto *objectData = po.second;
 
     objectData->buffer->bind();
 
-    program->bind();
+    s_program->bind();
 
-    program->setUniformValue("ticks", float(t));
+    s_program->setUniformValue("ticks", float(t));
 
-    canvas_->setProgramLights(program);
+    canvas_->setProgramLights(s_program);
 
-    program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
+    s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
 
-    program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
-    program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
-    program->setUniformValue("specularStrength", float(canvas_->specular()));
-    program->setUniformValue("shininess"       , float(canvas_->shininess()));
+    s_program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
+    s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
+    s_program->setUniformValue("specularStrength", float(canvas_->specular()));
+    s_program->setUniformValue("shininess"       , float(canvas_->shininess()));
 
     // pass projection matrix to shader (note that in this case it could change every frame)
-    program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+    s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
 
     // camera/view transformation
-    program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+    s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
     // model rotation
-    program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+    s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
     // render model
     for (const auto &faceData : objectData->faceDatas) {
@@ -2304,13 +2394,13 @@ render()
 
       bool useDiffuseTexture = !!diffuseTexture;
 
-      program->setUniformValue("diffuseTexture.enabled", useDiffuseTexture);
+      s_program->setUniformValue("diffuseTexture.enabled", useDiffuseTexture);
 
       if (useDiffuseTexture) {
         glActiveTexture(GL_TEXTURE0);
         diffuseTexture->bind();
 
-        program->setUniformValue("diffuseTexture.texture", 0);
+        s_program->setUniformValue("diffuseTexture.texture", 0);
       }
 
       //---
@@ -2323,13 +2413,13 @@ render()
 
       bool useSpecularTexture = !!specularTexture;
 
-      program->setUniformValue("specularTexture.enabled", useSpecularTexture);
+      s_program->setUniformValue("specularTexture.enabled", useSpecularTexture);
 
       if (useSpecularTexture) {
         glActiveTexture(GL_TEXTURE1);
         specularTexture->bind();
 
-        program->setUniformValue("specularTexture.texture", 1);
+        s_program->setUniformValue("specularTexture.texture", 1);
       }
 
       //---
@@ -2342,18 +2432,18 @@ render()
 
       bool useNormalTexture = !!normalTexture;
 
-      program->setUniformValue("normalTexture.enabled", useNormalTexture);
+      s_program->setUniformValue("normalTexture.enabled", useNormalTexture);
 
       if (useNormalTexture) {
         glActiveTexture(GL_TEXTURE2);
         normalTexture->bind();
 
-        program->setUniformValue("normalTexture.texture", 2);
+        s_program->setUniformValue("normalTexture.texture", 2);
       }
 
       //---
 
-      program->setUniformValue("isWireframe", canvas_->isWireframe() ? 1 : 0);
+      s_program->setUniformValue("isWireframe", canvas_->isWireframe() ? 1 : 0);
 
       if (! canvas_->isWireframe()) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -2406,7 +2496,7 @@ updateObjectData()
       objectData = (*pd).second;
 
       if (! objectData->buffer)
-        objectData->buffer = new CQGLBuffer(s_program->program);
+        objectData->buffer = s_program->createBuffer();
 
       //---
 
@@ -2913,7 +3003,7 @@ calcBBox()
 
 //---
 
-ProgramData *Shape3DObj::s_program = nullptr;
+ShaderProgram *Shape3DObj::s_program = nullptr;
 
 bool
 Shape3DObj::
@@ -2953,12 +3043,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = app->tcl();
 
   if      (name == "points") {
-    points_ = stringToVectors3D(tcl, value);
+    shapeData_.setPoints(stringToVectors3D(tcl, value));
 
     setNeedsUpdate();
   }
   else if (name == "indices") {
-    indices_ = stringToUIntArray(tcl, value);
+    shapeData_.setIndices(stringToUIntArray(tcl, value));
 
     setNeedsUpdate();
   }
@@ -2968,7 +3058,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else if (name == "tex_coords") {
-    texCoords_ = stringToVectors2D(tcl, value);
+    shapeData_.setTexCoords(stringToVectors2D(tcl, value));
 
     setNeedsUpdate();
   }
@@ -3001,6 +3091,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     setNeedsUpdate();
   }
+  // cone <r> <h>
   else if (name == "cone") {
     QStringList strs;
     (void) tcl->splitList(value, strs);
@@ -3013,13 +3104,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     double r = Util::stringToReal(strs[0]);
     double h = Util::stringToReal(strs[1]);
 
-    addCone(r, h);
-
-    delete geom_;
-    geom_ = new CCone3D(r);
+    shapeData_.addCone(r, h);
 
     setNeedsUpdate();
   }
+  // cylinder <r> <h>
   else if (name == "cylinder") {
     QStringList strs;
     (void) tcl->splitList(value, strs);
@@ -3032,23 +3121,19 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     double r = Util::stringToReal(strs[0]);
     double h = Util::stringToReal(strs[1]);
 
-    addCylinder(r, h);
-
-    delete geom_;
-    geom_ = new CCylinder3D(r);
+    shapeData_.addCylinder(r, h);
 
     setNeedsUpdate();
   }
+  // sphere <r>
   else if (name == "sphere") {
     double r = Util::stringToReal(value);
 
-    addSphere(r);
-
-    delete geom_;
-    geom_ = new CSphere3D(r);
+    shapeData_.addSphere(r);
 
     setNeedsUpdate();
   }
+  // cube <sx> <sy> >sz>
   else if (name == "cube") {
     QStringList strs;
     (void) tcl->splitList(value, strs);
@@ -3070,10 +3155,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return false;
     }
 
-    addCube(sx, sy, sz);
-
-    delete geom_;
-    geom_ = new CBox3D(sx, sy, sz);
+    shapeData_.addCube(sx, sy, sz);
 
     setNeedsUpdate();
   }
@@ -3085,297 +3167,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 void
 Shape3DObj::
-addCone(double r, double h)
-{
-  uint stacks = 20;
-  uint slices = 20;
-
-  std::vector<double> x, y;
-
-  x.resize(stacks);
-  y.resize(stacks);
-
-  x[0         ] = r; y[0         ] = 0;
-  x[stacks - 1] = 0; y[stacks - 1] = h;
-
-  double dx = stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0;
-  double dy = stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0;
-
-  for (uint i = 1; i < stacks - 1; ++i) {
-    x[i] = x[i - 1] + dx;
-    y[i] = y[i - 1] + dy;
-  }
-
-  addBodyRev(&x[0], &y[0], stacks, slices);
-}
-
-void
-Shape3DObj::
-addCylinder(double r, double h)
-{
-  uint stacks = 20;
-  uint slices = 20;
-
-  std::vector<double> x, y;
-
-  x.resize(stacks);
-  y.resize(stacks);
-
-  x[0         ] = r; y[0         ] = 0;
-  x[stacks - 1] = r; y[stacks - 1] = h;
-
-  double dx = stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0;
-  double dy = stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0;
-
-  for (uint i = 1; i < stacks - 1; ++i) {
-    x[i] = x[i - 1] + dx;
-    y[i] = y[i - 1] + dy;
-  }
-
-  addBodyRev(&x[0], &y[0], stacks, slices);
-}
-
-void
-Shape3DObj::
-addSphere(double radius)
-{
-  uint stacks = 20;
-  uint slices = 20;
-
-  std::vector<double> x, y;
-
-  x.resize(stacks);
-  y.resize(stacks);
-
-  double a = -M_PI*0.5;
-
-  double da = M_PI/(stacks - 1);
-
-  for (uint i = 0; i < stacks; ++i) {
-    x[i] = radius*std::cos(a);
-    y[i] = radius*std::sin(a);
-
-    a += da;
-  }
-
-  addBodyRev(&x[0], &y[0], stacks, slices);
-}
-
-void
-Shape3DObj::
 addCube(double sx, double sy, double sz)
 {
-  static CGLVector3D cube_normal[6] = {
-    {-1.0,  0.0,  0.0},
-    { 0.0,  1.0,  0.0},
-    { 1.0,  0.0,  0.0},
-    { 0.0, -1.0,  0.0},
-    { 0.0,  0.0,  1.0},
-    { 0.0,  0.0, -1.0}
-  };
-
-  static GLint cube_faces[6][4] = {
-    {0, 1, 2, 3},
-    {3, 2, 6, 7},
-    {7, 6, 5, 4},
-    {4, 5, 1, 0},
-    {5, 6, 2, 1},
-    {7, 4, 0, 3}
-  };
-
-  double xs = sx/2.0;
-  double ys = sy/2.0;
-  double zs = sz/2.0;
-
-  struct Point {
-    float x;
-    float y;
-    float z;
-  };
-
-  std::vector<Point> v; v.resize(8);
-
-  v[0].x = v[1].x = v[2].x = v[3].x = -xs;
-  v[4].x = v[5].x = v[6].x = v[7].x =  xs;
-  v[0].y = v[1].y = v[4].y = v[5].y = -ys;
-  v[2].y = v[3].y = v[6].y = v[7].y =  ys;
-  v[0].z = v[3].z = v[4].z = v[7].z = -zs;
-  v[1].z = v[2].z = v[5].z = v[6].z =  zs;
-
-  points_   .resize(36);
-  texCoords_.resize(36);
-  normals_  .resize(36);
-
-  int k = 0;
-
-  for (int i = 5; i >= 0; --i) {
-    const auto &normal = cube_normal[i];
-
-    auto addPoint = [&](const Point &p, const CGLVector2D &t) {
-      points_   [k] = CGLVector3D(p.x, p.y, p.z);
-      texCoords_[k] = t;
-      normals_  [k] = normal;
-      ++k;
-    };
-
-    addPoint(v[cube_faces[i][0]], CGLVector2D(0.0, 0.0));
-    addPoint(v[cube_faces[i][1]], CGLVector2D(1.0, 0.0));
-    addPoint(v[cube_faces[i][2]], CGLVector2D(1.0, 1.0));
-
-    addPoint(v[cube_faces[i][2]], CGLVector2D(1.0, 1.0));
-    addPoint(v[cube_faces[i][3]], CGLVector2D(0.0, 1.0));
-    addPoint(v[cube_faces[i][0]], CGLVector2D(0.0, 0.0));
-  }
+  shapeData_.addCube(sx, sy, sz);
 
   setNeedsUpdate();
-}
-
-void
-Shape3DObj::
-addBodyRev(double *x, double *y, uint num_xy, uint num_patches)
-{
-  std::vector<VertexData>   vertices;
-  std::vector<unsigned int> indices;
-
-  addBodyRev(&x[0], &y[0], num_xy, num_patches, vertices, indices);
-
-  auto np = vertices.size();
-  auto ni = indices.size();
-
-  points_ .resize(np);
-  normals_.resize(np);
-  indices_.resize(ni);
-
-  for (uint i = 0; i < np; ++i) {
-    points_ [i] = vertices[i].position;
-    normals_[i] = vertices[i].normal;
-  }
-
-  for (uint i = 0; i < ni; ++i) {
-    indices_[i] = indices[i];
-  }
-
-  setNeedsUpdate();
-}
-
-void
-Shape3DObj::
-addBodyRev(double *x, double *y, uint num_xy, uint num_patches,
-           std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices)
-{
-  std::vector<double> c, s;
-
-  c.resize(num_patches);
-  s.resize(num_patches);
-
-  double theta           = 0.0;
-  double theta_increment = 2.0*M_PI/num_patches;
-
-  for (uint i = 0; i < num_patches; i++) {
-    c[i] = cos(theta);
-    s[i] = sin(theta);
-
-    theta += theta_increment;
-  }
-
-  uint num_vertices = 0;
-
-  std::vector<uint> index1, index2;
-
-  index1.resize(num_patches + 1);
-  index2.resize(num_patches + 1);
-
-  uint *pindex1 = &index1[0];
-  uint *pindex2 = &index2[0];
-
-  if (fabs(x[0]) < 1E-6) {
-    CGLVector3D p(0.0, float(y[0]), 0.0);
-
-    vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, 0)));
-
-    for (uint i = 0; i <= num_patches; i++)
-      pindex1[i] = num_vertices;
-
-    num_vertices++;
-  }
-  else {
-    for (uint i = 0; i < num_patches; i++) {
-      CGLVector3D p(float(x[0]*c[i]), float(y[0]), float(-x[0]*s[i]));
-
-      vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, 0)));
-
-      pindex1[i] = num_vertices;
-
-      num_vertices++;
-    }
-
-    pindex1[num_patches] = pindex1[0];
-  }
-
-  for (uint j = 1; j < num_xy; j++) {
-    double ty = (num_xy > 1 ? 1.0*j/(num_xy - 1) : 0.0);
-
-    if (fabs(x[j]) < 1E-6) {
-      CGLVector3D p(0.0, float(y[j]), 0.0);
-
-      vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, float(ty))));
-
-      for (uint i = 0; i <= num_patches; ++i)
-        pindex2[i] = num_vertices;
-
-      ++num_vertices;
-    }
-    else {
-      for (uint i = 0; i < num_patches; i++) {
-        double tx = (num_patches > 1 ? 1.0*i/(num_patches - 1) : 0.0);
-
-        CGLVector3D p(float(x[j]*c[i]), float(y[j]), float(-x[j]*s[i]));
-
-        vertexDatas.push_back(VertexData(p, p, CGLVector2D(float(tx), float(ty))));
-
-        pindex2[i] = num_vertices;
-
-        num_vertices++;
-      }
-
-      pindex2[num_patches] = pindex2[0];
-    }
-
-    if (pindex1[0] != pindex1[1]) {
-      if (pindex2[0] == pindex2[1]) {
-        for (uint i = 0; i < num_patches; ++i) {
-          indices.push_back(GLushort(pindex1[i + 1]));
-          indices.push_back(GLushort(pindex2[i    ]));
-          indices.push_back(GLushort(pindex1[i    ]));
-        }
-      }
-      else {
-        for (uint i = 0; i < num_patches; ++i) {
-          indices.push_back(GLushort(pindex1[i + 1]));
-          indices.push_back(GLushort(pindex2[i + 1]));
-          indices.push_back(GLushort(pindex2[i    ]));
-
-          indices.push_back(GLushort(pindex1[i + 1]));
-          indices.push_back(GLushort(pindex2[i    ]));
-          indices.push_back(GLushort(pindex1[i    ]));
-        }
-      }
-    }
-    else {
-      if (pindex2[0] != pindex2[1]) {
-        for (uint i = 0; i < num_patches; ++i) {
-          indices.push_back(GLushort(pindex2[i + 1]));
-          indices.push_back(GLushort(pindex2[i    ]));
-          indices.push_back(GLushort(pindex1[i    ]));
-        }
-      }
-    }
-
-    uint *pindex = pindex2;
-
-    pindex2 = pindex1;
-    pindex1 = pindex;
-  }
 }
 
 void
@@ -3419,6 +3215,7 @@ init()
   //---
 
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "layout (location = 0) in vec3 aPos;\n"
@@ -3481,17 +3278,19 @@ init()
       "  vec3 result = ambient + diffuse + specular;\n"
       "  FragColor = vec4(result, diffuseColor.a);\n"
       "}\n";
+#endif
 
-    s_program = new ProgramData;
+    s_program = new ShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (buildDir + "/shaders/shape.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/shape.fs");
+#endif
 
-    auto *program = s_program->program;
-
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
   }
 
   //---
@@ -3509,13 +3308,13 @@ bool
 Shape3DObj::
 intersect(const CGLVector3D &p1, const CGLVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
 {
-  if (! geom_)
+  if (! shapeData_.geom())
     return false;
 
   CLine3D line(p1.getX(), p1.getY(), p1.getZ(), p2.getX(), p2.getY(), p2.getZ());
 
   double tmin, tmax;
-  if (! geom_->intersect(line, &tmin, &tmax))
+  if (! shapeData_.geom()->intersect(line, &tmin, &tmax))
     return false;
 
 //if ((tmin < 0.0 || tmin > 1.0) && (tmax < 0.0 || tmax > 1.0))
@@ -3553,12 +3352,13 @@ updateGL()
 
   //---
 
-  int np = points_.size();
+  int np = shapeData_.points().size();
 
   // store point data in array buffer (vec3, location 0)
   uint aPos = 0;
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &points_[0], GL_STATIC_DRAW);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D),
+                        &shapeData_.points()[0], GL_STATIC_DRAW);
 
   // set points attrib data and format (for current buffer)
   canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
@@ -3567,7 +3367,8 @@ updateGL()
   // store normal data in array buffer (vec3, location 1)
   uint aNormal = 1;
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, normalsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &normals_[0], GL_STATIC_DRAW);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D),
+                        &shapeData_.normals()[0], GL_STATIC_DRAW);
 
   // set normals attrib data and format (for current buffer)
   canvas_->glVertexAttribPointer(aNormal, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
@@ -3580,7 +3381,7 @@ updateGL()
   // store color data in array buffer
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
   if (nc > 0) {
-    canvas_->glBufferData(GL_ARRAY_BUFFER, nc*sizeof(Color), &colors_[0], GL_STATIC_DRAW);
+    canvas_->glBufferData(GL_ARRAY_BUFFER, nc*sizeof(CGLColor), &colors_[0], GL_STATIC_DRAW);
   }
   else {
     static Colors s_colors_;
@@ -3591,22 +3392,22 @@ updateGL()
     auto c = this->color();
 
     if (isInside())
-      c = Color(0.8, 0.4, 0.4, 0.5);
+      c = CGLColor(0.8, 0.4, 0.4, 0.5);
 
     for (int i = 0; i < np; ++i)
       s_colors_[i] = c;
 
-    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(Color), &s_colors_[0], GL_STATIC_DRAW);
+    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &s_colors_[0], GL_STATIC_DRAW);
   }
 
   // set colors attrib data and format (for current buffer) (vec4, location 2)
   uint aColor = 2;
-  canvas_->glVertexAttribPointer(aColor, 4, GL_FLOAT, GL_FALSE, sizeof(Color), nullptr);
+  canvas_->glVertexAttribPointer(aColor, 4, GL_FLOAT, GL_FALSE, sizeof(CGLColor), nullptr);
   canvas_->glEnableVertexAttribArray(aColor);
 
   //---
 
-  int nt = texCoords_.size();
+  int nt = shapeData_.texCoords().size();
 
   useDiffuseTexture_ = (texture_       && nt > 0);
   useNormalTexture_  = (normalTexture_ && nt > 0);
@@ -3619,10 +3420,11 @@ updateGL()
   // store texture point data in array buffer
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferId_);
   if (useDiffuseTexture_) {
-    canvas_->glBufferData(GL_ARRAY_BUFFER, nt*sizeof(CGLVector2D), &texCoords_[0], GL_STATIC_DRAW);
+    canvas_->glBufferData(GL_ARRAY_BUFFER, nt*sizeof(CGLVector2D),
+                          &shapeData_.texCoords()[0], GL_STATIC_DRAW);
   }
   else {
-    static TexCoords s_texCoords;
+    static Shape3DData::TexCoords s_texCoords;
 
     if (int(s_texCoords.size()) != np) {
       s_texCoords.resize(np);
@@ -3643,12 +3445,12 @@ updateGL()
   //---
 
   // store index data in element buffer
-  int ni = indices_.size();
+  int ni = shapeData_.indices().size();
 
   if (ni > 0) {
     canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufferId_);
     canvas_->glBufferData(GL_ELEMENT_ARRAY_BUFFER, ni*sizeof(unsigned int),
-                          &indices_[0], GL_STATIC_DRAW);
+                          &shapeData_.indices()[0], GL_STATIC_DRAW);
   }
 
   //---
@@ -3668,10 +3470,10 @@ calcBBox()
 
     bbox_ = CBBox3D();
 
-    auto np = points_.size();
+    auto np = shapeData_.points().size();
 
     for (uint i = 0; i < np; ++i) {
-      const auto &p = points_[i];
+      const auto &p = shapeData_.points()[i];
 
       CPoint3D p1(p.x(), p.y(), p.z());
 
@@ -3691,13 +3493,17 @@ void
 Shape3DObj::
 calcNormals()
 {
-  auto np = points_.size();
+  auto np = shapeData_.points().size();
 
-  if (normals_.size() != np) {
-    normals_.resize(np);
+  if (shapeData_.normals().size() != np) {
+    Shape3DData::Points normals;
+
+    normals.resize(np);
 
     for (uint i = 0; i < np; ++i)
-      normals_[i] = CGLVector3D(0, 0, 1);
+      normals[i] = CGLVector3D(0, 0, 1);
+
+    shapeData_.setNormals(normals);
   }
 }
 
@@ -3729,25 +3535,23 @@ render()
   auto lightPos   = light->position();
   auto lightColor = light->color();
 
-  auto *program = s_program->program;
+  s_program->bind();
 
-  program->bind();
+  s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
 
-  program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
+  s_program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
+  s_program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
 
-  program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
-  program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
+  s_program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
+  s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
+  s_program->setUniformValue("specularStrength", float(canvas_->specular()));
+  s_program->setUniformValue("shininess"       , float(canvas_->shininess()));
 
-  program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
-  program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
-  program->setUniformValue("specularStrength", float(canvas_->specular()));
-  program->setUniformValue("shininess"       , float(canvas_->shininess()));
-
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   setModelMatrix();
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
@@ -3755,25 +3559,28 @@ render()
 
   //---
 
-  program->setUniformValue("useDiffuseTexture", useDiffuseTexture_);
-  program->setUniformValue("useNormalTexture", useNormalTexture_);
-  program->setUniformValue("textureId", 0);
+  s_program->setUniformValue("useDiffuseTexture", useDiffuseTexture_);
+  s_program->setUniformValue("useNormalTexture", useNormalTexture_);
+  s_program->setUniformValue("textureId", 0);
 
   if (useDiffuseTexture_ || useNormalTexture_)
     glEnable(GL_TEXTURE_2D);
 
   if (useDiffuseTexture_) {
     glActiveTexture(GL_TEXTURE0);
-    texture_->bind();
+
+    if (useDiffuseTexture_)
+      texture_->bind();
   }
 
   if (useNormalTexture_) {
     glActiveTexture(GL_TEXTURE1);
+
     normalTexture_->bind();
   }
 
-  int np = points_.size();
-  int ni = indices_.size();
+  int np = shapeData_.points ().size();
+  int ni = shapeData_.indices().size();
 
   if (ni > 0)
     glDrawElements(GL_TRIANGLES, ni, GL_UNSIGNED_INT, nullptr);
@@ -3790,6 +3597,536 @@ render()
 
   if (useDiffuseTexture_ || useNormalTexture_)
     glDisable(GL_TEXTURE_2D);
+}
+
+//---
+
+ShaderProgram* ShaderShape3DObj::s_program;
+
+bool
+ShaderShape3DObj::
+create(Canvas3D *canvas, const QStringList &)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new ShaderShape3DObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  obj->init();
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+ShaderShape3DObj::
+ShaderShape3DObj(Canvas3D *canvas) :
+ Object3D(canvas)
+{
+}
+
+void
+ShaderShape3DObj::
+init()
+{
+  Object3D::init();
+
+  //---
+
+  if (! s_program) {
+    s_program = new ShaderProgram(this);
+
+    s_program->addVertexFile  (buildDir + "/shaders/shader_shape.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/shader_shape.fs");
+
+    s_program->link();
+  }
+
+  //---
+
+  canvas_->glGenVertexArrays(1, &vertexArrayId_);
+
+  canvas_->glGenBuffers(1, &pointsBufferId_);
+  canvas_->glGenBuffers(1, &normalsBufferId_);
+  canvas_->glGenBuffers(1, &colorsBufferId_);
+  canvas_->glGenBuffers(1, &texCoordBufferId_);
+  canvas_->glGenBuffers(1, &indBufferId_);
+}
+
+QVariant
+ShaderShape3DObj::
+getValue(const QString &name, const QStringList &args)
+{
+  return Object3D::getValue(name, args);
+}
+
+bool
+ShaderShape3DObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto *app = canvas_->app();
+  auto *tcl = app->tcl();
+
+  if      (name == "points") {
+    shapeData_.setPoints(stringToVectors3D(tcl, value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "indices") {
+    shapeData_.setIndices(stringToUIntArray(tcl, value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "colors") {
+    colors_ = stringToColors(tcl, value);
+
+    setNeedsUpdate();
+  }
+  else if (name == "tex_coords") {
+    shapeData_.setTexCoords(stringToVectors2D(tcl, value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "color") {
+    setColor(stringToColor(tcl, value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "shader_texture") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.length() != 2) {
+      app->errorMsg("Invalid number of values shader_texture <id> <file>");
+      return false;
+    }
+
+    setShaderTexture(strs[1]);
+
+    setNeedsUpdate();
+  }
+  else if (name == "angle") {
+    auto p = stringToPoint3D(tcl, value);
+
+    xAngle_ = p.getX();
+    yAngle_ = p.getY();
+    zAngle_ = p.getZ();
+
+    setNeedsUpdate();
+  }
+  else if (name == "wireframe") {
+    wireframe_ = Util::stringToBool(value);
+
+    setNeedsUpdate();
+  }
+  // cone <r> <h>
+  else if (name == "cone") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.size() != 2) {
+      app->errorMsg("Invalid dimensions for cone");
+      return false;
+    }
+
+    double r = Util::stringToReal(strs[0]);
+    double h = Util::stringToReal(strs[1]);
+
+    shapeData_.addCone(r, h);
+
+    setNeedsUpdate();
+  }
+  // cylinder <r> <h>
+  else if (name == "cylinder") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.size() != 2) {
+      app->errorMsg("Invalid dimensions for cylinder");
+      return false;
+    }
+
+    double r = Util::stringToReal(strs[0]);
+    double h = Util::stringToReal(strs[1]);
+
+    shapeData_.addCylinder(r, h);
+
+    setNeedsUpdate();
+  }
+  // sphere <r>
+  else if (name == "sphere") {
+    double r = Util::stringToReal(value);
+
+    shapeData_.addSphere(r);
+
+    setNeedsUpdate();
+  }
+  // cube <sx> <sy> >sz>
+  else if (name == "cube") {
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    double sx = 1.0, sy = 1.0, sz = 1.0;
+
+    if      (strs.size() == 1) {
+      sx = Util::stringToReal(value);
+      sy = sx;
+      sz = sx;
+    }
+    else if (strs.size() == 3) {
+      sx = Util::stringToReal(strs[0]);
+      sy = Util::stringToReal(strs[1]);
+      sz = Util::stringToReal(strs[2]);
+    }
+    else {
+      app->errorMsg("bad sizes for cube");
+      return false;
+    }
+
+    shapeData_.addCube(sx, sy, sz);
+
+    setNeedsUpdate();
+  }
+  else
+    return Object3D::setValue(name, value, args);
+
+  return true;
+}
+
+void
+ShaderShape3DObj::
+setShaderTexture(const QString &file)
+{
+  shaderData_.program = new ShaderToyProgram(this);
+  shaderData_.texture = new CQGLTexture;
+
+  shaderData_.texture->setFunctions(canvas_);
+
+  shaderData_.program->setTexture(true);
+  shaderData_.program->setFragmentShader(file);
+}
+
+bool
+ShaderShape3DObj::
+intersect(const CGLVector3D &p1, const CGLVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
+{
+  if (! shapeData_.geom())
+    return false;
+
+  CLine3D line(p1.getX(), p1.getY(), p1.getZ(), p2.getX(), p2.getY(), p2.getZ());
+
+  double tmin, tmax;
+  if (! shapeData_.geom()->intersect(line, &tmin, &tmax))
+    return false;
+
+//if ((tmin < 0.0 || tmin > 1.0) && (tmax < 0.0 || tmax > 1.0))
+//  return false;
+
+  pi1 = line.interp(tmin);
+  pi2 = line.interp(tmax);
+
+//std::cerr << "Intersect: " << id().toStdString() << " " << tmin << " " <<  tmax << "\n";
+//std::cerr << "  " << Util::point3DToString(pi1).toStdString() << " " <<
+//                     Util::point3DToString(pi2).toStdString() << "\n";
+
+  return true;
+}
+
+void
+ShaderShape3DObj::
+updateGL()
+{
+  if (! needsUpdate_)
+    return;
+
+  needsUpdate_ = false;
+
+  //---
+
+  calcBBox();
+
+  calcNormals();
+
+  //---
+
+  // bind the Vertex Array Object
+  canvas_->glBindVertexArray(vertexArrayId_);
+
+  //---
+
+  int np = shapeData_.points().size();
+
+  // store point data in array buffer (vec3, location 0)
+  uint aPos = 0;
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D),
+                        &shapeData_.points()[0], GL_STATIC_DRAW);
+
+  // set points attrib data and format (for current buffer)
+  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
+  canvas_->glEnableVertexAttribArray(aPos);
+
+  // store normal data in array buffer (vec3, location 1)
+  uint aNormal = 1;
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, normalsBufferId_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D),
+                        &shapeData_.normals()[0], GL_STATIC_DRAW);
+
+  // set normals attrib data and format (for current buffer)
+  canvas_->glVertexAttribPointer(aNormal, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
+  canvas_->glEnableVertexAttribArray(aNormal);
+
+  //---
+
+  int nc = colors_.size();
+
+  // store color data in array buffer
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
+  if (nc > 0) {
+    canvas_->glBufferData(GL_ARRAY_BUFFER, nc*sizeof(CGLColor), &colors_[0], GL_STATIC_DRAW);
+  }
+  else {
+    static Colors s_colors_;
+
+    if (int(s_colors_.size()) != np)
+      s_colors_.resize(np);
+
+    auto c = this->color();
+
+    if (isInside())
+      c = CGLColor(0.8, 0.4, 0.4, 0.5);
+
+    for (int i = 0; i < np; ++i)
+      s_colors_[i] = c;
+
+    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &s_colors_[0], GL_STATIC_DRAW);
+  }
+
+  // set colors attrib data and format (for current buffer) (vec4, location 2)
+  uint aColor = 2;
+  canvas_->glVertexAttribPointer(aColor, 4, GL_FLOAT, GL_FALSE, sizeof(CGLColor), nullptr);
+  canvas_->glEnableVertexAttribArray(aColor);
+
+  //---
+
+  int nt = shapeData_.texCoords().size();
+
+  bool useDiffuseTexture = (shaderData_.texture && nt > 0);
+
+  if (isInside())
+    useDiffuseTexture = false;
+
+  // store texture point data in array buffer
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferId_);
+  if (useDiffuseTexture) {
+    canvas_->glBufferData(GL_ARRAY_BUFFER, nt*sizeof(CGLVector2D),
+                          &shapeData_.texCoords()[0], GL_STATIC_DRAW);
+  }
+  else {
+    static TexCoords s_texCoords;
+
+    if (int(s_texCoords.size()) != np) {
+      s_texCoords.resize(np);
+
+      for (int i = 0; i < np; ++i)
+        s_texCoords[i] = CGLVector2D(0, 0);
+    }
+
+    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector2D),
+                          &s_texCoords[0], GL_STATIC_DRAW);
+  }
+
+  // set texture points attrib data and format (for current buffer) (vec2, location 3)
+  uint aTexCoord = 3;
+  canvas_->glVertexAttribPointer(aTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(CGLVector2D), nullptr);
+  canvas_->glEnableVertexAttribArray(aTexCoord);
+
+  //---
+
+  // store index data in element buffer
+  int ni = shapeData_.indices().size();
+
+  if (ni > 0) {
+    canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufferId_);
+    canvas_->glBufferData(GL_ELEMENT_ARRAY_BUFFER, ni*sizeof(unsigned int),
+                          &shapeData_.indices()[0], GL_STATIC_DRAW);
+  }
+
+  //---
+
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
+//canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  0);
+
+  canvas_->glBindVertexArray(0);
+}
+
+CBBox3D
+ShaderShape3DObj::
+calcBBox()
+{
+  if (! bboxValid_) {
+    const auto &mm = modelMatrix();
+
+    bbox_ = CBBox3D();
+
+    auto np = shapeData_.points().size();
+
+    for (uint i = 0; i < np; ++i) {
+      const auto &p = shapeData_.points()[i];
+
+      CPoint3D p1(p.x(), p.y(), p.z());
+
+      CPoint3D p2;
+      mm.multiplyPoint(p1, p2);
+
+      bbox_ += CPoint3D(p2.x, p2.y, p2.z);
+    }
+
+    bboxValid_ = true;
+  }
+
+  return bbox_;
+}
+
+void
+ShaderShape3DObj::
+calcNormals()
+{
+  auto np = shapeData_.points().size();
+
+  if (shapeData_.normals().size() != np) {
+    Shape3DData::Points normals;
+
+    normals.resize(np);
+
+    for (uint i = 0; i < np; ++i)
+      normals[i] = CGLVector3D(0, 0, 1);
+
+    shapeData_.setNormals(normals);
+  }
+}
+
+void
+ShaderShape3DObj::
+preRender()
+{
+  if (shaderData_.program && shaderData_.texture) {
+    shaderData_.program->updateShader();
+
+    if (! shaderData_.texture->setTarget(shaderWidth_, shaderHeight_))
+      std::cerr << "Set texture shader target failed\n";
+
+    shaderData_.texture->bind();
+
+    //---
+
+    auto *program = shaderData_.program->program();
+
+    program->bind();
+
+    //---
+
+    shaderData_.program->setShaderToyUniforms(shaderWidth_, shaderHeight_, elapsed_, ticks_);
+
+    //---
+
+    // draw shader to screen rect
+    QVector3D vertices[] = {
+      QVector3D(-1.0f, -1.0f, 1.0f),
+      QVector3D( 1.0f, -1.0f, 1.0f),
+      QVector3D( 1.0f,  1.0f, 1.0f),
+
+      QVector3D( 1.0f,  1.0f, 1.0f),
+      QVector3D(-1.0f,  1.0f, 1.0f),
+      QVector3D(-1.0f, -1.0f, 1.0f)
+    };
+
+    int coordsLocation = program->attributeLocation("a_Coordinates");
+
+    program->enableAttributeArray(coordsLocation);
+
+    program->setAttributeArray(coordsLocation, vertices);
+
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    program->disableAttributeArray(coordsLocation);
+
+    //---
+
+    program->release();
+
+    //---
+
+    shaderData_.texture->unbind();
+  }
+}
+
+void
+ShaderShape3DObj::
+render()
+{
+  if (canvas_->isBBox() || isSelected()) {
+    calcBBox();
+
+    createBBoxObj();
+
+    bboxObj_->render();
+  }
+
+  //---
+
+  updateGL();
+
+  if (wireframe_ || canvas_->isWireframe())
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  else
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+  //---
+
+  s_program->bind();
+
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  setModelMatrix();
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+
+  //---
+
+  canvas_->glBindVertexArray(vertexArrayId_);
+
+  //---
+
+  s_program->setUniformValue("textureId", 0);
+
+  glEnable(GL_TEXTURE_2D);
+  glActiveTexture(GL_TEXTURE0);
+
+  if (shaderData_.texture)
+    shaderData_.texture->bindBuffer();
+
+  int np = shapeData_.points ().size();
+  int ni = shapeData_.indices().size();
+
+  if (ni > 0)
+    glDrawElements(GL_TRIANGLES, ni, GL_UNSIGNED_INT, nullptr);
+  else {
+    if      (useTriangleStrip_)
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, np);
+    else if (useTriangleFan_)
+      glDrawArrays(GL_TRIANGLE_FAN, 0, np);
+    else
+      glDrawArrays(GL_TRIANGLES, 0, np);
+  }
+
+  if (shaderData_.texture)
+    shaderData_.texture->unbindBuffer();
+
+  //canvas_->glBindVertexArray(0);
+
+  glDisable(GL_TEXTURE_2D);
 }
 
 //---
@@ -3825,10 +4162,11 @@ init()
 
   //---
 
-  static Points points = {
+  static Shape3DData::Points points = {
     CGLVector3D(-0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f,  0.5f, -0.5f),
+
     CGLVector3D( 0.5f,  0.5f, -0.5f),
     CGLVector3D(-0.5f,  0.5f, -0.5f),
     CGLVector3D(-0.5f, -0.5f, -0.5f),
@@ -3836,6 +4174,7 @@ init()
     CGLVector3D(-0.5f, -0.5f,  0.5f),
     CGLVector3D( 0.5f, -0.5f,  0.5f),
     CGLVector3D( 0.5f,  0.5f,  0.5f),
+
     CGLVector3D( 0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f, -0.5f,  0.5f),
@@ -3843,6 +4182,7 @@ init()
     CGLVector3D(-0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f, -0.5f),
     CGLVector3D(-0.5f, -0.5f, -0.5f),
+
     CGLVector3D(-0.5f, -0.5f, -0.5f),
     CGLVector3D(-0.5f, -0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f,  0.5f),
@@ -3850,6 +4190,7 @@ init()
     CGLVector3D( 0.5f,  0.5f,  0.5f),
     CGLVector3D( 0.5f,  0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f, -0.5f),
+
     CGLVector3D( 0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f,  0.5f),
     CGLVector3D( 0.5f,  0.5f,  0.5f),
@@ -3857,6 +4198,7 @@ init()
     CGLVector3D(-0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f,  0.5f),
+
     CGLVector3D( 0.5f, -0.5f,  0.5f),
     CGLVector3D(-0.5f, -0.5f,  0.5f),
     CGLVector3D(-0.5f, -0.5f, -0.5f),
@@ -3864,15 +4206,17 @@ init()
     CGLVector3D(-0.5f,  0.5f, -0.5f),
     CGLVector3D( 0.5f,  0.5f, -0.5f),
     CGLVector3D( 0.5f,  0.5f,  0.5f),
+
     CGLVector3D( 0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f, -0.5f)
   };
 
-  static TexCoords texCoords = {
+  static Shape3DData::TexCoords texCoords = {
     CGLVector2D(0.0f, 0.0f),
     CGLVector2D(1.0f, 0.0f),
     CGLVector2D(1.0f, 1.0f),
+
     CGLVector2D(1.0f, 1.0f),
     CGLVector2D(0.0f, 1.0f),
     CGLVector2D(0.0f, 0.0f),
@@ -3880,6 +4224,7 @@ init()
     CGLVector2D(0.0f, 0.0f),
     CGLVector2D(1.0f, 0.0f),
     CGLVector2D(1.0f, 1.0f),
+
     CGLVector2D(1.0f, 1.0f),
     CGLVector2D(0.0f, 1.0f),
     CGLVector2D(0.0f, 0.0f),
@@ -3887,6 +4232,7 @@ init()
     CGLVector2D(1.0f, 0.0f),
     CGLVector2D(1.0f, 1.0f),
     CGLVector2D(0.0f, 1.0f),
+
     CGLVector2D(0.0f, 1.0f),
     CGLVector2D(0.0f, 0.0f),
     CGLVector2D(1.0f, 0.0f),
@@ -3894,6 +4240,7 @@ init()
     CGLVector2D(1.0f, 0.0f),
     CGLVector2D(1.0f, 1.0f),
     CGLVector2D(0.0f, 1.0f),
+
     CGLVector2D(0.0f, 1.0f),
     CGLVector2D(0.0f, 0.0f),
     CGLVector2D(1.0f, 0.0f),
@@ -3901,6 +4248,7 @@ init()
     CGLVector2D(0.0f, 1.0f),
     CGLVector2D(1.0f, 1.0f),
     CGLVector2D(1.0f, 0.0f),
+
     CGLVector2D(1.0f, 0.0f),
     CGLVector2D(0.0f, 0.0f),
     CGLVector2D(0.0f, 1.0f),
@@ -3908,20 +4256,21 @@ init()
     CGLVector2D(0.0f, 1.0f),
     CGLVector2D(1.0f, 1.0f),
     CGLVector2D(1.0f, 0.0f),
+
     CGLVector2D(1.0f, 0.0f),
     CGLVector2D(0.0f, 0.0f),
     CGLVector2D(0.0f, 1.0f)
   };
 
-  points_    = points;
-  texCoords_ = texCoords;
+  shapeData_.setPoints   (points);
+  shapeData_.setTexCoords(texCoords);
 
   Shape3DObj::init();
 }
 
 //---
 
-ProgramData *BBox3DObj::s_program = nullptr;
+ShaderProgram *BBox3DObj::s_program = nullptr;
 
 bool
 BBox3DObj::
@@ -3968,6 +4317,7 @@ init()
     CGLVector3D(-0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f,  0.5f, -0.5f),
+
     CGLVector3D( 0.5f,  0.5f, -0.5f),
     CGLVector3D(-0.5f,  0.5f, -0.5f),
     CGLVector3D(-0.5f, -0.5f, -0.5f),
@@ -3975,6 +4325,7 @@ init()
     CGLVector3D(-0.5f, -0.5f,  0.5f),
     CGLVector3D( 0.5f, -0.5f,  0.5f),
     CGLVector3D( 0.5f,  0.5f,  0.5f),
+
     CGLVector3D( 0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f, -0.5f,  0.5f),
@@ -3982,6 +4333,7 @@ init()
     CGLVector3D(-0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f, -0.5f),
     CGLVector3D(-0.5f, -0.5f, -0.5f),
+
     CGLVector3D(-0.5f, -0.5f, -0.5f),
     CGLVector3D(-0.5f, -0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f,  0.5f),
@@ -3989,6 +4341,7 @@ init()
     CGLVector3D( 0.5f,  0.5f,  0.5f),
     CGLVector3D( 0.5f,  0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f, -0.5f),
+
     CGLVector3D( 0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f,  0.5f),
     CGLVector3D( 0.5f,  0.5f,  0.5f),
@@ -3996,6 +4349,7 @@ init()
     CGLVector3D(-0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f, -0.5f),
     CGLVector3D( 0.5f, -0.5f,  0.5f),
+
     CGLVector3D( 0.5f, -0.5f,  0.5f),
     CGLVector3D(-0.5f, -0.5f,  0.5f),
     CGLVector3D(-0.5f, -0.5f, -0.5f),
@@ -4003,6 +4357,7 @@ init()
     CGLVector3D(-0.5f,  0.5f, -0.5f),
     CGLVector3D( 0.5f,  0.5f, -0.5f),
     CGLVector3D( 0.5f,  0.5f,  0.5f),
+
     CGLVector3D( 0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f,  0.5f),
     CGLVector3D(-0.5f,  0.5f, -0.5f)
@@ -4018,6 +4373,7 @@ BBox3DObj::
 initShader()
 {
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "layout (location = 0) in vec3 aPos;\n"
@@ -4033,17 +4389,19 @@ initShader()
       "void main() {\n"
       "  FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
       "}\n";
+#endif
 
-    s_program = new ProgramData;
+    s_program = new ShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (buildDir + "/shaders/bbox.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/bbox.fs");
+#endif
 
-    auto *program = s_program->program;
-
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
   }
 }
 
@@ -4095,15 +4453,13 @@ render()
 
   //---
 
-  auto *program = s_program->program;
+  s_program->bind();
 
-  program->bind();
-
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   setModelMatrix();
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
@@ -4116,7 +4472,7 @@ render()
 
 //---
 
-ProgramData *Plane3DObj::s_program = nullptr;
+ShaderProgram *Plane3DObj::s_program = nullptr;
 
 bool
 Plane3DObj::
@@ -4165,6 +4521,7 @@ init()
     CGLVector3D(-0.5f, -0.5f, 0.0f),
     CGLVector3D( 0.5f, -0.5f, 0.0f),
     CGLVector3D( 0.5f,  0.5f, 0.0f),
+
     CGLVector3D( 0.5f,  0.5f, 0.0f),
     CGLVector3D(-0.5f,  0.5f, 0.0f),
     CGLVector3D(-0.5f, -0.5f, 0.0f),
@@ -4174,6 +4531,7 @@ init()
     CGLVector2D(0.0f, 0.0f),
     CGLVector2D(1.0f, 0.0f),
     CGLVector2D(1.0f, 1.0f),
+
     CGLVector2D(1.0f, 1.0f),
     CGLVector2D(0.0f, 1.0f),
     CGLVector2D(0.0f, 0.0f),
@@ -4181,8 +4539,6 @@ init()
 
   points_    = points;
   texCoords_ = texCoords;
-
-  Object3D::init();
 }
 
 bool
@@ -4238,6 +4594,7 @@ Plane3DObj::
 initShader()
 {
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "layout (location = 0) in vec3 aPos;\n"
@@ -4267,17 +4624,19 @@ initShader()
       "    FragColor = Color;\n"
       "  }\n"
       "}";
+#endif
 
-    s_program = new ProgramData;
+    s_program = new ShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (buildDir + "/shaders/plane.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/plane.fs");
+#endif
 
-    auto *program = s_program->program;
-
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
   }
 }
 
@@ -4311,7 +4670,7 @@ updateGL()
   //---
 
   // set colors attrib data and format (for current buffer) (vec4, location 2)
-  std::vector<Color> colors1;
+  std::vector<CGLColor> colors1;
 
   if (colors_.size() != np) {
     auto c  = this->color();
@@ -4325,9 +4684,9 @@ updateGL()
 
   uint aColor = 1;
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(Color), &colors1[0], GL_STATIC_DRAW);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &colors1[0], GL_STATIC_DRAW);
 
-  canvas_->glVertexAttribPointer(aColor, 4, GL_FLOAT, GL_FALSE, sizeof(Color), nullptr);
+  canvas_->glVertexAttribPointer(aColor, 4, GL_FLOAT, GL_FALSE, sizeof(CGLColor), nullptr);
   canvas_->glEnableVertexAttribArray(aColor);
 
   //---
@@ -4358,15 +4717,13 @@ render()
 
   //---
 
-  auto *program = s_program->program;
+  s_program->bind();
 
-  program->bind();
-
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   setModelMatrix();
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
@@ -4376,8 +4733,8 @@ render()
 
   useTexture_ = (! canvas_->isWireframe() && !!texture_);
 
-  program->setUniformValue("useTexture", useTexture_);
-  program->setUniformValue("textureId", 0);
+  s_program->setUniformValue("useTexture", useTexture_);
+  s_program->setUniformValue("textureId", 0);
 
   if (useTexture_)
     glEnable(GL_TEXTURE_2D);
@@ -4441,20 +4798,7 @@ init()
 
   //---
 
-  fragmentShader_ = QString("\
-void mainImage(out vec4 fragColor, in vec2 fragCoord) {\n\
-  vec2 uv = fragCoord/iResolution;\n\
-  fragColor = vec4(uv.x, uv.y, 0.0, 1.0);\n\
-}\n\
-");
-
-  vertexShader_ = QString("\
-attribute vec4 a_Position;\n\
-attribute vec2 a_Coordinates;\n\
-\n\
-void main() {\n\
-  gl_Position = vec4(a_Coordinates.x, a_Coordinates.y, 1.0f, 1.0f);\n\
-}");
+  shaderToyProgram_ = new ShaderToyProgram(this);
 }
 
 QVariant
@@ -4468,14 +4812,10 @@ bool
 Shader3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  if      (name == "vertex_shader") {
-    vertexShader_ = value;
-    shaderValid_  = false;
-  }
-  else if (name == "fragment_shader") {
-    fragmentShader_ = value;
-    shaderValid_    = false;
-  }
+  if      (name == "vertex_shader")
+    shaderToyProgram_->setVertexShader(value);
+  else if (name == "fragment_shader")
+    shaderToyProgram_->setFragmentShader(value);
   else
     return Object3D::setValue(name, value, args);
 
@@ -4484,54 +4824,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 void
 Shader3DObj::
-updateShaders()
-{
-  if (shaderValid_)
-    return;
-
-  //---
-
-  auto fragmentShader = QString("\
-#version 330\n\
-\n\
-uniform float iTime;\n\
-uniform int   iFrame;\n\
-uniform vec2  iResolution;\n\
-\n");
-
-  fragmentShader += fragmentShader_;
-
-  fragmentShader += QString("\n\
-void main() {\n\
-  mainImage(gl_FragColor, gl_FragCoord.xy);\n\
-}\n");
-
-  //---
-
-  auto vertexShader = QString("\
-#version 330\n\
-\n");
-
-  vertexShader += vertexShader_;
-
-  program_ = new QOpenGLShaderProgram(this);
-
-  program_->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShader);
-  program_->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader);
-
-  program_->link();
-
-  //---
-
-  shaderValid_ = true;
-}
-
-void
-Shader3DObj::
 tick()
 {
-  elapsed_ += canvas_->redrawTimeOut()/1000.0;
-
   Object3D::tick();
 }
 
@@ -4539,54 +4833,46 @@ void
 Shader3DObj::
 render()
 {
-  updateShaders();
+  shaderToyProgram_->updateShader();
 
-  program_->bind();
+  auto *program = shaderToyProgram_->program();
 
-  //---
-
-  int elapsedLocation = program_->uniformLocation("iTime");
-  program_->setUniformValue(elapsedLocation, GLfloat(elapsed_));
+  program->bind();
 
   //---
 
-  int frameLocation = program_->uniformLocation("iFrame");
-  program_->setUniformValue(frameLocation, GLint(ticks_));
+  shaderToyProgram_->setShaderToyUniforms(canvas_->width(), canvas_->height(), elapsed_, ticks_);
 
   //---
 
-  int resLocation = program_->uniformLocation("iResolution");
-
-  program_->setUniformValue(resLocation, GLfloat(canvas_->width()), GLfloat(canvas_->height()));
-
-  //---
-
+  // draw shader to screen rect
   QVector3D vertices[] = {
     QVector3D(-1.0f, -1.0f, 1.0f),
     QVector3D( 1.0f, -1.0f, 1.0f),
     QVector3D( 1.0f,  1.0f, 1.0f),
+
     QVector3D( 1.0f,  1.0f, 1.0f),
     QVector3D(-1.0f,  1.0f, 1.0f),
     QVector3D(-1.0f, -1.0f, 1.0f)
   };
 
-  int coordsLocation = program_->attributeLocation("a_Coordinates");
+  int coordsLocation = program->attributeLocation("a_Coordinates");
 
-  program_->enableAttributeArray(coordsLocation);
+  program->enableAttributeArray(coordsLocation);
 
-  program_->setAttributeArray(coordsLocation, vertices);
+  program->setAttributeArray(coordsLocation, vertices);
 
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
-  program_->disableAttributeArray(coordsLocation);
+  program->disableAttributeArray(coordsLocation);
 
-  program_->release();
+  program->release();
 }
 
 //---
 
-size_t                                      ParticleList3DObj::s_maxPoints = 50000;
-ParticleList3DObj::ParticleListProgramData *ParticleList3DObj::s_program   = nullptr;
+size_t                                        ParticleList3DObj::s_maxPoints = 50000;
+ParticleList3DObj::ParticleListShaderProgram *ParticleList3DObj::s_program   = nullptr;
 
 bool
 ParticleList3DObj::
@@ -4656,32 +4942,11 @@ getValue(const QString &name, const QStringList &args)
 
     return strs.join(" ");
   }
+  else if (name == "particleSize") {
+    return QVariant(particleSize());
+  }
   else
     return Object3D::getValue(name, args);
-}
-
-CBBox3D
-ParticleList3DObj::
-calcBBox()
-{
-  if (! bboxValid_) {
-    if (! points_.empty()) {
-      CRMinMax xrange, yrange, zrange;
-
-      for (const auto &p : points_) {
-        xrange.add(p.x());
-        yrange.add(p.y());
-        zrange.add(p.z());
-      }
-
-      bbox_ = CBBox3D(xrange.min(), yrange.min(), zrange.min(),
-                      xrange.max(), yrange.max(), zrange.max());
-
-      bboxValid_ = true;
-    }
-  }
-
-  return bbox_;
 }
 
 bool
@@ -4759,7 +5024,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
           float g = i2/100.0;
           float r = i3/10.0;
 
-          colors_[j] = Color(r, g, b);
+          colors_[j] = CGLColor(r, g, b);
 #endif
 
           xrange.add(x);
@@ -4783,7 +5048,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
         auto g = CMathUtil::map(points_[i].y(), yrange.min(), yrange.max(), 0, 1);
         auto b = CMathUtil::map(points_[i].z(), zrange.min(), zrange.max(), 0, 1);
 
-        colors_[i] = Color(r, g, b);
+        colors_[i] = CGLColor(r, g, b);
         points_[i] = CGLVector3D(x1, y1, z1);
       }
     }
@@ -4825,10 +5090,39 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "texture") {
     setTextureFile(value);
   }
+  else if (name == "particleSize") {
+    auto r = Util::stringToReal(value);
+
+    setParticleSize(r);
+  }
   else
     return Object3D::setValue(name, value, args);
 
   return true;
+}
+
+CBBox3D
+ParticleList3DObj::
+calcBBox()
+{
+  if (! bboxValid_) {
+    if (! points_.empty()) {
+      CRMinMax xrange, yrange, zrange;
+
+      for (const auto &p : points_) {
+        xrange.add(p.x());
+        yrange.add(p.y());
+        zrange.add(p.z());
+      }
+
+      bbox_ = CBBox3D(xrange.min(), yrange.min(), zrange.min(),
+                      xrange.max(), yrange.max(), zrange.max());
+
+      bboxValid_ = true;
+    }
+  }
+
+  return bbox_;
 }
 
 void
@@ -4895,6 +5189,7 @@ init()
   //---
 
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "attribute highp vec4 position;\n"
@@ -4928,33 +5223,35 @@ init()
       "    gl_FragColor = col;\n"
       "  }\n"
       "}\n";
+#endif
 
-    s_program = new ParticleListProgramData;
+    s_program = new ParticleListShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    //s_program->addVertexFile  (buildDir + "/shaders/particle_list.vs");
+    //s_program->addFragmentFile(buildDir + "/shaders/particle_list.fs");
 
-    auto *program = s_program->program;
+    s_program->addVertexFile  (buildDir + "/shaders/particle_list_billboard.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/particle_list_billboard.fs");
+#endif
 
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
 
     // get program variables
-    s_program->positionAttr = program->attributeLocation("position");
+    s_program->positionAttr = s_program->attributeLocation("position");
     Q_ASSERT(s_program->positionAttr != -1);
 
-    s_program->centerAttr = program->attributeLocation("center");
+    s_program->centerAttr = s_program->attributeLocation("center");
     Q_ASSERT(s_program->centerAttr != -1);
 
-    s_program->colorAttr = program->attributeLocation("color");
+    s_program->colorAttr = s_program->attributeLocation("color");
     Q_ASSERT(s_program->colorAttr != -1);
 
-    s_program->projectionUniform = program->uniformLocation("projection");
-    Q_ASSERT(s_program->projectionUniform != -1);
-
-    s_program->viewUniform = program->uniformLocation("view");
-    Q_ASSERT(s_program->viewUniform != -1);
+    s_program->setProjectionUniform();
+    s_program->setViewUniform();
   }
 
   // The VBO containing the 4 vertices of the particles.
@@ -4966,23 +5263,23 @@ init()
     0.5f,  0.5f, 0.0f,
   };
 
-  canvas_->glGenBuffers(1, &billboard_vertex_buffer_);
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboard_vertex_buffer_);
+  canvas_->glGenBuffers(1, &billboardVertexBuffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardVertexBuffer_);
   canvas_->glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data),
                         g_vertex_buffer_data, GL_STATIC_DRAW);
 
   // The VBO containing the positions and sizes of the particles
-  canvas_->glGenBuffers(1, &particles_position_buffer_);
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particles_position_buffer_);
+  canvas_->glGenBuffers(1, &particlesPositionBuffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesPositionBuffer_);
   // Initialize with empty (null) buffer : it will be updated later, each frame.
   canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLVector3D),
                         nullptr, GL_STREAM_DRAW);
 
   // The VBO containing the colors of the particles
-  canvas_->glGenBuffers(1, &particles_color_buffer_);
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particles_color_buffer_);
+  canvas_->glGenBuffers(1, &particlesColorBuffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesColorBuffer_);
   // Initialize with empty (null) buffer : it will be updated later, each frame.
-  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(Color),
+  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLColor),
                         nullptr, GL_STREAM_DRAW);
 }
 
@@ -5039,7 +5336,7 @@ updateFlocking()
 
     auto c = boid->getFlock()->getColor();
 
-    colors_[i] = Color(c.getRed(), c.getGreen(), c.getBlue());
+    colors_[i] = CGLColor(c.getRed(), c.getGreen(), c.getBlue());
 
     ++i;
   }
@@ -5071,7 +5368,7 @@ updateFireworks()
 
     auto c = particle->getColor();
 
-    colors_[i] = Color(c.getRed(), c.getGreen(), c.getBlue());
+    colors_[i] = CGLColor(c.getRed(), c.getGreen(), c.getBlue());
   }
 
   bboxValid_ = false;
@@ -5092,27 +5389,40 @@ render()
 
   //---
 
-  auto *program = s_program->program;
-
   glDisable(GL_CULL_FACE);
 
-  program->bind();
+  s_program->bind();
 
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   setModelMatrix();
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+
+  //---
+
+  auto *camera = canvas_->camera();
+
+  s_program->setUniformValue("cameraUp", CQGLUtil::toVector(camera->up()));
+  s_program->setUniformValue("cameraRight", CQGLUtil::toVector(camera->right()));
+
+  //---
+
+  s_program->setUniformValue("particleSize", float(particleSize()));
+
+  //---
 
   bool useTexture = !!texture_;
 
-  program->setUniformValue("useTexture", useTexture);
-  program->setUniformValue("textureId", 0);
+  s_program->setUniformValue("useTexture", useTexture);
+  s_program->setUniformValue("textureId", 0);
 
   if (useTexture) {
     glActiveTexture(GL_TEXTURE0);
     texture_->bind();
   }
+
+  //---
 
   auto n = points_.size();
 
@@ -5120,21 +5430,21 @@ render()
   // There are much more sophisticated means to stream data from the CPU to the GPU,
   // but this is outside the scope of this tutorial.
   // http://www.opengl.org/wiki/Buffer_Object_Streaming
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particles_position_buffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesPositionBuffer_);
   // Buffer orphaning, a common way to improve streaming perf. See above link for details.
   canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLVector3D),
                         nullptr, GL_STREAM_DRAW);
   canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, n*sizeof(CGLVector3D), &points_[0]);
 
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particles_color_buffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesColorBuffer_);
   // Buffer orphaning, a common way to improve streaming perf. See above link for details.
-  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(Color),
+  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLColor),
                         nullptr, GL_STREAM_DRAW);
-  canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, n*sizeof(Color), &colors_[0]);
+  canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, n*sizeof(CGLColor), &colors_[0]);
 
   // 1rst attribute buffer : vertices
   canvas_->glEnableVertexAttribArray(s_program->positionAttr);
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboard_vertex_buffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardVertexBuffer_);
   canvas_->glVertexAttribPointer(
    s_program->positionAttr,
    3,
@@ -5146,7 +5456,7 @@ render()
 
   // 2nd attribute buffer : positions of particles' centers
   canvas_->glEnableVertexAttribArray(s_program->centerAttr);
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particles_position_buffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesPositionBuffer_);
   canvas_->glVertexAttribPointer(
    s_program->centerAttr,
    3,
@@ -5158,7 +5468,7 @@ render()
 
   // 3rd attribute buffer : particles' colors
   canvas_->glEnableVertexAttribArray(s_program->colorAttr);
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particles_color_buffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesColorBuffer_);
   canvas_->glVertexAttribPointer(
    s_program->colorAttr,
    4,
@@ -5186,17 +5496,17 @@ render()
   // Draw the particules !
   // This draws many times a small triangle_strip (which looks like a quad).
   // This is equivalent to :
-  // for(i in n) : glDrawArrays(GL_TRIANGLE_STRIP, 0, 4),
+  // for (i in n) : glDrawArrays(GL_TRIANGLE_STRIP, 0, 4),
   // but faster.
   canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, n);
 
-  program->release();
+  s_program->release();
 }
 
 //---
 
-ProgramData *Graph3DObj::s_program1 = nullptr;
-ProgramData *Graph3DObj::s_program2 = nullptr;
+ShaderProgram *Graph3DObj::s_program1 = nullptr;
+ShaderProgram *Graph3DObj::s_program2 = nullptr;
 
 bool
 Graph3DObj::
@@ -5284,6 +5594,7 @@ init()
   //---
 
   if (! s_program1) {
+#if 0
     static const char *vertexShader1 =
       "#version 330 core\n"
       "layout (location = 0) in vec3 point;\n"
@@ -5319,21 +5630,25 @@ init()
       "{\n"
       "  gl_FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
       "}\n";
+#endif
 
-    s_program1 = new ProgramData;
+    s_program1 = new ShaderProgram(this);
 
-    s_program1->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program1->addVertexCode  (vertexShader1);
+    s_program1->addGeometryCode(geometryShader1);
+    s_program1->addFragmentCode(fragmentShader1);
+#else
+    s_program1->addVertexFile  (buildDir + "/shaders/graph1.vs");
+    s_program1->addGeometryFile(buildDir + "/shaders/graph1.gs");
+    s_program1->addFragmentFile(buildDir + "/shaders/graph1.fs");
+#endif
 
-    auto *program1 = s_program1->program;
-
-    program1->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShader1);
-    program1->addShaderFromSourceCode(QOpenGLShader::Geometry, geometryShader1);
-    program1->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader1);
-
-    program1->link();
+    s_program1->link();
 
     //---
 
+#if 0
     static const char *vertexShader2 =
       "#version 330 core\n"
       "layout (location = 1) in vec3 line;\n"
@@ -5351,17 +5666,19 @@ init()
       "{\n"
       "  gl_FragColor = vec4(lineColor.x, lineColor.y, lineColor.z, 1.0f);\n"
       "}\n";
+#endif
 
-    s_program2 = new ProgramData;
+    s_program2 = new ShaderProgram(this);
 
-    s_program2->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program2->addVertexCode  (vertexShader2);
+    s_program2->addFragmentCode(fragmentShader2);
+#else
+    s_program2->addVertexFile  (buildDir + "/shaders/graph2.vs");
+    s_program2->addFragmentFile(buildDir + "/shaders/graph2.fs");
+#endif
 
-    auto *program2 = s_program2->program;
-
-    program2->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShader2);
-    program2->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader2);
-
-    program2->link();
+    s_program2->link();
   }
 
   //---
@@ -5590,14 +5907,12 @@ void
 Graph3DObj::
 render()
 {
-  auto *program1 = s_program1->program;
+  s_program1->bind();
 
-  program1->bind();
+  s_program1->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program1->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
-  program1->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program1->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
-
-  program1->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program1->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   canvas_->glBindVertexArray(pointsArrayId_);
 
@@ -5606,20 +5921,18 @@ render()
   glDrawArrays(GL_POINTS, 0, np);
 //glDrawArrays(GL_TRIANGLES, 0, np);
 
-  program1->release();
+  s_program1->release();
 
   //------
 
-  auto *program2 = s_program2->program;
+  s_program2->bind();
 
-  program2->bind();
+  s_program2->setUniformValue("lineColor", toVector(lineColor_));
 
-  program2->setUniformValue("lineColor", toVector(lineColor_));
+  s_program2->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program2->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
-  program2->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program2->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
-
-  program2->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program2->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   canvas_->glBindVertexArray(pointsArrayId_);
 
@@ -5627,12 +5940,12 @@ render()
 
   glDrawArrays(GL_LINES, 0, nl);
 
-  program2->release();
+  s_program2->release();
 }
 
 //---
 
-ProgramData *Surface3DObj::s_program   = nullptr;
+ShaderProgram *Surface3DObj::s_program   = nullptr;
 
 bool
 Surface3DObj::
@@ -5875,6 +6188,7 @@ init()
   //---
 
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "layout (location = 0) in vec3 aPos;\n"
@@ -5920,17 +6234,19 @@ init()
       "  vec3 result = ambient + diffuse + specular;\n"
       "  FragColor = vec4(result, 1.0f);\n"
       "}\n";
+#endif
 
-    s_program = new ProgramData;
+    s_program = new ShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (buildDir + "/shaders/surface.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/surface.fs");
+#endif
 
-    auto *program = s_program->program;
-
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
   }
 
   //---
@@ -6121,25 +6437,23 @@ render()
   auto lightPos   = light->position();
   auto lightColor = light->color();
 
-  auto *program = s_program->program;
+  s_program->bind();
 
-  program->bind();
+  s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
 
-  program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
+  s_program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
+  s_program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
 
-  program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
-  program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
+  s_program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
+  s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
+  s_program->setUniformValue("specularStrength", float(canvas_->specular()));
+  s_program->setUniformValue("shininess"       , float(canvas_->shininess()));
 
-  program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
-  program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
-  program->setUniformValue("specularStrength", float(canvas_->specular()));
-  program->setUniformValue("shininess"       , float(canvas_->shininess()));
-
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   setModelMatrix();
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
@@ -6172,8 +6486,8 @@ struct FontData {
   GLuint                              texture = 0;
 };
 
-Text3DObj::TextProgramData* Text3DObj::s_program  = nullptr;
-FontData*                   Text3DObj::s_fontData = nullptr;
+Text3DObj::TextShaderProgram* Text3DObj::s_program  = nullptr;
+FontData*                     Text3DObj::s_fontData = nullptr;
 
 bool
 Text3DObj::
@@ -6207,6 +6521,7 @@ init()
   //---
 
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "attribute highp vec4 position;\n"
@@ -6232,36 +6547,35 @@ init()
        " vec4 tc = texture(textureId, uv0);\n"
       "  gl_FragColor = vec4(col.r, col.g, col.b, tc.r);\n"
       "}\n";
+#endif
 
-    s_program = new TextProgramData;
+    s_program = new TextShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (buildDir + "/shaders/text.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/text.fs");
+#endif
 
-    auto *program = s_program->program;
-
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
 
     //---
 
-    s_program->posAttr = program->attributeLocation("position");
+    s_program->posAttr = s_program->attributeLocation("position");
     Q_ASSERT(s_program->posAttr != -1);
 
-    s_program->colAttr = program->attributeLocation("color");
+    s_program->colAttr = s_program->attributeLocation("color");
   //Q_ASSERT(s_program->colAttr != -1);
 
-    s_program->texPosAttr = program->attributeLocation("texCoord0");
+    s_program->texPosAttr = s_program->attributeLocation("texCoord0");
     Q_ASSERT(s_program->texPosAttr != -1);
 
-    s_program->projectionUniform = program->uniformLocation("projection");
-    Q_ASSERT(s_program->projectionUniform != -1);
+    s_program->setProjectionUniform();
+    s_program->setViewUniform();
 
-    s_program->viewUniform = program->uniformLocation("view");
-    Q_ASSERT(s_program->viewUniform != -1);
-
-    s_program->textureUniform = program->uniformLocation("textureId");
+    s_program->textureUniform = s_program->uniformLocation("textureId");
     Q_ASSERT(s_program->textureUniform != -1);
   }
 
@@ -6495,14 +6809,12 @@ render()
 
   //------
 
-  auto *program = s_program->program;
+  s_program->bind();
 
-  program->bind();
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
-
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
@@ -6538,7 +6850,7 @@ render()
 
   // get GL_ARRAY_BUFFER data from colBuffer
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, glData_.colBuffer);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, sizeof(Color)*colors_.size(),
+  canvas_->glBufferData(GL_ARRAY_BUFFER, sizeof(CGLColor)*colors_.size(),
                         colors_.data(), GL_STATIC_DRAW);
 
   // color attribute populated from 3 floats (r, g, b, a)
@@ -6564,7 +6876,7 @@ render()
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
   glActiveTexture(GL_TEXTURE0);
 
-  program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
+  s_program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
 
   canvas_->glBindVertexArray(glData_.vao);
   canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glData_.indexBuffer);
@@ -6582,14 +6894,14 @@ render()
 
   //---
 
-  program->release();
+  s_program->release();
 
   glPopAttrib();
 }
 
 //---
 
-ProgramData *Path3DObj::s_program = nullptr;
+ShaderProgram *Path3DObj::s_program = nullptr;
 
 bool
 Path3DObj::
@@ -6632,6 +6944,7 @@ Path3DObj::
 initShader()
 {
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "layout (location = 0) in vec3 aPos;\n"
@@ -6646,17 +6959,19 @@ initShader()
       "void main() {\n"
       "  gl_FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
       "}\n";
+#endif
 
-    s_program = new ProgramData;
+    s_program = new ShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (buildDir + "/shaders/path.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/path.fs");
+#endif
 
-    auto *program = s_program->program;
-
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
   }
 }
 
@@ -6780,15 +7095,13 @@ render()
 
   //---
 
-  auto *program = s_program->program;
+  s_program->bind();
 
-  program->bind();
-
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   setModelMatrix();
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
@@ -7004,7 +7317,7 @@ render()
 
 //---
 
-ProgramData *Sprite3DObj::s_program = nullptr;
+ShaderProgram *Sprite3DObj::s_program = nullptr;
 
 bool
 Sprite3DObj::
@@ -7038,6 +7351,7 @@ init()
   //---
 
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "layout (location = 0) in vec3 aPos;\n"
@@ -7062,17 +7376,19 @@ init()
       "  }\n"
       " FragColor = texColor;\n"
       "}\n";
+#endif
 
-    s_program = new ProgramData;
+    s_program = new ShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (buildDir + "/shaders/sprite.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/sprite.fs");
+#endif
 
-    auto *program = s_program->program;
-
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
   }
 
   //---
@@ -7084,11 +7400,9 @@ void
 Sprite3DObj::
 updateBuffer()
 {
-  auto *program = s_program->program;
-
   delete buffer_;
 
-  buffer_ = new CQGLBuffer(program);
+  buffer_ = s_program->createBuffer();
 
   auto z = position().z;
 
@@ -7207,17 +7521,15 @@ render()
 
   //---
 
-  auto *program = s_program->program;
+  s_program->bind();
 
-  program->bind();
+  s_program->setUniformValue("textureId", 0);
 
-  program->setUniformValue("textureId", 0);
-
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   updateModelMatrix();
 
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   glActiveTexture(GL_TEXTURE0);
 
@@ -7228,12 +7540,14 @@ render()
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+  s_program->release();
+
   buffer_->unbind();
 }
 
 //---
 
-ProgramData *Skybox3DObj::s_program = nullptr;
+ShaderProgram *Skybox3DObj::s_program = nullptr;
 
 bool
 Skybox3DObj::
@@ -7271,6 +7585,7 @@ Skybox3DObj::
 initShader()
 {
   if (! s_program) {
+#if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
       "layout (location = 0) in vec3 pos;\n"
@@ -7300,17 +7615,19 @@ initShader()
       "    //outCol = vec4(fragPos, 1.0);\n"
       "  }\n"
       "}\n";
+#endif
 
-    s_program = new ProgramData;
+    s_program = new ShaderProgram(this);
 
-    s_program->program = new QOpenGLShaderProgram(this);
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (buildDir + "/shaders/skybox.vs");
+    s_program->addFragmentFile(buildDir + "/shaders/skybox.fs");
+#endif
 
-    auto *program = s_program->program;
-
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex  , vertexShaderSource);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
-
-    program->link();
+    s_program->link();
   }
 }
 
@@ -7318,8 +7635,6 @@ bool
 Skybox3DObj::
 load()
 {
-  QString buildDir = QUOTE(BUILD_DIR);
-
   auto filename = buildDir + "/models/ply/cube.ply";
 
   QFileInfo fi(filename);
@@ -7408,8 +7723,6 @@ updateObjectData()
 
   needsUpdate_ = false;
 
-  auto *program = s_program->program;
-
   // set up vertex data (and buffer(s)) and configure vertex attributes
   CVector3D sceneSize(1, 1, 1);
 
@@ -7434,7 +7747,7 @@ updateObjectData()
       objectData = (*pd).second;
 
       if (! objectData->buffer)
-        objectData->buffer = new CQGLBuffer(program);
+        objectData->buffer = s_program->createBuffer();
 
       //---
 
@@ -7505,15 +7818,13 @@ render()
 //glDepthMask(GL_FALSE);
   glDepthFunc(GL_LEQUAL);
 
-  auto *program = s_program->program;
-
   // setup model shader
   for (auto &po : objectDatas_) {
     auto *objectData = po.second;
 
     objectData->buffer->bind();
 
-    program->bind();
+    s_program->bind();
 
     if (useCubemap_) {
       if (cubemap_) {
@@ -7536,18 +7847,18 @@ render()
       }
     }
 
-    program->setUniformValue("textureId", 0);
+    s_program->setUniformValue("textureId", 0);
 
     // pass projection matrix to shader (note that in this case it could change every frame)
-    program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+    s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
 
     // camera/view transformation
-    program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+    s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
     // model rotation
-    program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+    s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
-    program->setUniformValue("isWireframe", canvas_->isWireframe() ? 1 : 0);
+    s_program->setUniformValue("isWireframe", canvas_->isWireframe() ? 1 : 0);
 
 #if 0
     // render model
@@ -8319,5 +8630,314 @@ render()
 #endif
 
 //---
+
+Shape3DData::
+~Shape3DData()
+{
+  delete geom_;
+}
+
+void
+Shape3DData::
+addCone(double r, double h)
+{
+  uint stacks = 20;
+  uint slices = 20;
+
+  std::vector<double> x, y;
+
+  x.resize(stacks);
+  y.resize(stacks);
+
+  x[0         ] = r; y[0         ] = 0;
+  x[stacks - 1] = 0; y[stacks - 1] = h;
+
+  double dx = stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0;
+  double dy = stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0;
+
+  for (uint i = 1; i < stacks - 1; ++i) {
+    x[i] = x[i - 1] + dx;
+    y[i] = y[i - 1] + dy;
+  }
+
+  addBodyRev(&x[0], &y[0], stacks, slices);
+
+  delete geom_;
+  geom_ = new CCone3D(r);
+}
+
+void
+Shape3DData::
+addCylinder(double r, double h)
+{
+  uint stacks = 20;
+  uint slices = 20;
+
+  std::vector<double> x, y;
+
+  x.resize(stacks);
+  y.resize(stacks);
+
+  x[0         ] = r; y[0         ] = 0;
+  x[stacks - 1] = r; y[stacks - 1] = h;
+
+  double dx = stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0;
+  double dy = stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0;
+
+  for (uint i = 1; i < stacks - 1; ++i) {
+    x[i] = x[i - 1] + dx;
+    y[i] = y[i - 1] + dy;
+  }
+
+  addBodyRev(&x[0], &y[0], stacks, slices);
+
+  delete geom_;
+  geom_ = new CCylinder3D(r);
+}
+
+void
+Shape3DData::
+addCube(double sx, double sy, double sz)
+{
+  static CGLVector3D cube_normal[6] = {
+    {-1.0,  0.0,  0.0},
+    { 0.0,  1.0,  0.0},
+    { 1.0,  0.0,  0.0},
+    { 0.0, -1.0,  0.0},
+    { 0.0,  0.0,  1.0},
+    { 0.0,  0.0, -1.0}
+  };
+
+  static GLint cube_faces[6][4] = {
+    {0, 1, 2, 3},
+    {3, 2, 6, 7},
+    {7, 6, 5, 4},
+    {4, 5, 1, 0},
+    {5, 6, 2, 1},
+    {7, 4, 0, 3}
+  };
+
+  double xs = sx/2.0;
+  double ys = sy/2.0;
+  double zs = sz/2.0;
+
+  struct Point {
+    float x;
+    float y;
+    float z;
+  };
+
+  std::vector<Point> v; v.resize(8);
+
+  v[0].x = v[1].x = v[2].x = v[3].x = -xs;
+  v[4].x = v[5].x = v[6].x = v[7].x =  xs;
+  v[0].y = v[1].y = v[4].y = v[5].y = -ys;
+  v[2].y = v[3].y = v[6].y = v[7].y =  ys;
+  v[0].z = v[3].z = v[4].z = v[7].z = -zs;
+  v[1].z = v[2].z = v[5].z = v[6].z =  zs;
+
+  points_   .resize(36);
+  texCoords_.resize(36);
+  normals_  .resize(36);
+
+  int k = 0;
+
+  for (int i = 5; i >= 0; --i) {
+    const auto &normal = cube_normal[i];
+
+    auto addPoint = [&](const Point &p, const CGLVector2D &t) {
+      points_   [k] = CGLVector3D(p.x, p.y, p.z);
+      texCoords_[k] = t;
+      normals_  [k] = normal;
+      ++k;
+    };
+
+    addPoint(v[cube_faces[i][0]], CGLVector2D(0.0, 0.0));
+    addPoint(v[cube_faces[i][1]], CGLVector2D(1.0, 0.0));
+    addPoint(v[cube_faces[i][2]], CGLVector2D(1.0, 1.0));
+
+    addPoint(v[cube_faces[i][2]], CGLVector2D(1.0, 1.0));
+    addPoint(v[cube_faces[i][3]], CGLVector2D(0.0, 1.0));
+    addPoint(v[cube_faces[i][0]], CGLVector2D(0.0, 0.0));
+  }
+
+  delete geom_;
+  geom_ = new CBox3D(sx, sy, sz);
+}
+
+void
+Shape3DData::
+addSphere(double radius)
+{
+  uint stacks = 20;
+  uint slices = 20;
+
+  std::vector<double> x, y;
+
+  x.resize(stacks);
+  y.resize(stacks);
+
+  double a = -M_PI*0.5;
+
+  double da = M_PI/(stacks - 1);
+
+  for (uint i = 0; i < stacks; ++i) {
+    x[i] = radius*std::cos(a);
+    y[i] = radius*std::sin(a);
+
+    a += da;
+  }
+
+  addBodyRev(&x[0], &y[0], stacks, slices);
+
+  delete geom_;
+  geom_ = new CSphere3D(radius);
+}
+
+void
+Shape3DData::
+addBodyRev(double *x, double *y, uint num_xy, uint num_patches)
+{
+  std::vector<VertexData>   vertices;
+  std::vector<unsigned int> indices;
+
+  addBodyRevI(&x[0], &y[0], num_xy, num_patches, vertices, indices);
+
+  auto np = vertices.size();
+  auto ni = indices.size();
+
+  points_ .resize(np);
+  normals_.resize(np);
+  indices_.resize(ni);
+
+  for (uint i = 0; i < np; ++i) {
+    points_ [i] = vertices[i].position;
+    normals_[i] = vertices[i].normal;
+  }
+
+  for (uint i = 0; i < ni; ++i) {
+    indices_[i] = indices[i];
+  }
+}
+
+void
+Shape3DData::
+addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
+            std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices)
+{
+  std::vector<double> c, s;
+
+  c.resize(num_patches);
+  s.resize(num_patches);
+
+  double theta           = 0.0;
+  double theta_increment = 2.0*M_PI/num_patches;
+
+  for (uint i = 0; i < num_patches; i++) {
+    c[i] = cos(theta);
+    s[i] = sin(theta);
+
+    theta += theta_increment;
+  }
+
+  uint num_vertices = 0;
+
+  std::vector<uint> index1, index2;
+
+  index1.resize(num_patches + 1);
+  index2.resize(num_patches + 1);
+
+  uint *pindex1 = &index1[0];
+  uint *pindex2 = &index2[0];
+
+  if (fabs(x[0]) < 1E-6) {
+    CGLVector3D p(0.0, float(y[0]), 0.0);
+
+    vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, 0)));
+
+    for (uint i = 0; i <= num_patches; i++)
+      pindex1[i] = num_vertices;
+
+    num_vertices++;
+  }
+  else {
+    for (uint i = 0; i < num_patches; i++) {
+      CGLVector3D p(float(x[0]*c[i]), float(y[0]), float(-x[0]*s[i]));
+
+      vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, 0)));
+
+      pindex1[i] = num_vertices;
+
+      num_vertices++;
+    }
+
+    pindex1[num_patches] = pindex1[0];
+  }
+
+  for (uint j = 1; j < num_xy; j++) {
+    double ty = (num_xy > 1 ? 1.0*j/(num_xy - 1) : 0.0);
+
+    if (fabs(x[j]) < 1E-6) {
+      CGLVector3D p(0.0, float(y[j]), 0.0);
+
+      vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, float(ty))));
+
+      for (uint i = 0; i <= num_patches; ++i)
+        pindex2[i] = num_vertices;
+
+      ++num_vertices;
+    }
+    else {
+      for (uint i = 0; i < num_patches; i++) {
+        double tx = (num_patches > 1 ? 1.0*i/(num_patches - 1) : 0.0);
+
+        CGLVector3D p(float(x[j]*c[i]), float(y[j]), float(-x[j]*s[i]));
+
+        vertexDatas.push_back(VertexData(p, p, CGLVector2D(float(tx), float(ty))));
+
+        pindex2[i] = num_vertices;
+
+        num_vertices++;
+      }
+
+      pindex2[num_patches] = pindex2[0];
+    }
+
+    if (pindex1[0] != pindex1[1]) {
+      if (pindex2[0] == pindex2[1]) {
+        for (uint i = 0; i < num_patches; ++i) {
+          indices.push_back(GLushort(pindex1[i + 1]));
+          indices.push_back(GLushort(pindex2[i    ]));
+          indices.push_back(GLushort(pindex1[i    ]));
+        }
+      }
+      else {
+        for (uint i = 0; i < num_patches; ++i) {
+          indices.push_back(GLushort(pindex1[i + 1]));
+          indices.push_back(GLushort(pindex2[i + 1]));
+          indices.push_back(GLushort(pindex2[i    ]));
+
+          indices.push_back(GLushort(pindex1[i + 1]));
+          indices.push_back(GLushort(pindex2[i    ]));
+          indices.push_back(GLushort(pindex1[i    ]));
+        }
+      }
+    }
+    else {
+      if (pindex2[0] != pindex2[1]) {
+        for (uint i = 0; i < num_patches; ++i) {
+          indices.push_back(GLushort(pindex2[i + 1]));
+          indices.push_back(GLushort(pindex2[i    ]));
+          indices.push_back(GLushort(pindex1[i    ]));
+        }
+      }
+    }
+
+    uint *pindex = pindex2;
+
+    pindex2 = pindex1;
+    pindex1 = pindex;
+  }
+}
 
 }

@@ -1,14 +1,17 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxCanvas.h>
-
-#include <QApplication>
+#include <CQApp.h>
 
 int
 main(int argc, char **argv)
 {
   setenv("QT_SCALE_FACTOR", "1", 1);
 
+#ifdef NO_QT_APP
   QApplication qapp(argc, argv);
+#else
+  CQApp qapp(argc, argv);
+#endif
 
   qapp.setFont(QFont("Sans", 20));
 

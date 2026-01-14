@@ -1,5 +1,6 @@
 proc init { } {
   sb3d::canvas set lights.simple 1
+  sb3d::canvas set cull_face 0
 
   set ::plane [sb3d::plane]
 

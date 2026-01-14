@@ -27,6 +27,7 @@ Toolbar3D(Canvas3D *canvas) :
     button->setIconSize(QSize(32, 32));
     button->setAutoRaise(true);
     button->setToolTip(tip);
+    button->setFocusPolicy(Qt::NoFocus);
 
     connect(button, SIGNAL(clicked()), this, slotName);
 
@@ -43,6 +44,7 @@ Toolbar3D(Canvas3D *canvas) :
     button->setIconSize(QSize(32, 32));
     button->setAutoRaise(true);
     button->setToolTip(tip);
+    button->setFocusPolicy(Qt::NoFocus);
 
     connect(button, SIGNAL(clicked()), this, slotName);
 

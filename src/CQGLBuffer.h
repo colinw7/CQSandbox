@@ -59,7 +59,7 @@ class CQGLBuffer {
   };
 
  public:
-  CQGLBuffer(QOpenGLShaderProgram *program) {
+  CQGLBuffer(QOpenGLShaderProgram *program=nullptr) {
     data_.program = program;
 
     data_.vObj         = new QOpenGLVertexArrayObject;
@@ -84,6 +84,11 @@ class CQGLBuffer {
 
     return *this;
   }
+
+  //---
+
+  QOpenGLShaderProgram *program() const { return data_.program; }
+  void setProgram(QOpenGLShaderProgram *p) { data_.program = p; }
 
   //---
 

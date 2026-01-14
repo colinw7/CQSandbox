@@ -38,6 +38,11 @@ void
 App::
 init()
 {
+  if (initialized_)
+    return;
+
+  initialized_ = true;
+
   auto *layout = new QVBoxLayout(this);
 
   auto *clayout = new QHBoxLayout;

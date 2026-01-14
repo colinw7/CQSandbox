@@ -3,6 +3,8 @@
 #include <CVector3D.h>
 #include <COSRand.h>
 
+static CParticleSystem3D particleSystem;
+
 CFlag::
 CFlag(double x, double y, double width, double height,
       int num_rows, int num_cols, double mass) :
@@ -357,7 +359,8 @@ step(double dt)
 }
 
 CFlagParticle::
-CFlagParticle()
+CFlagParticle() :
+ particle_(particleSystem)
 {
   setMass        (0);
   setPosition    (0.0, 0.0, 0.0);

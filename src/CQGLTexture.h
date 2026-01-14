@@ -2,7 +2,7 @@
 #define CQGL_TEXTURE_H
 
 #include <QImage>
-#include <GL/gl.h>
+#include <QOpenGLExtraFunctions>
 
 class CQGLTexture {
  public:
@@ -23,16 +23,31 @@ class CQGLTexture {
   bool useAlpha() const { return useAlpha_; }
   void setUseAlpha(bool b) { useAlpha_ = b; }
 
-  bool load(const QString &fileName, bool flip=false);
+  bool isFlipped() const { return flipped_; }
+  void setFlipped(bool b) { flipped_ = b; }
 
+  bool load(const QString &fileName, bool flip=false);
   bool load(const QImage &image, bool flip=false);
 
+  const QImage &getImage() const { return image_; }
   void setImage(const QImage &image);
 
+  uint getId() const { return id_; }
+
+  const std::string &getName() const { return name_; }
+  void setName(const std::string &s) { name_ = s; }
+
+  bool setTarget(int w, int h);
+
+  const QOpenGLExtraFunctions *functions() const { return functions_; }
+  void setFunctions(QOpenGLExtraFunctions *p) { functions_ = p; }
+
+//void bindTo(GLenum num) const;
   void bind() const;
   void unbind() const;
 
-  uint getId() const { return id_; }
+  void bindBuffer() const;
+  void unbindBuffer() const;
 
   void enable(bool b);
 
@@ -52,11 +67,20 @@ class CQGLTexture {
   QImage         image_;
   unsigned char *imageData_ { nullptr };
 
-  uint     id_       { 0 };
-  bool     valid_    { false };
-  WrapType wrapType_ { WrapType::REPEAT };
-  bool     cubeMap_  { false };
-  bool     useAlpha_ { true };
+  uint        id_       { 0 };
+  std::string name_;
+  bool        valid_    { false };
+  WrapType    wrapType_ { WrapType::REPEAT };
+  bool        useAlpha_ { true };
+  bool        flipped_  { false };
+
+  GLuint frameBufferId_ { 0 };
+  GLuint depthRenderBuffer_ { 0 };
+
+  int targetWidth_  { -1 };
+  int targetHeight_ { -1 };
+
+  QOpenGLExtraFunctions *functions_ { nullptr };
 };
 
 //---
@@ -80,11 +104,11 @@ class CQGLTextureMgr {
       return (*p).second;
 
     // If not found, load the texture
-    CQGLTexture *texture = new CQGLTexture;
+    auto *texture = new CQGLTexture;
 
     if (! texture->load(fileName, flip)) {
       delete texture;
-      return NULL;
+      return nullptr;
     }
 
     // The texture has been successfully loaded, register it.

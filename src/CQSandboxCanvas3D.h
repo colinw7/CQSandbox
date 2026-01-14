@@ -6,13 +6,15 @@
 #include <CGLPath3D.h>
 #include <CGLVector3D.h>
 #include <CGLVector2D.h>
+#include <CGLColor.h>
 #include <CPoint3D.h>
 #include <CBBox3D.h>
 #include <CMinMax.h>
 
 #include <QFrame>
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLExtraFunctions>
+#include <QOpenGLShaderProgram>
 
 #include <optional>
 
@@ -57,34 +59,26 @@ class CFireworks;
 
 class CShape3D;
 
-class QOpenGLShaderProgram;
 class QTimer;
 
 namespace CDotParse {
 class Parse;
 }
 
+//---
+
+#include <CQSandboxShaderProgram.h>
+
 namespace CQSandbox {
 
-struct Color {
-  Color() = default;
-
-  Color(float r_, float g_, float b_, float a_=1.0) :
-   r(r_), g(g_), b(b_), a(a_) {
-  }
-
-  float r { 0.0f };
-  float g { 0.0f };
-  float b { 0.0f };
-  float a { 1.0f };
-};
+class App;
+//class ShaderProgram;
+class ShaderToyProgram;
 
 //---
 
-class App;
-
 // QOpenGLFunctions
-class OpenGLWindow : public QOpenGLWidget, public QOpenGLFunctions_3_3_Core {
+class OpenGLWindow : public QOpenGLWidget, public QOpenGLExtraFunctions {
   Q_OBJECT
 
   Q_PROPERTY(bool animating READ isAnimating WRITE setAnimating)
@@ -116,14 +110,6 @@ class OpenGLWindow : public QOpenGLWidget, public QOpenGLFunctions_3_3_Core {
 
 //---
 
-struct ProgramData {
-  QOpenGLShaderProgram *program           { nullptr };
-  GLint                 projectionUniform { 0 };
-  GLint                 viewUniform       { 0 };
-};
-
-//---
-
 class Canvas3D;
 class Group3DObj;
 class BBox3DObj;
@@ -149,7 +135,7 @@ class Object3D : public QObject {
     TRANSLATE = (1<<0),
     SCALE     = (1<<1),
     ROTATE    = (1<<2),
-    ALL       = (TRANSLATE|SCALE|ROTATE)
+    ALL       = (TRANSLATE | SCALE | ROTATE)
   };
 
  public:
@@ -251,6 +237,8 @@ class Object3D : public QObject {
 
   virtual void tick();
 
+  virtual void preRender() { }
+
   virtual void render();
 
   virtual bool intersect(const CGLVector3D &, const CGLVector3D &, CPoint3D &, CPoint3D &) const {
@@ -288,8 +276,9 @@ class Object3D : public QObject {
 
   CGLMatrix3D modelMatrix_;
 
-  int ticks_ { 0 };
-  int dt_    { 1 };
+  int    ticks_   { 0 };
+  int    dt_      { 1 };
+  double elapsed_ { 0.0 };
 
   Group3DObj *group_ { nullptr };
 
@@ -319,6 +308,7 @@ class Light3D : public QObject {
 
  public:
   Light3D(Canvas3D *canvas, const Type &type=Type::DIRECTIONAL);
+ ~Light3D();
 
   int id() const { return id_; }
   void setId(int i) { id_ = i; }
@@ -357,7 +347,7 @@ class Light3D : public QObject {
   void render();
 
  private:
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
   Canvas3D* canvas_ { nullptr };
 
@@ -432,7 +422,7 @@ class Model3DObj : public Object3D {
 
   //---
 
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
   QString vertShaderFile_;
   QString fragShaderFile_;
@@ -547,7 +537,7 @@ class BBox3DObj : public Object3D {
  protected:
   using Points = std::vector<CGLVector3D>;
 
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
   Points points_;
 
@@ -590,10 +580,10 @@ class Plane3DObj : public Object3D {
 
  protected:
   using Points    = std::vector<CGLVector3D>;
-  using Colors    = std::vector<Color>;
+  using Colors    = std::vector<CGLColor>;
   using TexCoords = std::vector<CGLVector2D>;
 
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
   QColor color_;
 
@@ -613,12 +603,12 @@ class Plane3DObj : public Object3D {
 
 //---
 
-class Shape3DObj : public Object3D {
-  Q_OBJECT
-
-  Q_PROPERTY(QString texture READ textureFile WRITE setTextureFile)
-
+class Shape3DData {
  public:
+  using Points    = std::vector<CGLVector3D>;
+  using Indices   = std::vector<unsigned int>;
+  using TexCoords = std::vector<CGLVector2D>;
+
   struct VertexData {
     CGLVector3D position;
     CGLVector3D normal;
@@ -631,6 +621,51 @@ class Shape3DObj : public Object3D {
   };
 
  public:
+  Shape3DData() = default;
+ ~Shape3DData();
+
+  Shape3DData(const Shape3DData &) = delete;
+  Shape3DData &operator=(const Shape3DData &) = delete;
+
+  const Points &points() const { return points_; }
+  void setPoints(const Points &points) { points_ = points; }
+
+  const Points &normals() const { return normals_; }
+  void setNormals(const Points &normals) { normals_ = normals; }
+
+  const Indices &indices() const { return indices_; }
+  void setIndices(const Indices &indices) { indices_ = indices; }
+
+  const TexCoords &texCoords() const { return texCoords_; }
+  void setTexCoords(const TexCoords &texCoords) { texCoords_ = texCoords; }
+
+  CShape3D *geom() const { return geom_; }
+
+  void addCone(double r, double h);
+  void addCylinder(double r, double h);
+  void addCube(double sx, double sy, double sz);
+  void addSphere(double r);
+
+  void addBodyRev(double *x, double *y, uint num_xy, uint num_patches);
+
+  static void addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
+                          std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices);
+
+ private:
+  Points    points_;
+  Points    normals_;
+  Indices   indices_;
+  TexCoords texCoords_;
+
+  CShape3D *geom_ { nullptr };
+};
+
+class Shape3DObj : public Object3D {
+  Q_OBJECT
+
+  Q_PROPERTY(QString texture READ textureFile WRITE setTextureFile)
+
+ public:
   static bool create(Canvas3D *canvas, const QStringList &args);
 
   Shape3DObj(Canvas3D *canvas);
@@ -640,8 +675,8 @@ class Shape3DObj : public Object3D {
   QVariant getValue(const QString &name, const QStringList &args) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  const Color &color() const { return color_; }
-  void setColor(const Color &c) { color_ = c; }
+  const CGLColor &color() const { return color_; }
+  void setColor(const CGLColor &c) { color_ = c; }
 
   const QString &textureFile() const { return textureFile_; }
   void setTextureFile(const QString &filename);
@@ -664,32 +699,19 @@ class Shape3DObj : public Object3D {
 
   void render() override;
 
-  void addCone(double r, double h);
-  void addCylinder(double r, double h);
-  void addSphere(double r);
   void addCube(double sx, double sy, double sz);
 
-  void addBodyRev(double *x, double *y, uint num_xy, uint num_patches);
-
-  void addBodyRev(double *x, double *y, uint num_xy, uint num_patches,
-                  std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices);
-
  protected:
-  using Points    = std::vector<CGLVector3D>;
-  using Indices   = std::vector<unsigned int>;
-  using Colors    = std::vector<Color>;
-  using TexCoords = std::vector<CGLVector2D>;
+  using Colors = std::vector<CGLColor>;
 
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
-  Color color_ { 1.0, 1.0, 1.0, 1.0 };
+  CGLColor color_ { 1.0, 1.0, 1.0, 1.0 };
 
-  Points    points_;
-  Points    normals_;
-  Colors    colors_;
-  Indices   indices_;
-  TexCoords texCoords_;
-  bool      wireframe_ { false };
+  Shape3DData shapeData_;
+
+  Colors colors_;
+  bool   wireframe_ { false };
 
   QString      textureFile_;
   CQGLTexture *texture_       { nullptr };
@@ -706,8 +728,89 @@ class Shape3DObj : public Object3D {
   unsigned int texCoordBufferId_ { 0 };
   unsigned int vertexArrayId_    { 0 };
   unsigned int indBufferId_      { 0 };
+};
 
-  CShape3D *geom_ { nullptr };
+//---
+
+class ShaderShape3DObj : public Object3D {
+  Q_OBJECT
+
+ public:
+  struct VertexData {
+    CGLVector3D position;
+    CGLVector3D normal;
+    CGLVector2D texCoord;
+
+    VertexData(const CGLVector3D &position, const CGLVector3D &normal,
+               const CGLVector2D &texCoord) :
+     position(position), normal(normal), texCoord(texCoord) {
+    }
+  };
+
+ public:
+  static bool create(Canvas3D *canvas, const QStringList &args);
+
+  ShaderShape3DObj(Canvas3D *canvas);
+
+  const char *typeName() const override { return "ShaderShape"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  const CGLColor &color() const { return color_; }
+  void setColor(const CGLColor &c) { color_ = c; }
+
+  void setShaderTexture(const QString &filename);
+
+  void init() override;
+
+  void updateGL();
+
+  bool intersect(const CGLVector3D &p1, const CGLVector3D &p2,
+                 CPoint3D &pi1, CPoint3D &pi2) const override;
+
+  CBBox3D calcBBox() override;
+
+  void calcNormals();
+
+  void preRender() override;
+
+  void render() override;
+
+ protected:
+  using Points    = std::vector<CGLVector3D>;
+  using Indices   = std::vector<unsigned int>;
+  using Colors    = std::vector<CGLColor>;
+  using TexCoords = std::vector<CGLVector2D>;
+
+  struct ShaderData {
+    CQGLTexture*      texture { nullptr };
+    ShaderToyProgram* program { nullptr };
+  };
+
+  static ShaderProgram* s_program;
+
+  CGLColor color_ { 1.0, 1.0, 1.0, 1.0 };
+
+  Shape3DData shapeData_;
+
+  Colors colors_;
+  bool   wireframe_ { false };
+
+  bool useTriangleStrip_ { false };
+  bool useTriangleFan_   { false };
+
+  unsigned int pointsBufferId_   { 0 };
+  unsigned int normalsBufferId_  { 0 };
+  unsigned int colorsBufferId_   { 0 };
+  unsigned int texCoordBufferId_ { 0 };
+  unsigned int vertexArrayId_    { 0 };
+  unsigned int indBufferId_      { 0 };
+
+  ShaderData shaderData_;
+
+  int shaderWidth_  { 512 };
+  int shaderHeight_ { 512 };
 };
 
 //---
@@ -747,20 +850,15 @@ class Shader3DObj : public Object3D {
   void render() override;
 
  private:
-  QOpenGLShaderProgram* program_ { nullptr };
-
-  QString fragmentShader_;
-  QString vertexShader_;
-
-  double elapsed_ { 0.0 };
-
-  bool shaderValid_ { false };
+  ShaderToyProgram* shaderToyProgram_ { nullptr };
 };
 
 //---
 
 class ParticleList3DObj : public Object3D {
   Q_OBJECT
+
+  Q_PROPERTY(double particleSize READ particleSize WRITE setParticleSize)
 
  public:
   using Points = std::vector<CGLVector3D>;
@@ -771,6 +869,9 @@ class ParticleList3DObj : public Object3D {
   ParticleList3DObj(Canvas3D *canvas);
 
   const char *typeName() const override { return "ParticleList"; }
+
+  double particleSize() const { return particleSize_; }
+  void setParticleSize(double r) { particleSize_ = r; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -800,7 +901,12 @@ class ParticleList3DObj : public Object3D {
 #endif
 
  protected:
-  struct ParticleListProgramData : public ProgramData {
+  class ParticleListShaderProgram : public ShaderProgram {
+   public:
+    ParticleListShaderProgram(QObject *parent) :
+     ShaderProgram(parent) {
+    }
+
     GLint positionAttr { 0 };
     GLint centerAttr   { 0 };
     GLint colorAttr    { 0 };
@@ -808,16 +914,16 @@ class ParticleList3DObj : public Object3D {
 
   static size_t s_maxPoints;
 
-  static ParticleListProgramData *s_program;
+  static ParticleListShaderProgram *s_program;
 
-  using Colors = std::vector<Color>;
+  using Colors = std::vector<CGLColor>;
 
   Points points_;
   Colors colors_;
 
-  GLuint particles_position_buffer_ { 0 };
-  GLuint particles_color_buffer_    { 0 };
-  GLuint billboard_vertex_buffer_   { 0 };
+  GLuint particlesPositionBuffer_ { 0 };
+  GLuint particlesColorBuffer_    { 0 };
+  GLuint billboardVertexBuffer_   { 0 };
 
   QString      textureFile_;
   CQGLTexture *texture_ { nullptr };
@@ -829,6 +935,8 @@ class ParticleList3DObj : public Object3D {
 #ifdef CQSANDBOX_FIREWORKS
   CFireworks* fireworks_ { nullptr };
 #endif
+
+  double particleSize_ { 0.05 };
 };
 
 //---
@@ -871,7 +979,7 @@ class Surface3DObj : public Object3D {
   using Colors  = std::vector<CGLVector3D>;
   using Indices = std::vector<unsigned int>;
 
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
   Points  points_;
   Points  normals_;
@@ -914,7 +1022,12 @@ class Text3DObj : public Object3D {
     float       offsetY { 0 };
   };
 
-  struct TextProgramData : public ProgramData {
+  class TextShaderProgram : public ShaderProgram {
+   public:
+    TextShaderProgram(QObject *parent) :
+     ShaderProgram(parent) {
+    }
+
     GLint posAttr        { 0 };
     GLint colAttr        { 0 };
     GLint texPosAttr     { 0 };
@@ -931,8 +1044,8 @@ class Text3DObj : public Object3D {
   const QString &text() const { return text_; }
   void setText(const QString &s);
 
-  const Color &color() const { return color_; }
-  void setColor(const Color &c) { color_ = c; }
+  const CGLColor &color() const { return color_; }
+  void setColor(const CGLColor &c) { color_ = c; }
 
   bool isRotated() const { return rotated_; }
   void setRotated(bool b) { rotated_ = b; }
@@ -966,17 +1079,17 @@ class Text3DObj : public Object3D {
     float    angle { 0.0f };
   };
 
-  static TextProgramData* s_program;
-  static FontData*        s_fontData;
+  static TextShaderProgram* s_program;
+  static FontData*          s_fontData;
 
-  QString text_;
-  Color   color_ { 1.0, 1.0, 1.0 };
-  double  size_ { 0.05 };
-  bool    textDataValid_ { false };
+  QString  text_;
+  CGLColor color_ { 1.0, 1.0, 1.0 };
+  double   size_ { 0.05 };
+  bool     textDataValid_ { false };
 
   std::vector<CGLVector3D> vertices_;
   std::vector<CGLVector2D> uvs_;
-  std::vector<Color>       colors_;
+  std::vector<CGLColor>    colors_;
   std::vector<uint16_t>    indexes_;
 
   GLData glData_;
@@ -1017,7 +1130,7 @@ class Path3DObj : public Object3D {
 
   using Points = std::vector<CGLVector3D>;
 
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
   Points points_;
 
@@ -1096,7 +1209,7 @@ class Sprite3DObj : public Object3D {
   void updateModelMatrix() override;
 
  private:
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
   CQGLBuffer*                buffer_ { nullptr };
   std::vector<CQGLTexture *> textures_;
@@ -1152,7 +1265,7 @@ class Skybox3DObj : public Object3D {
 
   using ObjectDatas = std::map<CGeomObject3D*, ObjectData *>;
 
-  static ProgramData* s_program;
+  static ShaderProgram* s_program;
 
   CImportBase* import_ { nullptr };
 
@@ -1307,8 +1420,8 @@ class Graph3DObj : public Object3D {
   using Points   = std::vector<CGLVector3D>;
   using TextObjs = std::vector<Text3DObj *>;
 
-  static ProgramData* s_program1;
-  static ProgramData* s_program2;
+  static ShaderProgram* s_program1;
+  static ShaderProgram* s_program2;
 
   CForceDirected3D *forceDirected_ { nullptr };
 
@@ -1316,7 +1429,7 @@ class Graph3DObj : public Object3D {
 
   double stepSize_ { 0.01 };
 
-  Color lineColor_ { 1.0, 0.0, 0.0 };
+  CGLColor lineColor_ { 1.0, 0.0, 0.0 };
 
   Points points_;
   Points linePoints_;
@@ -1352,6 +1465,8 @@ class Canvas3D : public OpenGLWindow {
   Q_PROPERTY(bool frontFace   READ isFrontFace   WRITE setFrontFace)
   Q_PROPERTY(bool smoothShade READ isSmoothShade WRITE setSmoothShade)
 
+  Q_PROPERTY(int redrawTimeOut READ redrawTimeOut WRITE setRedrawTimeOut)
+
  public:
   enum class Type {
     CAMERA = 0,
@@ -1370,6 +1485,7 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   int redrawTimeOut() const { return redrawTimeOut_; }
+  void setRedrawTimeOut(int t);
 
   //---
 
@@ -1415,7 +1531,7 @@ class Canvas3D : public OpenGLWindow {
 
   void updateLights();
 
-  void setProgramLights(QOpenGLShaderProgram *program);
+  void setProgramLights(ShaderProgram *program);
 
   const std::vector<Light3D *> lights() const { return lights_; }
 
@@ -1516,6 +1632,8 @@ class Canvas3D : public OpenGLWindow {
 
   static int canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
   static int cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+
+  static int customFormProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
 #if 0
   static int loadModelProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);

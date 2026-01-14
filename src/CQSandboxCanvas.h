@@ -939,7 +939,8 @@ class Canvas : public QFrame {
 
   size_t lastInd_ { 0 };
 
-  bool initialized_ = false;
+  bool initialized_ { false };
+  bool inited_      { false };
 
   QPen         pen_;
   AnimateBrush brush_;

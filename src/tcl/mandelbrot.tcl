@@ -1,5 +1,5 @@
 proc init { } {
-  puts "init"
+  #puts "init"
 
   set ::xmin -2.0
   set ::ymin -1.2
@@ -25,6 +25,8 @@ proc init { } {
 }
 
 proc iterToColor { iter } {
+  #puts "iterToColor $iter"
+
   set r 0
   set g 0
   set b 0
@@ -42,6 +44,8 @@ proc iterToColor { iter } {
 }
 
 proc calc { x y } {
+  #puts "calc $x $y"
+
   set zr2 0.0
   set zi2 0.0
   set zri 0.0
@@ -71,6 +75,8 @@ proc pixelYToUser { y } {
 }
 
 proc drawBg { } {
+  #puts "drawBg"
+
   for {set y 0} {$y < $::pixelHeight} {incr y} {
     set yy [pixelYToUser $y]
 

@@ -56,6 +56,8 @@ class App : public QFrame {
  private:
   CQTcl* tcl_ { nullptr };
 
+  bool initialized_ { false };
+
   Canvas*    canvas_    { nullptr };
   Toolbar2D* toolbar2D_ { nullptr };
   Canvas3D*  canvas3D_  { nullptr };

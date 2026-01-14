@@ -9,22 +9,22 @@ out vec4 FragColor;
 
 struct DirectionalLight {
   bool enabled;
-  vec3 direction;
   vec3 color;
+  vec3 direction;
 };
 
 struct PointLight {
   bool  enabled;
-  vec3  position;
   vec3  color;
+  vec3  position;
   float radius;
 };
 
 struct SpotLight {
   bool  enabled;
+  vec3  color;
   vec3  position;
   vec3  direction;
-  vec3  color;
   float cutoff;
 };
 

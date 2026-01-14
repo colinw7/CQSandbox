@@ -6,19 +6,23 @@ QT += widgets
 
 DEPENDPATH += .
 
-QMAKE_CXXFLAGS += -std=c++17
+QMAKE_CXXFLAGS += \
+-std=c++17 \
+-DNO_QT_APP=1
 
 MOC_DIR = .moc
 
 CONFIG += debug
 
 SOURCES += \
-CQSandboxMain.cpp \
 CQSandboxApp.cpp \
 CQSandboxCanvas.cpp \
 CQSandboxCanvas3D.cpp \
 CQSandboxControl2D.cpp \
 CQSandboxControl3D.cpp \
+CQSandboxMain.cpp \
+CQSandboxShaderProgram.cpp \
+CQSandboxShaderToyProgram.cpp \
 CQSandboxToolbar2D.cpp \
 CQSandboxToolbar3D.cpp \
 \
@@ -53,6 +57,8 @@ CQSandboxCanvas.h \
 CQSandboxCanvas3D.h \
 CQSandboxControl2D.h \
 CQSandboxControl3D.h \
+CQSandboxShaderProgram.h \
+CQSandboxShaderToyProgram.h \
 CQSandboxToolbar2D.h \
 CQSandboxToolbar3D.h \
 CQSandboxUtil.h \
@@ -98,6 +104,7 @@ unix:LIBS += \
 -L../../CQPropertyView/lib \
 -L../../CQUtil/lib \
 -L../../CImportModel/lib \
+-L../../CVoxel/lib \
 -L../../CGeometry3D/lib \
 -L../../CImageLib/lib \
 -L../../CRGBName/lib \
@@ -116,6 +123,7 @@ unix:LIBS += \
 -lCQPropertyView \
 -lCQUtil \
 -lCImportModel \
+-lCVoxel \
 -lCGeometry3D \
 -lCImageLib \
 -lCRGBName \
@@ -130,4 +138,4 @@ unix:LIBS += \
 -lCOS \
 -ltk -ltcl \
 -lglut -lGLU \
--ltre -lpng -ljpeg
+-ltre -lpng -ljpeg -lz

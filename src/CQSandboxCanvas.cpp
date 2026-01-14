@@ -275,6 +275,11 @@ void
 Canvas::
 init()
 {
+  if (initialized_)
+    return;
+
+  initialized_ = true;
+
   addCommands();
 
   app_->runTclCmd("proc init { args } { }");
@@ -489,10 +494,10 @@ void
 Canvas::
 stepInit()
 {
-  if (! initialized_) {
+  if (! inited_) {
     app_->runTclCmd("init");
 
-    initialized_ = true;
+    inited_ = true;
   }
 }
 
@@ -517,6 +522,8 @@ paintEvent(QPaintEvent *)
   painter_ = new QPainter(this);
 
   painter_->fillRect(rect(), brush_.value());
+
+  stepInit();
 
   app_->runTclCmd("drawBg");
 
