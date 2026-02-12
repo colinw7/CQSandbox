@@ -117,9 +117,9 @@ class CQGLBuffer {
     data_.indicesSet = false;
   }
 
-  void clearPoints() { data_.points.clear(); data_.dataValid = false; }
-  void clearNormals() { data_.normals.clear(); data_.dataValid = false; }
-  void clearColors() { data_.colors.clear(); data_.dataValid = false; }
+  void clearPoints       () { data_.points       .clear(); data_.dataValid = false; }
+  void clearNormals      () { data_.normals      .clear(); data_.dataValid = false; }
+  void clearColors       () { data_.colors       .clear(); data_.dataValid = false; }
   void clearTexturePoints() { data_.texturePoints.clear(); data_.dataValid = false; }
 
   //---
@@ -179,6 +179,8 @@ class CQGLBuffer {
 
     data_.indicesSet = true;
   }
+
+  //---
 
   void load() {
     initData();
@@ -253,6 +255,8 @@ class CQGLBuffer {
   }
 
   void bind() {
+    assert(data_.dataValid);
+
     // seeing as we only have a single VAO there's no need to bind it every time,
     // but we'll do so to keep things a bit more organized
     data_.vObj->bind();

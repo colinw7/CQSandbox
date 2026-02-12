@@ -38,8 +38,10 @@ main(int argc, char **argv)
 
   app->init();
 
-  if (filename != "")
-    app->load(filename);
+  if (filename != "") {
+    if (! app->load(filename))
+      std::cerr << "Failed to load '" << filename.toStdString() << "'\n";
+  }
 
   app->show();
 

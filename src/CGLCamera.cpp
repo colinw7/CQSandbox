@@ -296,10 +296,13 @@ void
 CGLCamera::
 updateCameraVectors(bool rotate)
 {
-  // calculate the new front_ vector
-  CGLVector3D front(std::cos(CMathGen::DegToRad(yaw  ()))*std::cos(CMathGen::DegToRad(pitch())),
-                    std::sin(CMathGen::DegToRad(pitch())),
-                    std::sin(CMathGen::DegToRad(yaw  ()))*std::cos(CMathGen::DegToRad(pitch())));
+  // calculate the new front vector
+  auto yaw   = CMathGen::DegToRad(this->yaw  ());
+  auto pitch = CMathGen::DegToRad(this->pitch());
+
+  CGLVector3D front(std::cos(yaw  )*std::cos(pitch),
+                    std::sin(pitch),
+                    std::sin(yaw  )*std::cos(pitch));
 
   front_ = front.normalized();
 

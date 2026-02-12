@@ -360,12 +360,26 @@ void
 OpenGLWindow::
 resizeGL(int, int)
 {
+  const qreal retinaScale = devicePixelRatio();
+
+  pixelWidth_  = width ()*retinaScale;
+  pixelHeight_ = height()*retinaScale;
+
+  glViewport(0, 0, pixelWidth_, pixelHeight_);
+
+  aspect_ = double(pixelWidth_)/double(pixelHeight_);
 }
 
 void
 OpenGLWindow::
 paintGL()
 {
+  glClearColor(bgColor_.redF(), bgColor_.greenF(), bgColor_.blueF(), 1.0f);
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+  //---
+
   render();
 }
 
@@ -454,7 +468,7 @@ void
 Canvas3D::
 addCommands()
 {
-   auto *tcl = app_->tcl();
+  auto *tcl = app_->tcl();
 
   // global
   tcl->createObjCommand("sb3d::canvas",
@@ -1354,17 +1368,6 @@ render()
 
   //---
 
-  const qreal retinaScale = devicePixelRatio();
-
-  pixelWidth_  = width ()*retinaScale;
-  pixelHeight_ = height()*retinaScale;
-
-  glViewport(0, 0, pixelWidth_, pixelHeight_);
-
-  glClearColor(bgColor_.redF(), bgColor_.greenF(), bgColor_.blueF(), 1.0f);
-
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
   glDepthMask(GL_TRUE);
 
   isDepthTest() ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
@@ -1384,8 +1387,6 @@ render()
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   //---
-
-  aspect_ = float(width())/float(height());
 
   projectionMatrix_ = camera_->getPerspectiveMatrix(aspect_);
   viewMatrix_       = camera_->getViewMatrix();

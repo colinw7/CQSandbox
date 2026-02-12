@@ -81,7 +81,8 @@ class ShaderToyProgram;
 class OpenGLWindow : public QOpenGLWidget, public QOpenGLExtraFunctions {
   Q_OBJECT
 
-  Q_PROPERTY(bool animating READ isAnimating WRITE setAnimating)
+  Q_PROPERTY(QColor bgColor   READ bgColor     WRITE setBgColor)
+  Q_PROPERTY(bool   animating READ isAnimating WRITE setAnimating)
 
  public:
   explicit OpenGLWindow(QWidget *parent=nullptr);
@@ -90,6 +91,15 @@ class OpenGLWindow : public QOpenGLWidget, public QOpenGLExtraFunctions {
   void initializeGL() override;
   void resizeGL(int w, int h) override;
   void paintGL() override;
+
+  //---
+
+  const QColor &bgColor() const { return bgColor_; }
+  void setBgColor(const QColor &c) { bgColor_ = c; }
+
+  double aspect() const { return aspect_; }
+
+  //---
 
   virtual void initialize();
 
@@ -105,7 +115,14 @@ class OpenGLWindow : public QOpenGLWidget, public QOpenGLExtraFunctions {
   void typeChanged();
 
  protected:
+  QColor bgColor_ { 0, 0, 0 };
+
   bool animating_ { false };
+
+  double pixelWidth_  { 100.0 };
+  double pixelHeight_ { 100.0 };
+
+  double aspect_ { 1.0 };
 };
 
 //---
@@ -410,7 +427,7 @@ class Model3DObj : public Object3D {
 
   using FaceDatas = std::vector<FaceData>;
 
-  FaceDatas faceDatas;
+  //FaceDatas faceDatas;
 
   struct ObjectData {
     CQGLBuffer* buffer { nullptr };
@@ -1256,7 +1273,7 @@ class Skybox3DObj : public Object3D {
 
   using FaceDatas = std::vector<FaceData>;
 
-  FaceDatas faceDatas;
+  //FaceDatas faceDatas;
 
   struct ObjectData {
     CQGLBuffer* buffer { nullptr };
@@ -1447,7 +1464,6 @@ class Graph3DObj : public Object3D {
 class Canvas3D : public OpenGLWindow {
   Q_OBJECT
 
-  Q_PROPERTY(QColor bgColor   READ bgColor   WRITE setBgColor)
   Q_PROPERTY(double ambient   READ ambient   WRITE setAmbient)
   Q_PROPERTY(double diffuse   READ diffuse   WRITE setDiffuse)
   Q_PROPERTY(double specular  READ specular  WRITE setSpecular)
@@ -1486,11 +1502,6 @@ class Canvas3D : public OpenGLWindow {
 
   int redrawTimeOut() const { return redrawTimeOut_; }
   void setRedrawTimeOut(int t);
-
-  //---
-
-  const QColor &bgColor() const { return bgColor_; }
-  void setBgColor(const QColor &c) { bgColor_ = c; }
 
   //---
 
@@ -1574,8 +1585,6 @@ class Canvas3D : public OpenGLWindow {
   bool isOutline() { return outline_; }
 
   //---
-
-  double aspect() const { return aspect_; }
 
   const CRMinMax &xrange() const { return xrange_; }
   const CRMinMax &yrange() const { return yrange_; }
@@ -1663,8 +1672,6 @@ class Canvas3D : public OpenGLWindow {
 
   size_t lastInd_ { 0 };
 
-  QColor bgColor_ { 0, 0, 0 };
-
   double ambient_   { 0.5 };
   double diffuse_   { 0.5 };
   double specular_  { 1.0 };
@@ -1674,9 +1681,6 @@ class Canvas3D : public OpenGLWindow {
   bool wireframe_   { false };
   bool bbox_        { false };
 
-  double pixelWidth_  { 100.0 };
-  double pixelHeight_ { 100.0 };
-
   Type type_ { Type::CAMERA };
 
   bool depthTest_   { true };
@@ -1685,8 +1689,6 @@ class Canvas3D : public OpenGLWindow {
   bool frontFace_   { false };
   bool smoothShade_ { true };
   bool outline_     { false };
-
-  double aspect_ { 1.0 };
 
   CRMinMax xrange_ { -1.0, 1.0 };
   CRMinMax yrange_ { -1.0, 1.0 };
