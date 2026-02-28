@@ -2597,7 +2597,7 @@ updateObjectData()
         if (face->getNormalSet())
           normal = face->getNormal();
         else
-          face->calcNormal(normal);
+          face->calcModelNormal(normal);
 
         const auto &vertices = face->getVertices();
 
@@ -5443,7 +5443,7 @@ render()
                         nullptr, GL_STREAM_DRAW);
   canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, n*sizeof(CGLColor), &colors_[0]);
 
-  // 1rst attribute buffer : vertices
+  // 1st attribute buffer : vertices
   canvas_->glEnableVertexAttribArray(s_program->positionAttr);
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardVertexBuffer_);
   canvas_->glVertexAttribPointer(
