@@ -15,14 +15,39 @@ MOC_DIR = .moc
 CONFIG += debug
 
 SOURCES += \
+CQSandboxMain.cpp \
 CQSandboxApp.cpp \
 CQSandboxCanvas.cpp \
 CQSandboxCanvas3D.cpp \
+CQSandboxLight3D.cpp \
+CQSandboxObject3D.cpp \
+\
+CQSandboxAxis3DObj.cpp \
+CQSandboxBBox3DObj.cpp \
+CQSandboxCsv3DObj.cpp \
+CQSandboxCube3DObj.cpp \
+CQSandboxDungeon3DObj.cpp \
+CQSandboxFieldRunners3DObj.cpp \
+CQSandboxGraph3DObj.cpp \
+CQSandboxGroup3DObj.cpp \
+CQSandboxModel3DObj.cpp \
+CQSandboxOthello3DObj.cpp \
+CQSandboxParticleList3DObj.cpp \
+CQSandboxPath3DObj.cpp \
+CQSandboxPlane3DObj.cpp \
+CQSandboxShader3DObj.cpp \
+CQSandboxShaderShape3DObj.cpp \
+CQSandboxShape3DObj.cpp \
+CQSandboxSkybox3DObj.cpp \
+CQSandboxSprite3DObj.cpp \
+CQSandboxSurface3DObj.cpp \
+CQSandboxText3DObj.cpp \
+\
 CQSandboxControl2D.cpp \
 CQSandboxControl3D.cpp \
-CQSandboxMain.cpp \
 CQSandboxShaderProgram.cpp \
 CQSandboxShaderToyProgram.cpp \
+CQSandboxShape3DData.cpp \
 CQSandboxToolbar2D.cpp \
 CQSandboxToolbar3D.cpp \
 \
@@ -55,10 +80,35 @@ HEADERS += \
 CQSandboxApp.h \
 CQSandboxCanvas.h \
 CQSandboxCanvas3D.h \
+CQSandboxLight3D.h \
+CQSandboxObject3D.h \
+\
+CQSandboxAxis3DObj.h \
+CQSandboxBBox3DObj.h \
+CQSandboxCsv3DObj.h \
+CQSandboxCube3DObj.h \
+CQSandboxDungeon3DObj.h \
+CQSandboxFieldRunners3DObj.h \
+CQSandboxGraph3DObj.h \
+CQSandboxGroup3DObj.h \
+CQSandboxModel3DObj.h \
+CQSandboxOthello3DObj.h \
+CQSandboxParticleList3DObj.h \
+CQSandboxPath3DObj.h \
+CQSandboxPlane3DObj.h \
+CQSandboxShader3DObj.h \
+CQSandboxShaderShape3DObj.h \
+CQSandboxShape3DObj.h \
+CQSandboxSkybox3DObj.h \
+CQSandboxSprite3DObj.h \
+CQSandboxSurface3DObj.h \
+CQSandboxText3DObj.h \
+\
 CQSandboxControl2D.h \
 CQSandboxControl3D.h \
 CQSandboxShaderProgram.h \
 CQSandboxShaderToyProgram.h \
+CQSandboxShape3DData.h \
 CQSandboxToolbar2D.h \
 CQSandboxToolbar3D.h \
 CQSandboxUtil.h \
@@ -104,6 +154,7 @@ unix:LIBS += \
 -L../../CQPropertyView/lib \
 -L../../CQUtil/lib \
 -L../../CImportModel/lib \
+-L../../CXML/lib \
 -L../../CVoxel/lib \
 -L../../CGeometry3D/lib \
 -L../../CImageLib/lib \
@@ -123,6 +174,7 @@ unix:LIBS += \
 -lCQPropertyView \
 -lCQUtil \
 -lCImportModel \
+-lCXML \
 -lCVoxel \
 -lCGeometry3D \
 -lCImageLib \

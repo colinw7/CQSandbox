@@ -32,6 +32,9 @@ class CQGLTexture {
   const QImage &getImage() const { return image_; }
   void setImage(const QImage &image);
 
+  int getWidth () const { return width_ ; }
+  int getHeight() const { return height_; }
+
   uint getId() const { return id_; }
 
   const std::string &getName() const { return name_; }
@@ -42,7 +45,6 @@ class CQGLTexture {
   const QOpenGLExtraFunctions *functions() const { return functions_; }
   void setFunctions(QOpenGLExtraFunctions *p) { functions_ = p; }
 
-//void bindTo(GLenum num) const;
   void bind() const;
   void unbind() const;
 
@@ -66,6 +68,9 @@ class CQGLTexture {
  private:
   QImage         image_;
   unsigned char *imageData_ { nullptr };
+
+  int width_  { 0 };
+  int height_ { 0 };
 
   uint        id_       { 0 };
   std::string name_;

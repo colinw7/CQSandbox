@@ -12,12 +12,12 @@
 
 namespace {
 
-bool checkError() {
+bool checkError(const char *msg) {
   // check texture generated
   GLenum err = glGetError();
 
   if (err != GL_NO_ERROR) {
-    std::cerr << "OpenGL Error: " << gluErrorString(err) << "\n";
+    std::cerr << "OpenGL Error: " << gluErrorString(err) << "(" << msg << ")\n";
     return false;
   }
 
@@ -99,34 +99,35 @@ setTarget(int w, int h)
       functions_->glGenFramebuffers(1, &frameBufferId_);
 
     functions_->glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId_);
-    if (! checkError()) return false;
+    if (! checkError("glBindFramebuffer")) return false;
 
     // The texture we're going to render to
     if (id_ == 0) {
       glGenTextures(1, &id_);
-      if (! checkError()) return false;
+      if (! checkError("glGenTextures")) return false;
     }
 
     // generate texture
     glBindTexture(GL_TEXTURE_2D, id_);
-    if (! checkError()) return false;
+    if (! checkError("glBindTexture")) return false;
 
     // Give an empty image to OpenGL ( the last "0" )
     // no difference for GL_RGBA and GL_RGB
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, targetWidth_, targetHeight_,
                  /*border*/0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    if (! checkError()) return false;
+    if (! checkError("glTexImage2D")) return false;
 
     // Poor filtering (need min filter to avoid mip map use - not set)
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 //  glBindTexture(GL_TEXTURE_2D, 0);
-//  if (! checkError()) return false;
+//  if (! checkError("glBindTexture")) return false;
 
     if (depthRenderBuffer_ == 0)
       functions_->glGenRenderbuffers(1, &depthRenderBuffer_);
@@ -179,17 +180,17 @@ init(const QImage &image, bool flip)
   //------
 
   // convert to GL compatible data
-  auto w = image_.width ();
-  auto h = image_.height();
+  width_  = image_.width ();
+  height_ = image_.height();
 
-  imageData_ = new unsigned char [4*w*h];
+  imageData_ = new unsigned char [4*width_*height_];
 
   int i = 0;
 
-  for (int y = 0; y < h; ++y) {
-    int y1 = (flip ? h - 1 - y : y);
+  for (int y = 0; y < height_; ++y) {
+    int y1 = (flip ? height_ - 1 - y : y);
 
-    for (int x = 0; x < w; ++x) {
+    for (int x = 0; x < width_; ++x) {
       auto rgba = image_.pixel(x, y1);
 
       imageData_[i++] = qBlue (rgba);
@@ -205,13 +206,13 @@ init(const QImage &image, bool flip)
 
   // allocate texture id
   glGenTextures(1, &id_);
-  if (! checkError()) return false;
+  if (! checkError("glGenTextures")) return false;
 
   valid_ = true;
 
   // set texture type
   glBindTexture(GL_TEXTURE_2D, id_);
-  if (! checkError()) return false;
+  if (! checkError("glBindTexture")) return false;
 
   if (wrapType() == WrapType::CLAMP) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -221,44 +222,44 @@ init(const QImage &image, bool flip)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   }
-  if (! checkError()) return false;
+  if (! checkError("glTexParameteri")) return false;
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  if (! checkError()) return false;
+  if (! checkError("glTexParameteri")) return false;
 
   // select modulate to mix texture with color for shading
   //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-  //if (! checkError()) return false;
+  //if (! checkError("glTexEnvf")) return false;
 
   // build our texture mipmaps
   GLint internalFormat = (useAlpha() ? GL_RGBA : GL_RGB);
 
-  if (CMathGen::isPowerOf(2, w) && CMathGen::isPowerOf(2, h)) {
+  if (CMathGen::isPowerOf(2, width_) && CMathGen::isPowerOf(2, height_)) {
 #if 1
     // Hardware mipmap generation
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP_SGIS, GL_TRUE);
-    if (! checkError()) return false;
+    if (! checkError("glTexParameteri")) return false;
 
     glHint(GL_GENERATE_MIPMAP_HINT_SGIS, GL_NICEST);
-    if (! checkError()) return false;
+    if (! checkError("glHint")) return false;
 #endif
 
-    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0,
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width_, height_, 0,
                  GL_BGRA, GL_UNSIGNED_BYTE, &imageData_[0]);
-    if (! checkError()) return false;
+    if (! checkError("glTexImage2D")) return false;
 
 #if 0
     glGenerateMipmap(GL_TEXTURE_2D);
-    if (! checkError()) return false;
+    if (! checkError("glGenerateMipmap")) return false;
 #endif
   }
   else {
     // No hardware mipmap generation support, fall back to the
     // good old gluBuild2DMipmaps function
-    gluBuild2DMipmaps(GL_TEXTURE_2D, internalFormat, w, h,
+    gluBuild2DMipmaps(GL_TEXTURE_2D, internalFormat, width_, height_,
                       GL_BGRA, GL_UNSIGNED_BYTE, &imageData_[0]);
-    if (! checkError()) return false;
+    if (! checkError("gluBuild2DMipmaps")) return false;
   }
 
   return true;

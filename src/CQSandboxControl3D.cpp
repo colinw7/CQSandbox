@@ -1,5 +1,7 @@
 #include <CQSandboxControl3D.h>
 #include <CQSandboxCanvas3D.h>
+#include <CQSandboxLight3D.h>
+
 #include <CGLCamera.h>
 
 #include <CQColorEdit.h>
