@@ -693,6 +693,18 @@ compiler_moc_header_clean:
 		../../CMath/include/CBBox2D.h \
 		../../CMath/include/CSize2D.h \
 		../../CMath/include/CISize2D.h \
+		../../CUtil/include/CRGBA.h \
+		../../CUtil/include/CRGB.h \
+		../../CUtil/include/CRGBName.h \
+		CQuadTree.h \
+		CPSysSystem.h \
+		CPSysParticle.h \
+		CPSysVector3D.h \
+		CPSysSpring.h \
+		CPSysForce.h \
+		CPSysAttraction.h \
+		CPSysIntegrator.h \
+		CArrayList.h \
 		.moc/moc_predefs.h \
 		/usr/lib/qt5/bin/moc
 	/usr/lib/qt5/bin/moc $(DEFINES) --include /home/colinw/git/CQSandbox/src/.moc/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/src -I/home/colinw/git/CQSandbox/include -I/home/colinw/git/CQPropertyView/include -I/home/colinw/git/CQUtil/include -I/home/colinw/git/CGeometry3D/include -I/home/colinw/git/CImportModel/include -I/home/colinw/git/CQBaseModel/include -I/home/colinw/git/CImageLib/include -I/home/colinw/git/CFont/include -I/home/colinw/git/CCsv/qinclude -I/home/colinw/git/CConfig/include -I/home/colinw/git/CUtil/include -I/home/colinw/git/CFile/include -I/home/colinw/git/CMath/include -I/home/colinw/git/CStrUtil/include -I/home/colinw/git/COS/include -I/usr/include/tcl -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -I/usr/include/c++/11 -I/usr/include/x86_64-linux-gnu/c++/11 -I/usr/include/c++/11/backward -I/usr/lib/gcc/x86_64-linux-gnu/11/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include CQSandboxCanvas.h -o .moc/moc_CQSandboxCanvas.cpp
@@ -1335,6 +1347,18 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CBBox2D.h \
 		../../CMath/include/CSize2D.h \
 		../../CMath/include/CISize2D.h \
+		../../CUtil/include/CRGBA.h \
+		../../CUtil/include/CRGB.h \
+		../../CUtil/include/CRGBName.h \
+		CQuadTree.h \
+		CPSysSystem.h \
+		CPSysParticle.h \
+		CPSysVector3D.h \
+		CPSysSpring.h \
+		CPSysForce.h \
+		CPSysAttraction.h \
+		CPSysIntegrator.h \
+		CArrayList.h \
 		../../CQUtil/include/CQApp.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxMain.o CQSandboxMain.cpp
 
@@ -1353,6 +1377,18 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CBBox2D.h \
 		../../CMath/include/CSize2D.h \
 		../../CMath/include/CISize2D.h \
+		../../CUtil/include/CRGBA.h \
+		../../CUtil/include/CRGB.h \
+		../../CUtil/include/CRGBName.h \
+		CQuadTree.h \
+		CPSysSystem.h \
+		CPSysParticle.h \
+		CPSysVector3D.h \
+		CPSysSpring.h \
+		CPSysForce.h \
+		CPSysAttraction.h \
+		CPSysIntegrator.h \
+		CArrayList.h \
 		CQSandboxCanvas3D.h \
 		CQSandboxObject3D.h \
 		../../CMath/include/CGLMatrix3D.h \
@@ -1400,6 +1436,18 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CBBox2D.h \
 		../../CMath/include/CSize2D.h \
 		../../CMath/include/CISize2D.h \
+		../../CUtil/include/CRGBA.h \
+		../../CUtil/include/CRGB.h \
+		../../CUtil/include/CRGBName.h \
+		CQuadTree.h \
+		CPSysSystem.h \
+		CPSysParticle.h \
+		CPSysVector3D.h \
+		CPSysSpring.h \
+		CPSysForce.h \
+		CPSysAttraction.h \
+		CPSysIntegrator.h \
+		CArrayList.h \
 		CQSandboxApp.h \
 		CQSandboxUtil.h \
 		CQTclUtil.h \
@@ -1410,7 +1458,11 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CIPoint3D.h \
 		../../CMath/include/CVector3D.h \
 		../../CUtil/include/CGLColor.h \
+		CQSandboxControl2D.h \
+		CQSandboxToolbar2D.h \
 		CQSVGUtil.h \
+		../../CQUtil/include/CQUtil.h \
+		../../CQUtil/include/CQUtilMeta.h \
 		../../CQUtil/include/CQHtmlTextPainter.h \
 		CQArrow.h \
 		CQAxis.h \
@@ -1418,7 +1470,10 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CQBaseModel/include/CQDataModel.h \
 		../../CQBaseModel/include/CQBaseModel.h \
 		../../CQBaseModel/include/CQBaseModelTypes.h \
-		CCircleFactor.h
+		CCircleFactor.h \
+		../../CFile/include/CFile.h \
+		../../CFile/include/CFileBase.h \
+		../../CFile/include/CFileType.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxCanvas.o CQSandboxCanvas.cpp
 
 ../obj/CQSandboxCanvas3D.o: CQSandboxCanvas3D.cpp CQSandboxCanvas3D.h \
@@ -2443,7 +2498,19 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../COS/include/COSNaN.h \
 		../../CMath/include/CBBox2D.h \
 		../../CMath/include/CSize2D.h \
-		../../CMath/include/CISize2D.h
+		../../CMath/include/CISize2D.h \
+		../../CUtil/include/CRGBA.h \
+		../../CUtil/include/CRGB.h \
+		../../CUtil/include/CRGBName.h \
+		CQuadTree.h \
+		CPSysSystem.h \
+		CPSysParticle.h \
+		CPSysVector3D.h \
+		CPSysSpring.h \
+		CPSysForce.h \
+		CPSysAttraction.h \
+		CPSysIntegrator.h \
+		CArrayList.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxControl2D.o CQSandboxControl2D.cpp
 
 ../obj/CQSandboxControl3D.o: CQSandboxControl3D.cpp CQSandboxControl3D.h \
@@ -2561,6 +2628,18 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CMath/include/CBBox2D.h \
 		../../CMath/include/CSize2D.h \
 		../../CMath/include/CISize2D.h \
+		../../CUtil/include/CRGBA.h \
+		../../CUtil/include/CRGB.h \
+		../../CUtil/include/CRGBName.h \
+		CQuadTree.h \
+		CPSysSystem.h \
+		CPSysParticle.h \
+		CPSysVector3D.h \
+		CPSysSpring.h \
+		CPSysForce.h \
+		CPSysAttraction.h \
+		CPSysIntegrator.h \
+		CArrayList.h \
 		CQSandboxApp.h \
 		../../CQUtil/include/CQIconButton.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQSandboxToolbar2D.o CQSandboxToolbar2D.cpp
@@ -3058,14 +3137,14 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../CGeometry3D/include/CGeomFace3D.h \
 		../../CGeometry3D/include/CGeomMaterial.h \
 		../../CImageLib/include/CImagePtr.h \
-		../../CMath/include/CPolygonOrientation.h \
-		../../CGeometry3D/include/CGeomScene3D.h \
-		../../CGeometry3D/include/CGeomObject3D.h \
 		../../CMath/include/CBBox3D.h \
 		../../CMath/include/CBBox2D.h \
 		../../CMath/include/CVector2D.h \
 		../../CMath/include/CSize2D.h \
 		../../CMath/include/CISize2D.h \
+		../../CMath/include/CPolygonOrientation.h \
+		../../CGeometry3D/include/CGeomScene3D.h \
+		../../CGeometry3D/include/CGeomObject3D.h \
 		../../CMath/include/CVector4D.h \
 		../../CMath/include/CTranslate3D.h \
 		../../CMath/include/CScale3D.h \

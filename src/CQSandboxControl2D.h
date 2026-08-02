@@ -18,6 +18,9 @@ class Control2D : public QFrame {
  public:
   Control2D(Canvas *canvas);
 
+  bool isActive() const { return active_; }
+  void setActive(bool b);
+
  public Q_SLOTS:
   void updateObjects();
 
@@ -34,8 +37,9 @@ class Control2D : public QFrame {
  private:
   Canvas* canvas_ { nullptr };
 
-  QListWidget* list_ { nullptr };
+  QListWidget* list_         { nullptr };
   QCheckBox*   visibleCheck_ { nullptr };
+  bool         active_       { true };
 };
 
 }

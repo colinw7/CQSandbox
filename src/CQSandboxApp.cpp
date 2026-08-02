@@ -44,8 +44,10 @@ init()
   initialized_ = true;
 
   auto *layout = new QVBoxLayout(this);
+  layout->setMargin(0); layout->setSpacing(0);
 
   auto *clayout = new QHBoxLayout;
+  clayout->setMargin(0); clayout->setSpacing(0);
 
   //---
 
@@ -191,11 +193,12 @@ getArgs(int objc, const Tcl_Obj **objv) const
   return args;
 }
 
-void
+bool
 App::
 errorMsg(const QString &msg) const
 {
   std::cerr << msg.toStdString() << "\n";
+  return false;
 }
 
 }

@@ -38,6 +38,13 @@ Control2D(Canvas *canvas) :
 
 void
 Control2D::
+setActive(bool b)
+{
+  active_ = b;
+}
+
+void
+Control2D::
 listItemSlot(QListWidgetItem *, QListWidgetItem *)
 {
   updateCurrent();
@@ -47,14 +54,21 @@ void
 Control2D::
 updateObjects()
 {
+  if (! active_)
+    return;
+
   disconnect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
              this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));
 
   list_->clear();
 
   if (canvas_) {
-    for (auto *obj : canvas_->objects())
-      list_->addItem(obj->calcId());
+    auto *viewport = canvas_->currentViewport();
+
+    if (viewport) {
+      for (auto *obj : viewport->objects)
+        list_->addItem(obj->calcId());
+    }
   }
 
   connect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),

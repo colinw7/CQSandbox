@@ -615,7 +615,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
   auto *tcl = app_->tcl();
 
   if      (name == "bg") {
-    setBgColor(Util::stringToColor(value));
+    setBgColor(Util::stringToColor(tcl, value));
   }
   else if (name == "mode") {
     if      (value == "camera")

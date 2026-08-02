@@ -51,7 +51,7 @@ class App : public QFrame {
 
   QStringList getArgs(int objc, const Tcl_Obj **objv) const;
 
-  void errorMsg(const QString &msg) const;
+  bool errorMsg(const QString &msg) const;
 
  private:
   CQTcl* tcl_ { nullptr };

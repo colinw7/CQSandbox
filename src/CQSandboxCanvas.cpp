@@ -1,15 +1,19 @@
 #include <CQSandboxCanvas.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
+#include <CQSandboxControl2D.h>
+#include <CQSandboxToolbar2D.h>
 
 #include <CQSVGUtil.h>
 #include <CQTclUtil.h>
+#include <CQUtil.h>
 
 #include <CQHtmlTextPainter.h>
 #include <CQArrow.h>
 #include <CQAxis.h>
 #include <CQCsvModel.h>
 #include <CCircleFactor.h>
+#include <CFile.h>
 
 #include <QFile>
 #include <QPainter>
@@ -176,11 +180,20 @@ stringToRange(CQTcl *tcl, CDisplayRange2D &range, const QString &str)
   }
 }
 
-QImage
-stringToImage(const QString &str) {
-  auto image = QImage(str);
+bool
+stringToImage(const QString &str, QImage &image) {
+  auto cstr = str.toStdString();
+
+  CFile file(cstr);
+
+  if (! file.exists())
+    return false;
+
+  image = QImage(str);
+
   image.setText("name", str);
-  return image;
+
+  return true;
 }
 
 QString
@@ -256,6 +269,14 @@ stringToDashes(CQTcl *tcl, const QString &str)
   return dashes;
 }
 
+QColor RGBAToQColor(const CRGBA &c) {
+  return QColor(c.getRed()*255, c.getGreen()*255, c.getBlue()*255, c.getAlpha()*255);
+}
+
+CRGBA QColorToRGBA(const QColor &c) {
+  return CRGBA(c.redF(), c.greenF(), c.blueF(), c.alphaF());
+}
+
 }
 
 //---
@@ -269,6 +290,8 @@ Canvas(App *app) :
   setFocusPolicy(Qt::StrongFocus);
 
   setMouseTracking(true);
+
+  psys_ = new ParticleSystem;
 }
 
 void
@@ -286,15 +309,20 @@ init()
   app_->runTclCmd("proc update { args } { }");
   app_->runTclCmd("proc drawBg { args } { }");
   app_->runTclCmd("proc drawFg { args } { }");
+  app_->runTclCmd("proc keyPress { args } { }");
+  app_->runTclCmd("proc mousePress { args } { }");
+  app_->runTclCmd("proc mouseMove { args } { }");
+  app_->runTclCmd("proc mouseRelease { args } { }");
+
+  //---
+
+  addViewport();
 
   //---
 
   timer_ = new QTimer;
 
   connect(timer_, &QTimer::timeout, this, &Canvas::timerSlot);
-
-  pen_   = QPen(Qt::black);
-  brush_ = QBrush(Qt::white);
 
   stylePen_   = QPen(Qt::black);
   styleBrush_ = QBrush(Qt::white);
@@ -305,6 +333,8 @@ Canvas::
 addCommands()
 {
   auto *tcl = app_->tcl();
+
+  tcl->createAlias("echo", "puts");
 
   // global
   tcl->createObjCommand("sb::canvas",
@@ -317,6 +347,11 @@ addCommands()
 
   tcl->createObjCommand("sb::style",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::styleProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  // viewport
+  tcl->createObjCommand("sb::viewport",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::viewportProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   // objects
@@ -360,6 +395,10 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<AxisObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  tcl->createObjCommand("sb::particle",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ParticleObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   //---
 
   // data
@@ -382,6 +421,8 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ButtonObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  //---
+
   // graphics
   tcl->createObjCommand("sb::draw_point",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::drawPointProc),
@@ -392,6 +433,10 @@ addCommands()
   // layout
   tcl->createObjCommand("sb::circles_group",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<CirclesGroupObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb::quad_tree",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<QuadTreeObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 }
 
@@ -425,9 +470,10 @@ pointToPixel(const Point &p) const
   if (p.x.units == Units::PIXEL)
     return p;
 
-  double px, py;
+  auto *viewport = currentViewport();
 
-  displayRange_.windowToPixel(p.x.value, p.y.value, &px, &py);
+  double px, py;
+  viewport->displayRange.windowToPixel(p.x.value, p.y.value, &px, &py);
 
   return Point::makePixel(px, py);
 }
@@ -439,8 +485,10 @@ pointToWindow(const Point &p) const
   if (p.x.units == Units::WINDOW)
     return p;
 
+  auto *viewport = currentViewport();
+
   double x, y;
-  displayRange_.pixelToWindow(p.x.value, p.y.value, &x, &y);
+  viewport->displayRange.pixelToWindow(p.x.value, p.y.value, &x, &y);
 
   return Point::makeWindow(x, y);
 }
@@ -449,9 +497,11 @@ QSizeF
 Canvas::
 pixelSizeToWindow(const QSizeF &psize) const
 {
+  auto *viewport = currentViewport();
+
   double x1, y1, x2, y2;
-  displayRange_.pixelToWindow(0.0          , 0.0           , &x1, &y1);
-  displayRange_.pixelToWindow(psize.width(), psize.height(), &x2, &y2);
+  viewport->displayRange.pixelToWindow(0.0          , 0.0           , &x1, &y1);
+  viewport->displayRange.pixelToWindow(psize.width(), psize.height(), &x2, &y2);
 
   return QSizeF(std::abs(x2 - x1), std::abs(y2 - y1));
 }
@@ -462,7 +512,9 @@ play()
 {
   step();
 
-  timer_->start(100);
+  timer_->start(timerTicks_);
+
+  running_ = true;
 }
 
 void
@@ -470,22 +522,52 @@ Canvas::
 pause()
 {
   timer_->stop();
+
+  running_ = false;
 }
 
 void
 Canvas::
 step()
 {
+  ++ticks_;
+
+  //---
+
   stepInit();
 
-  for (auto *obj : objects_) {
-    if (obj->isAnimating()) {
-      if (! obj->step())
-        obj->setAnimating(false);
+  psys_->tick(0.01);
+
+  for (auto *viewport : viewports_) {
+    for (auto *obj : viewport->objects) {
+      if (obj->isAnimating()) {
+        if (! obj->step())
+          obj->setAnimating(false);
+      }
     }
   }
 
   app_->runTclCmd("update");
+
+  //---
+
+  if (buffered_) {
+    if (blend_)
+      painter_ = new QPainter(&bufferImage2_);
+    else
+      painter_ = new QPainter(&bufferImage1_);
+
+    drawStep();
+
+    delete painter_;
+
+    painter_ = nullptr;
+
+    if (blend_)
+      fadeImage(bufferImage1_, bufferImage2_, blendFactor_);
+  }
+
+  //---
 
   update();
 }
@@ -495,9 +577,13 @@ Canvas::
 stepInit()
 {
   if (! inited_) {
+    inited_ = true;
+
+    app_->control2D()->setActive(false);
+
     app_->runTclCmd("init");
 
-    inited_ = true;
+    app_->control2D()->setActive(true);
   }
 }
 
@@ -510,33 +596,189 @@ timerSlot()
 
 void
 Canvas::
+fadeImage(QImage &image1, QImage &image2, double f)
+{
+#if 1
+  // blend image2 into faded image1
+  for (int y = 0; y < pixelHeight_; ++y) {
+    for (int x = 0; x < pixelWidth_; ++x) {
+      QRgb pixel1 = image1.pixel(x, y);
+      QRgb pixel2 = image2.pixel(x, y);
+
+      QRgb pixel3 = qRgb(std::min(int(qRed  (pixel1)*f) + qRed  (pixel2), 255),
+                         std::min(int(qGreen(pixel1)*f) + qGreen(pixel2), 255),
+                         std::min(int(qBlue (pixel1)*f) + qBlue (pixel2), 255));
+
+      if (pixel3 != pixel1)
+        image1.setPixel(x, y, pixel3);
+    }
+  }
+#else
+  if (f < 0) return;
+
+  for (int y = 0; y < pixelHeight_; ++y) {
+    for (int x = 0; x < pixelWidth_; ++x) {
+      QRgb pixel2 = image2.pixel(x, y);
+
+      image1.setPixel(x, y, pixel2);
+    }
+  }
+#endif
+}
+
+void
+Canvas::
 resizeEvent(QResizeEvent *)
 {
-  displayRange_.setPixelRange(0, 0, width() - 1, height() - 1);
+  pixelWidth_  = width();
+  pixelHeight_ = height();
+
+  if (buffered_) {
+    bufferImage1_ = QImage(pixelWidth_, pixelHeight_, QImage::Format_ARGB32);
+    bufferImage2_ = QImage(pixelWidth_, pixelHeight_, QImage::Format_ARGB32);
+
+    bufferImage1_.fill(QColor(0, 0, 0).rgba());
+    bufferImage2_.fill(QColor(0, 0, 0).rgba());
+  }
+
+  updatePixelRanges();
+}
+
+void
+Canvas::
+updatePixelRanges()
+{
+  auto mapX = [&](double x) { return x*(width () - 1); };
+  auto mapY = [&](double y) { return y*(height() - 1); };
+
+  for (auto *viewport : viewports_) {
+    auto x1 = mapX(viewport->rect.ll.x.value);
+    auto y1 = mapY(viewport->rect.ll.y.value);
+    auto x2 = mapX(viewport->rect.ur.x.value);
+    auto y2 = mapY(viewport->rect.ur.y.value);
+
+    viewport->displayRange.setPixelRange(x1, y1, x2, y2);
+  }
 }
 
 void
 Canvas::
 paintEvent(QPaintEvent *)
 {
-  painter_ = new QPainter(this);
+  if (buffered_) {
+    QPainter painter(this);
 
-  painter_->fillRect(rect(), brush_.value());
+    painter.drawImage(0, 0, bufferImage1_);
+  }
+  else {
+    painter_ = new QPainter(this);
 
+    drawStep();
+
+    delete painter_;
+
+    painter_ = nullptr;
+  }
+}
+
+void
+Canvas::
+drawStep()
+{
   stepInit();
 
-  app_->runTclCmd("drawBg");
+  for (auto *viewport : viewports_) {
+    currentViewport_ = viewport;
 
-  for (auto *obj : objects_) {
-    if (obj->isVisible())
-      obj->draw(painter_);
+    double x1, y1, x2, y2;
+    viewport->displayRange.getPixelRange(&x1, &y1, &x2, &y2);
+
+    painter_->setClipRect(QRectF(x1, y1, x2 - x1, y2 - y1));
+
+    painter_->fillRect(QRectF(x1, y1, x2 - x1, y2 - y1), viewport->brush.value());
+
+    app_->runTclCmd("drawBg");
+
+    for (auto *obj : viewport->objects) {
+      if (obj->isVisible())
+        obj->draw(painter_);
+    }
+
+    auto np = psys_->numberOfParticles();
+
+    for (uint i = 0; i < np; ++i) {
+      auto *particle = psys_->getParticle(i);
+      assert(particle);
+
+      auto *particle1 = dynamic_cast<Particle *>(particle);
+
+      if (! particle1 || particle1->isDead())
+        continue;
+
+      drawParticle(painter_, particle1);
+    }
+
+    app_->runTclCmd("drawFg");
+
+    currentViewport_ = nullptr;
   }
+}
 
-  app_->runTclCmd("drawFg");
+void
+Canvas::
+drawParticle(QPainter *painter, Particle *particle)
+{
+  auto *obj = dynamic_cast<const ParticleObj *>(particle->obj());
 
-  delete painter_;
+  painter->setPen(obj->pen());
 
-  painter_ = nullptr;
+  auto *position = particle->position();
+
+  auto p = Point(position->x(), position->y());
+
+  auto p1 = pointToPixel(p).qpoint();
+
+  const auto &image = particle->image();
+
+  if (! image.isNull()) {
+    auto w = image.width ();
+    auto h = image.height();
+
+    QImage image1;
+    int    w1, h1;
+
+    if (particle->tpos() && particle->tsize()) {
+      auto tpos  = particle->tpos ().value();
+      auto tsize = particle->tsize().value();
+
+      auto x1 = w*tpos.getX();
+      auto y1 = h*tpos.getY();
+
+      w1 = w*tsize.getWidth();
+      h1 = h*tsize.getHeight();
+
+      image1 = image.copy(x1, y1, w1, h1);
+    }
+    else {
+      image1 = image;
+
+      w1 = w;
+      h1 = h;
+    }
+
+    if (particle->color()) {
+      auto fg = RGBAToQColor(particle->color().value());
+
+      CQUtil::recolorImage(image1, fg, fg);
+    }
+
+    p1.setX(p1.x() - w1/2);
+    p1.setY(p1.y() - h1/2);
+
+    painter->drawImage(p1, image1);
+  }
+  else
+    painter->drawPoint(p1);
 }
 
 void
@@ -549,12 +791,22 @@ mousePressEvent(QMouseEvent *e)
 
   if (pressObj_)
     pressObj_->press(e->x(), e->y());
+
+  pressed_ = true;
+
+  auto p = pointToWindow(Point::makePixel(e->x(), e->y())).qpoint();
+
+  app_->runTclCmd(QString("mousePress %1 %2").arg(p.x()).arg(p.y()));
+
+  update();
 }
 
 void
 Canvas::
 mouseMoveEvent(QMouseEvent *e)
 {
+  auto p = pointToWindow(Point::makePixel(e->pos())).qpoint();
+
   if (pressObj_) {
     auto dx = e->x() - motionPos_.x();
     auto dy = e->y() - motionPos_.y();
@@ -566,7 +818,6 @@ mouseMoveEvent(QMouseEvent *e)
   else {
     auto *group = dynamic_cast<GroupObj *>(getObjectAtPos(e->pos()));
 
-    QPointF p;
     QString name;
 
     if (group) {
@@ -581,12 +832,16 @@ mouseMoveEvent(QMouseEvent *e)
       name = group->calcId();
     }
     else {
-      p    = pointToWindow(Point::makePixel(e->pos())).qpoint();
       name = "canvas";
     }
 
     app_->setInfo(QString("%1: %2 %3").arg(name).arg(p.x()).arg(p.y()));
   }
+
+  if (pressed_)
+    app_->runTclCmd(QString("mouseMove %1 %2").arg(p.x()).arg(p.y()));
+
+  update();
 }
 
 void
@@ -601,13 +856,83 @@ mouseReleaseEvent(QMouseEvent *e)
   }
 
   pressObj_ = nullptr;
+
+  pressed_ = false;
+
+  auto p = pointToWindow(Point::makePixel(e->x(), e->y())).qpoint();
+
+  app_->runTclCmd(QString("mouseRelease %1 %2").arg(p.x()).arg(p.y()));
+
+  update();
+}
+
+void
+Canvas::
+keyPressEvent(QKeyEvent *e)
+{
+  auto keyStr = getKeyString(e);
+
+  keyPressed_[keyStr] = true;
+
+//bool isControl = (e->modifiers() & Qt::ControlModifier);
+//bool isShift   = (e->modifiers() & Qt::ShiftModifier);
+
+  //---
+
+  app_->runTclCmd(QString("keyPress {%1}").arg(keyStr));
+
+  update();
+
+  return;
+}
+
+void
+Canvas::
+keyReleaseEvent(QKeyEvent *e)
+{
+  auto keyStr = getKeyString(e);
+
+  keyPressed_[keyStr] = false;
+}
+
+bool
+Canvas::
+getKeyPressed(const QString &key) const
+{
+  auto p = keyPressed_.find(key);
+
+  if (p == keyPressed_.end())
+    return false;
+
+  return (*p).second;
+}
+
+QString
+Canvas::
+getKeyString(QKeyEvent *e) const
+{
+  QString keyStr;
+
+  if      (e->key() == Qt::Key_Left ) keyStr = "left";
+  else if (e->key() == Qt::Key_Right) keyStr = "right";
+  else if (e->key() == Qt::Key_Up   ) keyStr = "up";
+  else if (e->key() == Qt::Key_Down ) keyStr = "down";
+  else if (e->key() == Qt::Key_Space) keyStr = "space";
+  else                                keyStr = e->text();
+
+  if (keyStr == "")
+    keyStr = QString("key.%1").arg(e->key());
+
+  return keyStr;
 }
 
 Object *
 Canvas::
 getObjectAtPos(const QPoint &pos) const
 {
-  for (auto *obj : objects_) {
+  auto *viewport = currentViewport();
+
+  for (auto *obj : viewport->objects) {
     auto rect  = obj->calcRect();
     auto prect = rectToPixel(rect).qrect();
 
@@ -654,7 +979,9 @@ void
 Canvas::
 addObject(Object *obj)
 {
-  objects_.push_back(obj);
+  auto *viewport = currentViewport();
+
+  viewport->objects.push_back(obj);
 
   obj->setGroup(nullptr);
 
@@ -665,14 +992,16 @@ void
 Canvas::
 removeObject(Object *obj)
 {
+  auto *viewport = currentViewport();
+
   Objects objects;
 
-  for (auto *obj1 : objects_) {
+  for (auto *obj1 : viewport->objects) {
     if (obj1 != obj)
       objects.push_back(obj1);
   }
 
-  std::swap(objects, objects_);
+  std::swap(objects, viewport->objects);
 
   Q_EMIT objectsChanged();
 }
@@ -690,11 +1019,17 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto *tcl = th->app_->tcl();
 
   if      (args[0] == "get") {
-    if (args.size() >= 2) {
-      auto res = th->getValue(args[1]);
+    if (args.size() < 2)
+      return TCL_ERROR;
 
-      tcl->setResult(res);
-    }
+    QStringList args1;
+
+    for (int i = 2; i < args.size(); ++i)
+      args1.push_back(args[i]);
+
+    auto res = th->getValue(args[1], args1);
+
+    tcl->setResult(res);
   }
   else if (args[0] == "set") {
     if (args.size() >= 3)
@@ -703,13 +1038,14 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   else if (args[0] == "delete") {
     if (args.size() >= 2) {
       if (args[1] == "all") {
+        auto *viewport = th->currentViewport();
+
         Objects objects;
 
-        std::swap(objects, th->objects_);
+        std::swap(objects, viewport->objects);
 
         for (auto *obj : objects)
           delete obj;
-
       }
     }
   }
@@ -764,6 +1100,29 @@ paletteProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
 int
 Canvas::
+viewportProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas *>(clientData);
+  assert(th);
+
+  auto args = th->app()->getArgs(objc, objv);
+  if (args.size() < 1) return TCL_ERROR;
+
+  auto *tcl = th->app_->tcl();
+
+  auto rect = stringToRect(tcl, args[0]);
+
+  auto *viewport = th->addViewport();
+
+  viewport->rect = rect;
+
+  tcl->setResult(viewport->name);
+
+  return TCL_OK;
+}
+
+int
+Canvas::
 styleProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
   auto *th = static_cast<Canvas *>(clientData);
@@ -790,26 +1149,83 @@ styleProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
 QVariant
 Canvas::
-getValue(const QString &name)
+getValue(const QString &name, const QStringList &args)
 {
   auto *tcl = app_->tcl();
 
-  if      (name == "brush.color")
-    return Util::colorToString(brush_.value().color());
-  else if (name == "brush.color.target")
-    return Util::colorToString(brush_.target().color());
-  else if (name == "brush.steps")
-    return Util::colorToString(brush_.steps());
-  else if (name == "pen.color")
-    return Util::colorToString(pen_.color());
-  else if (name == "pen.width")
-    return Util::realToString(pen_.widthF());
-  else if (name == "range")
-    return rangeToString(tcl, displayRange_);
+  auto *viewport = currentViewport();
+
+  if      (name == "brush.color") {
+    return Util::colorToString(viewport->brush.value().color());
+  }
+  else if (name == "brush.color.target") {
+    return Util::colorToString(viewport->brush.target().color());
+  }
+  else if (name == "brush.steps") {
+    return Util::colorToString(viewport->brush.steps());
+  }
+  else if (name == "pen.color") {
+    return Util::colorToString(viewport->pen.color());
+  }
+  else if (name == "pen.width") {
+    return Util::realToString(viewport->pen.widthF());
+  }
+  else if (name == "range") {
+    return rangeToString(tcl, viewport->displayRange);
+  }
+  else if (name == "range.xmin") {
+    double x1, y1, x2, y2;
+    viewport->displayRange.getWindowRange(&x1, &y1, &x2, &y2);
+    return x1;
+  }
+  else if (name == "range.ymin") {
+    double x1, y1, x2, y2;
+    viewport->displayRange.getWindowRange(&x1, &y1, &x2, &y2);
+    return y1;
+  }
+  else if (name == "range.xmax") {
+    double x1, y1, x2, y2;
+    viewport->displayRange.getWindowRange(&x1, &y1, &x2, &y2);
+    return x2;
+  }
+  else if (name == "range.ymax") {
+    double x1, y1, x2, y2;
+    viewport->displayRange.getWindowRange(&x1, &y1, &x2, &y2);
+    return y2;
+  }
   else if (name == "equal_scale") {
-    auto b = displayRange_.getEqualScale();
+    auto b = viewport->displayRange.getEqualScale();
 
     return Util::boolToString(b);
+  }
+  else if (name == "particles") {
+    QStringList ids;
+
+    const auto &particles = psys_->getParticles();
+
+    for (uint i = 0; i < particles.size(); ++i) {
+      auto *particle = particles.get(int(i));
+
+      auto *particle1 = dynamic_cast<Particle *>(particle);
+
+      ids.push_back(particle1->obj()->getCommandName());
+    }
+
+    return ids;
+  }
+  else if (name == "ticks") {
+    return Util::intToString(ticks_);
+  }
+  else if (name == "key") {
+    if (args.size() < 1) {
+      app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+      return QVariant();
+    }
+
+    return getKeyPressed(args[0]);
+  }
+  else if (name == "play") {
+    return running_;
   }
   else {
     app_->errorMsg(QString("Invalid value name '%1'").arg(name));
@@ -817,40 +1233,126 @@ getValue(const QString &name)
   }
 }
 
-void
+bool
 Canvas::
 setValue(const QString &name, const QString &value)
 {
   auto *tcl = app_->tcl();
 
+  auto *viewport = currentViewport();
+
   if      (name == "brush.color") {
-    auto b = brush_.value();
+    auto b = viewport->brush.value();
 
-    b.setColor(Util::stringToColor(value));
+    b.setColor(Util::stringToColor(tcl, value));
 
-    brush_ = b;
+    viewport->brush = b;
   }
   else if (name == "brush.color.target") {
-    auto b = brush_.target();
+    auto b = viewport->brush.target();
 
-    b.setColor(Util::stringToColor(value));
+    b.setColor(Util::stringToColor(tcl, value));
 
-    brush_.setTarget(b);
+    viewport->brush.setTarget(b);
   }
   else if (name == "brush.steps")
-    brush_.setSteps(Util::stringToInt(value));
+    viewport->brush.setSteps(Util::stringToInt(value));
   else if (name == "pen.color")
-    pen_.setColor(Util::stringToColor(value));
+    viewport->pen.setColor(Util::stringToColor(tcl, value));
   else if (name == "pen.width")
-    pen_.setWidthF(Util::stringToReal(value));
+    viewport->pen.setWidthF(Util::stringToReal(value));
   else if (name == "range")
-    stringToRange(tcl, displayRange_, value);
-  else if (name == "equal_scale")
-    displayRange_.setEqualScale(Util::stringToBool(value));
-  else if (name == "play")
-    timer_->start(100);
+    stringToRange(tcl, viewport->displayRange, value);
+  else if (name == "equal_scale") {
+    auto *viewport = currentViewport();
+
+    viewport->displayRange.setEqualScale(Util::stringToBool(value));
+  }
+  else if (name == "view") {
+    currentViewportName_ = value;
+  }
+  else if (name == "play") {
+    if (Util::stringToBool(value))
+      play();
+    else
+      pause();
+  }
+  else if (name == "gravity") {
+    psys_->setGravity(Util::stringToReal(value));
+  }
+  else if (name == "buffered") {
+    buffered_ = Util::stringToBool(value);
+
+    resizeEvent(nullptr);
+  }
+  else if (name == "blend.enabled") {
+    blend_ = Util::stringToBool(value);
+
+    resizeEvent(nullptr);
+  }
+  else if (name == "blend.factor") {
+    blendFactor_ = Util::stringToReal(value);
+  }
+  else if (name == "window.size") {
+    auto size = stringToPoint(tcl, value);
+
+    int w = size.x.value;
+    int h = size.y.value;
+
+    h += app_->toolbar2D()->height();
+
+    app_->resize(w, h);
+  }
   else
-    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+    return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+
+  return true;
+}
+
+Canvas::Viewport *
+Canvas::
+currentViewport() const
+{
+  if (currentViewport_)
+    return currentViewport_;
+
+  for (auto *viewport : viewports_) {
+    if (viewport->name == currentViewportName_)
+      return viewport;
+  }
+
+  return nullptr;
+}
+
+Canvas::Viewport *
+Canvas::
+addViewport()
+{
+  auto *viewport = new Viewport;
+
+  viewport->canvas = this;
+
+  viewport->name = QString("sb::viewport_obj.%1").arg(viewports_.size() + 1);
+
+  viewport->rect = Rect(Point(0, 0), Point(1, 1));
+
+  viewport->pen   = QPen(Qt::black);
+  viewport->brush = QBrush(Qt::white);
+
+  viewports_.push_back(viewport);
+
+  updatePixelRanges();
+
+  auto *tcl = app_->tcl();
+
+  tcl->createObjCommand(viewport->name,
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::viewportCommandProc),
+    static_cast<CQTcl::ObjCmdData>(viewport));
+
+  if (currentViewportName_ == "")
+    currentViewportName_ = viewport->name;
+
+  return viewport;
 }
 
 QVariant
@@ -885,10 +1387,12 @@ void
 Canvas::
 setStyleValue(const QString &name, const QString &value)
 {
+  auto *tcl = app_->tcl();
+
   if      (name == "brush.color")
-    styleBrush_.setColor(Util::stringToColor(value));
+    styleBrush_.setColor(Util::stringToColor(tcl, value));
   else if (name == "pen.color")
-    stylePen_.setColor(Util::stringToColor(value));
+    stylePen_.setColor(Util::stringToColor(tcl, value));
   else if (name == "pen.width")
     stylePen_.setWidthF(Util::stringToReal(value));
 }
@@ -991,6 +1495,80 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
   return TCL_OK;
 }
 
+int
+Canvas::
+viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *viewport = static_cast<Viewport *>(clientData);
+  assert(viewport);
+
+  auto *canvas = viewport->canvas;
+  auto *app    = canvas->app();
+
+  auto *tcl = app->tcl();
+
+  auto args = app->getArgs(objc, objv);
+
+  if      (args[0] == "get") {
+    if (args.size() > 1) {
+      auto name = args[1];
+
+      app->errorMsg("Invalid get name '" + name + "'");
+    }
+    else {
+      app->errorMsg("Missing args for viewport get");
+    }
+  }
+  else if (args[0] == "set") {
+    if (args.size() > 2) {
+      auto name  = args[1];
+      auto value = args[2];
+
+      if      (name == "brush.color") {
+        auto b = viewport->brush.value();
+
+        b.setColor(Util::stringToColor(tcl, value));
+
+        viewport->brush = b;
+      }
+      else if (name == "range")
+        stringToRange(tcl, viewport->displayRange, value);
+      else if (name == "clip") {
+        viewport->clip = stringToRect(tcl, value);
+      }
+      else
+        app->errorMsg("Invalid set name '" + name + "' for viewport");
+    }
+    else {
+      app->errorMsg("Missing args for viewport set");
+    }
+  }
+  else if (args[0] == "exec") {
+    if (args.size() > 1) {
+      QString op = args[1];
+
+#if 0
+      QStringList args1;
+      for (int i = 2; i < args.length(); ++i)
+        args1.push_back(args[i]);
+#endif
+
+      app->errorMsg("Invalid exec op '" + op + "' for viewport");
+    }
+    else {
+      app->errorMsg("Missing args for viewport exec");
+    }
+  }
+  else if (args[0] == "delete") {
+    app->errorMsg("Invalid viewport delete");
+  }
+  else {
+    app->errorMsg(QString("Bad viewport command '%1'").arg(args[0]));
+  }
+
+  return TCL_OK;
+}
+
 //---
 
 bool
@@ -1032,7 +1610,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 GroupObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1043,7 +1621,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "range")
     stringToRange(tcl, displayRange_, value);
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -1125,7 +1705,6 @@ pointToPixel(const Point &p) const
     return p;
 
   double px, py;
-
   displayRange_.windowToPixel(p.x.value, p.y.value, &px, &py);
 
   auto p1 = Point::makePixel(px, py);
@@ -1259,7 +1838,7 @@ getValue(const QString &name, const QStringList &args)
     return GroupObj::getValue(name, args);
 }
 
-void
+bool
 CirclesGroupObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1269,7 +1848,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     mgr_->place();
   }
   else
-    GroupObj::setValue(name, value, args);
+    return GroupObj::setValue(name, value, args);
+
+  return true;
 }
 
 #if 0
@@ -1286,6 +1867,107 @@ pointToWindow(const Point &p) const
   return Point::makeWindow(x, y);
 }
 #endif
+
+//---
+
+bool
+QuadTreeObj::
+create(Canvas *canvas, const QStringList &args)
+{
+  if (args.size() != 0)
+    return false;
+
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new QuadTreeObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+QuadTreeObj::
+QuadTreeObj(Canvas *canvas) :
+ GroupObj(canvas, Rect())
+{
+}
+
+QVariant
+QuadTreeObj::
+getValue(const QString &name, const QStringList &args)
+{
+  auto *tcl = canvas()->app()->tcl();
+
+  if      (name == "object.in_rect") {
+    if (args.size() < 1)
+      return false;
+
+    auto rect = stringToRect(tcl, args[0]);
+
+    QuadTree::DataList dataList;
+    quadTree_.getDataInsideBBox(rect, dataList);
+
+    QStringList names;
+
+    for (auto *obj : dataList)
+      names.push_back(obj->getCommandName());
+
+    return names;
+  }
+  else if (name == "object.at_point") {
+    if (args.size() < 1)
+      return false;
+
+    auto p = stringToPoint(tcl, args[0]);
+
+    QuadTree::DataList dataList;
+    quadTree_.getDataAtPoint(p.x.value, p.y.value, dataList);
+
+    QStringList names;
+
+    for (auto *obj : dataList)
+      names.push_back(obj->getCommandName());
+
+    return names;
+  }
+  else
+    return GroupObj::getValue(name, args);
+}
+
+bool
+QuadTreeObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto *app = canvas()->app();
+
+  if      (name == "reset") {
+    quadTree_.reset();
+  }
+  else if (name == "object.add") {
+    if (args.size() != 0)
+      return app->errorMsg("Invalid number of args");
+
+    auto *obj = canvas()->getObjectByName(value);
+    if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
+
+    quadTree_.add(obj);
+  }
+  else if (name == "object.remove") {
+    if (args.size() != 0)
+      return app->errorMsg("Invalid number of args");
+
+    auto *obj = canvas()->getObjectByName(value);
+    if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
+
+    quadTree_.remove(obj);
+  }
+  else
+    return GroupObj::setValue(name, value, args);
+
+  return true;
+}
 
 //---
 
@@ -1337,7 +2019,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 CircleObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1362,7 +2044,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     radius_.setSteps(Util::stringToInt(value));
   }
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -1420,11 +2104,12 @@ bool
 RectObj::
 create(Canvas *canvas, const QStringList &args)
 {
-  if (args.size() != 1) return false;
-
   auto *tcl = canvas->app()->tcl();
 
-  auto rect = stringToRect(tcl, args[0]);
+  auto rect = Rect(Point(0, 0), Point(1, 1));
+
+  if (args.size() >= 1)
+    rect = stringToRect(tcl, args[0]);
 
   auto *obj = new RectObj(canvas, rect);
 
@@ -1451,7 +2136,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 RectObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1461,7 +2146,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     rect_ = stringToRect(tcl, value);
   }
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -1524,7 +2211,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 LineObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1535,7 +2222,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "p2")
     p2_ = stringToPoint(tcl, value);
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -1581,7 +2270,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 EditObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1591,7 +2280,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     proc_ = value;
   }
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 //---
@@ -1635,7 +2326,7 @@ getValue(const QString &name, const QStringList &args)
     return EditObj::getValue(name, args);
 }
 
-void
+bool
 RealEdit::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1651,7 +2342,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     maxValue_ = Util::stringToReal(value);
   }
   else
-    EditObj::setValue(name, value, args);
+    return EditObj::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -1760,7 +2453,7 @@ getValue(const QString &name, const QStringList &args)
     return EditObj::getValue(name, args);
 }
 
-void
+bool
 IntegerEdit::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1776,7 +2469,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     maxValue_ = Util::stringToInt(value);
   }
   else
-    EditObj::setValue(name, value, args);
+    return EditObj::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -1937,7 +2632,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 ButtonObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -1951,7 +2646,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "proc")
     proc_ = value;
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -2043,23 +2740,26 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 TextObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  if      (name == "position") {
-    auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->app()->tcl();
 
+  if      (name == "position")
     pos_ = stringToPoint(tcl, value);
-  }
   else if (name == "text")
     text_ = value;
   else if (name == "align")
     align_ = stringToAlign(value);
   else if (name == "html")
     html_ = Util::stringToBool(value);
+  else if (name == "border.color")
+    border_.setColor(Util::stringToColor(tcl, value));
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -2111,10 +2811,12 @@ draw(QPainter *painter)
   auto rect  = calcRect();
   auto prect = canvas()->rectToPixel(rect).qrect();
 
-  painter->setPen(Qt::red);
+  // draw border
+  painter->setPen(border_);
   painter->setBrush(Qt::NoBrush);
   painter->drawRect(prect);
 
+  // draw text
   painter->setPen(pen_);
   painter->setBrush(brush_.value());
 
@@ -2143,12 +2845,22 @@ bool
 ImageObj::
 create(Canvas *canvas, const QStringList &args)
 {
-  if (args.size() != 2) return false;
-
   auto *tcl = canvas->app()->tcl();
 
-  auto pos   = stringToPoint(tcl, args[0]);
-  auto image = stringToImage(args[1]);
+  Point  pos;
+  QImage image;
+
+  if (args.size() >= 1)
+    pos = stringToPoint(tcl, args[0]);
+
+  if (args.size() >= 2) {
+    if (args[1] != "") {
+      if (! stringToImage(args[1], image))
+        return false;
+    }
+  }
+
+  //---
 
   auto *obj = new ImageObj(canvas, pos, image);
 
@@ -2171,26 +2883,61 @@ getValue(const QString &name, const QStringList &args)
 {
   if      (name == "position")
     return pointToString(pos_);
+  else if (name == "center") {
+    auto ppos = pointToPixel(pos_);
+
+    ppos.x.value += image_.width ()/2;
+    ppos.y.value += image_.height()/2;
+
+    return pointToString(ppos);
+  }
   else if (name == "image")
     return imageToString(image_);
   else
     return Object::getValue(name, args);
 }
 
-void
+bool
 ImageObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  if      (name == "position") {
-    auto *tcl = canvas()->app()->tcl();
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
 
-    pos_ = stringToPoint(tcl, value);
+  if      (name == "position") {
+    pos_     = stringToPoint(tcl, value);
+    posType_ = Position::TOP_LEFT;
+  }
+  else if (name == "center") {
+    pos_     = stringToPoint(tcl, value);
+    posType_ = Position::CENTER;
   }
   else if (name == "image") {
-    image_ = stringToImage(value);
+    if (! stringToImage(value, image_)) {
+      auto *obj = canvas()->getObjectByName(value);
+      if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
+
+      auto *imageObj = dynamic_cast<ImageObj *>(obj);
+      if (! obj) return false;
+
+      image_ = imageObj->image();
+    }
+  }
+  else if (name == "flip_x") {
+    image_ = image_.mirrored(true, false);
+  }
+  else if (name == "flip_y") {
+    image_ = image_.mirrored(false, true);
+  }
+  else if (name == "scale") {
+    auto size = stringToPoint(tcl, value);
+
+    image_ = image_.scaled(image_.width()*size.x.value, image_.height()*size.y.value);
   }
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -2202,7 +2949,12 @@ calcRect() const
 
   auto s = canvas()->pixelSizeToWindow(QSizeF(w, h));
 
-  auto p = pointToWindow(pos_);
+  auto pos = pointToPixel(pos_);
+
+  pos.x.value -= w/2;
+  pos.y.value -= h/2;
+
+  auto p = pointToWindow(pos);
 
   auto ll = Point(p.x.value            , p.y.value             );
   auto ur = Point(p.x.value + s.width(), p.y.value + s.height());
@@ -2215,6 +2967,14 @@ ImageObj::
 draw(QPainter *painter)
 {
   auto pos = pointToPixel(pos_).qpoint();
+
+  if (posType_ == Position::CENTER) {
+    int w = image_.width ();
+    int h = image_.height();
+
+    pos.setX(pos.x() - w/2);
+    pos.setY(pos.y() - h/2);
+  }
 
   if (! image_.isNull())
     painter->drawImage(pos, image_);
@@ -2257,7 +3017,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 PathObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -2265,7 +3025,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     path_ = stringToPath(value);
   }
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -2322,6 +3084,9 @@ QVariant
 PointListObj::
 getValue(const QString &name, const QStringList &args)
 {
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
   if      (name == "radius")
     return coordToString(radius_.value());
   else if (name == "radius.target")
@@ -2332,6 +3097,14 @@ getValue(const QString &name, const QStringList &args)
     return Util::intToString(int(points_.size()));
   else if (name == "connected")
     return Util::boolToString(isConnected());
+  else if (name == "show_points")
+    return Util::boolToString(isShowPoints());
+  else if (name == "angle")
+    return angle();
+  else if (name == "scale")
+    return scale();
+  else if (name == "offset")
+    return pointToString(offset());
   else if (name == "fill_under")
     return Util::boolToString(isFillUnder());
   else if (name == "fill_under.y") {
@@ -2352,11 +3125,36 @@ getValue(const QString &name, const QStringList &args)
     else
       return QVariant();
   }
+  else if (name == "intersect") {
+    if (args.size() < 0)
+      return QVariant();
+
+    auto pos = stringToPoint(tcl, args[0]);
+
+    auto pos1 = canvas()->pointToPixel(pos).qpoint();
+
+    return path_.contains(pos1);
+  }
+  else if (name == "intersect_obj") {
+    if (args.size() < 0)
+      return QVariant();
+
+    auto *obj = canvas()->getObjectByName(args[0]);
+    if (! obj) {
+     app->errorMsg(QString("Failed to find object '%1'").arg(args[0]));
+     return QVariant();
+    }
+
+    auto path1 = calcPath();
+    auto path2 = obj->calcPath();
+
+    return path1.intersects(path2);
+  }
   else
     return Object::getValue(name, args);
 }
 
-void
+bool
 PointListObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -2385,25 +3183,35 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   }
   else if (name == "connected")
     setConnected(Util::stringToBool(value));
+  else if (name == "show_points")
+    setFillUnder(Util::stringToBool(value));
   else if (name == "fill_under")
     setFillUnder(Util::stringToBool(value));
   else if (name == "fill_under.y")
     setFillUnderY(stringToCoord(value));
+  else if (name == "angle")
+    setAngle(Util::stringToReal(value));
+  else if (name == "scale")
+    setScale(Util::stringToReal(value));
+  else if (name == "offset")
+    setOffset(stringToPoint(tcl, value));
   else if (name == "position") {
     // get index from args
     if (args.size() > 0) {
       auto i = Util::stringToInt(args[0]);
 
       if (i < 0 || i >= int(points_.size()))
-        return;
+        return false;
 
       points_[i] = stringToPoint(tcl, value);
     }
     else
-      app->errorMsg("Missing index for position");
+      return app->errorMsg("Missing index for position");
   }
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -2451,10 +3259,29 @@ draw(QPainter *painter)
   auto rect  = this->calcRect();
   auto prect = canvas()->rectToPixel(rect).qrect();
 
+  auto c  = center();
+  auto pc = canvas()->pointToPixel(c).qpoint();
+
+  auto po = canvas()->pointToPixel(Point()).qpoint();
+  auto pf = canvas()->pointToPixel(offset()).qpoint() - po;
+
   painter->setPen(pen_);
   painter->setBrush(brush_.value());
 
+  QTransform t;
+
+  t.translate(pc.x() + pf.x(), pc.y() + pf.y());
+  t.rotate(-angle());
+  t.scale(scale(), scale());
+  t.translate(-pc.x(), -pc.y());
+
+#if 0
+  painter->setTransform(t);
+#endif
+
   //painter->drawRect(prect);
+
+  //---
 
   auto radius = radius_.value();
 
@@ -2469,69 +3296,83 @@ draw(QPainter *painter)
     yr = std::abs(p2.y.value - p1.y.value);
   }
 
-  if (isConnected() || isFillUnder()) {
-    QPainterPath path;
+  //---
 
-    int i = 0;
+  QPainterPath path;
 
-    QPointF p1, p2;
+  int i = 0;
 
-    for (const auto &point : points_) {
-      auto p = pointToWindow(point);
-
-      auto pp = canvas()->pointToPixel(p).qpoint();
-
-      if (i == 0) {
-        p1 = pp;
-
-        path.moveTo(pp);
-      }
-      else {
-        path.lineTo(pp);
-
-        p2 = pp;
-      }
-
-      ++i;
-    }
-
-    if (isFillUnder()) {
-      auto by = prect.bottom();
-
-      if (fillUnderY()) {
-        auto c = *fillUnderY();
-        auto p = Point(c, c);
-
-        auto pw = pointToWindow(p);
-        auto pp = canvas()->pointToPixel(pw).qpoint();
-
-        by = pp.y();
-      }
-
-      auto path1 = path;
-
-      path1.lineTo(p2.x(), by);
-      path1.lineTo(p1.x(), by);
-
-      path1.closeSubpath();
-
-      painter->fillPath(path1, painter->brush());
-    }
-
-    if (isConnected())
-      painter->strokePath(path, painter->pen());
-  }
+  QPointF p1, p2;
 
   for (const auto &point : points_) {
-    auto c = pointToWindow(point);
+    auto p = pointToWindow(point);
 
-    auto ll = Point::makeWindow(c.x.value - xr, c.y.value - yr);
-    auto ur = Point::makeWindow(c.x.value + xr, c.y.value + yr);
+    auto pp = canvas()->pointToPixel(p).qpoint();
 
-    auto rect  = Rect(ll, ur);
-    auto prect = canvas()->rectToPixel(rect).qrect();
+    if (i == 0) {
+      p1 = pp;
 
-    painter->drawEllipse(prect);
+      path.moveTo(pp);
+    }
+    else {
+      path.lineTo(pp);
+
+      p2 = pp;
+    }
+
+    ++i;
+  }
+
+  auto path1 = path;
+
+  if (isConnected())
+    path1.closeSubpath();
+
+  path_ = t.map(path1);
+
+  //---
+
+  if (isFillUnder()) {
+    auto by = prect.bottom();
+
+    if (fillUnderY()) {
+      auto c = *fillUnderY();
+      auto p = Point(c, c);
+
+      auto pw = pointToWindow(p);
+      auto pp = canvas()->pointToPixel(pw).qpoint();
+
+      by = pp.y();
+    }
+
+    auto path2 = path;
+
+    path2.lineTo(p2.x(), by);
+    path2.lineTo(p1.x(), by);
+
+    path2.closeSubpath();
+
+    painter->fillPath(t.map(path2), painter->brush());
+  }
+
+  if (isFilled())
+    painter->fillPath(path_, painter->brush());
+
+  if (isStroked())
+    painter->strokePath(path_, painter->pen());
+
+  if (isShowPoints()) {
+    for (const auto &point : points_) {
+      auto c = pointToWindow(point);
+
+      auto ll = Point::makeWindow(c.x.value - xr, c.y.value - yr);
+      auto ur = Point::makeWindow(c.x.value + xr, c.y.value + yr);
+
+      auto rect  = Rect(ll, ur);
+      auto prect = canvas()->rectToPixel(rect).qrect();
+
+      painter->drawEllipse(prect);
+    }
   }
 }
 
@@ -2576,7 +3417,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 ArrowObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -2613,7 +3454,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "stroked")
     arrow_->setStroked(Util::stringToBool(value));
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -2700,7 +3543,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 AxisObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -2719,7 +3562,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       axis_->setDirection(CQAxis::DIR_VERTICAL);
   }
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 Rect
@@ -2765,6 +3610,156 @@ draw(QPainter *painter)
     axis_->draw(painter, prect.left(), prect.bottom(), prect.width());
   else
     axis_->draw(painter, prect.left(), prect.bottom(), -prect.height());
+}
+
+//---
+
+bool
+ParticleObj::
+create(Canvas *canvas, const QStringList &args)
+{
+  if (args.size() != 1) return false;
+
+  auto *tcl = canvas->app()->tcl();
+
+  auto pos = stringToPoint(tcl, args[0]);
+
+  auto *obj = new ParticleObj(canvas, pos);
+
+  double mass = 1.0;
+
+  auto *particle = dynamic_cast<Particle *>(
+    canvas->psys()->makeParticle(mass, pos.x.value, pos.y.value));
+
+  particle->setObj(obj);
+
+  obj->setParticle(particle);
+
+  auto name = canvas->addNewObject(obj);
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+ParticleObj::
+ParticleObj(Canvas *canvas, const Point &pos) :
+ Object(canvas), pos_(pos)
+{
+}
+
+void
+ParticleObj::
+setParticle(Particle *p)
+{
+  particle_ = p;
+
+  particle_->setPosition(pos_.x.value, pos_.y.value, 0);
+}
+
+QVariant
+ParticleObj::
+getValue(const QString &name, const QStringList &args)
+{
+  if      (name == "position") {
+    auto *position = particle_->position();
+
+    return pointToString(Point(position->x(), position->y()));
+  }
+  else if (name == "velocity") {
+    auto *velocity = particle_->velocity();
+
+    return pointToString(Point(velocity->x(), velocity->y()));
+  }
+  else if (name == "dead") {
+    return Util::boolToString(particle_->isDead());
+  }
+  else if (name == "age") {
+    return particle_->age();
+  }
+  else
+    return Object::getValue(name, args);
+}
+
+bool
+ParticleObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
+  if      (name == "position") {
+    auto p = stringToPoint(tcl, value);
+
+    particle_->setPosition(p.x.value, p.y.value, 0);
+  }
+  else if (name == "velocity") {
+    auto p = stringToPoint(tcl, value);
+
+    particle_->setVelocity(p.x.value, p.y.value, 0);
+  }
+  else if (name == "dead") {
+    particle_->setDead(Util::stringToBool(value));
+  }
+  else if (name == "age") {
+    particle_->setAge(Util::stringToReal(value));
+  }
+  else if (name == "size") {
+    particle_->setSize(Util::stringToReal(value));
+  }
+  else if (name == "tpos") {
+    auto p = stringToPoint(tcl, value);
+
+    particle_->setTPos(CPoint2D(p.x.value, p.y.value));
+  }
+  else if (name == "tsize") {
+    auto p = stringToPoint(tcl, value);
+
+    particle_->setTSize(CSize2D(p.x.value, p.y.value));
+  }
+  else if (name == "angle") {
+    particle_->setAngle(Util::stringToReal(value));
+  }
+  else if (name == "color") {
+    particle_->setColor(QColorToRGBA(Util::stringToColor(tcl, value)));
+  }
+  else if (name == "alpha") {
+    particle_->setAlpha(Util::stringToReal(value));
+  }
+  else if (name == "image") {
+    QImage image;
+
+    if (! stringToImage(value, image)) {
+      auto *obj = canvas()->getObjectByName(value);
+      if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
+
+      auto *imageObj = dynamic_cast<ImageObj *>(obj);
+      if (! obj) return false;
+
+      particle_->setImage(imageObj->image());
+    }
+  }
+  else
+    return Object::setValue(name, value, args);
+
+  return true;
+}
+
+Rect
+ParticleObj::
+calcRect() const
+{
+  auto *position = particle_->position();
+
+  auto p = Point(position->x(), position->y());
+
+  return Rect(p, p);
+}
+
+void
+ParticleObj::
+draw(QPainter *)
+{
 }
 
 //---
@@ -2832,7 +3827,7 @@ getValue(const QString &name, const QStringList &args)
     return Object::getValue(name, args);
 }
 
-void
+bool
 CsvObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
@@ -2845,7 +3840,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "first_column_header")
     csv_->setFirstColumnHeader(Util::stringToBool(value));
   else
-    Object::setValue(name, value, args);
+    return Object::setValue(name, value, args);
+
+  return true;
 }
 
 QVariant
@@ -2876,7 +3873,7 @@ QString
 Object::
 getCommandName() const
 {
-  return QString("object.%1").arg(ind_);
+  return QString("sb::%1.%2").arg(typeName()).arg(ind_);
 }
 
 Point
@@ -2899,7 +3896,9 @@ pointToWindow(const Point &p) const
   }
 
   if (p1.x.units == Units::PIXEL) {
-    const auto &range = canvas()->displayRange();
+    auto *viewport = canvas()->currentViewport();
+
+    const auto &range = viewport->displayRange;
 
     double x, y;
     range.pixelToWindow(p1.x.value, p1.y.value, &x, &y);
@@ -2916,7 +3915,6 @@ pointToPixel(const Point &p) const
 {
   if (group_) {
     double px, py;
-
     group_->displayRange().windowToPixel(p.x.value, p.y.value, &px, &py);
 
     return canvas()->pointToPixel(Point::makeWindow(px, py));
@@ -2979,17 +3977,20 @@ getValue(const QString &name, const QStringList &)
     if (name1 == "animating")
       return isAnimating();
     else {
-      app->errorMsg(QString("Invalid get name '%1'").arg(name));
+      app->errorMsg(QString("Invalid get name '%1' for '%2'").arg(name).arg(getCommandName()));
       return QVariant();
     }
   }
+  else if (name == "meta") {
+    return meta_;
+  }
   else {
-    app->errorMsg(QString("Invalid get name '%1'").arg(name));
+    app->errorMsg(QString("Invalid get name '%1' for '%2'").arg(name).arg(getCommandName()));
     return QVariant();
   }
 }
 
-void
+bool
 Object::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
@@ -3000,17 +4001,21 @@ setValue(const QString &name, const QString &value, const QStringList &)
     setId(value);
   else if (name == "visible")
     setVisible(Util::stringToBool(value));
+  else if (name == "stroked")
+    setStroked(Util::stringToBool(value));
+  else if (name == "filled")
+    setFilled(Util::stringToBool(value));
   else if (name == "brush.color") {
     auto b = brush_.value();
 
-    b.setColor(Util::stringToColor(value));
+    b.setColor(Util::stringToColor(tcl, value));
 
     brush_ = b;
   }
   else if (name == "brush.color.target") {
     auto b = brush_.target();
 
-    b.setColor(Util::stringToColor(value));
+    b.setColor(Util::stringToColor(tcl, value));
 
     brush_.setTarget(b);
   }
@@ -3028,7 +4033,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "brush.linear_gradient") {
     QStringList strs;
     (void) tcl->splitList(value, strs);
-    if (strs.size() != 4) return;
+    if (strs.size() != 4) return false;
 
     auto x1 = Util::stringToReal(strs[0]);
     auto y1 = Util::stringToReal(strs[1]);
@@ -3049,13 +4054,14 @@ setValue(const QString &name, const QString &value, const QStringList &)
     brush_ = QBrush(lg);
   }
   else if (name == "pen.color")
-    pen_.setColor(Util::stringToColor(value));
+    pen_.setColor(Util::stringToColor(tcl, value));
   else if (name == "pen.width")
     pen_.setWidthF(Util::stringToReal(value));
   else if (name == "pen.dash")
     pen_.setDashPattern(stringToDashes(tcl, value));
   else if (name == "group") {
     auto *group = dynamic_cast<GroupObj *>(canvas()->getObjectByName(value));
+    if (! group) return app->errorMsg(QString("Failed to find group '%1'").arg(value));
 
     if (group != group_) {
       if (group_)
@@ -3078,10 +4084,17 @@ setValue(const QString &name, const QString &value, const QStringList &)
     if (name1 == "animating")
       setAnimating(Util::stringToBool(value));
     else
-      app->errorMsg(QString("Invalid set name '%1'").arg(name));
+      return app->errorMsg(QString("Invalid set name '%1' for '%2'").
+               arg(name).arg(getCommandName()));
+  }
+  else if (name == "meta") {
+    meta_ = value;
   }
   else
-    app->errorMsg(QString("Invalid set name '%1'").arg(name));
+    return app->errorMsg(QString("Invalid set name '%1' for '%2'").
+               arg(name).arg(getCommandName()));
+
+  return true;
 }
 
 bool
@@ -3103,6 +4116,51 @@ Object::
 click(int, int)
 {
   //std::cerr << "Click: " << calcId().toStdString() << "\n";
+}
+
+//---
+
+ParticleSystem::
+ParticleSystem() :
+ CPSysSystem(-1.0, 0.1)
+{
+}
+
+CPSysParticle *
+ParticleSystem::
+makeParticle(double mass, double x, double y, double z)
+{
+  auto *particle = new Particle;
+
+#if 0
+  if (particleObj_) {
+    particle->setObj(particleObj_);
+
+    particleObj_->setParticle(particle);
+  }
+#endif
+
+  particle->setMass(mass);
+
+  particle->position()->set(x, y, z);
+
+  addParticle(particle);
+
+  return particle;
+}
+
+//---
+
+Particle::
+Particle(double mass) :
+ CPSysParticle(mass)
+{
+}
+
+void
+Particle::
+updateParticle()
+{
 }
 
 }

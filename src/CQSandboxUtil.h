@@ -50,7 +50,20 @@ inline bool stringToBool(const QString &s) {
 
 //---
 
-inline QColor stringToColor(const QString &str) {
+inline QColor stringToColor(CQTcl *tcl, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  if (strs.size() == 3 || strs.size() == 4) {
+    auto r = stringToReal(strs[0]);
+    auto g = stringToReal(strs[1]);
+    auto b = stringToReal(strs[2]);
+
+    auto a = (strs.size() == 4 ? stringToReal(strs[3]) : 1.0);
+
+    return QColor(r*255, g*255, b*255, a*255);
+  }
+
   return QColor(str);
 }
 
@@ -207,7 +220,7 @@ inline std::vector<unsigned int> stringToUIntArray(CQTcl *tcl, const QString &st
 
 //---
 
-inline CGLColor stringToColor(CQTcl *tcl, const QString &str) {
+inline CGLColor stringToGLColor(CQTcl *tcl, const QString &str) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
@@ -241,7 +254,7 @@ inline CGLColor stringToColor(CQTcl *tcl, const QString &str) {
 }
 
 inline QColor stringToQColor(CQTcl *tcl, const QString &str) {
-  auto c = stringToColor(tcl, str);
+  auto c = stringToGLColor(tcl, str);
 
   QColor c1;
 
@@ -257,7 +270,7 @@ inline std::vector<CGLColor> stringToColors(CQTcl *tcl, const QString &str) {
   std::vector<CGLColor> colors;
 
   for (const auto &str : strs) {
-    auto c = stringToColor(tcl, str);
+    auto c = stringToGLColor(tcl, str);
 
     colors.push_back(c);
   }

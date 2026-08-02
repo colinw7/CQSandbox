@@ -252,8 +252,8 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   void mousePressEvent  (QMouseEvent *event) override;
-  void mouseReleaseEvent(QMouseEvent *event) override;
   void mouseMoveEvent   (QMouseEvent *event) override;
+  void mouseReleaseEvent(QMouseEvent *event) override;
 
   void setMousePos(float xpos, float ypos);
 

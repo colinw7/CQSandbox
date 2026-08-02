@@ -4,6 +4,11 @@
 #include <CTclUtil.h>
 #include <CDisplayRange2D.h>
 #include <CMathUtil.h>
+#include <CRGBA.h>
+#include <CQuadTree.h>
+
+#include <CPSysSystem.h>
+#include <CPSysParticle.h>
 
 #include <QFrame>
 #include <QVariant>
@@ -23,6 +28,7 @@ namespace CQSandbox {
 
 class App;
 class Canvas;
+class Particle;
 
 enum class Units {
   WINDOW,
@@ -91,6 +97,10 @@ struct Rect {
 
   Rect() { }
 
+  Rect(double x1, double y1, double x2, double y2) :
+   ll(x1, y1), ur(x2, y2) {
+  }
+
   Rect(const Point &p1, const Point &p2) :
    ll(p1), ur(p2) {
   }
@@ -103,6 +113,15 @@ struct Rect {
 
     return QRectF(x1, y1, x2 - x1, y2 - y1);
   }
+
+  Point center() const {
+    return Point((ll.x.value + ur.x.value)/2.0, (ll.y.value + ur.y.value)/2.0);
+  }
+
+  double getLeft  () const { return ll.x.value; }
+  double getRight () const { return ur.x.value; }
+  double getBottom() const { return ll.y.value; }
+  double getTop   () const { return ur.y.value; }
 
   Point ll;
   Point ur;
@@ -342,15 +361,25 @@ class Object : public QObject {
   //---
 
   virtual QVariant getValue(const QString &name,  const QStringList &args);
-  virtual void setValue(const QString &name, const QString &value, const QStringList &args);
+  virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
 
   virtual QVariant exec(const QString &, const QStringList &) { return QVariant(); }
 
   //---
 
+  bool isStroked() const { return stroked_; }
+  void setStroked(bool b) { stroked_ = b; }
+
+  const QPen &pen() const { return pen_; }
+
+  bool isFilled() const { return filled_; }
+  void setFilled(bool b) { filled_ = b; }
+
   const AnimateBrush &brush() const { return brush_; }
   void setBrush(const AnimateBrush &b) { brush_ = b; }
   void setTargetBrush(const QBrush &b) { brush_.setTarget(b); }
+
+  //---
 
   QVariant nameValue(const QString &name) const {
     auto pn = nameValues_.find(name);
@@ -366,6 +395,12 @@ class Object : public QObject {
   }
 
   virtual Rect calcRect() const { return Rect(); }
+
+  virtual QPainterPath calcPath() const { return QPainterPath(); }
+
+  Rect getBBox() const { return calcRect(); }
+
+  //---
 
   virtual void draw(QPainter *) { }
 
@@ -393,6 +428,9 @@ class Object : public QObject {
   QString id_;
   bool    visible_ { true };
 
+  bool stroked_ { true };
+  bool filled_  { true };
+
   QPen         pen_;
   AnimateBrush brush_;
 
@@ -401,6 +439,8 @@ class Object : public QObject {
   NameValues nameValues_;
 
   GroupObj *group_ { nullptr };
+
+  QString meta_;
 };
 
 using Objects = std::vector<Object *>;
@@ -415,10 +455,10 @@ class GroupObj : public Object {
 
   GroupObj(Canvas *canvas, const Rect &rect);
 
-  const char *typeName() const override { return "Group"; }
+  const char *typeName() const override { return "group"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   const CDisplayRange2D &displayRange() const { return displayRange_; }
 
@@ -459,10 +499,29 @@ class CirclesGroupObj : public GroupObj {
   CirclesGroupObj(Canvas *canvas, const Rect &rect);
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
  protected:
   CirclesMgr *mgr_ { nullptr };
+};
+
+//---
+
+class QuadTreeObj : public GroupObj {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas *canvas, const QStringList &args);
+
+  QuadTreeObj(Canvas *canvas);
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+ private:
+  using QuadTree = CQuadTree<Object, Rect>;
+
+  QuadTree quadTree_;
 };
 
 //---
@@ -475,10 +534,10 @@ class RectObj : public Object {
 
   RectObj(Canvas *canvas, const Rect &rect);
 
-  const char *typeName() const override { return "Rect"; }
+  const char *typeName() const override { return "rect"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -498,7 +557,7 @@ class CircleObj : public Object {
 
   CircleObj(Canvas *canvas, const Point &center, const Coord &radius);
 
-  const char *typeName() const override { return "Circle"; }
+  const char *typeName() const override { return "circle"; }
 
   const AnimatePoint &center() const { return center_; }
   void setCenter(const AnimatePoint &c) { center_ = c; }
@@ -509,7 +568,7 @@ class CircleObj : public Object {
   void setTargetRadius(const Coord &r) { radius_.setTarget(r); }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -532,10 +591,10 @@ class LineObj : public Object {
 
   LineObj(Canvas *canvas, const Point &p1, const Point &p2);
 
-  const char *typeName() const override { return "Line"; }
+  const char *typeName() const override { return "line"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -556,7 +615,7 @@ class TextObj : public Object {
 
   TextObj(Canvas *canvas, const Point &pos, const QString &text);
 
-  const char *typeName() const override { return "Text"; }
+  const char *typeName() const override { return "text"; }
 
   const Point &position() const { return pos_; }
   void setPosition(const Point &v) { pos_ = v; }
@@ -574,7 +633,7 @@ class TextObj : public Object {
   void setAlign(const Qt::Alignment &v) { align_ = v; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -584,6 +643,7 @@ class TextObj : public Object {
   Point         pos_;
   QString       text_;
   QFont         font_;
+  QPen          border_;
   Qt::Alignment align_ { Qt::AlignCenter };
   bool          html_  { false };
 };
@@ -594,22 +654,30 @@ class ImageObj : public Object {
   Q_OBJECT
 
  public:
+  enum Position {
+    TOP_LEFT,
+    CENTER
+  };
+
   static bool create(Canvas *canvas, const QStringList &args);
 
   ImageObj(Canvas *canvas, const Point &pos, const QImage &image);
 
-  const char *typeName() const override { return "Image"; }
+  const char *typeName() const override { return "image"; }
+
+  const QImage &image() const { return image_; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
   void draw(QPainter *) override;
 
  protected:
-  Point  pos_;
-  QImage image_;
+  Point    pos_;
+  Position posType_ { Position::TOP_LEFT };
+  QImage   image_;
 };
 
 //---
@@ -622,10 +690,10 @@ class PathObj : public Object {
 
   PathObj(Canvas *canvas, const QPainterPath &path);
 
-  const char *typeName() const override { return "Path"; }
+  const char *typeName() const override { return "path"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -645,7 +713,7 @@ class PointListObj : public Object {
 
   PointListObj(Canvas *canvas, const Coord &radius);
 
-  const char *typeName() const override { return "PointList"; }
+  const char *typeName() const override { return "pointList"; }
 
   const AnimateCoord &radius() const { return radius_; }
   void setRadius(const AnimateCoord &r) { radius_ = r; }
@@ -654,16 +722,33 @@ class PointListObj : public Object {
   bool isConnected() const { return connected_; }
   void setConnected(bool b) { connected_ = b; }
 
+  bool isShowPoints() const { return showPoints_; }
+  void setShowPoints(bool b) { showPoints_ = b; }
+
   bool isFillUnder() const { return fillUnder_; }
   void setFillUnder(bool b) { fillUnder_ = b; }
 
   const OptCoord &fillUnderY() const { return fillUnderY_; }
   void setFillUnderY(const OptCoord &v) { fillUnderY_ = v; }
 
+  double angle() const { return angle_; }
+  void setAngle(double r) { angle_ = r; }
+
+  double scale() const { return scale_; }
+  void setScale(double r) { scale_ = r; }
+
+  const Point &center() const { return center_; }
+  void setCenter(const Point &o) { center_ = o; }
+
+  const Point &offset() const { return offset_; }
+  void setOffset(const Point &o) { offset_ = o; }
+
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
+
+  QPainterPath calcPath() const override { return path_; }
 
   bool step() override;
 
@@ -674,9 +759,15 @@ class PointListObj : public Object {
 
   Points       points_;
   AnimateCoord radius_;
-  bool         connected_ { false };
-  bool         fillUnder_ { false };
+  bool         connected_  { false };
+  bool         showPoints_ { false };
+  bool         fillUnder_  { false };
   OptCoord     fillUnderY_;
+  double       angle_      { 0.0 };
+  double       scale_      { 1.0 };
+  Point        center_     { 0, 0 };
+  Point        offset_     { 0, 0 };
+  QPainterPath path_;
 };
 
 //---
@@ -689,10 +780,10 @@ class ArrowObj : public Object {
 
   ArrowObj(Canvas *canvas, const Point &p1, const Point &p2);
 
-  const char *typeName() const override { return "Arrow"; }
+  const char *typeName() const override { return "arrow"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -715,10 +806,10 @@ class AxisObj : public Object {
 
   AxisObj(Canvas *canvas, const Point &pos, const Coord &len);
 
-  const char *typeName() const override { return "Axis"; }
+  const char *typeName() const override { return "axis"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -733,6 +824,33 @@ class AxisObj : public Object {
 
 //---
 
+class ParticleObj : public Object {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas *canvas, const QStringList &args);
+
+  ParticleObj(Canvas *canvas, const Point &pos);
+
+  const char *typeName() const override { return "particle"; }
+
+  const Particle *particle() const { return particle_; }
+  void setParticle(Particle *p);
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  Rect calcRect() const override;
+
+  void draw(QPainter *) override;
+
+ protected:
+  Point     pos_;
+  Particle* particle_ { nullptr };
+};
+
+//---
+
 class CsvObj : public Object {
   Q_OBJECT
 
@@ -741,10 +859,10 @@ class CsvObj : public Object {
 
   CsvObj(Canvas *canvas, const QString &filename);
 
-  const char *typeName() const override { return "Csv"; }
+  const char *typeName() const override { return "csv"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   QVariant exec(const QString &op, const QStringList &args) override;
 
@@ -762,10 +880,10 @@ class EditObj : public Object {
  public:
   EditObj(Canvas *canvas, const QString &name);
 
-  const char *typeName() const override { return "Edit"; }
+  const char *typeName() const override { return "edit"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
  protected:
   QString name_;
@@ -783,7 +901,7 @@ class RealEdit : public EditObj {
   RealEdit(Canvas *canvas, const Point &p, const QString &name);
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -808,7 +926,7 @@ class IntegerEdit : public EditObj {
   IntegerEdit(Canvas *canvas, const Point &p, const QString &name);
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -840,10 +958,10 @@ class ButtonObj : public Object {
 
   ButtonObj(Canvas *canvas, const Point &p, const QString &name);
 
-  const char *typeName() const override { return "Button"; }
+  const char *typeName() const override { return "button"; }
 
   QVariant getValue(const QString &name, const QStringList &args) override;
-  void setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   Rect calcRect() const override;
 
@@ -859,8 +977,88 @@ class ButtonObj : public Object {
 
 //---
 
+class ParticleSystem : public CPSysSystem {
+ public:
+  ParticleSystem();
+
+  CPSysParticle *makeParticle(double mass=1.0, double x=0.0, double y=0.0, double z=0.0) override;
+
+  const Object *particleObj() const { return particleObj_; }
+  void setParticleObj(Object *p) { particleObj_ = p; }
+
+ private:
+  Object* particleObj_ { nullptr };
+};
+
+class Particle : public CPSysParticle {
+ public:
+  using OptColor = std::optional<CRGBA>;
+  using OptPoint = std::optional<CPoint2D>;
+  using OptSize  = std::optional<CSize2D>;
+
+ public:
+  Particle(double mass=1.0);
+
+  const OptColor &color() const { return color_; }
+  void setColor(const OptColor &v) { color_ = v; }
+
+  const QImage &image() const { return image_; }
+  void setImage(const QImage &i) { image_ = i; }
+
+  double size() const { return size_; }
+  void setSize(double r) { size_ = r; }
+
+  double alpha() const { return alpha_; }
+  void setAlpha(double r) { alpha_ = r; }
+
+  double angle() const { return angle_; }
+  void setAngle(double r) { angle_ = r; }
+
+  const OptPoint &tpos() const { return tpos_; }
+  void setTPos(const OptPoint &v) { tpos_ = v; }
+
+  const OptSize &tsize() const { return tsize_; }
+  void setTSize(const OptSize &v) { tsize_ = v; }
+
+  const std::string &meta() const { return meta_; }
+  void setMeta(const std::string &s) { meta_ = s; }
+
+  const Object *obj() const { return obj_; }
+  void setObj(Object *p) { obj_ = p; }
+
+  void updateParticle();
+
+ private:
+  OptColor    color_;
+  QImage      image_;
+  double      size_    { 1.0 };
+  double      alpha_   { 1.0 };
+  double      angle_   { 0.0 };
+  OptPoint    tpos_;
+  OptSize     tsize_;
+  std::string meta_;
+
+  Object *obj_ { nullptr };
+};
+
+//---
+
 class Canvas : public QFrame {
   Q_OBJECT
+
+ public:
+  struct Viewport {
+    Canvas*         canvas { nullptr };
+    QString         name;
+    CDisplayRange2D displayRange;
+    Rect            rect;
+    QPen            pen;
+    AnimateBrush    brush;
+    Objects         objects;
+    Rect            clip;
+  };
+
+  using Viewports = std::vector<Viewport *>;
 
  public:
   Canvas(App *app);
@@ -871,9 +1069,26 @@ class Canvas : public QFrame {
 
   void paintEvent(QPaintEvent *) override;
 
-  void mousePressEvent(QMouseEvent *) override;
-  void mouseMoveEvent(QMouseEvent *) override;
+  void drawStep();
+
+  void drawParticle(QPainter *, Particle *);
+
+  void fadeImage(QImage &image1, QImage &image2, double f);
+
+  //---
+
+  void mousePressEvent  (QMouseEvent *) override;
+  void mouseMoveEvent   (QMouseEvent *) override;
   void mouseReleaseEvent(QMouseEvent *) override;
+
+  void keyPressEvent  (QKeyEvent *event) override;
+  void keyReleaseEvent(QKeyEvent *event) override;
+
+  bool getKeyPressed(const QString &key) const;
+
+  QString getKeyString(QKeyEvent *e) const;
+
+  //---
 
   Object *getObjectAtPos(const QPoint &pos) const;
   Object *getObjectByName(const QString &name) const;
@@ -887,14 +1102,10 @@ class Canvas : public QFrame {
   void step();
   void stepInit();
 
-  const CDisplayRange2D &displayRange() const { return displayRange_; }
-
   QString addNewObject(Object *obj);
 
   void addObject(Object *obj);
   void removeObject(Object *obj);
-
-  const Objects &objects() const { return objects_; }
 
   void createObjCommand(Object *obj);
 
@@ -905,6 +1116,10 @@ class Canvas : public QFrame {
 
   QSizeF pixelSizeToWindow(const QSizeF &psize) const;
 
+  Viewport *currentViewport() const;
+
+  Viewport *addViewport();
+
   QVariant getPaletteValue(const QString &);
   void setPaletteValue(const QString &, const QString &);
 
@@ -914,17 +1129,27 @@ class Canvas : public QFrame {
   const QPen   &stylePen  () const { return stylePen_  ; }
   const QBrush &styleBrush() const { return styleBrush_; }
 
+  //---
+
+  ParticleSystem *psys() const { return psys_; }
+
  protected:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+
+  static int viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
   static int canvasProc (void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
   static int paletteProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
   static int styleProc  (void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
+  static int viewportProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+
   static int drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
-  QVariant getValue(const QString &);
-  void setValue(const QString &, const QString &);
+  QVariant getValue(const QString &, const QStringList &);
+  bool setValue(const QString &, const QString &);
+
+  void updatePixelRanges();
 
  Q_SIGNALS:
   void objectsChanged();
@@ -935,15 +1160,17 @@ class Canvas : public QFrame {
  protected:
   App* app_ { nullptr };
 
-  QTimer *timer_ { nullptr };
+  ParticleSystem *psys_ { nullptr };
+
+  QTimer *timer_      { nullptr };
+  bool    running_    { false };
+  uint    timerTicks_ { 30 };
+  uint    ticks_      { 0 };
 
   size_t lastInd_ { 0 };
 
   bool initialized_ { false };
   bool inited_      { false };
-
-  QPen         pen_;
-  AnimateBrush brush_;
 
   QPen   stylePen_;
   QBrush styleBrush_;
@@ -951,15 +1178,31 @@ class Canvas : public QFrame {
   QPoint  pressPos_;
   Object* pressObj_ { nullptr };
   QPoint  motionPos_;
+  bool    pressed_  { false };
 
   QPainter *painter_ { nullptr };
 
+  bool   buffered_    { false };
+  bool   blend_       { false };
+  double blendFactor_ { 0.95 };
+  QImage bufferImage1_;
+  QImage bufferImage2_;
+  int    pixelWidth_  { 1 };
+  int    pixelHeight_ { 1 };
+
   //--
 
-  CDisplayRange2D displayRange_;
+  Viewports viewports_;
+  Viewport* currentViewport_ { nullptr };
+  QString   currentViewportName_;
 
-  Objects objects_;
   Objects allObjects_;
+
+  //---
+
+  using KeyPressed = std::map<QString, bool>;
+
+  KeyPressed keyPressed_;
 };
 
 }
