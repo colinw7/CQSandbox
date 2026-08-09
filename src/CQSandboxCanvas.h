@@ -6,6 +6,7 @@
 #include <CMathUtil.h>
 #include <CRGBA.h>
 #include <CQuadTree.h>
+#include <CArray2D.h>
 
 #include <CPSysSystem.h>
 #include <CPSysParticle.h>
@@ -363,7 +364,7 @@ class Object : public QObject {
   virtual QVariant getValue(const QString &name,  const QStringList &args);
   virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
 
-  virtual QVariant exec(const QString &, const QStringList &) { return QVariant(); }
+  virtual bool exec(const QString &, const QStringList &, QVariant &) { return false; }
 
   //---
 
@@ -484,6 +485,29 @@ class GroupObj : public Object {
 
   CDisplayRange2D displayRange_;
   Objects         objects_;
+};
+
+//---
+
+class RendererObj : public Object {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas *canvas, const QStringList &args);
+
+  RendererObj(Canvas *canvas);
+
+  const char *typeName() const override { return "renderer"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
+
+ private:
+  QBrush brush_;
+  QPen   pen_;
+  QFont  font_;
 };
 
 //---
@@ -656,7 +680,8 @@ class ImageObj : public Object {
  public:
   enum Position {
     TOP_LEFT,
-    CENTER
+    CENTER,
+    RECT
   };
 
   static bool create(Canvas *canvas, const QStringList &args);
@@ -676,6 +701,7 @@ class ImageObj : public Object {
 
  protected:
   Point    pos_;
+  Rect     rect_;
   Position posType_ { Position::TOP_LEFT };
   QImage   image_;
 };
@@ -851,6 +877,45 @@ class ParticleObj : public Object {
 
 //---
 
+class VectorObj : public Object {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas *canvas, const QStringList &args);
+
+  VectorObj(Canvas *canvas);
+
+  const char *typeName() const override { return "vector"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+ protected:
+  CVector2D v_;
+};
+
+//---
+
+class ArrayObj : public Object {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas *canvas, const QStringList &args);
+
+  ArrayObj(Canvas *canvas, uint dim0, uint dim1);
+  ArrayObj(Canvas *canvas, const CArray2D<double> &a);
+
+  const char *typeName() const override { return "array"; }
+
+  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+ protected:
+  CArray2D<double> a_;
+};
+
+//---
+
 class CsvObj : public Object {
   Q_OBJECT
 
@@ -864,7 +929,7 @@ class CsvObj : public Object {
   QVariant getValue(const QString &name, const QStringList &args) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  QVariant exec(const QString &op, const QStringList &args) override;
+  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
 
  protected:
   QString filename_;
@@ -1026,7 +1091,7 @@ class Particle : public CPSysParticle {
   const Object *obj() const { return obj_; }
   void setObj(Object *p) { obj_ = p; }
 
-  void updateParticle();
+  void updateParticle() override;
 
  private:
   OptColor    color_;
@@ -1056,6 +1121,7 @@ class Canvas : public QFrame {
     AnimateBrush    brush;
     Objects         objects;
     Rect            clip;
+    bool            hasRange { false };
   };
 
   using Viewports = std::vector<Viewport *>;
@@ -1074,6 +1140,8 @@ class Canvas : public QFrame {
   void drawParticle(QPainter *, Particle *);
 
   void fadeImage(QImage &image1, QImage &image2, double f);
+
+  QPainter *painter() const { return painter_; }
 
   //---
 
@@ -1146,8 +1214,13 @@ class Canvas : public QFrame {
 
   static int drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
+  static int fmulProc (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int fmaProc  (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+
   QVariant getValue(const QString &, const QStringList &);
-  bool setValue(const QString &, const QString &);
+  bool setValue(const QString &, const QString &, const QStringList &);
+  bool exec(const QString &, const QStringList &, QVariant &);
 
   void updatePixelRanges();
 
@@ -1156,6 +1229,7 @@ class Canvas : public QFrame {
 
  protected Q_SLOTS:
   void timerSlot();
+  void stepTimerSlot();
 
  protected:
   App* app_ { nullptr };
@@ -1163,6 +1237,7 @@ class Canvas : public QFrame {
   ParticleSystem *psys_ { nullptr };
 
   QTimer *timer_      { nullptr };
+  QTimer *stepTimer_  { nullptr };
   bool    running_    { false };
   uint    timerTicks_ { 30 };
   uint    ticks_      { 0 };
@@ -1171,6 +1246,7 @@ class Canvas : public QFrame {
 
   bool initialized_ { false };
   bool inited_      { false };
+  bool initRun_     { false };
 
   QPen   stylePen_;
   QBrush styleBrush_;
@@ -1181,6 +1257,7 @@ class Canvas : public QFrame {
   bool    pressed_  { false };
 
   QPainter *painter_ { nullptr };
+  bool      drawing_ { false };
 
   bool   buffered_    { false };
   bool   blend_       { false };

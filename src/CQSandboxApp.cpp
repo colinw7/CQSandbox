@@ -121,12 +121,13 @@ load(const QString &fileName)
     if (! file.open(QIODevice::ReadOnly | QIODevice::Text))
       return false;
 
+    QTextStream in(&file);
+    in.setCodec("UTF-8");
+
     QString line;
 
-    while (! file.atEnd()) {
-      QByteArray bytes = file.readLine();
-
-      QString line1(bytes);
+    while (! in.atEnd()) {
+      auto line1 = in.readLine();
 
       if (line1.right(1) == '\n')
         line1 = line1.mid(0, line1.length() - 1);

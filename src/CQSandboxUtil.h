@@ -29,14 +29,30 @@ inline QString boolToString(bool b) {
 
 //---
 
-inline int stringToInt(const QString &s) {
+inline bool stringToInt(const QString &s, int &i) {
   bool ok;
-  return s.toInt(&ok);
+  i = s.toInt(&ok);
+  return ok;
+}
+
+inline int stringToInt(const QString &s) {
+  int i;
+  if (! stringToInt(s, i))
+    i = 0;
+  return i;
+}
+
+inline bool stringToReal(const QString &s, double &r) {
+  bool ok;
+  r = s.toDouble(&ok);
+  return ok;
 }
 
 inline double stringToReal(const QString &s) {
-  bool ok;
-  return s.toDouble(&ok);
+  double r;
+  if (! stringToReal(s, r))
+    r = 0.0;
+  return r;
 }
 
 inline bool stringToBool(const QString &s) {
@@ -51,6 +67,9 @@ inline bool stringToBool(const QString &s) {
 //---
 
 inline QColor stringToColor(CQTcl *tcl, const QString &str) {
+  if (str == "none")
+    return Qt::transparent;
+
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
@@ -88,10 +107,9 @@ inline CPoint3D stringToPoint3D(CQTcl *tcl, const QString &str) {
   CPoint3D p;
 
   if (strs.size() >= 3) {
-    bool ok;
-    auto x = strs[0].toDouble(&ok);
-    auto y = strs[1].toDouble(&ok);
-    auto z = strs[2].toDouble(&ok);
+    auto x = stringToReal(strs[0]);
+    auto y = stringToReal(strs[1]);
+    auto z = stringToReal(strs[2]);
 
     p.x = x;
     p.y = y;
@@ -110,9 +128,8 @@ inline CGLVector2D stringToVector2D(CQTcl *tcl, const QString &str) {
   CGLVector2D p;
 
   if (strs.size() >= 2) {
-    bool ok;
-    auto x = strs[0].toDouble(&ok);
-    auto y = strs[1].toDouble(&ok);
+    auto x = stringToReal(strs[0]);
+    auto y = stringToReal(strs[1]);
 
     p = CGLVector2D(x, y);
   }
@@ -142,10 +159,9 @@ inline CGLVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
   CGLVector3D p;
 
   if (strs.size() >= 3) {
-    bool ok;
-    auto x = strs[0].toDouble(&ok);
-    auto y = strs[1].toDouble(&ok);
-    auto z = strs[2].toDouble(&ok);
+    auto x = stringToReal(strs[0]);
+    auto y = stringToReal(strs[1]);
+    auto z = stringToReal(strs[2]);
 
     p = CGLVector3D(x, y, z);
   }
@@ -189,9 +205,8 @@ inline CPoint2D stringToPoint2D(CQTcl *tcl, const QString &str) {
   CPoint2D p;
 
   if (strs.size() >= 2) {
-    bool ok;
-    auto x = strs[0].toDouble(&ok);
-    auto y = strs[1].toDouble(&ok);
+    auto x = stringToReal(strs[0]);
+    auto y = stringToReal(strs[1]);
 
     p.x = x;
     p.y = y;
@@ -209,8 +224,7 @@ inline std::vector<unsigned int> stringToUIntArray(CQTcl *tcl, const QString &st
   std::vector<unsigned int> integers;
 
   for (const auto &str : strs) {
-    bool ok;
-    auto i = str.toInt(&ok);
+    auto i = stringToInt(str);
 
     integers.push_back(i);
   }
@@ -227,14 +241,13 @@ inline CGLColor stringToGLColor(CQTcl *tcl, const QString &str) {
   CGLColor c;
 
   if (strs.size() >= 3) {
-    bool ok;
-    auto r = strs[0].toDouble(&ok);
-    auto g = strs[1].toDouble(&ok);
-    auto b = strs[2].toDouble(&ok);
+    auto r = stringToReal(strs[0]);
+    auto g = stringToReal(strs[1]);
+    auto b = stringToReal(strs[2]);
     auto a = 1.0;
 
     if (strs.size() >= 4)
-      a = strs[3].toDouble(&ok);
+      a = stringToReal(strs[3]);
 
     c.r = r;
     c.g = g;

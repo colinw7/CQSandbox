@@ -1,3 +1,28 @@
+# The spider logic in the classic Atari arcade game Centipede governs an erratic enemy
+# that scurry across the player's zone to add constant survival pressure.
+#
+# Movement Behavior
+#
+#  Entry and Direction:
+#    The spider enters from either the left or right side of the screen and travels across
+#    the playing field in a single continuous horizontal direction (never turning back
+#    mid-crossing).
+#  Erratic Trajectory:
+#    It switches irregularly and dynamically between vertical steps and 45-degree diagonal
+#    bounds, creating a bouncing, unpredictable pattern.
+#  Restriction Zone:
+#    It is confined strictly to the bottom half of the screen (the player's "home" area).
+#  Mushroom Interaction:
+#    As it hops across the playfield, it actively eats or destroys the mushrooms in its path.
+#
+# Scoring Logic
+#   Proximity Scaling:
+#     Unlike most enemies worth a flat rate, the spider awards a variable score
+#     depending on how close it is to your shooter when destroyed:
+#         900 Points: Up close (very near the player)
+#         600 Points: Medium distance
+#         300 Points: Far away across the screen
+
 proc randIn { min max } {
   return [expr {rand()*($max - $min) + $min}]
 }
@@ -155,7 +180,7 @@ proc mushroomAt { x y } {
 if {0} {
   set col [expr {int($x/$::BLOCK_WIDTH )}]
   set row [expr {int($y/$::BLOCK_HEIGHT)}]
-  
+
   if {$row < 0 || $row >= $::NUM_ROWS || $col < 0 || $col >= $::NUM_COLS} {
     return ""
   }
@@ -191,7 +216,7 @@ proc segmentAt { x y } {
       set x1 $::segment_x($i,$j)
       set y1 $::segment_y($i,$j)
 
-      set col1 [expr {int($x1/$::BLOCK_WIDTH )}] 
+      set col1 [expr {int($x1/$::BLOCK_WIDTH )}]
       set row1 [expr {int($y1/$::BLOCK_HEIGHT)}]
 
       if {$col == $col1 && $row == $row1} {
@@ -208,7 +233,7 @@ proc hitCentipede { ind i } {
 
   for {set j 0} {$j < $::MAX_SEGMENTS} {incr j} {
     set obj $::segment_obj($ind,$j)
-  
+
     if {! [$obj get visible]} {
       continue
     }
@@ -221,7 +246,7 @@ proc hitCentipede { ind i } {
 
     set x $::segment_x($ind,$i)
     set y $::segment_y($ind,$i)
-  
+
     set c [expr {int($x/$::BLOCK_WIDTH )}]
     set r [expr {int($y/$::BLOCK_HEIGHT)}]
 
@@ -301,7 +326,7 @@ proc addMushroom { } {
   set obj [sb::image]
 
   $obj set image $::mushroom_image(0)
-  
+
   return $obj
 }
 
@@ -347,12 +372,12 @@ proc initMushrooms { } {
   }
 
   addMushroomsToQuad
-} 
+}
 
 proc addMushroomsToQuad { } {
   $::mushroom_quad set reset 1
 
-  for {set r 0} {$r < $::NUM_ROWS} {incr r} { 
+  for {set r 0} {$r < $::NUM_ROWS} {incr r} {
     for {set c 0} {$c < $::NUM_COLS} {incr c} {
       if {[$::mushroom_obj($r,$c) get visible]} {
         $::mushroom_quad set object.add $::mushroom_obj($r,$c)
@@ -406,32 +431,63 @@ proc moveBullet { } {
   }
 }
 
+proc addSpider { } {
+  $::spider_obj set visible 1
+
+  set ::spider_x 0
+  set ::spider_y [expr {$::SCREEN_HEIGHT/2}]
+
+  $::spider_obj set center [list $::spider_x $::spider_y]
+}
+
+proc moveSpider { } {
+  if {[$::spider_obj get visible]} {
+    set ::spider_x [expr {$::spider_x + 4}]
+
+    set r [randIn 0.0 1.0]
+
+    if       {$r < 0.33} {
+      set ::spider_y [expr {$::spider_y - 4}]
+    } elseif {$r < 0.66} {
+      set ::spider_y [expr {$::spider_y + 4}]
+    }
+
+    $::spider_obj set center [list $::spider_x $::spider_y]
+
+    if {$::spider_x > $::SCREEN_WIDTH} {
+      $::spider_obj set visible 0
+    }
+  }
+}
+
 proc loadImage { file } {
   set image [sb::image {0 0} $file]
 
   $image set scale [list $::game_scale $::game_scale]
 
-  $image set visible 0 
+  $image set visible 0
 
   return $image
 }
 
 proc addTextLabel { str pos align } {
   set text [sb::text $pos $str]
-  
+
   $text set pen.color white
   $text set align     $align
-  
+
   return $text
 }
 
 proc gameOver { } {
   $::game_over_text set visible 1
-  
+
   sb::canvas set play 0
 }
 
 proc init { } {
+  echo "::init"
+
   set ::game_scale 2.5
 
   sb::canvas set brush.color black
@@ -467,6 +523,8 @@ proc init { } {
 
   set ::bullet_obj [loadImage "centipede/bullet.gif"]
 
+  set ::spider_obj [loadImage "centipede/spider.gif"]
+
   #---
 
   sb::canvas set range [list 0 $::SCREEN_HEIGHT $::SCREEN_WIDTH 0]
@@ -489,6 +547,11 @@ proc init { } {
   set ::mushroom_quad [sb::quad_tree]
 
   initMushrooms
+
+  #---
+
+  set ::spider_iticks 100
+  set ::spider_ticks $::spider_iticks
 
   #---
 
@@ -533,6 +596,12 @@ proc keyPress { args } {
 }
 
 proc update { } {
+  echo "::update"
+
+  set ::ticks [sb::canvas get ticks]
+
+  #---
+
   if       {[sb::canvas get key "left"]} {
     playerLeft
   } elseif {[sb::canvas get key "right"]} {
@@ -548,4 +617,18 @@ proc update { } {
   moveBullet
 
   moveCentipede
+
+  #---
+
+  if {! [$::spider_obj get visible]} {
+    incr ::spider_ticks -1
+
+    if {$::spider_ticks <= 0} {
+      addSpider
+
+      set ::spider_ticks $::spider_iticks
+    }
+  } else {
+    moveSpider
+  }
 }

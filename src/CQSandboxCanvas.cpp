@@ -57,8 +57,7 @@ stringToCoord(const QString &str) {
     str1 = str1.mid(0, str1.length() - 2);
   }
 
-  bool ok;
-  coord.value = str1.toDouble(&ok);
+  coord.value = Util::stringToReal(str1);
 
   return coord;
 }
@@ -91,6 +90,24 @@ pointToString(const Point &p) {
   return str;
 }
 
+bool
+stringToIntArray(CQTcl *tcl, const QString &str, std::vector<int> &a) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  a.resize(strs.size());
+
+  for (int i = 0; i < strs.size(); ++i) {
+    int ii;
+    if (! Util::stringToInt(strs[i], ii))
+      return false;
+
+    a[i] = ii;
+  }
+
+  return true;
+}
+
 Point
 stringToPoint(CQTcl *tcl, const QString &str) {
   QStringList strs;
@@ -104,9 +121,8 @@ stringToPoint(CQTcl *tcl, const QString &str) {
   }
 
   if (strs.size() >= 2) {
-    bool ok;
-    auto x = strs[0].toDouble(&ok);
-    auto y = strs[1].toDouble(&ok);
+    auto x = Util::stringToReal(strs[0]);
+    auto y = Util::stringToReal(strs[1]);
 
     p.x.value = x;
     p.y.value = y;
@@ -130,11 +146,10 @@ stringToRect(CQTcl *tcl, const QString &str) {
   }
 
   if (strs.size() >= 4) {
-    bool ok;
-    auto x1 = strs[0].toDouble(&ok);
-    auto y1 = strs[1].toDouble(&ok);
-    auto x2 = strs[2].toDouble(&ok);
-    auto y2 = strs[3].toDouble(&ok);
+    auto x1 = Util::stringToReal(strs[0]);
+    auto y1 = Util::stringToReal(strs[1]);
+    auto x2 = Util::stringToReal(strs[2]);
+    auto y2 = Util::stringToReal(strs[3]);
 
     ll.x.value = std::min(x1, x2);
     ll.y.value = std::min(y1, y2);
@@ -306,6 +321,7 @@ init()
   addCommands();
 
   app_->runTclCmd("proc init { args } { }");
+  app_->runTclCmd("proc resize { args } { }");
   app_->runTclCmd("proc update { args } { }");
   app_->runTclCmd("proc drawBg { args } { }");
   app_->runTclCmd("proc drawFg { args } { }");
@@ -323,6 +339,11 @@ init()
   timer_ = new QTimer;
 
   connect(timer_, &QTimer::timeout, this, &Canvas::timerSlot);
+
+  stepTimer_ = new QTimer;
+  stepTimer_->setSingleShot(true);
+
+  connect(stepTimer_, &QTimer::timeout, this, &Canvas::stepTimerSlot);
 
   stylePen_   = QPen(Qt::black);
   styleBrush_ = QBrush(Qt::white);
@@ -402,6 +423,14 @@ addCommands()
   //---
 
   // data
+  tcl->createObjCommand("sb::vector",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<VectorObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb::array",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ArrayObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb::csv",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<CsvObj>),
     static_cast<CQTcl::ObjCmdData>(this));
@@ -424,6 +453,10 @@ addCommands()
   //---
 
   // graphics
+  tcl->createObjCommand("sb::renderer",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<RendererObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb::draw_point",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::drawPointProc),
     static_cast<CQTcl::ObjCmdData>(this));
@@ -437,6 +470,18 @@ addCommands()
 
   tcl->createObjCommand("sb::quad_tree",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<QuadTreeObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  // math
+  tcl->createObjCommand("sb::fmul",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::fmulProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::fma", // fused multiply and add (A*B) + C
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::fmaProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb::hypot",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::hypotProc),
     static_cast<CQTcl::ObjCmdData>(this));
 }
 
@@ -473,7 +518,12 @@ pointToPixel(const Point &p) const
   auto *viewport = currentViewport();
 
   double px, py;
-  viewport->displayRange.windowToPixel(p.x.value, p.y.value, &px, &py);
+  if (viewport->hasRange)
+    viewport->displayRange.windowToPixel(p.x.value, p.y.value, &px, &py);
+  else {
+    px = p.x.value;
+    py = p.y.value;
+  }
 
   return Point::makePixel(px, py);
 }
@@ -488,7 +538,12 @@ pointToWindow(const Point &p) const
   auto *viewport = currentViewport();
 
   double x, y;
-  viewport->displayRange.pixelToWindow(p.x.value, p.y.value, &x, &y);
+  if (viewport->hasRange)
+    viewport->displayRange.pixelToWindow(p.x.value, p.y.value, &x, &y);
+  else {
+    x = p.x.value;
+    y = p.y.value;
+  }
 
   return Point::makeWindow(x, y);
 }
@@ -499,11 +554,15 @@ pixelSizeToWindow(const QSizeF &psize) const
 {
   auto *viewport = currentViewport();
 
-  double x1, y1, x2, y2;
-  viewport->displayRange.pixelToWindow(0.0          , 0.0           , &x1, &y1);
-  viewport->displayRange.pixelToWindow(psize.width(), psize.height(), &x2, &y2);
+  if (viewport->hasRange) {
+    double x1, y1, x2, y2;
+    viewport->displayRange.pixelToWindow(0.0          , 0.0           , &x1, &y1);
+    viewport->displayRange.pixelToWindow(psize.width(), psize.height(), &x2, &y2);
 
-  return QSizeF(std::abs(x2 - x1), std::abs(y2 - y1));
+    return QSizeF(std::abs(x2 - x1), std::abs(y2 - y1));
+  }
+  else
+    return QSizeF(psize.width(), psize.height());
 }
 
 void
@@ -552,6 +611,9 @@ step()
   //---
 
   if (buffered_) {
+    if (drawing_)
+      return;
+
     if (blend_)
       painter_ = new QPainter(&bufferImage2_);
     else
@@ -577,11 +639,13 @@ Canvas::
 stepInit()
 {
   if (! inited_) {
-    inited_ = true;
-
     app_->control2D()->setActive(false);
 
+    inited_ = true;
+
     app_->runTclCmd("init");
+
+    initRun_ = true;
 
     app_->control2D()->setActive(true);
   }
@@ -590,6 +654,13 @@ stepInit()
 void
 Canvas::
 timerSlot()
+{
+  step();
+}
+
+void
+Canvas::
+stepTimerSlot()
 {
   step();
 }
@@ -605,9 +676,25 @@ fadeImage(QImage &image1, QImage &image2, double f)
       QRgb pixel1 = image1.pixel(x, y);
       QRgb pixel2 = image2.pixel(x, y);
 
-      QRgb pixel3 = qRgb(std::min(int(qRed  (pixel1)*f) + qRed  (pixel2), 255),
-                         std::min(int(qGreen(pixel1)*f) + qGreen(pixel2), 255),
-                         std::min(int(qBlue (pixel1)*f) + qBlue (pixel2), 255));
+      auto a1 = qAlpha(pixel1)/255.0;
+
+      QRgb pixel3;
+
+      if (a1 > 0) {
+        auto r1 = qRed  (pixel1)/255.0;
+        auto g1 = qGreen(pixel1)/255.0;
+        auto b1 = qBlue (pixel1)/255.0;
+
+        auto r2 = qRed  (pixel2)/255.0;
+        auto g2 = qGreen(pixel2)/255.0;
+        auto b2 = qBlue (pixel2)/255.0;
+
+        pixel3 = qRgb(int(255*std::min(r1*f + r2, 1.0)),
+                      int(255*std::min(g1*f + g2, 1.0)),
+                      int(255*std::min(b1*f + b2, 1.0)));
+      }
+      else
+        pixel3 = pixel2;
 
       if (pixel3 != pixel1)
         image1.setPixel(x, y, pixel3);
@@ -630,6 +717,11 @@ void
 Canvas::
 resizeEvent(QResizeEvent *)
 {
+  bool running = running_;
+
+  if (running)
+    pause();
+
   pixelWidth_  = width();
   pixelHeight_ = height();
 
@@ -637,11 +729,17 @@ resizeEvent(QResizeEvent *)
     bufferImage1_ = QImage(pixelWidth_, pixelHeight_, QImage::Format_ARGB32);
     bufferImage2_ = QImage(pixelWidth_, pixelHeight_, QImage::Format_ARGB32);
 
-    bufferImage1_.fill(QColor(0, 0, 0).rgba());
-    bufferImage2_.fill(QColor(0, 0, 0).rgba());
+    bufferImage1_.fill(QColor(0, 0, 0, 0).rgba());
+    bufferImage2_.fill(QColor(0, 0, 0, 0).rgba());
   }
 
   updatePixelRanges();
+
+  if (initRun_)
+    app_->runTclCmd(QString("resize %1 %2").arg(pixelWidth_).arg(pixelHeight_));
+
+  if (running)
+    play();
 }
 
 void
@@ -671,6 +769,9 @@ paintEvent(QPaintEvent *)
     painter.drawImage(0, 0, bufferImage1_);
   }
   else {
+    if (drawing_)
+      return;
+
     painter_ = new QPainter(this);
 
     drawStep();
@@ -685,6 +786,8 @@ void
 Canvas::
 drawStep()
 {
+  drawing_ = true;
+
   stepInit();
 
   for (auto *viewport : viewports_) {
@@ -693,9 +796,13 @@ drawStep()
     double x1, y1, x2, y2;
     viewport->displayRange.getPixelRange(&x1, &y1, &x2, &y2);
 
-    painter_->setClipRect(QRectF(x1, y1, x2 - x1, y2 - y1));
+    if (y1 > y2) std::swap(y1, y2);
 
-    painter_->fillRect(QRectF(x1, y1, x2 - x1, y2 - y1), viewport->brush.value());
+    auto rect = QRectF(x1, y1, x2 - x1, y2 - y1);
+
+    painter_->setClipRect(rect);
+
+    painter_->fillRect(rect, viewport->brush.value().color());
 
     app_->runTclCmd("drawBg");
 
@@ -722,6 +829,8 @@ drawStep()
 
     currentViewport_ = nullptr;
   }
+
+  drawing_ = false;
 }
 
 void
@@ -930,14 +1039,14 @@ Object *
 Canvas::
 getObjectAtPos(const QPoint &pos) const
 {
-  auto *viewport = currentViewport();
+  for (auto *viewport : viewports_) {
+    for (auto *obj : viewport->objects) {
+      auto rect  = obj->calcRect();
+      auto prect = rectToPixel(rect).qrect();
 
-  for (auto *obj : viewport->objects) {
-    auto rect  = obj->calcRect();
-    auto prect = rectToPixel(rect).qrect();
-
-    if (prect.contains(pos))
-      return obj;
+      if (prect.contains(pos))
+        return obj;
+    }
   }
 
   return nullptr;
@@ -1019,11 +1128,12 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto *tcl = th->app_->tcl();
 
   if      (args[0] == "get") {
-    if (args.size() < 2)
+    if (args.size() < 2) {
+      th->app_->errorMsg("Missing args for get");
       return TCL_ERROR;
+    }
 
     QStringList args1;
-
     for (int i = 2; i < args.size(); ++i)
       args1.push_back(args[i]);
 
@@ -1032,8 +1142,35 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
     tcl->setResult(res);
   }
   else if (args[0] == "set") {
-    if (args.size() >= 3)
-      th->setValue(args[1], args[2]);
+    if (args.size() < 3) {
+      th->app_->errorMsg("Missing args for set");
+      return TCL_ERROR;
+    }
+
+    QStringList args1;
+    for (int i = 3; i < args.size(); ++i)
+      args1.push_back(args[i]);
+
+    th->setValue(args[1], args[2], args1);
+  }
+  else if (args[0] == "exec") {
+    if (args.size() <= 1) {
+      th->app_->errorMsg("Missing args for exec");
+      return TCL_ERROR;
+    }
+
+    QString op = args[1];
+
+    QStringList args1;
+    for (int i = 2; i < args.length(); ++i)
+      args1.push_back(args[i]);
+
+    QVariant res;
+
+    if (! th->exec(op, args1, res))
+      return TCL_ERROR;
+
+    tcl->setResult(res);
   }
   else if (args[0] == "delete") {
     if (args.size() >= 2) {
@@ -1048,6 +1185,8 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
           delete obj;
       }
     }
+    else
+      return TCL_ERROR;
   }
   else
     return TCL_ERROR;
@@ -1227,6 +1366,20 @@ getValue(const QString &name, const QStringList &args)
   else if (name == "play") {
     return running_;
   }
+  else if (name == "buffered") {
+    return buffered_;
+  }
+  else if (name == "pixel_width") {
+    return pixelWidth_;
+  }
+  else if (name == "pixel_height") {
+    return pixelHeight_;
+  }
+  else if (name == "font.height") {
+    QFontMetrics fm(font());
+
+    return fm.height();
+  }
   else {
     app_->errorMsg(QString("Invalid value name '%1'").arg(name));
     return QVariant();
@@ -1235,7 +1388,7 @@ getValue(const QString &name, const QStringList &args)
 
 bool
 Canvas::
-setValue(const QString &name, const QString &value)
+setValue(const QString &name, const QString &value, const QStringList &)
 {
   auto *tcl = app_->tcl();
 
@@ -1261,15 +1414,25 @@ setValue(const QString &name, const QString &value)
     viewport->pen.setColor(Util::stringToColor(tcl, value));
   else if (name == "pen.width")
     viewport->pen.setWidthF(Util::stringToReal(value));
-  else if (name == "range")
+  else if (name == "range") {
     stringToRange(tcl, viewport->displayRange, value);
+
+    viewport->hasRange = true;
+  }
   else if (name == "equal_scale") {
     auto *viewport = currentViewport();
 
     viewport->displayRange.setEqualScale(Util::stringToBool(value));
+
+    viewport->hasRange = true;
   }
   else if (name == "view") {
     currentViewportName_ = value;
+  }
+  else if (name == "view.rect") {
+    viewport->rect = stringToRect(tcl, value);
+
+    updatePixelRanges();
   }
   else if (name == "play") {
     if (Util::stringToBool(value))
@@ -1303,8 +1466,43 @@ setValue(const QString &name, const QString &value)
 
     app_->resize(w, h);
   }
+  else if (name == "font.size") {
+    double s = Util::stringToReal(value);
+
+    auto font = this->font();
+
+    double scale = 1;
+
+    for (int i = 0; i < 8; ++i) {
+      font.setPointSizeF(scale*s);
+
+      QFontMetricsF fm(font);
+
+      double s1 = fm.height();
+
+      scale *= s/s1;
+    }
+
+    setFont(font);
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+
+  return true;
+}
+
+bool
+Canvas::
+exec(const QString &op, const QStringList &, QVariant &)
+{
+  if      (op == "update") {
+    this->update();
+  }
+  else if (op == "step") {
+    stepTimer_->start(10);
+  }
+  else
+    return false;
 
   return true;
 }
@@ -1475,7 +1673,10 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       for (int i = 2; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      auto res = obj->exec(op, args1);
+      QVariant res;
+
+      if (! obj->exec(op, args1, res))
+        return TCL_ERROR;
 
       tcl->setResult(res);
     }
@@ -1531,8 +1732,11 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
 
         viewport->brush = b;
       }
-      else if (name == "range")
+      else if (name == "range") {
         stringToRange(tcl, viewport->displayRange, value);
+
+        viewport->hasRange = true;
+      }
       else if (name == "clip") {
         viewport->clip = stringToRect(tcl, value);
       }
@@ -1565,6 +1769,61 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
   else {
     app->errorMsg(QString("Bad viewport command '%1'").arg(args[0]));
   }
+
+  return TCL_OK;
+}
+
+int
+Canvas::
+fmulProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
+{
+  if (objc != 3) return TCL_ERROR;
+
+  double r1, r2;
+  if (Tcl_GetDoubleFromObj(interp, const_cast<Tcl_Obj *>(objv[1]), &r1) != TCL_OK ||
+      Tcl_GetDoubleFromObj(interp, const_cast<Tcl_Obj *>(objv[2]), &r2) != TCL_OK)
+    return TCL_ERROR;
+
+  auto *resObj = Tcl_NewDoubleObj(r1*r2);
+
+  Tcl_SetObjResult(interp, resObj);
+
+  return TCL_OK;
+}
+
+int
+Canvas::
+fmaProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
+{
+  if (objc != 4) return TCL_ERROR;
+
+  double r1, r2, r3;
+  if (Tcl_GetDoubleFromObj(interp, const_cast<Tcl_Obj *>(objv[1]), &r1) != TCL_OK ||
+      Tcl_GetDoubleFromObj(interp, const_cast<Tcl_Obj *>(objv[2]), &r2) != TCL_OK ||
+      Tcl_GetDoubleFromObj(interp, const_cast<Tcl_Obj *>(objv[3]), &r3) != TCL_OK)
+    return TCL_ERROR;
+
+  auto *resObj = Tcl_NewDoubleObj(r1*r2 + r3);
+
+  Tcl_SetObjResult(interp, resObj);
+
+  return TCL_OK;
+}
+
+int
+Canvas::
+hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
+{
+  if (objc != 3) return TCL_ERROR;
+
+  double dx, dy;
+  if (Tcl_GetDoubleFromObj(interp, const_cast<Tcl_Obj *>(objv[1]), &dx) != TCL_OK ||
+      Tcl_GetDoubleFromObj(interp, const_cast<Tcl_Obj *>(objv[2]), &dy) != TCL_OK)
+    return TCL_ERROR;
+
+  auto *resObj = Tcl_NewDoubleObj(std::hypot(dx, dy));
+
+  Tcl_SetObjResult(interp, resObj);
 
   return TCL_OK;
 }
@@ -1717,6 +1976,157 @@ pointToPixel(const Point &p) const
 
 //---
 
+bool
+RendererObj::
+create(Canvas *canvas, const QStringList &args)
+{
+  if (args.size() != 0)
+    return false;
+
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new RendererObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+RendererObj::
+RendererObj(Canvas *canvas) :
+ Object(canvas)
+{
+  font_ = canvas->font();
+}
+
+QVariant
+RendererObj::
+getValue(const QString &name, const QStringList &args)
+{
+  //auto *tcl = canvas()->app()->tcl();
+
+  if      (name == "brush.color") {
+    return Util::colorToString(brush_.color());
+  }
+  else if (name == "pen.color") {
+    return Util::colorToString(pen_.color());
+  }
+  else if (name == "font.height") {
+    QFontMetrics fm(font_);
+
+    return fm.height();
+  }
+  else
+    return Object::getValue(name, args);
+}
+
+bool
+RendererObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
+  if      (name == "brush.color")
+    brush_.setColor(Util::stringToColor(tcl, value));
+  else if (name == "pen.color")
+    pen_.setColor(Util::stringToColor(tcl, value));
+  else if (name == "font.size") {
+    double s = Util::stringToReal(value);
+
+    auto font = font_;
+
+    double scale = 1;
+
+    for (int i = 0; i < 8; ++i) {
+      font.setPointSizeF(scale*s);
+
+      QFontMetricsF fm(font);
+
+      double s1 = fm.height();
+
+      scale *= s/s1;
+    }
+
+    font_ = font;
+  }
+  else
+    return Object::setValue(name, value, args);
+
+  return true;
+}
+
+bool
+RendererObj::
+exec(const QString &op, const QStringList &args, QVariant &res)
+{
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
+  if      (op == "draw.point") {
+    if (args.size() != 1)
+      return false;
+
+    auto *painter = canvas()->painter();
+    if (! painter) return false;
+
+    auto p = stringToPoint(tcl, args[0]);
+
+    painter->setPen(pen_);
+
+    auto pp = pointToPixel(p);
+
+    painter->drawPoint(pp.x.value, pp.y.value);
+
+    return true;
+  }
+  else if (op == "draw.rect") {
+    if (args.size() != 1)
+      return false;
+
+    auto *painter = canvas()->painter();
+    if (! painter) return false;
+
+    auto r = stringToRect(tcl, args[0]);
+
+    painter->setPen(pen_);
+
+    auto pr = canvas()->rectToPixel(r).qrect();;
+
+    painter->drawRect(pr);
+
+    return true;
+  }
+  else if (op == "draw.text") {
+    if (args.size() != 2)
+      return false;
+
+    auto *painter = canvas()->painter();
+    if (! painter) return false;
+
+    auto p    = stringToPoint(tcl, args[0]);
+    auto text = args[1];
+
+    painter->setPen(pen_);
+
+    auto pp = pointToPixel(p);
+
+    painter->setFont(font_);
+
+    painter->drawText(pp.x.value, pp.y.value, text);
+
+    return true;
+  }
+  else
+    return Object::exec(op, args, res);
+
+  return false;
+}
+
+//---
+
 class CirclesMgr : public CCircleFactor::CircleMgr {
  public:
   CirclesMgr(CirclesGroupObj *group) :
@@ -1751,8 +2161,7 @@ class CirclesMgr : public CCircleFactor::CircleMgr {
       circle->setTargetRadius(radius);
     //circle->setVisible(false);
 
-      bool ok;
-      auto f = circle->nameValue("factor").toDouble(&ok);
+      auto f = Util::stringToReal(circle->nameValue("factor").toString());
 
       auto c = circleColor(f);
       c.setAlphaF(0.0);
@@ -2597,13 +3006,20 @@ bool
 ButtonObj::
 create(Canvas *canvas, const QStringList &args)
 {
-  if (args.size() != 2) return false;
-
   auto *tcl = canvas->app()->tcl();
 
-  auto pos = stringToPoint(tcl, args[0]);
+  Point   pos;
+  QString text;
 
-  auto *obj = new ButtonObj(canvas, pos, args[1]);
+  if      (args.size() >= 2) {
+    pos  = stringToPoint(tcl, args[0]);
+    text = args[1];
+  }
+  else if (args.size() >= 1) {
+    text = args[1];
+  }
+
+  auto *obj = new ButtonObj(canvas, pos, text);
 
   auto name = canvas->addNewObject(obj);
 
@@ -2702,12 +3118,18 @@ bool
 TextObj::
 create(Canvas *canvas, const QStringList &args)
 {
-  if (args.size() != 2) return false;
-
   auto *tcl = canvas->app()->tcl();
 
-  auto pos  = stringToPoint(tcl, args[0]);
-  auto text = args[1];
+  Point   pos;
+  QString text;
+
+  if      (args.size() >= 2) {
+    pos  = stringToPoint(tcl, args[0]);
+    text = args[1];
+  }
+  else if (args.size() >= 1) {
+    pos= stringToPoint(tcl, args[0]);
+  }
 
   auto *obj = new TextObj(canvas, pos, text);
 
@@ -2722,6 +3144,7 @@ TextObj::
 TextObj(Canvas *canvas, const Point &pos, const QString &text) :
  Object(canvas), pos_(pos), text_(text)
 {
+  font_ = canvas->font();
 }
 
 QVariant
@@ -2835,6 +3258,8 @@ draw(QPainter *painter)
   else {
     QFontMetrics fm(font_);
 
+    painter->setFont(font_);
+
     painter->drawText(prect.left(), prect.top() + fm.ascent(), text_);
   }
 }
@@ -2912,16 +3337,24 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     pos_     = stringToPoint(tcl, value);
     posType_ = Position::CENTER;
   }
+  else if (name == "rect") {
+    rect_    = stringToRect(tcl, value);
+    posType_ = Position::RECT;
+  }
   else if (name == "image") {
-    if (! stringToImage(value, image_)) {
-      auto *obj = canvas()->getObjectByName(value);
-      if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
+    if (value != "") {
+      if (! stringToImage(value, image_)) {
+        auto *obj = canvas()->getObjectByName(value);
+        if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
 
-      auto *imageObj = dynamic_cast<ImageObj *>(obj);
-      if (! obj) return false;
+        auto *imageObj = dynamic_cast<ImageObj *>(obj);
+        if (! obj) return false;
 
-      image_ = imageObj->image();
+        image_ = imageObj->image();
+      }
     }
+    else
+      image_ = QImage();
   }
   else if (name == "flip_x") {
     image_ = image_.mirrored(true, false);
@@ -2944,6 +3377,9 @@ Rect
 ImageObj::
 calcRect() const
 {
+  if (posType_ == Position::RECT)
+    return rect_;
+
   int w = image_.width ();
   int h = image_.height();
 
@@ -2966,18 +3402,25 @@ void
 ImageObj::
 draw(QPainter *painter)
 {
-  auto pos = pointToPixel(pos_).qpoint();
+  if (posType_ == Position::RECT) {
+    auto prect = canvas()->rectToPixel(rect_).qrect();
 
-  if (posType_ == Position::CENTER) {
-    int w = image_.width ();
-    int h = image_.height();
-
-    pos.setX(pos.x() - w/2);
-    pos.setY(pos.y() - h/2);
+    painter->drawImage(prect, image_);
   }
+  else {
+    auto pos = pointToPixel(pos_).qpoint();
 
-  if (! image_.isNull())
-    painter->drawImage(pos, image_);
+    if (posType_ == Position::CENTER) {
+      int w = image_.width ();
+      int h = image_.height();
+
+      pos.setX(pos.x() - w/2);
+      pos.setY(pos.y() - h/2);
+    }
+
+    if (! image_.isNull())
+      painter->drawImage(pos, image_);
+  }
 }
 
 //---
@@ -3765,6 +4208,178 @@ draw(QPainter *)
 //---
 
 bool
+VectorObj::
+create(Canvas *canvas, const QStringList &args)
+{
+  if (args.size() > 1)
+    return false;
+
+  auto *tcl = canvas->app()->tcl();
+
+  auto *obj = new VectorObj(canvas);
+
+  auto name = canvas->addNewObject(obj);
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+VectorObj::
+VectorObj(Canvas *canvas) :
+ Object(canvas)
+{
+}
+
+QVariant
+VectorObj::
+getValue(const QString &name, const QStringList &args)
+{
+  if      (name == "x")
+    return v_.x();
+  else if (name == "y")
+    return v_.y();
+  else
+    return Object::getValue(name, args);
+}
+
+bool
+VectorObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  if      (name == "x")
+    v_.setX(Util::stringToReal(value));
+  else if (name == "y")
+    v_.setY(Util::stringToReal(value));
+  else
+    return Object::setValue(name, value, args);
+
+  return true;
+}
+
+//---
+
+bool
+ArrayObj::
+create(Canvas *canvas, const QStringList &args)
+{
+  auto *tcl = canvas->app()->tcl();
+
+  if (args.size() != 2)
+    return false;
+
+  auto dim0 = Util::stringToInt(args[0]);
+  auto dim1 = Util::stringToInt(args[1]);
+
+  auto *obj = new ArrayObj(canvas, dim0, dim1);
+
+  auto name = canvas->addNewObject(obj);
+
+  tcl->setResult(name);
+
+  return true;
+}
+
+ArrayObj::
+ArrayObj(Canvas *canvas, uint dim0, uint dim1) :
+ Object(canvas), a_(dim0, dim1, 0.0)
+{
+}
+
+ArrayObj::
+ArrayObj(Canvas *canvas, const CArray2D<double> &a) :
+ Object(canvas), a_(a)
+{
+}
+
+QVariant
+ArrayObj::
+getValue(const QString &name, const QStringList &args)
+{
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
+  if      (name == "value") {
+    uint dim0, dim1;
+
+    if      (args.size() == 2) {
+      dim0 = Util::stringToInt(args[0]);
+      dim1 = Util::stringToInt(args[1]);
+    }
+    else if (args.size() == 1) {
+      std::vector<int> a;
+      if (! stringToIntArray(tcl, args[0], a) || a.size() != 2)
+        return false;
+
+      dim0 = a[0];
+      dim1 = a[1];
+    }
+    else
+      return QVariant();
+
+    if (! a_.validIndex(dim0, dim1))
+      return QVariant();
+
+    return a_.get(dim0, dim1);
+  }
+  else if (name == "dim0") {
+    return int(a_.dim(0));
+  }
+  else if (name == "dim1") {
+    return int(a_.dim(1));
+  }
+  else if (name == "dup") {
+    auto *obj = new ArrayObj(canvas(), a_);
+
+    auto name = canvas()->addNewObject(obj);
+
+    return name;
+  }
+  else
+    return Object::getValue(name, args);
+}
+
+bool
+ArrayObj::
+setValue(const QString &name, const QString &value, const QStringList &args)
+{
+  auto *app = canvas()->app();
+  auto *tcl = app->tcl();
+
+  if (name == "value") {
+    uint dim0, dim1;
+
+    if      (args.size() == 2) {
+      dim0 = Util::stringToInt(args[0]);
+      dim1 = Util::stringToInt(args[1]);
+    }
+    else if (args.size() == 1) {
+      std::vector<int> a;
+      if (! stringToIntArray(tcl, args[0], a) || a.size() != 2)
+        return false;
+
+      dim0 = a[0];
+      dim1 = a[1];
+    }
+    else
+      return false;
+
+    if (! a_.validIndex(dim0, dim1))
+      return false;
+
+    auto r = Util::stringToReal(value);
+
+    a_.set(dim0, dim1, r);
+  }
+  else
+    return Object::setValue(name, value, args);
+
+  return true;
+}
+
+//---
+
+bool
 CsvObj::
 create(Canvas *canvas, const QStringList &args)
 {
@@ -3845,18 +4460,18 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   return true;
 }
 
-QVariant
+bool
 CsvObj::
-exec(const QString &op, const QStringList &args)
+exec(const QString &op, const QStringList &args, QVariant &res)
 {
   if (op == "load") {
     if (! csv_->load(filename_))
-      return QVariant(0);
+      return false;
 
-    return QVariant(1);
+    return true;
   }
   else
-    return Object::exec(op, args);
+    return Object::exec(op, args, res);
 }
 
 //---
@@ -3898,10 +4513,17 @@ pointToWindow(const Point &p) const
   if (p1.x.units == Units::PIXEL) {
     auto *viewport = canvas()->currentViewport();
 
-    const auto &range = viewport->displayRange;
-
     double x, y;
-    range.pixelToWindow(p1.x.value, p1.y.value, &x, &y);
+
+    if (viewport->hasRange) {
+      const auto &range = viewport->displayRange;
+
+      range.pixelToWindow(p1.x.value, p1.y.value, &x, &y);
+    }
+    else {
+      x = p1.x.value;
+      y = p1.y.value;
+    }
 
     return Point::makeWindow(x, y);
   }
