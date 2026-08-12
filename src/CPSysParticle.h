@@ -7,6 +7,10 @@ class CPSysParticle {
  public:
   CPSysParticle(double m=1.0);
 
+  CPSysParticle(const CPSysParticle &p);
+
+  CPSysParticle &operator=(const CPSysParticle &p);
+
   virtual ~CPSysParticle() { }
 
   const uint &ind() const { return ind_; }
@@ -44,6 +48,10 @@ class CPSysParticle {
   double distanceTo(CPSysParticle *p) const;
 
   void reset();
+
+  //---
+
+  virtual void updateParticle() { }
 
  private:
   uint           ind_      { 0 };

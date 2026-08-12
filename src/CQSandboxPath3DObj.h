@@ -15,7 +15,7 @@ class Path3DObj : public Object3D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas3D *canvas, const QStringList &args);
+  static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   Path3DObj(Canvas3D *canvas);
 
@@ -23,7 +23,7 @@ class Path3DObj : public Object3D {
 
   void setLine(const CGLVector3D &p1, const CGLVector3D &p2);
 
-  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;

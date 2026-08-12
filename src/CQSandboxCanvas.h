@@ -1168,7 +1168,9 @@ class Canvas : public QFrame {
   void play();
   void pause();
   void step();
-  void stepInit();
+  void stepInit(bool &buffered);
+
+  void drawBuffered();
 
   QString addNewObject(Object *obj);
 
@@ -1218,6 +1220,8 @@ class Canvas : public QFrame {
   static int fmaProc  (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
   static int hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
+  static int uiProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+
   QVariant getValue(const QString &, const QStringList &);
   bool setValue(const QString &, const QString &, const QStringList &);
   bool exec(const QString &, const QStringList &, QVariant &);
@@ -1230,6 +1234,7 @@ class Canvas : public QFrame {
  protected Q_SLOTS:
   void timerSlot();
   void stepTimerSlot();
+  void drawTimerSlot();
 
  protected:
   App* app_ { nullptr };
@@ -1238,6 +1243,7 @@ class Canvas : public QFrame {
 
   QTimer *timer_      { nullptr };
   QTimer *stepTimer_  { nullptr };
+  QTimer *drawTimer_  { nullptr };
   bool    running_    { false };
   uint    timerTicks_ { 30 };
   uint    ticks_      { 0 };
@@ -1256,8 +1262,9 @@ class Canvas : public QFrame {
   QPoint  motionPos_;
   bool    pressed_  { false };
 
-  QPainter *painter_ { nullptr };
-  bool      drawing_ { false };
+  QPainter *painter_            { nullptr };
+  bool      drawing_            { false };
+  bool      drawBufferedNeeded_ { false };
 
   bool   buffered_    { false };
   bool   blend_       { false };

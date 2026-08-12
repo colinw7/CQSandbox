@@ -7,7 +7,7 @@
 
 namespace CQSandbox {
 
-bool
+Object3D *
 Group3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -21,7 +21,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Group3DObj::
@@ -37,11 +37,11 @@ init()
   Object3D::init();
 }
 
-QVariant
+bool
 Group3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool
@@ -90,7 +90,7 @@ setModelMatrix(uint matrixFlags)
 
   auto c = bbox.getCenter();
 
-  modelMatrix_ = CGLMatrix3D::identity();
+  modelMatrix_ = CMatrix3DH::identity();
 
   if (matrixFlags & ModelMatrixFlags::TRANSLATE)
     modelMatrix_.translated(c.x + float(position().getX()),
@@ -103,9 +103,9 @@ setModelMatrix(uint matrixFlags)
     modelMatrix_.scaled(xscale(), yscale(), zscale());
 
   if (matrixFlags & ModelMatrixFlags::ROTATE) {
-    modelMatrix_.rotated(xAngle(), CGLVector3D(1.0, 0.0, 0.0));
-    modelMatrix_.rotated(yAngle(), CGLVector3D(0.0, 1.0, 0.0));
-    modelMatrix_.rotated(zAngle(), CGLVector3D(0.0, 0.0, 1.0));
+    modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
+    modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
+    modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
   }
 
   modelMatrix_.translated(-c.x, -c.y, -c.z);
@@ -124,7 +124,7 @@ render()
 
   //---
 
-  if (canvas_->isBBox() || isSelected()) {
+  if (canvas_->isShowBBox() || isSelected()) {
     calcBBox();
 
     createBBoxObj();

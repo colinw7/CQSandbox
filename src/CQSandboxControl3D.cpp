@@ -370,9 +370,9 @@ update()
 
   //---
 
-  ambientEdit_  ->setValue(canvas_->ambient());
-  diffuseEdit_  ->setValue(canvas_->diffuse());
-  specularEdit_ ->setValue(canvas_->specular());
+  ambientEdit_  ->setValue(canvas_->ambientStrength());
+  diffuseEdit_  ->setValue(canvas_->diffuseStrength());
+  specularEdit_ ->setValue(canvas_->specularStrength());
   shininessEdit_->setValue(canvas_->shininess());
 
   //---

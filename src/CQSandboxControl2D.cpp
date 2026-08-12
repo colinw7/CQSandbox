@@ -1,9 +1,31 @@
 #include <CQSandboxControl2D.h>
 #include <CQSandboxCanvas.h>
+#include <CQSandboxApp.h>
 
+#include <CQXml.h>
+
+#include <QTabWidget>
 #include <QListWidget>
 #include <QCheckBox>
 #include <QVBoxLayout>
+
+namespace CQSandbox {
+
+class Xml : public CQXml {
+ public:
+  Xml(Control2D *control) :
+   CQXml(), control_(control) {
+  }
+
+  void execSlot(const QString &str) override {
+    control_->canvas()->app()->runTclCmd(str);
+  }
+
+ private:
+  Control2D* control_ { nullptr };
+};
+
+}
 
 namespace CQSandbox {
 
@@ -11,17 +33,36 @@ Control2D::
 Control2D(Canvas *canvas) :
  canvas_(canvas)
 {
+  setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+
   auto *layout = new QVBoxLayout(this);
+
+  auto *tab = new QTabWidget;
+
+  layout->addWidget(tab);
+
+  //---
+
+  auto *objectsFrame  = new QFrame;
+  auto *objectsLayout = new QVBoxLayout(objectsFrame);
+
+  tab->addTab(objectsFrame, "Objects");
 
   list_ = new QListWidget;
 
   list_->setSelectionMode(QAbstractItemView::SingleSelection);
 
-  layout->addWidget(list_);
+  objectsLayout->addWidget(list_);
 
   visibleCheck_ = new QCheckBox("Visible");
 
-  layout->addWidget(visibleCheck_);
+  objectsLayout->addWidget(visibleCheck_);
+
+  //---
+
+  uiFrame_ = new QFrame;
+
+  tab->addTab(uiFrame_, "UI");
 
   //---
 
@@ -112,6 +153,16 @@ getCurrentObject() const
     return canvas_->getObjectByName(id);
 
   return nullptr;
+}
+
+bool
+Control2D::
+setUi(const QString &ui)
+{
+  if (! xml_)
+    xml_ = new Xml(this);
+
+  return xml_->createWidgetsFromString(uiFrame_, ui.toStdString());
 }
 
 }

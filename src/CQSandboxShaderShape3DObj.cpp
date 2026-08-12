@@ -16,7 +16,7 @@ namespace CQSandbox {
 
 ShaderProgram* ShaderShape3DObj::s_program;
 
-bool
+Object3D *
 ShaderShape3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -30,7 +30,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 ShaderShape3DObj::
@@ -67,11 +67,11 @@ init()
   canvas_->glGenBuffers(1, &indBufferId_);
 }
 
-QVariant
+bool
 ShaderShape3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool
@@ -110,17 +110,17 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.length() != 2) {
-      app->errorMsg("Invalid number of values shader_texture <id> <file>");
-      return false;
-    }
+    if (strs.length() != 2)
+      return app->errorMsg("Invalid number of values shader_texture <id> <file>");
 
     setShaderToyTexture(strs[1]);
 
     setNeedsUpdate();
   }
   else if (name == "angle") {
-    auto p = Util::stringToPoint3D(tcl, value);
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, value, p))
+      return false;
 
     xAngle_ = p.getX();
     yAngle_ = p.getY();
@@ -138,10 +138,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.size() != 2) {
-      app->errorMsg("Invalid dimensions for cone");
-      return false;
-    }
+    if (strs.size() != 2)
+      return app->errorMsg("Invalid dimensions for cone");
 
     double r = Util::stringToReal(strs[0]);
     double h = Util::stringToReal(strs[1]);
@@ -155,10 +153,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.size() != 2) {
-      app->errorMsg("Invalid dimensions for cylinder");
-      return false;
-    }
+    if (strs.size() != 2)
+      return app->errorMsg("Invalid dimensions for cylinder");
 
     double r = Util::stringToReal(strs[0]);
     double h = Util::stringToReal(strs[1]);
@@ -192,10 +188,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       sy = Util::stringToReal(strs[1]);
       sz = Util::stringToReal(strs[2]);
     }
-    else {
-      app->errorMsg("bad sizes for cube");
-      return false;
-    }
+    else
+      return app->errorMsg("bad sizes for cube");
 
     shapeData_.addCube(sx, sy, sz);
 
@@ -479,7 +473,7 @@ void
 ShaderShape3DObj::
 render()
 {
-  if (canvas_->isBBox() || isSelected()) {
+  if (canvas_->isShowBBox() || isSelected()) {
     calcBBox();
 
     createBBoxObj();

@@ -1,26 +1,91 @@
 proc init { } {
-  #echo "init"
+  # echo "init"
 
   set ::canvasSize 256
 
-  set ::tm 48
-  set ::rm 120
+  set ::windowWidth  700
+  set ::windowHeight 400
 
-  set ::main_view sb::viewport_obj.1
+  sb::canvas set window.size [list $::windowWidth $::windowHeight]
 
-  set ::control_view [sb::viewport [list 0 0 1 0.1]]
+  set ::PI 3.1415926535897931
 
-  sb::canvas set window.size [list [expr {$::canvasSize + $::rm}] [expr {$::canvasSize + $::tm}]]
-
-  sb::canvas set view.rect {0 0.1 0.9 1.0}
+  sb::canvas set controls.show 1
 
   sb::canvas set buffered 1
-
-  set ::max_iter 128
 
   # set ::pixelWidth  [sb::canvas get pixel_width]
   # set ::pixelHeight [sb::canvas get pixel_height]
 
+  set ::max_iter 128
+
+  initColors
+
+  set ::renderer [sb::renderer]
+
+  set ::type_ind -1
+  setType 0
+
+  sb::ui "\
+<qxml>\n\
+<QPushButton text=\"Type 1\" onClicked=\"setType 0\"/>\n\
+<QPushButton text=\"Type 2\" onClicked=\"setType 1\"/>\n\
+<QPushButton text=\"Type 3\" onClicked=\"setType 2\"/>\n\
+<QPushButton text=\"Type 4\" onClicked=\"setType 3\"/>\n\
+<QLayoutItem stretch=\"1\"/>\n\
+</qxml>"
+}
+
+proc setType { ind } {
+  if {$ind == $::type_ind} {
+    return
+  }
+
+  set ::type_ind $ind
+
+  # echo "setType $::type_ind"
+
+  if       {$::type_ind == 0} {
+    set ::xmin 0.077
+    set ::ymin -0.21
+    set ::xmax 1.08
+    set ::ymax 0.79
+
+    set ::p 0.6
+    set ::q 1.1
+  } elseif {$::type_ind == 1} {
+    set ::xmin 0.077
+    set ::ymin -0.21
+    set ::xmax 1.08
+    set ::ymax 0.79
+
+    set ::p 0.6
+    set ::q 1.1
+  } elseif {$::type_ind == 2} {
+    set ::xmin -2.1
+    set ::ymin -1.03
+    set ::xmax 1.7
+    set ::ymax 1.03
+
+    set ::p 1.0
+    set ::q 1.0
+  } elseif {$::type_ind == 3} {
+    set ::xmin -0.5
+    set ::ymin -0.22
+    set ::xmax 1.3
+    set ::ymax 1.22
+
+    set ::p 0.0
+    set ::q 0.0
+  }
+
+  set ::xf [expr {(1.0/($::canvasSize - 1))*($::xmax - $::xmin)}]
+  set ::yf [expr {(1.0/($::canvasSize - 1))*($::ymin - $::ymax)}]
+
+  sb::canvas exec redraw
+}
+
+proc initColors { } {
   set ::iter_d1 [expr {($::max_iter - 1.0)/3.0}]
   set ::iter_d2 [expr {2.0*$::iter_d1}]
   set ::iter_d3 [expr {255.0/$::iter_d1}]
@@ -32,78 +97,10 @@ proc init { } {
   }
 
   set ::colors($::max_iter) [list 0 0 0]
-
-  set ::renderer [sb::renderer]
-
-  set ::PI 3.1415926535897931
-
-  sb::canvas set view $::control_view
-
-  set bx 5
-  set by 5
-  set bw 80
-  set ::button1 [sb::button [list $bx $by px] "One"  ]; incr bx $bw
-  set ::button2 [sb::button [list $bx $by px] "Two"  ]; incr bx $bw
-  set ::button3 [sb::button [list $bx $by px] "Three"]; incr bx $bw
-  set ::button4 [sb::button [list $bx $by px] "Four" ]
-
-  $::button1 set proc "setType 0"
-  $::button2 set proc "setType 1"
-  $::button3 set proc "setType 2"
-  $::button4 set proc "setType 3"
-
-  sb::canvas set view $::main_view
-
-  setType 0
-}
-
-proc setType { ind } {
-  echo "setType $ind"
-
-  set ::type_ind $ind
-
-  if       {$ind == 0} {
-    set ::xmin 0.077
-    set ::ymin -0.21
-    set ::xmax 1.08
-    set ::ymax 0.79
-
-    set ::p 0.6
-    set ::q 1.1
-  } elseif {$ind == 1} {
-    set ::xmin 0.077
-    set ::ymin -0.21
-    set ::xmax 1.08
-    set ::ymax 0.79
-
-    set ::p 0.6
-    set ::q 1.1
-  } elseif {$ind == 2} {
-    set ::xmin -2.1
-    set ::ymin -1.03
-    set ::xmax 1.7
-    set ::ymax 1.03
-
-    set ::p 1.0
-    set ::q 1.0
-  } elseif {$ind == 3} {
-    set ::xmin -0.5
-    set ::ymin -0.22
-    set ::xmax 1.3
-    set ::ymax 1.22
-
-    set ::p 0.0
-    set ::q 0.0
-  }
-
-  set ::xf [expr {(1.0/($::canvasSize  - 1))*($::xmax - $::xmin)}]
-  set ::yf [expr {(1.0/($::canvasSize - 1))*($::ymin - $::ymax)}]
-
-  sb::canvas exec step
 }
 
 proc iterToColor { iter } {
-  #echo "iterToColor $iter"
+  # echo "iterToColor $iter"
 
   set r 0
   set g 0
@@ -122,7 +119,7 @@ proc iterToColor { iter } {
 }
 
 proc calc { x y } {
-  #echo "calc $x $y"
+  # echo "calc $x $y"
 
   if       {$::type_ind == 0} {
     calc1 $x $y
@@ -276,15 +273,11 @@ proc pixelYToUser { y } {
 proc resize { args } {
   echo "resize"
 
-  sb::canvas exec step
+  # sb::canvas exec step
 }
 
 proc drawBg { } {
-  if {! [sb::canvas get buffered]} {
-    return
-  }
-
-  echo "drawBg"
+  echo "> drawBg $::type_ind"
 
   for {set y 0} {$y < $::canvasSize} {incr y} {
     set yy [pixelYToUser $y]
@@ -299,8 +292,10 @@ proc drawBg { } {
 
         $::renderer set pen.color $rgb
 
-        $::renderer exec draw.point [list $x [expr {$y + $::tm}]]
+        $::renderer exec draw.point [list $x $y]
       }
     }
   }
+
+  echo "< drawBg $::type_ind"
 }

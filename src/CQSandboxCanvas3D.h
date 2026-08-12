@@ -12,12 +12,14 @@
 #include <CPoint3D.h>
 #include <CBBox3D.h>
 #include <CMinMax.h>
+#include <CRGBA.h>
 
 #include <QFrame>
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLShaderProgram>
 
+class CGeomScene3D;
 class CGLCamera;
 
 class QTimer;
@@ -90,14 +92,16 @@ class OpenGLWindow : public QOpenGLWidget, public QOpenGLExtraFunctions {
 class Canvas3D : public OpenGLWindow {
   Q_OBJECT
 
-  Q_PROPERTY(double ambient   READ ambient   WRITE setAmbient)
-  Q_PROPERTY(double diffuse   READ diffuse   WRITE setDiffuse)
-  Q_PROPERTY(double specular  READ specular  WRITE setSpecular)
-  Q_PROPERTY(double shininess READ shininess WRITE setShininess)
+  Q_PROPERTY(double ambientStrength  READ ambientStrength  WRITE setAmbientStrength)
+  Q_PROPERTY(double diffuseStrength  READ diffuseStrength  WRITE setDiffuseStrength)
+  Q_PROPERTY(double specularStrength READ specularStrength WRITE setSpecularStrength)
+  Q_PROPERTY(double shininess        READ shininess        WRITE setShininess)
 
   Q_PROPERTY(bool polygonLine READ isPolygonLine WRITE setPolygonLine)
   Q_PROPERTY(bool wireframe   READ isWireframe   WRITE setWireframe)
-  Q_PROPERTY(bool showBBox    READ isBBox        WRITE setBBox)
+  Q_PROPERTY(bool solid       READ isSolid       WRITE setSolid)
+  Q_PROPERTY(bool textured    READ isTextured    WRITE setTextured)
+  Q_PROPERTY(bool showBBox    READ isShowBBox    WRITE setShowBBox)
 
   Q_PROPERTY(bool simpleLights READ isSimpleLights WRITE setSimpleLights)
 
@@ -135,14 +139,26 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  double ambient() const { return ambient_; }
-  void setAmbient(double r) { ambient_ = r; }
+  const CRGBA &ambientColor() const { return ambientColor_; }
+  void setAmbientColor(const CRGBA &v) { ambientColor_ = v; }
 
-  double diffuse() const { return diffuse_; }
-  void setDiffuse(double r) { diffuse_ = r; }
+  double ambientStrength() const { return ambientStrength_; }
+  void setAmbientStrength(double r) { ambientStrength_ = r; }
 
-  double specular() const { return specular_; }
-  void setSpecular(double r) { specular_ = r; }
+  double diffuseStrength() const { return diffuseStrength_; }
+  void setDiffuseStrength(double r) { diffuseStrength_ = r; }
+
+  const CRGBA &specularColor() const { return specularColor_; }
+  void setSpecularColor(const CRGBA &v) { specularColor_ = v; }
+
+  double specularStrength() const { return specularStrength_; }
+  void setSpecularStrength(double r) { specularStrength_ = r; }
+
+  const CRGBA &emissiveColor() const { return emissiveColor_; }
+  void setEmissiveColor(const CRGBA &v) { emissiveColor_ = v; }
+
+  double emissiveStrength() const { return emissiveStrength_; }
+  void setEmissiveStrength(double r) { emissiveStrength_ = r; }
 
   double shininess() const { return shininess_; }
   void setShininess(double r) { shininess_ = r; }
@@ -155,8 +171,18 @@ class Canvas3D : public OpenGLWindow {
   bool isWireframe() const { return wireframe_; }
   void setWireframe(bool b) { wireframe_ = b; }
 
-  bool isBBox() const { return bbox_; }
-  void setBBox(bool b) { bbox_ = b; }
+  bool isSolid() const { return solid_; }
+  void setSolid(bool b) { solid_ = b; }
+
+  bool isTextured() const { return textured_; }
+  void setTextured(bool b) { textured_ = b; }
+
+  bool isShowBBox() const { return showBBox_; }
+  void setShowBBox(bool b) { showBBox_ = b; }
+
+  //---
+
+  CGeomScene3D *scene() const { return scene_; }
 
   //---
 
@@ -266,6 +292,10 @@ class Canvas3D : public OpenGLWindow {
   void checkShaderErr(int shader);
   void checkProgramErr(int program);
 
+  //---
+
+  const QStringList &modelDirs() const { return modelDirs_; }
+
  private:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
@@ -278,11 +308,11 @@ class Canvas3D : public OpenGLWindow {
   static int loadModelProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 #endif
 
-  QVariant getValue(const QString &name, const QStringList &args);
+  bool getValue(const QString &name, const QStringList &args, QVariant &value);
   bool setValue(const QString &name, const QString &value, const QStringList &args);
 
-  QVariant getCameraValue(const QString &name, const QStringList &args);
-  void setCameraValue(const QString &name, const QString &value, const QStringList &args);
+  bool getCameraValue(const QString &name, const QStringList &args, QVariant &value);
+  bool setCameraValue(const QString &name, const QString &value, const QStringList &args);
 
  protected Q_SLOTS:
   void timerSlot();
@@ -293,6 +323,17 @@ class Canvas3D : public OpenGLWindow {
   void objectsChanged();
 
  private:
+  struct MouseData {
+    bool            pressed   { false };
+    bool            isShift   { false };
+    bool            isControl { false };
+    Qt::MouseButton button    { Qt::NoButton };
+    CPoint2D        press     { 0.0, 0.0 };
+    CPoint2D        move      { 0.0, 0.0 };
+  };
+
+  //---
+
   static QString s_buildDir;
 
   using Points = std::vector<CGLVector3D>;
@@ -304,14 +345,22 @@ class Canvas3D : public OpenGLWindow {
 
   size_t lastInd_ { 0 };
 
-  double ambient_   { 0.5 };
-  double diffuse_   { 0.5 };
-  double specular_  { 1.0 };
+  // lighting
+  CRGBA  ambientColor_     { CRGBA::white() };
+  double ambientStrength_  { 0.2 };
+  double diffuseStrength_  { 1.0 };
+  CRGBA  emissiveColor_    { CRGBA::white() };
+  double emissiveStrength_ { 0.0 };
+  CRGBA  specularColor_    { CRGBA::white() };
+  double specularStrength_ { 0.2 };
+
   double shininess_ { 32.0 };
 
   bool polygonLine_ { false };
   bool wireframe_   { false };
-  bool bbox_        { false };
+  bool solid_       { false };
+  bool textured_    { true };
+  bool showBBox_    { false };
 
   Type type_ { Type::CAMERA };
 
@@ -329,6 +378,13 @@ class Canvas3D : public OpenGLWindow {
   CGLMatrix3D projectionMatrix_;
   CGLMatrix3D viewMatrix_;
   CGLVector3D viewPos_;
+
+  // interaction
+  MouseData mouseData_;
+
+  //---
+
+  CGeomScene3D* scene_ { nullptr };
 
   CGLCamera* camera_ { nullptr };
 
@@ -353,7 +409,7 @@ class Canvas3D : public OpenGLWindow {
 
   Points intersectPoints_;
 
-  bool pressed_ { false };
+  QStringList modelDirs_;
 };
 
 }

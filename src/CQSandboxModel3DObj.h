@@ -2,10 +2,10 @@
 #define CQSandboxModel3DObj_H
 
 #include <CQSandboxObject3D.h>
+#include <CQSandboxFaceData.h>
 
 class CGLTexture;
 class CQGLBuffer;
-class CImportBase;
 class CGeomObject3D;
 
 namespace CQSandbox {
@@ -16,14 +16,23 @@ class Model3DObj : public Object3D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas3D *canvas, const QStringList &args);
+  static Object3D *create(Canvas3D *canvas, const QStringList &args);
+
+  static ShaderProgram* shaderProgram() { return s_program; }
+
+  //---
 
   Model3DObj(Canvas3D *canvas);
 
   const char *typeName() const override { return "Model"; }
 
-  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool isAutoScale() const { return autoScale_; }
+  void setAutoScale(bool b) { autoScale_ = b; }
+
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
 
   bool load(const QString &filename);
 
@@ -33,32 +42,22 @@ class Model3DObj : public Object3D {
 
   void initShader();
 
-  void updateObjectData();
-
   void calcTangents();
 
   void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
 
+ private:
+  void updateObject(CGeomObject3D *object);
+
+  void drawObject(CGeomObject3D *object, double t);
+
+  void updateObjectData();
+
+  void calcTangents1(CGeomObject3D *object);
+
  protected:
-  struct FaceData {
-    int         pos             { 0 };
-    int         len             { 0 };
-    CGLTexture *diffuseTexture  { nullptr };
-    CGLTexture *specularTexture { nullptr };
-    CGLTexture *normalTexture   { nullptr };
-  };
-
-  using FaceDatas = std::vector<FaceData>;
-
-  //FaceDatas faceDatas;
-
-  struct ObjectData {
-    CQGLBuffer* buffer { nullptr };
-    FaceDatas   faceDatas;
-  };
-
-  using ObjectDatas = std::map<CGeomObject3D *, ObjectData *>;
-  using GLTextures  = std::map<int, CGLTexture *>;
+  using FaceDatas  = std::vector<FaceData>;
+  using GLTextures = std::map<int, CGLTexture *>;
 
   //---
 
@@ -71,16 +70,18 @@ class Model3DObj : public Object3D {
 
   bool needsUpdate_ { true };
 
-  CImportBase* import_ { nullptr };
+  CGeomObject3D* object_ { nullptr };
 
-  CGLTexture *diffuseTexture_  { nullptr };
-  CGLTexture *specularTexture_ { nullptr };
-  CGLTexture *normalTexture_   { nullptr };
+  CGLTexture* diffuseTexture_  { nullptr };
+  CGLTexture* specularTexture_ { nullptr };
+  CGLTexture* normalTexture_   { nullptr };
+  CGLTexture* emissiveTexture_ { nullptr };
 
-  CPoint3D    sceneCenter_ { 0 , 0, 0 };
-  ObjectDatas objectDatas_;
+  CPoint3D sceneCenter_ { 0 , 0, 0 };
 
-  bool flipYZ_ { false };
+  bool flipYZ_      { false };
+  bool autoScale_   { false };
+  bool transformed_ { false };
 
   GLTextures glTextures_;
 };

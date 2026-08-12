@@ -337,13 +337,16 @@ init()
   //---
 
   timer_ = new QTimer;
-
   connect(timer_, &QTimer::timeout, this, &Canvas::timerSlot);
 
   stepTimer_ = new QTimer;
   stepTimer_->setSingleShot(true);
-
   connect(stepTimer_, &QTimer::timeout, this, &Canvas::stepTimerSlot);
+
+  drawTimer_ = new QTimer;
+  connect(drawTimer_, &QTimer::timeout, this, &Canvas::drawTimerSlot);
+
+  //---
 
   stylePen_   = QPen(Qt::black);
   styleBrush_ = QBrush(Qt::white);
@@ -483,6 +486,12 @@ addCommands()
   tcl->createObjCommand("sb::hypot",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::hypotProc),
     static_cast<CQTcl::ObjCmdData>(this));
+
+  //---
+
+  tcl->createObjCommand("sb::ui",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::uiProc),
+    static_cast<CQTcl::ObjCmdData>(this));
 }
 
 void
@@ -593,7 +602,8 @@ step()
 
   //---
 
-  stepInit();
+  bool buffered;
+  stepInit(buffered);
 
   psys_->tick(0.01);
 
@@ -614,30 +624,16 @@ step()
     if (drawing_)
       return;
 
-    if (blend_)
-      painter_ = new QPainter(&bufferImage2_);
-    else
-      painter_ = new QPainter(&bufferImage1_);
-
-    drawStep();
-
-    delete painter_;
-
-    painter_ = nullptr;
-
-    if (blend_)
-      fadeImage(bufferImage1_, bufferImage2_, blendFactor_);
+    drawBufferedNeeded_ = true;
   }
-
-  //---
-
-  update();
 }
 
 void
 Canvas::
-stepInit()
+stepInit(bool &buffered)
 {
+  buffered = false;
+
   if (! inited_) {
     app_->control2D()->setActive(false);
 
@@ -648,7 +644,32 @@ stepInit()
     initRun_ = true;
 
     app_->control2D()->setActive(true);
+
+    buffered = buffered_;
+
+    drawTimer_->start(100);
   }
+}
+
+void
+Canvas::
+drawBuffered()
+{
+  if (blend_)
+    painter_ = new QPainter(&bufferImage2_);
+  else
+    painter_ = new QPainter(&bufferImage1_);
+
+  drawStep();
+
+  delete painter_;
+
+  painter_ = nullptr;
+
+  if (blend_)
+    fadeImage(bufferImage1_, bufferImage2_, blendFactor_);
+
+  update();
 }
 
 void
@@ -663,6 +684,17 @@ Canvas::
 stepTimerSlot()
 {
   step();
+}
+
+void
+Canvas::
+drawTimerSlot()
+{
+  if (drawBufferedNeeded_) {
+    drawBufferedNeeded_ = false;
+
+    drawBuffered();
+  }
 }
 
 void
@@ -738,6 +770,9 @@ resizeEvent(QResizeEvent *)
   if (initRun_)
     app_->runTclCmd(QString("resize %1 %2").arg(pixelWidth_).arg(pixelHeight_));
 
+  if (buffered_ && initRun_)
+    drawBufferedNeeded_ = true;
+
   if (running)
     play();
 }
@@ -788,7 +823,14 @@ drawStep()
 {
   drawing_ = true;
 
-  stepInit();
+  bool buffered;
+  stepInit(buffered);
+
+  if (buffered) {
+    drawBufferedNeeded_ = true;
+
+    return;
+  }
 
   for (auto *viewport : viewports_) {
     currentViewport_ = viewport;
@@ -1485,6 +1527,11 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     setFont(font);
   }
+  else if (name == "controls.show") {
+    auto b = Util::stringToBool(value);
+
+    app_->toolbar2D()->showControls(b);
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
@@ -1500,6 +1547,12 @@ exec(const QString &op, const QStringList &, QVariant &)
   }
   else if (op == "step") {
     stepTimer_->start(10);
+  }
+  else if (op == "redraw") {
+    if (buffered_)
+      drawBufferedNeeded_ = true;
+    else
+      this->update();
   }
   else
     return false;
@@ -1824,6 +1877,26 @@ hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
   auto *resObj = Tcl_NewDoubleObj(std::hypot(dx, dy));
 
   Tcl_SetObjResult(interp, resObj);
+
+  return TCL_OK;
+}
+
+//---
+
+int
+Canvas::
+uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas *>(clientData);
+  assert(th);
+
+  auto *app = th->app();
+
+  auto args = app->getArgs(objc, objv);
+  if (args.size() != 1) return TCL_ERROR;
+
+  if (! app->control2D()->setUi(args[0]))
+    return TCL_ERROR;
 
   return TCL_OK;
 }

@@ -19,7 +19,7 @@ namespace CQSandbox {
 
 ShaderProgram *Surface3DObj::s_program   = nullptr;
 
-bool
+Object3D *
 Surface3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -33,7 +33,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Surface3DObj::
@@ -42,11 +42,11 @@ Surface3DObj(Canvas3D *canvas) :
 {
 }
 
-QVariant
+bool
 Surface3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool
@@ -151,12 +151,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
       int ixy = iy*nx_ + ix;
 
-      auto z = Util::stringToReal(value);
+      double z;
+      if (! Util::stringToReal(value, z))
+        return false;
 
       points_[ixy].setZ(z);
     }
     else
-      app->errorMsg("Missing index for point");
+      return app->errorMsg("Missing index for point");
 
     setNeedsUpdate();
   }
@@ -181,14 +183,16 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       QStringList cstrs;
       (void) tcl->splitList(value, cstrs);
 
-      auto r = Util::stringToReal(cstrs[0]);
-      auto g = Util::stringToReal(cstrs[1]);
-      auto b = Util::stringToReal(cstrs[2]);
+      double r, g, b;
+      if (! Util::stringToReal(cstrs[0], r) ||
+          ! Util::stringToReal(cstrs[1], g) ||
+          ! Util::stringToReal(cstrs[2], b))
+        return false;
 
       colors_[ixy] = CGLVector3D(r, g, b);
     }
     else
-      app->errorMsg("Missing index for color");
+      return app->errorMsg("Missing index for color");
 
     setNeedsUpdate();
   }
@@ -516,9 +520,9 @@ render()
   s_program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
   s_program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
 
-  s_program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
-  s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
-  s_program->setUniformValue("specularStrength", float(canvas_->specular()));
+  s_program->setUniformValue("ambientStrength" , float(canvas_->ambientStrength()));
+  s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuseStrength()));
+  s_program->setUniformValue("specularStrength", float(canvas_->specularStrength()));
   s_program->setUniformValue("shininess"       , float(canvas_->shininess()));
 
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));

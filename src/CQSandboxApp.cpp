@@ -5,20 +5,30 @@
 #include <CQSandboxToolbar2D.h>
 #include <CQSandboxControl3D.h>
 #include <CQSandboxToolbar3D.h>
+#include <CQSandboxStatus.h>
+#include <CQSandboxOverview3D.h>
 
 #include <CQTclUtil.h>
 
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <QFile>
 
 #include <svg/play_svg.h>
 #include <svg/pause_svg.h>
 #include <svg/play_one_svg.h>
+
 #include <svg/camera_svg.h>
 #include <svg/model_svg.h>
 #include <svg/light_svg.h>
+#include <svg/game_svg.h>
+
 #include <svg/wireframe_svg.h>
+#include <svg/solid_fill_svg.h>
+#include <svg/texture_fill_svg.h>
+
 #include <svg/bbox_svg.h>
+
 #include <svg/settings_svg.h>
 
 namespace CQSandbox {
@@ -55,12 +65,25 @@ init()
     canvas3D_  = new Canvas3D(this);
     toolbar3D_ = new Toolbar3D(canvas3D_);
 
+    if (isOverview())
+      overview3D_ = new Overview3D(this);
+
     canvas3D_->init();
 
     layout->addWidget(toolbar3D_);
     layout->addLayout(clayout);
 
-    clayout->addWidget(canvas3D_);
+    if (overview3D_) {
+      tab_ = new QTabWidget;
+
+      tab_->addTab(canvas3D_  , "3D");
+      tab_->addTab(overview3D_, "2D");
+
+      clayout->addWidget(tab_);
+    }
+    else {
+      clayout->addWidget(canvas3D_);
+    }
 
     connect(canvas3D_, &Canvas3D::typeChanged, toolbar3D_, &Toolbar3D::updateInfo);
 
@@ -91,6 +114,10 @@ init()
 
     control2D_->hide();
   }
+
+  status_ = new Status(this);
+
+  layout->addWidget(status_);
 }
 
 void

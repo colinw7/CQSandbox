@@ -14,7 +14,7 @@ namespace CQSandbox {
 
 ShaderProgram *Shape3DObj::s_program = nullptr;
 
-bool
+Object3D *
 Shape3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -28,7 +28,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Shape3DObj::
@@ -37,11 +37,11 @@ Shape3DObj(Canvas3D *canvas) :
 {
 }
 
-QVariant
+bool
 Shape3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool
@@ -87,7 +87,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else if (name == "angle") {
-    auto p = Util::stringToPoint3D(tcl, value);
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, value, p))
+      return false;
 
     xAngle_ = p.getX();
     yAngle_ = p.getY();
@@ -105,10 +107,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.size() != 2) {
-      app->errorMsg("Invalid dimensions for cone");
-      return false;
-    }
+    if (strs.size() != 2)
+      return app->errorMsg("Invalid dimensions for cone");
 
     double r = Util::stringToReal(strs[0]);
     double h = Util::stringToReal(strs[1]);
@@ -122,10 +122,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.size() != 2) {
-      app->errorMsg("Invalid dimensions for cylinder");
-      return false;
-    }
+    if (strs.size() != 2)
+      return app->errorMsg("Invalid dimensions for cylinder");
 
     double r = Util::stringToReal(strs[0]);
     double h = Util::stringToReal(strs[1]);
@@ -159,10 +157,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       sy = Util::stringToReal(strs[1]);
       sz = Util::stringToReal(strs[2]);
     }
-    else {
-      app->errorMsg("bad sizes for cube");
-      return false;
-    }
+    else
+      return app->errorMsg("bad sizes for cube");
 
     shapeData_.addCube(sx, sy, sz);
 
@@ -520,7 +516,7 @@ void
 Shape3DObj::
 render()
 {
-  if (canvas_->isBBox() || isSelected()) {
+  if (canvas_->isShowBBox() || isSelected()) {
     calcBBox();
 
     createBBoxObj();
@@ -551,9 +547,9 @@ render()
   s_program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
   s_program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
 
-  s_program->setUniformValue("ambientStrength" , float(canvas_->ambient()));
-  s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuse()));
-  s_program->setUniformValue("specularStrength", float(canvas_->specular()));
+  s_program->setUniformValue("ambientStrength" , float(canvas_->ambientStrength()));
+  s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuseStrength()));
+  s_program->setUniformValue("specularStrength", float(canvas_->specularStrength()));
   s_program->setUniformValue("shininess"       , float(canvas_->shininess()));
 
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));

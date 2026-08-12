@@ -77,6 +77,33 @@ setAngles(double xa, double ya, double za)
 
 void
 Object3D::
+setXPos(double x)
+{
+  position_.x = x;
+
+  setNeedsUpdate();
+}
+
+void
+Object3D::
+setYPos(double y)
+{
+  position_.y = y;
+
+  setNeedsUpdate();
+}
+
+void
+Object3D::
+setZPos(double z)
+{
+  position_.z = z;
+
+  setNeedsUpdate();
+}
+
+void
+Object3D::
 setScales(double xs, double ys, double zs)
 {
   xscale_ = xs;
@@ -127,7 +154,7 @@ void
 Object3D::
 init()
 {
-  modelMatrix_ = CGLMatrix3D::identity();
+  modelMatrix_ = CMatrix3DH::identity();
 }
 
 void
@@ -145,14 +172,14 @@ setModelMatrix(uint matrixFlags)
   auto o   = origin();
   auto pos = this->position();
 
-  modelMatrix_ = CGLMatrix3D::identity();
+  modelMatrix_ = CMatrix3DH::identity();
 
   if (matrixFlags & ModelMatrixFlags::ROTATE) {
     modelMatrix_.translated(float(o.getX()), float(o.getY()), float(o.getZ()));
 
-    modelMatrix_.rotated(xAngle(), CGLVector3D(1.0, 0.0, 0.0));
-    modelMatrix_.rotated(yAngle(), CGLVector3D(0.0, 1.0, 0.0));
-    modelMatrix_.rotated(zAngle(), CGLVector3D(0.0, 0.0, 1.0));
+    modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
+    modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
+    modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
 
     modelMatrix_.translated(-float(o.getX()), -float(o.getY()), -float(o.getZ()));
   }
@@ -164,30 +191,30 @@ setModelMatrix(uint matrixFlags)
     modelMatrix_.scaled(xscale(), yscale(), zscale());
 }
 
-QVariant
+bool
 Object3D::
-getValue(const QString &name, const QStringList &)
+getValue(const QString &name, const QStringList &, QVariant &value)
 {
   auto *app = canvas()->app();
 
   if      (name == "id")
-    return id();
+    value = id();
   else if (name == "visible")
-    return QString(isVisible() ? "1" : "0");
+    value = QString(isVisible() ? "1" : "0");
   else if (name == "position")
-    return Util::point3DToString(position());
+    value = Util::point3DToString(position());
   else if (name == "x_angle")
-    return Util::realToString(xAngle());
+    value = Util::realToString(Util::radToDeg(xAngle()));
   else if (name == "y_angle")
-    return Util::realToString(yAngle());
+    value = Util::realToString(Util::radToDeg(yAngle()));
   else if (name == "z_angle")
-    return Util::realToString(zAngle());
+    value = Util::realToString(Util::radToDeg(zAngle()));
   else if (name == "group")
-    return (group() ? group()->calcId() : "");
-  else {
-    app->errorMsg(QString("Invalid get name '%1'").arg(name));
-    return QVariant();
-  }
+    value = (group() ? group()->calcId() : "");
+  else
+    return app->errorMsg(QString("Invalid get name '%1'").arg(name));
+
+  return true;
 }
 
 bool
@@ -205,27 +232,47 @@ setValue(const QString &name, const QString &value, const QStringList &)
     setNeedsUpdate();
   }
   else if (name == "position") {
-    setPosition(Util::stringToPoint3D(tcl, value));
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, value, p))
+      return false;
+
+    setPosition(p);
 
     setNeedsUpdate();
   }
   else if (name == "x_angle") {
-    setXAngle(Util::stringToReal(value));
+    double a;
+    if (! Util::stringToReal(value, a))
+      return false;
+
+    setXAngle(Util::degToRad(a));
 
     setNeedsUpdate();
   }
   else if (name == "y_angle") {
-    setYAngle(Util::stringToReal(value));
+    double a;
+    if (! Util::stringToReal(value, a))
+      return false;
+
+    setYAngle(Util::degToRad(a));
 
     setNeedsUpdate();
   }
   else if (name == "z_angle") {
-    setZAngle(Util::stringToReal(value));
+    double a;
+    if (! Util::stringToReal(value, a))
+      return false;
+
+    setZAngle(Util::degToRad(a));
 
     setNeedsUpdate();
   }
   else if (name == "scale") {
-    setScale(Util::stringToReal(value));
+    double s;
+    if (! Util::stringToReal(value, s))
+      return false;
+
+    setScale(s);
 
     setNeedsUpdate();
   }
@@ -244,12 +291,17 @@ setValue(const QString &name, const QString &value, const QStringList &)
         canvas()->addObject(this);
     }
   }
-  else {
-    app->errorMsg(QString("Invalid set name '%1'").arg(name));
-    return false;
-  }
+  else
+    return app->errorMsg(QString("Invalid set name '%1'").arg(name));
 
   return true;
+}
+
+bool
+Object3D::
+exec(const QString &, const QStringList &, QVariant &)
+{
+  return false;
 }
 
 void

@@ -7,7 +7,7 @@
 
 namespace CQSandbox {
 
-bool
+Object3D *
 Shader3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -21,7 +21,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Shader3DObj::
@@ -41,11 +41,11 @@ init()
   shaderToyProgram_ = new ShaderToyProgram(this);
 }
 
-QVariant
+bool
 Shader3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool

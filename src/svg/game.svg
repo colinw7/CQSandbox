@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="557.14288"
+   height="557.14288"
+   viewBox="0 0 557.14287 557.14287"
+   id="svg2"
+   version="1.1"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="game.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.0078125"
+     inkscape:cx="381.51938"
+     inkscape:cy="262.94574"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     units="px"
+     fit-margin-top="10"
+     fit-margin-left="10"
+     fit-margin-right="10"
+     fit-margin-bottom="10"
+     inkscape:window-width="2982"
+     inkscape:window-height="1916"
+     inkscape:window-x="722"
+     inkscape:window-y="195"
+     inkscape:window-maximized="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:showpageshadow="2"
+     inkscape:deskcolor="#d1d1d1" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-92.857117,-236.64792)">
+    <rect
+       style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:2;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:300;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate"
+       id="rect4159"
+       width="82.852715"
+       height="283.28683"
+       x="262.0354"
+       y="376.05438" />
+    <rect
+       y="376.55051"
+       x="397.47726"
+       height="283.28683"
+       width="82.852715"
+       id="rect4161"
+       style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:2;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:300;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate" />
+    <desc
+       id="desc237">
+    Gamepad Minimalistic Streamline Icon: https://streamlinehq.com
+  </desc>
+    <path
+       fill-rule="evenodd"
+       clip-rule="evenodd"
+       d="m 440.33973,289.59612 c 9.76371,0 17.67935,7.9154 17.67935,17.67935 v 23.57247 c 0,22.7828 -18.46903,41.25183 -41.25182,41.25183 h -23.57247 c -3.25536,0 -5.89312,2.63846 -5.89312,5.89311 v 23.57247 h 9.93815 c 59.85286,0 89.77811,0 112.7872,14.46572 5.8224,3.66104 11.22756,7.94816 16.11649,12.78476 19.32471,19.11162 26.13716,48.25214 39.75969,106.53036 l 24.10049,103.10126 c 8.4743,36.24268 -14.04683,72.49006 -50.29422,80.94551 -30.56642,7.13303 -62.00738,-7.78599 -75.81378,-35.97395 l -2.84284,-5.8059 C 448.37558,651.7329 422.07106,635.32646 393.25372,635.32646 h -47.2628 c -28.81735,0 -55.12186,16.40644 -67.7982,42.28665 l -2.84354,5.8059 c -13.8064,28.18796 -45.2483,43.10698 -75.81449,35.97395 -36.2462,-8.45545 -58.76734,-44.70283 -50.29492,-80.94551 L 173.3412,535.34619 c 13.62371,-58.27822 20.43568,-87.41874 39.75898,-106.53036 4.89034,-4.8366 10.29527,-9.12372 16.11815,-12.78476 23.00861,-14.46572 52.93433,-14.46572 112.78413,-14.46572 h 9.94051 v -23.57247 c 0,-22.78279 18.46903,-41.25182 41.25182,-41.25182 h 23.57247 c 3.25535,0 5.89311,-2.63846 5.89311,-5.89312 v -23.57247 c 0,-9.76395 7.91564,-17.67935 17.67936,-17.67935 z m 23.57246,206.25911 c 0,13.01907 -10.55339,23.57247 -23.57246,23.57247 -13.01908,0 -23.57247,-10.5534 -23.57247,-23.57247 0,-13.01908 10.55339,-23.57247 23.57247,-23.57247 13.01907,0 23.57246,10.55339 23.57246,23.57247 z M 287.11844,478.17588 c 9.76395,0 17.67935,7.91563 17.67935,17.67935 v 17.67935 h 17.67959 c 9.76372,0 17.67935,7.91564 17.67935,17.67935 0,9.76372 -7.91563,17.67936 -17.67935,17.67936 h -17.67959 v 17.67935 c 0,9.76371 -7.9154,17.67935 -17.67935,17.67935 -9.76419,0 -17.67935,-7.91564 -17.67935,-17.67935 V 548.89329 H 251.7595 c -9.76419,0 -17.67935,-7.91564 -17.67935,-17.67936 0,-9.76371 7.91516,-17.67935 17.67935,-17.67935 h 17.67959 v -17.67935 c 0,-9.76372 7.91516,-17.67935 17.67935,-17.67935 z m 200.36622,100.18299 c 13.01908,0 23.57247,-10.55339 23.57247,-23.57247 0,-13.01907 -10.55339,-23.57247 -23.57247,-23.57247 -13.01907,0 -23.57247,10.5534 -23.57247,23.57247 0,13.01908 10.5534,23.57247 23.57247,23.57247 z"
+       fill="#000000"
+       stroke-width="23.5725"
+       id="path239" />
+  </g>
+</svg>

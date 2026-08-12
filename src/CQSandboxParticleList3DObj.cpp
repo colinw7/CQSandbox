@@ -24,7 +24,7 @@ namespace CQSandbox {
 size_t                                        ParticleList3DObj::s_maxPoints = 50000;
 ParticleList3DObj::ParticleListShaderProgram *ParticleList3DObj::s_program   = nullptr;
 
-bool
+Object3D *
 ParticleList3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -38,7 +38,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 ParticleList3DObj::
@@ -47,36 +47,36 @@ ParticleList3DObj(Canvas3D *canvas) :
 {
 }
 
-QVariant
+bool
 ParticleList3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "size") {
-    return Util::intToString(int(points_.size()));
+    value = Util::intToString(int(points_.size()));
   }
   else if (name == "position") {
     if (args.size() > 0) {
       auto i = Util::stringToInt(args[0]);
 
       if (i < 0 || i >= int(points_.size()))
-        return QVariant();
+        return false;
 
-      return Util::vector3DToString(points_[i]);
+      value = Util::vector3DToString(points_[i]);
     }
     else
-      return QVariant();
+      return false;
   }
   else if (name == "color") {
     if (args.size() > 0) {
       auto i = Util::stringToInt(args[0]);
 
       if (i < 0 || i >= int(colors_.size()))
-        return QVariant();
+        return false;
 
-      return Util::colorToString(colors_[i]);
+      value = Util::colorToString(colors_[i]);
     }
     else
-      return QVariant();
+      return false;
   }
   else if (name == "range") {
     calcBBox();
@@ -90,13 +90,15 @@ getValue(const QString &name, const QStringList &args)
     strs << QString::number(bbox_.getYMax());
     strs << QString::number(bbox_.getZMax());
 
-    return strs.join(" ");
+    value = strs.join(" ");
   }
   else if (name == "particleSize") {
-    return QVariant(particleSize());
+    value = QVariant(particleSize());
   }
   else
-    return Object3D::getValue(name, args);
+    return Object3D::getValue(name, args, value);
+
+  return true;
 }
 
 bool
@@ -119,10 +121,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       if (i < 0 || i >= int(points_.size()))
         return false;
 
-      points_[i] = Util::stringToPoint3D(tcl, value);
+      CPoint3D p;
+      if (! Util::stringToPoint3D(tcl, value, p))
+        return false;
+
+      points_[i] = p;
     }
     else
-      app->errorMsg("Missing index for position");
+      return app->errorMsg("Missing index for position");
 
     bboxValid_ = false;
   }
@@ -137,7 +143,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       colors_[i] = Util::stringToGLColor(tcl, value);
     }
     else
-      app->errorMsg("Missing index for color");
+      return app->errorMsg("Missing index for color");
   }
   else if (name == "generator") {
     int n = 10000;
@@ -241,7 +247,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setTextureFile(value);
   }
   else if (name == "particleSize") {
-    auto r = Util::stringToReal(value);
+    double r;
+    if (! Util::stringToReal(value, r))
+       return false;
 
     setParticleSize(r);
   }
@@ -529,7 +537,7 @@ void
 ParticleList3DObj::
 render()
 {
-  if (canvas_->isBBox() || isSelected()) {
+  if (canvas_->isShowBBox() || isSelected()) {
     calcBBox();
 
     createBBoxObj();

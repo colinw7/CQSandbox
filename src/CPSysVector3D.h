@@ -12,8 +12,6 @@ class CPSysVector3D {
 
   CPSysVector3D() { }
 
-  CPSysVector3D(const CPSysVector3D &p) { x_ = p.x_; y_ = p.y_; z_ = p.z_; }
-
   double x() const { return x_; }
   double y() const { return y_; }
   double z() const { return z_; }

@@ -8,12 +8,12 @@
 
 namespace CQSandbox {
 
-bool
+Object3D *
 Csv3DObj::
 create(Canvas3D *canvas, const QStringList &args)
 {
   if (args.size() != 1)
-    return false;
+    return nullptr;
 
   auto *tcl = canvas->app()->tcl();
 
@@ -27,7 +27,7 @@ create(Canvas3D *canvas, const QStringList &args)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Csv3DObj::
@@ -44,24 +44,24 @@ init()
   Object3D::init();
 }
 
-QVariant
+bool
 Csv3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas_->app();
 
   if      (name == "filename")
-    return filename_;
+    value = filename_;
   else if (name == "comment_header")
-    return csv_->isCommentHeader();
+    value = csv_->isCommentHeader();
   else if (name == "first_line_header")
-    return csv_->isFirstLineHeader();
+    value = csv_->isFirstLineHeader();
   else if (name == "first_column_header")
-    return csv_->isFirstColumnHeader();
+    value = csv_->isFirstColumnHeader();
   else if (name == "num_rows")
-    return csv_->rowCount();
+    value = csv_->rowCount();
   else if (name == "num_columns" || name == "num_cols")
-    return csv_->columnCount();
+    value = csv_->columnCount();
   else if (name == "data") {
     if (args.size() == 2) {
       auto row = Util::stringToInt(args[0]);
@@ -69,15 +69,15 @@ getValue(const QString &name, const QStringList &args)
 
       auto ind = csv_->index(row, col, QModelIndex());
 
-      return csv_->data(ind);
+      value = csv_->data(ind);
     }
-    else {
-      app->errorMsg("missing row/col for data");
-      return QVariant();
-    }
+    else
+      return app->errorMsg("missing row/col for data");
   }
   else
-    return Object3D::getValue(name, args);
+    return Object3D::getValue(name, args, value);
+
+  return true;
 }
 
 bool
@@ -98,18 +98,18 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   return true;
 }
 
-QVariant
+bool
 Csv3DObj::
-exec(const QString &op, const QStringList &args)
+exec(const QString &op, const QStringList &args, QVariant &res)
 {
   if (op == "load") {
     if (! csv_->load(filename_))
-      return QVariant(0);
-
-    return QVariant(1);
+      return false;
   }
   else
-    return Object3D::exec(op, args);
+    return Object3D::exec(op, args, res);
+
+  return true;
 }
 
 }

@@ -20,14 +20,19 @@ main(int argc, char **argv)
   app->resize(2000, 1500);
 
   QString filename;
-  bool    is3D { false };
+  bool    is3D     { false };
+  bool    overview { false };
 
   for (int i = 1; i < argc; ++i) {
     auto arg = QString(argv[i]);
 
     if (arg.left(1) == '-') {
-      if (arg == "-3d")
+      if      (arg == "-3d")
         is3D = true;
+      else if (arg == "-overview")
+        overview = true;
+      else
+        std::cerr << "Invalid option '" << argv[i] << "\n";
     }
     else
       filename = arg;
@@ -35,6 +40,9 @@ main(int argc, char **argv)
 
   if (is3D)
     app->set3D(true);
+
+  if (overview)
+    app->setOverview(true);
 
   app->init();
 

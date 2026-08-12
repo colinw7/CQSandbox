@@ -15,7 +15,7 @@ namespace CQSandbox {
 ShaderProgram *Graph3DObj::s_program1 = nullptr;
 ShaderProgram *Graph3DObj::s_program2 = nullptr;
 
-bool
+Object3D *
 Graph3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -29,7 +29,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Graph3DObj::
@@ -196,11 +196,11 @@ init()
   canvas_->glGenBuffers(1, &linesBufferId_);
 }
 
-QVariant
+bool
 Graph3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool
@@ -399,7 +399,7 @@ updateTextObjs()
 
     const auto &p = points_[i];
 
-    float x, y, z;
+    double x, y, z;
     modelMatrix_.multiplyPoint(p.x(), p.y(), p.z(), &x, &y, &z);
 
     auto p1 = CPoint3D(x, y, z);

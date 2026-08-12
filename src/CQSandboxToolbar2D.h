@@ -20,6 +20,8 @@ class Toolbar2D : public QFrame {
 
   void setInfo(const QString &label);
 
+  void showControls(bool b);
+
  private Q_SLOTS:
   void playSlot();
   void pauseSlot();

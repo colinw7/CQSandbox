@@ -10,7 +10,7 @@
 namespace CQSandbox {
 
 #ifdef CQSANDBOX_FIELD_RUNNERS
-bool
+Object3D *
 FieldRunners3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -24,7 +24,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 FieldRunners3DObj::
@@ -55,9 +55,9 @@ tick()
   runners_->update();
 }
 
-QVariant
+bool
 FieldRunners3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas()->app();
   auto *tcl = app->tcl();
@@ -72,18 +72,14 @@ getValue(const QString &name, const QStringList &args)
   auto argsToIndex = [&]() {
     Index ind;
 
-    if (args.size() < 1) {
-      app->errorMsg("Missing index for " + name);
-      return ind;
-    }
+    if (args.size() < 1)
+      return app->errorMsg("Missing index for " + name);
 
     QStringList strs;
     (void) tcl->splitList(args[0], strs);
 
-    if (strs.size() != 2) {
-      app->errorMsg("Missing index for " + name);
-      return ind;
-    }
+    if (strs.size() != 2)
+      return app->errorMsg("Missing index for " + name);
 
     ind.ix = Util::stringToInt(strs[0]);
     ind.iy = Util::stringToInt(strs[1]);
@@ -94,7 +90,8 @@ getValue(const QString &name, const QStringList &args)
   if (name == "cell_bg") {
     (void) argsToIndex();
   }
-  return Object3D::getValue(name, args);
+  else
+    return Object3D::getValue(name, args, value);
 }
 
 bool

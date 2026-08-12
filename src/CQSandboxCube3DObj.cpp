@@ -6,7 +6,7 @@
 
 namespace CQSandbox {
 
-bool
+Object3D *
 Cube3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -20,7 +20,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Cube3DObj::

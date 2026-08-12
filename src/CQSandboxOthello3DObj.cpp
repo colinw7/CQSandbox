@@ -10,7 +10,7 @@
 namespace CQSandbox {
 
 #ifdef CQSANDBOX_OTHELLO
-bool
+Object3D *
 Othello3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -24,7 +24,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Othello3DObj::
@@ -41,9 +41,9 @@ init()
   Object3D::init();
 }
 
-QVariant
+bool
 Othello3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas()->app();
   auto *tcl = app->tcl();
@@ -55,26 +55,20 @@ getValue(const QString &name, const QStringList &args)
     bool isValid() { return (ix >= 0 && iy >= 0); }
   };
 
-  auto argsToIndex = [&]() {
-    Index ind;
-
-    if (args.size() < 1) {
-      app->errorMsg("Missing index for " + name);
-      return ind;
-    }
+  auto argsToIndex = [&](Index &ind) {
+    if (args.size() < 1)
+      return app->errorMsg("Missing index for " + name);
 
     QStringList strs;
     (void) tcl->splitList(args[0], strs);
 
-    if (strs.size() != 2) {
-      app->errorMsg("Missing index for " + name);
-      return ind;
-    }
+    if (strs.size() != 2)
+      return app->errorMsg("Missing index for " + name);
 
     ind.ix = Util::stringToInt(strs[0]);
     ind.iy = Util::stringToInt(strs[1]);
 
-    return ind;
+    return true;
   };
 
   auto stringToPiece = [](const QString &str) {
@@ -93,42 +87,40 @@ getValue(const QString &name, const QStringList &args)
   else if (name == "can_move_anywhere") {
   }
   else if (name == "can_move") {
-    if (args.size() != 2) {
-      app->errorMsg("Invalid args for " + name);
-      return QVariant();
-    }
+    if (args.size() != 2)
+      return app->errorMsg("Invalid args for " + name);
 
-    auto ind = argsToIndex();
-    if (! ind.isValid()) return QVariant();
+    Index ind;
+    if (! argsToIndex(ind) || ! ind.isValid())
+      return false;
 
     auto b = board_->canMove(ind.ix, ind.iy, stringToPiece(args[1]));
 
-    return QVariant(b);
+    value = QVariant(b);
   }
   else if (name == "do_move") {
-    if (args.size() != 2) {
-      app->errorMsg("Invalid args for " + name);
-      return QVariant();
-    }
+    if (args.size() != 2)
+      return app->errorMsg("Invalid args for " + name);
 
-    auto ind = argsToIndex();
-    if (! ind.isValid()) return QVariant();
+    Index ind;
+    if (! argsToIndex(ind) || ! ind.isValid())
+      return false;
 
     board_->doMove(ind.ix, ind.iy, stringToPiece(args[1]));
-
-    return QVariant();
   }
   else if (name == "is_white_piece") {
-    auto ind = argsToIndex();
-    if (! ind.isValid()) return QVariant();
+    Index ind;
+    if (! argsToIndex(ind) || ! ind.isValid())
+      return false;
 
-    return QVariant(board_->getPiece(ind.ix, ind.iy) == COTHELLO_PIECE_WHITE ? 1 : 0);
+    value = QVariant(board_->getPiece(ind.ix, ind.iy) == COTHELLO_PIECE_WHITE ? 1 : 0);
   }
   else if (name == "is_black_piece") {
-    auto ind = argsToIndex();
-    if (! ind.isValid()) return QVariant();
+    Index ind;
+    if (! argsToIndex(ind) || ! ind.isValid())
+      return false;
 
-    return QVariant(board_->getPiece(ind.ix, ind.iy) == COTHELLO_PIECE_BLACK ? 1 : 0);
+    value = QVariant(board_->getPiece(ind.ix, ind.iy) == COTHELLO_PIECE_BLACK ? 1 : 0);
   }
   else if (name == "num_white") {
   }
@@ -137,10 +129,8 @@ getValue(const QString &name, const QStringList &args)
   else if (name == "num") {
   }
   else if (name == "best_move") {
-    if (args.size() != 1) {
-      app->errorMsg("Invalid args for " + name);
-      return QVariant();
-    }
+    if (args.size() != 1)
+      return app->errorMsg("Invalid args for " + name);
 
     int depth = 1;
 
@@ -155,9 +145,12 @@ getValue(const QString &name, const QStringList &args)
     else
       res = QString("-1 -1");
 
-    return QVariant(res);
+    value = QVariant(res);
   }
-  return Object3D::getValue(name, args);
+  else
+    return Object3D::getValue(name, args, value);
+
+  return true;
 }
 
 bool

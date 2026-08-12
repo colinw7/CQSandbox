@@ -42,6 +42,7 @@ CQSandboxSkybox3DObj.cpp \
 CQSandboxSprite3DObj.cpp \
 CQSandboxSurface3DObj.cpp \
 CQSandboxText3DObj.cpp \
+CQSandboxGeomObject.cpp \
 \
 CQSandboxControl2D.cpp \
 CQSandboxControl3D.cpp \
@@ -50,6 +51,8 @@ CQSandboxShaderToyProgram.cpp \
 CQSandboxShape3DData.cpp \
 CQSandboxToolbar2D.cpp \
 CQSandboxToolbar3D.cpp \
+CQSandboxOverview3D.cpp \
+CQSandboxStatus.cpp \
 \
 CCircleFactor.cpp \
 CQGLTexture.cpp \
@@ -75,6 +78,14 @@ CFlock.cpp \
 CBoid.cpp \
 CWaterSurface.cpp \
 CProfile.cpp \
+\
+CPSysAttraction.cpp \
+CPSysEulerIntegrator.cpp \
+CPSysModifiedEulerIntegrator.cpp \
+CPSysParticle.cpp \
+CPSysRungeKuttaIntegrator.cpp \
+CPSysSpring.cpp \
+CPSysSystem.cpp \
 
 HEADERS += \
 CQSandboxApp.h \
@@ -103,6 +114,7 @@ CQSandboxSkybox3DObj.h \
 CQSandboxSprite3DObj.h \
 CQSandboxSurface3DObj.h \
 CQSandboxText3DObj.h \
+CQSandboxGeomObject.h \
 \
 CQSandboxControl2D.h \
 CQSandboxControl3D.h \
@@ -111,6 +123,8 @@ CQSandboxShaderToyProgram.h \
 CQSandboxShape3DData.h \
 CQSandboxToolbar2D.h \
 CQSandboxToolbar3D.h \
+CQSandboxOverview3D.h \
+CQSandboxStatus.h \
 CQSandboxUtil.h \
 \
 CQTclUtil.h \
@@ -133,6 +147,8 @@ INCLUDEPATH += \
 ../include \
 ../../CQPropertyView/include \
 ../../CQUtil/include \
+../../CQXml/include \
+../../CXML/include \
 ../../CGeometry3D/include \
 ../../CImportModel/include \
 ../../CQBaseModel/include \
@@ -151,7 +167,11 @@ unix:LIBS += \
 -L$$LIB_DIR \
 -L../../CCsv/lib \
 -L../../CQBaseModel/lib \
+-L../../CQXml/lib \
 -L../../CQPropertyView/lib \
+-L../../CQPropertyTree/lib \
+-L../../CQStyleWidget/lib \
+-L../../CQColorPalette/lib \
 -L../../CQUtil/lib \
 -L../../CImportModel/lib \
 -L../../CXML/lib \
@@ -171,7 +191,11 @@ unix:LIBS += \
 -lCQCsv \
 -lCQBaseModel \
 -lCCsv \
+-lCQXml \
 -lCQPropertyView \
+-lCQPropertyTree \
+-lCQStyleWidget \
+-lCQColorPalette \
 -lCQUtil \
 -lCImportModel \
 -lCXML \

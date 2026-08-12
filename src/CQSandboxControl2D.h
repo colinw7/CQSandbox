@@ -3,9 +3,12 @@
 
 #include <QFrame>
 
+class CQXml;
+
 class QListWidget;
 class QListWidgetItem;
 class QCheckBox;
+class QFrame;
 
 namespace CQSandbox {
 
@@ -18,8 +21,14 @@ class Control2D : public QFrame {
  public:
   Control2D(Canvas *canvas);
 
+  Canvas *canvas() const { return canvas_; }
+
+  QFrame *uiFrame() const { return uiFrame_; }
+
   bool isActive() const { return active_; }
   void setActive(bool b);
+
+  bool setUi(const QString &ui);
 
  public Q_SLOTS:
   void updateObjects();
@@ -39,7 +48,9 @@ class Control2D : public QFrame {
 
   QListWidget* list_         { nullptr };
   QCheckBox*   visibleCheck_ { nullptr };
+  QFrame*      uiFrame_      { nullptr };
   bool         active_       { true };
+  CQXml*       xml_          { nullptr };
 };
 
 }

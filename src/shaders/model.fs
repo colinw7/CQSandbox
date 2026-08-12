@@ -7,6 +7,8 @@ in vec2 TexCoords;
 
 out vec4 FragColor;
 
+//--- Lights
+
 struct DirectionalLight {
   bool enabled;
   vec3 color;
@@ -38,44 +40,49 @@ uniform SpotLight        spotLights[NUM_SPOT_LIGHTS];
 
 uniform vec3 viewPos;
 
+uniform vec3  ambientColor;
+uniform float ambientStrength;
+uniform float diffuseStrength;
+uniform vec3  specularColor;
+uniform float specularStrength;
+uniform float shininess;
+uniform vec3  emissionColor;
+uniform float emissiveStrength;
+
+//--- Textures
+
 struct TextureData {
   bool      enabled;
   sampler2D texture;
 };
 
 uniform TextureData diffuseTexture;
-uniform TextureData specularTexture;
 uniform TextureData normalTexture;
+uniform TextureData specularTexture;
+uniform TextureData emissiveTexture;
 
-uniform float ambientStrength;
-uniform float diffuseStrength;
-uniform float specularStrength;
-uniform float shininess;
+//--- State
 
 uniform bool isWireframe;
 
-float calcDiffuse(vec3 lightDir, vec3 nrm) {
+//---
+
+vec3 calcNormal() {
+  if (normalTexture.enabled) {
+    vec3 norm = texture(normalTexture.texture, TexCoords).rgb;
+    norm = normalize(norm*2.0 - 1.0); // this normal is in tangent space
+    return norm;
+  }
+  else
+    return normalize(Normal);
+}
+
+float calcDiffuseFactor(vec3 lightDir, vec3 nrm) {
   float diffAmt = max(0.0, dot(nrm, lightDir));
   return diffAmt;
 }
 
-float calcSpecular(vec3 lightDir, vec3 viewDir, vec3 nrm, float shininess) {
-  vec3 halfVec = normalize(viewDir + lightDir);
-  float specAmt = max(0.0, dot(halfVec, nrm));
-  return pow(specAmt, shininess);
-}
-
-void main() {
-  // normal
-  vec3 norm;
-  if (normalTexture.enabled) {
-    norm = texture(normalTexture.texture, TexCoords).rgb;
-    norm = normalize(norm*2.0 - 1.0); // this normal is in tangent space
-  }
-  else
-    norm = normalize(Normal);
-
-  // diffuse color
+vec3 calcDiffuseColor() {
   vec3 diffuseColor;
   if (diffuseTexture.enabled)
     diffuseColor = texture(diffuseTexture.texture, TexCoords).rgb;
@@ -84,9 +91,16 @@ void main() {
 
   vec3 diffuse = diffuseStrength*diffuseColor;
 
-  // specular color
-  vec3 viewDir = normalize(viewPos - FragPos);
-  vec3 reflectDir = reflect(-viewDir, norm);
+  return diffuse;
+}
+
+float calcSpecularFactor(vec3 lightDir, vec3 viewDir, vec3 nrm, float shininess) {
+  vec3 halfVec = normalize(viewDir + lightDir);
+  float specAmt = max(0.0, dot(halfVec, nrm));
+  return pow(specAmt, shininess);
+}
+
+vec3 calcSpecularColor() {
   vec3 specColor;
   if (specularTexture.enabled)
     specColor = texture(specularTexture.texture, TexCoords).rgb;
@@ -95,25 +109,60 @@ void main() {
 
   vec3 specular = specularStrength*specColor;
 
+  return specular;
+}
+
+vec3 calcEmissionColor() {
+  vec3 emissionColor = vec3(0, 0, 0);
+  if (emissiveTexture.enabled)
+    return texture(emissiveTexture.texture, TexCoords).rgb;
+  else
+    return emissiveStrength*emissionColor;
+}
+
+//---
+
+void main() {
+  // normal
+  vec3 norm = calcNormal();
+
   // ambient
-  vec3 ambient = ambientStrength*diffuseColor;
+  vec3 ambient = ambientStrength*ambientColor;
 
-  // directional light
-  vec3 result = vec3(0, 0, 0);
+  vec3 result = ambient;
 
+  // diffuse color
+  vec3 diffuseColor = calcDiffuseColor();
+
+  // specular color
+  vec3 specColor = calcSpecularColor();
+
+  vec3 viewDir = normalize(viewPos - FragPos);
+
+  //vec3 reflectDir = reflect(-viewDir, norm);
+
+  //---
+
+  bool lit = false;
+
+  // directional lights
   for (int i = 0; i < NUM_DIR_LIGHTS; ++i) {
     DirectionalLight directionalLight = directionalLights[i];
 
     if (directionalLight.enabled) {
       //vec3 lightDir = normalize(directionalLight.position - FragPos);
 
-      float diffAmt = calcDiffuse(directionalLight.direction, norm);
-      float specAmt = calcSpecular(directionalLight.direction, viewDir, norm, shininess);
+      float diffAmt = calcDiffuseFactor(directionalLight.direction, norm);
+      float specAmt = calcSpecularFactor(directionalLight.direction, viewDir, norm, shininess);
 
-      result += diffAmt*directionalLight.color*diffuse + specAmt*directionalLight.color*specular;
+      result += diffAmt*directionalLight.color*diffuseColor +
+                specAmt*directionalLight.color*specColor;
+
+      lit = true;
     }
   }
 
+  // point lights
   for (int i = 0; i < NUM_POINT_LIGHTS; ++i) {
     PointLight pointLight = pointLights[i];
 
@@ -123,13 +172,16 @@ void main() {
       float distToLight = length(toLight);
       float falloff = max(0.0, 1.0 - (distToLight/pointLight.radius));
 
-      float diffAmt = calcDiffuse(lightDir, norm)*falloff;
-      float specAmt = calcSpecular(lightDir, viewDir, norm, shininess)*falloff;
+      float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
+      float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess)*falloff;
 
-      result += diffAmt*pointLight.color*diffuse + specAmt*pointLight.color*specular;
+      result += diffAmt*pointLight.color*diffuseColor + specAmt*pointLight.color*specColor;
+
+      lit = true;
     }
   }
 
+  // spot lights
   for (int i = 0; i < NUM_SPOT_LIGHTS; ++i) {
     SpotLight spotLight = spotLights[i];
 
@@ -139,14 +191,27 @@ void main() {
       float angle = dot(spotLight.direction, -lightDir);
       float falloff = (angle > spotLight.cutoff ? 1.0 : 0.0);
 
-      float diffAmt = calcDiffuse(lightDir, norm)*falloff;
-      float specAmt = calcSpecular(lightDir, viewDir, norm, shininess)*falloff;
+      float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
+      float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess)*falloff;
 
-      result += diffAmt*spotLight.color*diffuse + specAmt*spotLight.color*specular;
+      result += diffAmt*spotLight.color*diffuseColor + specAmt*spotLight.color*specColor;
+
+      lit = true;
     }
   }
 
-  result += ambient;
+  if (! lit) {
+    float diffFactor = max(dot(norm, viewDir), 0.0);
+
+    result += diffFactor*diffuseColor;
+  }
+
+  // add emission
+  vec3 emissionColor = calcEmissionColor();
+
+  result += emissionColor;
+
+  // adjust color by state
 
   FragColor = (isWireframe ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(result, 1.0));
 }

@@ -9,7 +9,7 @@ namespace CQSandbox {
 
 ShaderProgram *Path3DObj::s_program = nullptr;
 
-bool
+Object3D *
 Path3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -23,7 +23,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Path3DObj::
@@ -95,11 +95,11 @@ setLine(const CGLVector3D &p1, const CGLVector3D &p2)
   setNeedsUpdate();
 }
 
-QVariant
+bool
 Path3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool

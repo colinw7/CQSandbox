@@ -90,6 +90,10 @@ inline QString colorToString(const QColor &c) {
   return c.name();
 }
 
+inline QColor RGBAToQColor(const CRGBA &c) {
+  return QColor(int(255*c.getRed()), int(255*c.getGreen()), int(255*c.getBlue()));
+}
+
 //---
 
 inline QString point3DToString(const CPoint3D &p) {
@@ -100,23 +104,22 @@ inline QString point3DToString(const CPoint3D &p) {
   return xstr + " " + ystr + " " + zstr;
 }
 
-inline CPoint3D stringToPoint3D(CQTcl *tcl, const QString &str) {
+inline bool stringToPoint3D(CQTcl *tcl, const QString &str, CPoint3D &p) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  CPoint3D p;
+  if (strs.size() < 3)
+    return false;
 
-  if (strs.size() >= 3) {
-    auto x = stringToReal(strs[0]);
-    auto y = stringToReal(strs[1]);
-    auto z = stringToReal(strs[2]);
+  double x, y, z;
+  if (! stringToReal(strs[0], x) || ! stringToReal(strs[1], y) || ! stringToReal(strs[2], z))
+    return false;
 
-    p.x = x;
-    p.y = y;
-    p.z = z;
-  }
+  p.x = x;
+  p.y = y;
+  p.z = z;
 
-  return p;
+  return true;
 }
 
 //---
@@ -308,6 +311,16 @@ inline CGLColor qcolorToColor(const QColor &c) {
 
 inline QVector3D toVector(const CGLColor &c) {
   return QVector3D(c.r, c.g, c.b);
+}
+
+//---
+
+inline double degToRad(double d) {
+  return M_PI*d/180;
+}
+
+inline double radToDeg(double d) {
+  return 180.0*d/M_PI;
 }
 
 //---

@@ -51,19 +51,53 @@ Toolbar3D(Canvas3D *canvas) :
     return button;
   };
 
-  cameraButton_ = addToolButton("camera", "CAMERA", "Camera", SLOT(cameraSlot()));
-  modelButton_  = addToolButton("model" , "MODEL" , "Model" , SLOT(modelSlot()));
-  lightButton_  = addToolButton("light" , "LIGHT" , "Light" , SLOT(lightSlot()));
+  auto addSeparator = [&]() {
+    auto *frame = new QFrame;
+
+    frame->setFixedWidth(16);
+    frame->setFrameStyle(QFrame::VLine);
+
+    return frame;
+  };
+
+  //---
+
+  cameraButton_ = addToolButton("camera", "CAMERA", "Mode: Camera", SLOT(cameraSlot()));
+  modelButton_  = addToolButton("model" , "MODEL" , "Mode: Model" , SLOT(modelSlot()));
+  lightButton_  = addToolButton("light" , "LIGHT" , "Mode: Light" , SLOT(lightSlot()));
+  gameButton_   = addToolButton("game"  , "GAME"  , "Mode: Game"  , SLOT(gameSlot()));
 
   layout->addWidget(cameraButton_);
   layout->addWidget(modelButton_);
   layout->addWidget(lightButton_);
+  layout->addWidget(gameButton_);
 
-  wireButton_ = addCheckButton("wire", "WIREFRAME", "Wireframe", SLOT(wireSlot()));
-  bboxButton_ = addCheckButton("bbox", "BBOX"     , "Model"    , SLOT(bboxSlot()));
+  layout->addWidget(addSeparator());
+
+  //---
+
+  wireButton_     =
+    addCheckButton("wire"    , "WIREFRAME"   , "Shade: Wireframe", SLOT(wireSlot()));
+  solidButton_    =
+    addCheckButton("solid"   , "SOLID_FILL"  , "Shade: Solid"    , SLOT(solidSlot()));
+  texturedButton_ =
+    addCheckButton("textured", "TEXTURE_FILL", "Shade: Textured" , SLOT(texturedSlot()));
+
+  //---
 
   layout->addWidget(wireButton_);
+  layout->addWidget(solidButton_);
+  layout->addWidget(texturedButton_);
+
+  layout->addWidget(addSeparator());
+
+  //---
+
+  bboxButton_ = addCheckButton("bbox", "BBOX", "Show: Model", SLOT(bboxSlot()));
+
   layout->addWidget(bboxButton_);
+
+  layout->addWidget(addSeparator());
 
   //---
 
@@ -150,6 +184,13 @@ lightSlot()
 
 void
 Toolbar3D::
+gameSlot()
+{
+  canvas_->setType(Canvas3D::Type::GAME);
+}
+
+void
+Toolbar3D::
 wireSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
@@ -161,11 +202,33 @@ wireSlot()
 
 void
 Toolbar3D::
+solidSlot()
+{
+  auto *button = qobject_cast<CQIconButton *>(sender());
+
+  canvas_->setSolid(button->isChecked());
+
+  canvas_->update();
+}
+
+void
+Toolbar3D::
+texturedSlot()
+{
+  auto *button = qobject_cast<CQIconButton *>(sender());
+
+  canvas_->setTextured(button->isChecked());
+
+  canvas_->update();
+}
+
+void
+Toolbar3D::
 bboxSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
 
-  canvas_->setBBox(button->isChecked());
+  canvas_->setShowBBox(button->isChecked());
 
   canvas_->update();
 }

@@ -11,7 +11,7 @@ namespace CQSandbox {
 
 ShaderProgram *Plane3DObj::s_program = nullptr;
 
-bool
+Object3D *
 Plane3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -25,7 +25,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Plane3DObj::

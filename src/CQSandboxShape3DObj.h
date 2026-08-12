@@ -20,13 +20,13 @@ class Shape3DObj : public Object3D {
   Q_PROPERTY(QString texture READ textureFile WRITE setTextureFile)
 
  public:
-  static bool create(Canvas3D *canvas, const QStringList &args);
+  static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   Shape3DObj(Canvas3D *canvas);
 
   const char *typeName() const override { return "Shape"; }
 
-  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   const CGLColor &color() const { return color_; }

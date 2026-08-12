@@ -1,7 +1,8 @@
 #ifndef CQSandboxObject3D_H
 #define CQSandboxObject3D_H
 
-#include <CGLMatrix3D.h>
+#include <CGLVector3D.h>
+#include <CMatrix3DH.h>
 #include <CBBox3D.h>
 #include <CPoint3D.h>
 
@@ -28,6 +29,9 @@ class Object3D : public QObject {
   Q_PROPERTY(double  xangle   READ xAngle     WRITE setXAngle)
   Q_PROPERTY(double  yangle   READ yAngle     WRITE setYAngle)
   Q_PROPERTY(double  zangle   READ zAngle     WRITE setZAngle)
+  Q_PROPERTY(double  xpos     READ xPos       WRITE setXPos)
+  Q_PROPERTY(double  ypos     READ yPos       WRITE setYPos)
+  Q_PROPERTY(double  zpos     READ zPos       WRITE setZPos)
   Q_PROPERTY(double  xscale   READ xscale     WRITE setXScale)
   Q_PROPERTY(double  yscale   READ yscale     WRITE setYScale)
   Q_PROPERTY(double  zscale   READ zscale     WRITE setZScale)
@@ -89,6 +93,15 @@ class Object3D : public QObject {
 
   //---
 
+  double xPos() const { return position_.x; }
+  void setXPos(double a);
+
+  double yPos() const { return position_.y; }
+  void setYPos(double a);
+
+  double zPos() const { return position_.z; }
+  void setZPos(double a);
+
   const CPoint3D &position() const { return position_; }
   virtual void setPosition(const CPoint3D &p);
 
@@ -112,7 +125,7 @@ class Object3D : public QObject {
 
   //---
 
-  const CGLMatrix3D &modelMatrix() const { return modelMatrix_; }
+  const CMatrix3DH &modelMatrix() const { return modelMatrix_; }
 
   //---
 
@@ -129,10 +142,10 @@ class Object3D : public QObject {
 
   virtual void setModelMatrix(uint flags=ModelMatrixFlags::ALL);
 
-  virtual QVariant getValue(const QString &name, const QStringList &args);
+  virtual bool getValue(const QString &name, const QStringList &args, QVariant &value);
   virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
 
-  virtual QVariant exec(const QString &, const QStringList &) { return QVariant(); }
+  virtual bool exec(const QString &name, const QStringList &args, QVariant &res);
 
   //---
 
@@ -177,7 +190,7 @@ class Object3D : public QObject {
   double   yscale_   { 1.0 };
   double   zscale_   { 1.0 };
 
-  CGLMatrix3D modelMatrix_;
+  CMatrix3DH modelMatrix_;
 
   int    ticks_   { 0 };
   int    dt_      { 1 };

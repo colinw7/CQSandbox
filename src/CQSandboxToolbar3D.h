@@ -28,21 +28,34 @@ class Toolbar3D : public QFrame {
   void cameraSlot();
   void modelSlot();
   void lightSlot();
+  void gameSlot();
+
   void wireSlot();
+  void solidSlot();
+  void texturedSlot();
+
   void bboxSlot();
+
   void settingsSlot();
 
  private:
   Canvas3D* canvas_ { nullptr };
 
-  QToolButton* cameraButton_   { nullptr };
-  QToolButton* modelButton_    { nullptr };
-  QToolButton* lightButton_    { nullptr };
+  QToolButton* cameraButton_ { nullptr };
+  QToolButton* modelButton_  { nullptr };
+  QToolButton* lightButton_  { nullptr };
+  QToolButton* gameButton_   { nullptr };
+
   QToolButton* wireButton_     { nullptr };
-  QToolButton* bboxButton_     { nullptr };
+  QToolButton* solidButton_    { nullptr };
+  QToolButton* texturedButton_ { nullptr };
+
+  QToolButton* bboxButton_ { nullptr };
+
   QToolButton* settingsButton_ { nullptr };
-  QLabel*      infoLabel_      { nullptr };
-  QLabel*      posLabel_       { nullptr };
+
+  QLabel* infoLabel_ { nullptr };
+  QLabel* posLabel_  { nullptr };
 };
 
 }

@@ -11,7 +11,7 @@ class CArrayList {
   class Iterator {
    public:
     Iterator(CArrayList &l) :
-     l_(l), pos_(0) {
+     l_(l) {
     }
 
     bool hasNext() const {
@@ -28,7 +28,7 @@ class CArrayList {
 
    private:
     CArrayList &l_;
-    int         pos_;
+    int         pos_ { 0 };
   };
 
  private:

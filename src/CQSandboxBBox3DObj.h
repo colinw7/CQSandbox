@@ -11,7 +11,7 @@ class BBox3DObj : public Object3D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas3D *canvas, const QStringList &args);
+  static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   BBox3DObj(Canvas3D *canvas);
 

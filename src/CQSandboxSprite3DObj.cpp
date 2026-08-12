@@ -11,7 +11,7 @@ namespace CQSandbox {
 
 ShaderProgram *Sprite3DObj::s_program = nullptr;
 
-bool
+Object3D *
 Sprite3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -25,7 +25,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Sprite3DObj::
@@ -115,11 +115,11 @@ setTexture(CQGLTexture *texture)
   textures_.push_back(texture);
 }
 
-QVariant
+bool
 Sprite3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool

@@ -15,7 +15,7 @@
 namespace CQSandbox {
 
 #ifdef CQSANDBOX_DUNGEON
-bool
+Object3D *
 Dungeon3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -29,7 +29,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Dungeon3DObj::
@@ -60,11 +60,11 @@ tick()
 {
 }
 
-QVariant
+bool
 Dungeon3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool

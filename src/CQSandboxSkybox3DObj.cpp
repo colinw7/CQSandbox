@@ -19,7 +19,7 @@ namespace CQSandbox {
 
 ShaderProgram *Skybox3DObj::s_program = nullptr;
 
-bool
+Object3D *
 Skybox3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -33,7 +33,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Skybox3DObj::
@@ -114,28 +114,24 @@ load()
 
   import_ = CImportBase::createModel(type);
 
-  if (! import_) {
-    canvas_->app()->errorMsg(QString("Invalid model type for '%1'").arg(filename));
-    return false;
-  }
+  if (! import_)
+    return canvas_->app()->errorMsg(QString("Invalid model type for '%1'").arg(filename));
 
   CFile file(filename.toStdString());
 
-  if (! import_->read(file)) {
-    canvas_->app()->errorMsg(QString("Failed to load file '%1'").arg(filename));
-    return false;
-  }
+  if (! import_->read(file))
+    return canvas_->app()->errorMsg(QString("Failed to load file '%1'").arg(filename));
 
   needsUpdate_ = true;
 
   return true;
 }
 
-QVariant
+bool
 Skybox3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool

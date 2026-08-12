@@ -21,7 +21,7 @@ class Plane3DObj : public Object3D {
   Q_PROPERTY(QString texture READ textureFile WRITE setTextureFile)
 
  public:
-  static bool create(Canvas3D *canvas, const QStringList &args);
+  static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   Plane3DObj(Canvas3D *canvas);
 

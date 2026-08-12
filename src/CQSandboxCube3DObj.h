@@ -9,7 +9,7 @@ class Cube3DObj : public Shape3DObj {
   Q_OBJECT
 
  public:
-  static bool create(Canvas3D *canvas, const QStringList &args);
+  static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   Cube3DObj(Canvas3D *canvas);
 

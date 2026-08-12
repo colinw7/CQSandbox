@@ -27,7 +27,7 @@ struct FontData {
 Text3DObj::TextShaderProgram* Text3DObj::s_program  = nullptr;
 FontData*                     Text3DObj::s_fontData = nullptr;
 
-bool
+Object3D *
 Text3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -41,7 +41,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Text3DObj::
@@ -187,14 +187,16 @@ setText(const QString &text)
   textDataValid_  = false;
 }
 
-QVariant
+bool
 Text3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if (name == "text")
-    return text();
+    value = text();
   else
-    return Object3D::getValue(name, args);
+    return Object3D::getValue(name, args, value);
+
+  return true;
 }
 
 bool

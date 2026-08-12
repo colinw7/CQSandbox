@@ -9,7 +9,7 @@
 
 namespace CQSandbox {
 
-bool
+Object3D *
 Axis3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
@@ -23,7 +23,7 @@ create(Canvas3D *canvas, const QStringList &)
 
   tcl->setResult(name);
 
-  return true;
+  return obj;
 }
 
 Axis3DObj::
@@ -44,11 +44,11 @@ init()
   Object3D::init();
 }
 
-QVariant
+bool
 Axis3DObj::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args);
+  return Object3D::getValue(name, args, value);
 }
 
 bool
@@ -181,7 +181,7 @@ updateModelMatrix()
   //---
 
   auto setTextPos = [&](uint i, const CGLVector3D &p) {
-    float x, y, z;
+    double x, y, z;
     modelMatrix_.multiplyPoint(p.x(), p.y(), p.z(), &x, &y, &z);
 
     auto p1 = CPoint3D(x, y, z);

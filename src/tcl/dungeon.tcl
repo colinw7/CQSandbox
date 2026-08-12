@@ -1,11 +1,13 @@
 proc init { } {
+  set idir "tcl/dungeon"
+
   set ::dungeon [sb3d::dungeon]
 
-  $::dungeon set texture.wall dungeon/wall1.jpg
-  $::dungeon set texture.door dungeon/door1.jpg
-  $::dungeon set texture.floor dungeon/floor.gif
+  $::dungeon set texture.wall  $idir/wall1.jpg
+  $::dungeon set texture.door  $idir/door1.jpg
+  $::dungeon set texture.floor $idir/floor.gif
 
-  $::dungeon set filename dungeon/maze.xml
+  $::dungeon set filename $idir/maze.xml
 
   sb3d::canvas set cull_face 0
 

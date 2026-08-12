@@ -106,9 +106,16 @@ settingsSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
 
+  showControls(button->isChecked());
+}
+
+void
+Toolbar2D::
+showControls(bool b)
+{
   auto *app = canvas()->app();
 
-  app->control2D()->setVisible(button->isChecked());
+  app->control2D()->setVisible(b);
 }
 
 }

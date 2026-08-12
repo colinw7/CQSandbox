@@ -21,17 +21,57 @@
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxBBox3DObj.h>
 #include <CQSandboxApp.h>
+#include <CQSandboxGeomObject.h>
 #include <CQSandboxUtil.h>
 #include <CQSandboxShaderToyProgram.h>
 
 #include <CGLCamera.h>
 #include <CQGLUtil.h>
+#include <CGeometry3D.h>
 
 #include <QMouseEvent>
 #include <QTimer>
 
 #define Q(x) #x
 #define QUOTE(x) Q(x)
+
+//---
+
+namespace CQSandbox {
+
+class GeomFactory : public CGeometryFactory {
+ public:
+  GeomFactory() { }
+ ~GeomFactory() override { }
+
+  CGeomObject3D *createObject3D(CGeomScene3D *pscene, const std::string &name) const override {
+    return new GeomObject(pscene, name);
+  }
+
+#if 0
+  CGeomFace3D *createFace3D() const override {
+    return new GeomFace;
+  }
+
+  CGeomLine3D *createLine3D() const override {
+    return new GeomLine;
+  }
+
+  CGeomLight3D *createLight3D(CGeomScene3D *pscene, const std::string &name) const override {
+    return new Light(pscene, name);
+  }
+#endif
+
+#if 0
+  CGeomTexture *createTexture() const override {
+    return new Texture;
+  }
+#endif
+};
+
+}
+
+//---
 
 namespace CQSandbox {
 
@@ -48,7 +88,9 @@ int createObjectProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
 
   auto args = th->app()->getArgs(objc, objv);
 
-  if (! T::create(th, args))
+  auto *obj = T::create(th, args);
+
+  if (! obj)
     return TCL_ERROR;
 
   return TCL_OK;
@@ -160,6 +202,12 @@ Canvas3D(App *app) :
   setFocusPolicy(Qt::StrongFocus);
 
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+  //---
+
+  CGeometry3DInst->setFactory(new GeomFactory);
+
+  scene_ = CGeometry3DInst->createScene3D();
 }
 
 void
@@ -168,12 +216,16 @@ init()
 {
   addCommands();
 
+  //---
+
   app_->runTclCmd("proc init { args } { }");
   app_->runTclCmd("proc update { args } { }");
   app_->runTclCmd("proc click { args } { }");
   app_->runTclCmd("proc keyPress { args } { }");
   app_->runTclCmd("proc tick { args } { }");
   app_->runTclCmd("proc setMode { args } { }");
+
+  //---
 
   timer_ = new QTimer(this);
 
@@ -210,6 +262,8 @@ addCommands()
 {
   auto *tcl = app_->tcl();
 
+  tcl->createAlias("echo", "puts");
+
   // global
   tcl->createObjCommand("sb3d::canvas",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::canvasProc),
@@ -218,12 +272,6 @@ addCommands()
   tcl->createObjCommand("sb3d::camera",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::cameraProc),
     static_cast<CQTcl::ObjCmdData>(this));
-
-#if 0
-  tcl->createObjCommand("sb3d::load_model",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::loadModelProc),
-    static_cast<CQTcl::ObjCmdData>(this));
-#endif
 
   //---
 
@@ -414,7 +462,9 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
       for (int i = 2; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      auto res = th->getValue(name, args1);
+      QVariant res;
+      if (! th->getValue(name, args1, res))
+        return TCL_ERROR;
 
       tcl->setResult(res);
     }
@@ -428,7 +478,8 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
       for (int i = 3; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      th->setValue(name, value, args1);
+      if (! th->setValue(name, value, args1))
+        return TCL_ERROR;
     }
   }
   else if (args[0] == "delete") {
@@ -470,7 +521,9 @@ cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
       for (int i = 2; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      auto res = th->getCameraValue(name, args1);
+      QVariant res;
+      if (! th->getCameraValue(name, args1, res))
+        return TCL_ERROR;
 
       tcl->setResult(res);
     }
@@ -484,7 +537,8 @@ cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
       for (int i = 3; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      th->setCameraValue(name, value, args1);
+      if (! th->setCameraValue(name, value, args1))
+        return TCL_ERROR;
     }
   }
   else
@@ -537,26 +591,24 @@ customFormProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   return TCL_OK;
 }
 
-QVariant
+bool
 Canvas3D::
-getValue(const QString &name, const QStringList &args)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
 //auto *tcl = app_->tcl();
 
   if      (name == "bg")
-    return Util::colorToString(bgColor());
+    value = Util::colorToString(bgColor());
   else if (name == "xmap") {
     if (args.size() >= 1) {
       auto x = Util::stringToReal(args[0]);
 
       auto x1 = xrange_.map(x, -0.5, 0.5);
 
-      return QVariant(x1);
+      value = QVariant(x1);
     }
-    else {
-      app_->errorMsg(QString("Missing value for '%1'").arg(name));
-      return QVariant();
-    }
+    else
+      return app_->errorMsg(QString("Missing value for '%1'").arg(name));
   }
   else if (name == "ymap") {
     if (args.size() >= 1) {
@@ -564,12 +616,10 @@ getValue(const QString &name, const QStringList &args)
 
       auto y1 = yrange_.map(y, -0.5, 0.5);
 
-      return QVariant(y1);
+      value = QVariant(y1);
     }
-    else {
-      app_->errorMsg(QString("Missing value for '%1'").arg(name));
-      return QVariant();
-    }
+    else
+      return app_->errorMsg(QString("Missing value for '%1'").arg(name));
   }
   else if (name == "zmap") {
     if (args.size() >= 1) {
@@ -577,35 +627,33 @@ getValue(const QString &name, const QStringList &args)
 
       auto z1 = zrange_.map(z, -0.5, 0.5);
 
-      return QVariant(z1);
+      value = QVariant(z1);
     }
-    else {
-      app_->errorMsg(QString("Missing value for '%1'").arg(name));
-      return QVariant();
-    }
+    else
+      return app_->errorMsg(QString("Missing value for '%1'").arg(name));
   }
   else if (name == "lights.simple") {
-    return QVariant(isSimpleLights());
+    value = QVariant(isSimpleLights());
   }
   else if (name == "depth_test") {
-    return QVariant(isDepthTest());
+    value = QVariant(isDepthTest());
   }
   else if (name == "cull_face") {
-    return QVariant(isCullFace());
+    value = QVariant(isCullFace());
   }
   else if (name == "lighting") {
-    return QVariant(isLighting());
+    value = QVariant(isLighting());
   }
   else if (name == "front_face") {
-    return QVariant(isFrontFace());
+    value = QVariant(isFrontFace());
   }
   else if (name == "smooth_shade") {
-    return QVariant(isSmoothShade());
+    value = QVariant(isSmoothShade());
   }
-  else {
-    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
-    return QVariant();
-  }
+  else
+    return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+
+  return true;
 }
 
 bool
@@ -631,10 +679,8 @@ setValue(const QString &name, const QString &value, const QStringList &)
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.size() != 2) {
-      app_->errorMsg("Invalid values for range");
-      return false;
-    }
+    if (strs.size() != 2)
+      return app_->errorMsg("Invalid values for range");
 
     double xmin = Util::stringToReal(strs[0]);
     double xmax = Util::stringToReal(strs[1]);
@@ -645,10 +691,8 @@ setValue(const QString &name, const QString &value, const QStringList &)
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.size() != 2) {
-      app_->errorMsg("Invalid values for range");
-      return false;
-    }
+    if (strs.size() != 2)
+      return app_->errorMsg("Invalid values for range");
 
     double xmin = Util::stringToReal(strs[0]);
     double xmax = Util::stringToReal(strs[1]);
@@ -659,10 +703,8 @@ setValue(const QString &name, const QString &value, const QStringList &)
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.size() != 2) {
-      app_->errorMsg("Invalid values for range");
-      return false;
-    }
+    if (strs.size() != 2)
+      return app_->errorMsg("Invalid values for range");
 
     double xmin = Util::stringToReal(strs[0]);
     double xmax = Util::stringToReal(strs[1]);
@@ -687,39 +729,40 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "smooth_shade") {
     setSmoothShade(Util::stringToBool(value));
   }
-  else {
-    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
-    return false;
+  else if (name == "model_dir") {
+    modelDirs_.push_back(value);
   }
+  else
+    return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
   return true;
 }
 
-QVariant
+bool
 Canvas3D::
-getCameraValue(const QString &name, const QStringList &)
+getCameraValue(const QString &name, const QStringList &, QVariant &res)
 {
 //auto *tcl = app_->tcl();
 
   if      (name == "zoom")
-    return Util::realToString(camera()->zoom());
+    res = Util::realToString(camera()->zoom());
   else if (name == "near")
-    return Util::realToString(camera()->near());
+    res = Util::realToString(camera()->near());
   else if (name == "far")
-    return Util::realToString(camera()->far());
+    res = Util::realToString(camera()->far());
   else if (name == "yaw")
-    return Util::realToString(camera()->yaw());
+    res = Util::realToString(camera()->yaw());
   else if (name == "pitch")
-    return Util::realToString(camera()->pitch());
+    res = Util::realToString(camera()->pitch());
   else if (name == "position")
-    return Util::vector3DToString(camera()->position());
-  else {
-    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
-    return QVariant();
-  }
+    res = Util::vector3DToString(camera()->position());
+  else
+    return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+
+  return true;
 }
 
-void
+bool
 Canvas3D::
 setCameraValue(const QString &name, const QString &value, const QStringList &)
 {
@@ -738,45 +781,10 @@ setCameraValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "position")
     camera()->setPosition(Util::stringToVector3D(tcl, value));
   else
-    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+    return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+
+  return true;
 }
-
-#if 0
-int
-Canvas3D::
-loadModelProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
-{
-  auto *th = static_cast<Canvas3D *>(clientData);
-  assert(th);
-
-  auto args = th->app()->getArgs(objc, objv);
-  if (args.size() < 1) return TCL_ERROR;
-
-  auto filename = args[0];
-
-  QFileInfo fi(filename);
-
-  if (! fi.exists()) {
-    th->app()->errorMsg(QString("File '%1' does not exist").arg(filename));
-    return TCL_ERROR;
-  }
-
-  auto *model = new Model3DObj(th);
-
-  if (! model->load(filename)) {
-    delete model;
-    return TCL_ERROR;
-  }
-
-  auto name = th->addNewObject(model);
-
-  auto *tcl = th->app()->tcl();
-
-  tcl->setResult(name);
-
-  return TCL_OK;
-}
-#endif
 
 int
 Canvas3D::
@@ -800,12 +808,15 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       for (int i = 2; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      auto res = obj->getValue(name, args1);
+      QVariant res;
+      if (! obj->getValue(name, args1, res))
+        return TCL_ERROR;
 
       tcl->setResult(res);
     }
     else {
-      app->errorMsg("Missing args for get");
+      (void) app->errorMsg("Missing args for get");
+      return TCL_ERROR;
     }
   }
   else if (args[0] == "set") {
@@ -817,10 +828,12 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       for (int i = 3; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      obj->setValue(args[1], args[2], args1);
+      if (! obj->setValue(args[1], args[2], args1))
+        return TCL_ERROR;
     }
     else {
-      app->errorMsg("Missing args for set");
+      (void) app->errorMsg("Missing args for set");
+      return TCL_ERROR;
     }
   }
   else if (args[0] == "exec") {
@@ -831,16 +844,20 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       for (int i = 2; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      auto res = obj->exec(op, args1);
+      QVariant res;
+      if (! obj->exec(op, args1, res))
+        return TCL_ERROR;
 
       tcl->setResult(res);
     }
     else {
-      app->errorMsg("Missing args for exec");
+      (void) app->errorMsg("Missing args for exec");
+      return TCL_ERROR;
     }
   }
   else {
-    app->errorMsg(QString("Bad object command '%1'").arg(args[0]));
+    (void) app->errorMsg(QString("Bad object command '%1'").arg(args[0]));
+    return TCL_ERROR;
   }
 
   return TCL_OK;
@@ -928,16 +945,18 @@ updateLights()
 
   il = 0;
 
+  // directional
   lights_[il]->setType     (Light3D::Type::DIRECTIONAL);
   lights_[il]->setEnabled  (true);
-  lights_[il]->setColor    (CGLVector3D(1, 1, 0));
+  lights_[il]->setColor    (CGLVector3D(1, 1, 1));
   lights_[il]->setDirection(CGLVector3D(1, -1, -1));
   lights_[il]->setIntensity(1.0f);
 
   ++il;
 
+  // point (1)
   lights_[il]->setType     (Light3D::Type::POINT);
-  lights_[il]->setEnabled  (true);
+  lights_[il]->setEnabled  (false);
   lights_[il]->setColor    (CGLVector3D(1, 0, 0));
   lights_[il]->setPosition (CGLVector3D(-0.5, 0.35, 0.25));
   lights_[il]->setRadius   (1.0f);
@@ -945,8 +964,9 @@ updateLights()
 
   ++il;
 
+  // point (2)
   lights_[il]->setType     (Light3D::Type::POINT);
-  lights_[il]->setEnabled  (true);
+  lights_[il]->setEnabled  (false);
   lights_[il]->setColor    (CGLVector3D(0, 1, 0));
   lights_[il]->setPosition (CGLVector3D(0.5, 0.35, 0.25));
   lights_[il]->setRadius   (1.0f);
@@ -954,11 +974,12 @@ updateLights()
 
   ++il;
 
+  // spot (1)
   auto cpos = camera()->position();
 
   lights_[il]->setType     (Light3D::Type::SPOT);
-  lights_[il]->setEnabled  (true);
-  lights_[il]->setColor    (CGLVector3D(0, 0, 1));
+  lights_[il]->setEnabled  (false);
+  lights_[il]->setColor    (CGLVector3D(1, 1, 1));
   lights_[il]->setPosition (cpos + CGLVector3D(0.0, 0.5, 0));
   lights_[il]->setDirection(CGLVector3D(0, 0, -1));
   lights_[il]->setIntensity(1.0);
@@ -966,9 +987,10 @@ updateLights()
 
   ++il;
 
+  // spot (2)
   lights_[il]->setType     (Light3D::Type::SPOT);
-  lights_[il]->setEnabled  (true);
-  lights_[il]->setColor    (CGLVector3D(0, 1, 1));
+  lights_[il]->setEnabled  (false);
+  lights_[il]->setColor    (CGLVector3D(1, 1, 1));
   lights_[il]->setPosition (cpos + CGLVector3D(0.0, -0.5, 0));
   lights_[il]->setDirection(CGLVector3D(0, 0, -1));
 //lights_[il]->setIntensity(1.5);
@@ -1154,29 +1176,73 @@ render()
     light->render();
 }
 
+//---
+
 void
 Canvas3D::
 mousePressEvent(QMouseEvent *e)
 {
-  float xpos = float(e->x());
-  float ypos = float(e->y());
+  mouseData_.pressed = true;
+  mouseData_.button  = e->button();
+  mouseData_.press   = CPoint2D(e->x(), e->y());
+  mouseData_.move    = mouseData_.press;
 
-  setMousePos(xpos, ypos);
+  mouseData_.isShift   = (e->modifiers() & Qt::ShiftModifier);
+  mouseData_.isControl = (e->modifiers() & Qt::ControlModifier);
+
+  //---
+
+  setMousePos(mouseData_.press.x, mouseData_.press.y);
 
   auto type = this->type();
 
   if (type == Type::CAMERA)
-    camera_->setLastPos(xpos, ypos);
+    camera_->setLastPos(mouseData_.press.x, mouseData_.press.y);
 
   update();
-
-  pressed_ = true;
 }
 
 void
 Canvas3D::
-mouseReleaseEvent(QMouseEvent *)
+mouseMoveEvent(QMouseEvent *e)
 {
+  mouseData_.move = CPoint2D(e->x(), e->y());
+
+  mouseData_.isShift   = (e->modifiers() & Qt::ShiftModifier);
+  mouseData_.isControl = (e->modifiers() & Qt::ControlModifier);
+
+  //---
+
+  setMousePos(mouseData_.move.x, mouseData_.move.y);
+
+  if (mouseData_.pressed) {
+    auto type = this->type();
+
+    if (type == Type::CAMERA) {
+      float xoffset, yoffset;
+
+      camera_->deltaPos(mouseData_.move.x, mouseData_.move.y, xoffset, yoffset);
+
+      camera_->setLastPos(mouseData_.move.x, mouseData_.move.y);
+
+      camera_->processMouseMovement(xoffset, yoffset);
+
+      //Q_EMIT cameraChanged();
+    }
+
+    update();
+  }
+}
+
+void
+Canvas3D::
+mouseReleaseEvent(QMouseEvent *e)
+{
+  mouseData_.move.x = e->x();
+  mouseData_.move.y = e->y();
+
+  //---
+
   Objects clickObjs;
 
   for (auto *obj : objects_) {
@@ -1196,8 +1262,6 @@ mouseReleaseEvent(QMouseEvent *)
 
   update();
 
-  pressed_ = false;
-
   if (clickObjs.size() == 1) {
     auto *clickObj = clickObjs[0];
 
@@ -1206,35 +1270,14 @@ mouseReleaseEvent(QMouseEvent *)
 
     app_->runTclCmd(QString("click {%1}").arg(clickObj->id()));
   }
+
+  //---
+
+  mouseData_.pressed = false;
+  mouseData_.button  = Qt::NoButton;
 }
 
-void
-Canvas3D::
-mouseMoveEvent(QMouseEvent *e)
-{
-  float xpos = float(e->x());
-  float ypos = float(e->y());
-
-  setMousePos(xpos, ypos);
-
-  if (pressed_) {
-    auto type = this->type();
-
-    if (type == Type::CAMERA) {
-      float xoffset, yoffset;
-
-      camera_->deltaPos(xpos, ypos, xoffset, yoffset);
-
-      camera_->setLastPos(xpos, ypos);
-
-      camera_->processMouseMovement(xoffset, yoffset);
-
-      //Q_EMIT cameraChanged();
-    }
-
-    update();
-  }
-}
+//---
 
 void
 Canvas3D::
@@ -1283,10 +1326,10 @@ setMousePos(float xpos, float ypos)
 
     auto imodelMatrix = obj->modelMatrix().inverse();
 
-    float mx1, my1, mz1;
+    double mx1, my1, mz1;
     imodelMatrix.multiplyPoint(xv1, yv1, zv1, &mx1, &my1, &mz1);
 
-    float mx2, my2, mz2;
+    double mx2, my2, mz2;
     imodelMatrix.multiplyPoint(xv2, yv2, zv2, &mx2, &my2, &mz2);
 
     CGLVector3D pm1(mx1, my1, mz1);
@@ -1304,7 +1347,7 @@ setMousePos(float xpos, float ypos)
 
     if (inside) {
       auto mapPoint = [&](const CPoint3D &p) {
-        float x1, y1, z1;
+        double x1, y1, z1;
         obj->modelMatrix().multiplyPoint(p.x, p.y, p.z, &x1, &y1, &z1);
         return CGLVector3D(x1, y1, z1);
       };

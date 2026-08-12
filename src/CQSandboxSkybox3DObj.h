@@ -22,13 +22,13 @@ class Skybox3DObj : public Object3D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas3D *canvas, const QStringList &args);
+  static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   Skybox3DObj(Canvas3D *canvas);
 
   const char *typeName() const override { return "Skybox"; }
 
-  QVariant getValue(const QString &name, const QStringList &args) override;
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
