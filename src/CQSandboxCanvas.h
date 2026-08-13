@@ -30,6 +30,7 @@ namespace CQSandbox {
 class App;
 class Canvas;
 class Particle;
+class Viewport;
 
 enum class Units {
   WINDOW,
@@ -1112,18 +1113,6 @@ class Canvas : public QFrame {
   Q_OBJECT
 
  public:
-  struct Viewport {
-    Canvas*         canvas { nullptr };
-    QString         name;
-    CDisplayRange2D displayRange;
-    Rect            rect;
-    QPen            pen;
-    AnimateBrush    brush;
-    Objects         objects;
-    Rect            clip;
-    bool            hasRange { false };
-  };
-
   using Viewports = std::vector<Viewport *>;
 
  public:

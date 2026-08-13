@@ -23,12 +23,14 @@ proc updateParticles { } {
   set w 1
   set h 1
 
-  for {set i 1} {$i <= $::num_particles} {incr i} {
-    set ri [expr {(1.0*$i)/1000.0}]
+  for {set i 0} {$i < $::num_particles} {incr i} {
+    set i1 [expr {$i + 1}]
 
-    set r [expr {min(99*$i, 255)/255.0}]
-    set g [expr {min( 2*$i, 255)/255.0}]
-    set b [expr {min(   $i, 255)/255.0}]
+    set ri [expr {(1.0*$i1)/1000.0}]
+
+    set r [expr {min(99*$i1, 255)/255.0}]
+    set g [expr {min( 2*$i1, 255)/255.0}]
+    set b [expr {min(   $i1, 255)/255.0}]
 
     $::particles set color [list $r $g $b] $i
 

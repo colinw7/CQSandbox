@@ -8,6 +8,7 @@
 #include <CGLColor.h>
 
 class CQGLTexture;
+class CQGLBuffer;
 class CShape3D;
 
 namespace CQSandbox {
@@ -25,6 +26,8 @@ class Shape3DObj : public Object3D {
   Shape3DObj(Canvas3D *canvas);
 
   const char *typeName() const override { return "Shape"; }
+
+  const Shape3DData &shapeData() const { return shapeData_; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -73,15 +76,17 @@ class Shape3DObj : public Object3D {
 
   bool useDiffuseTexture_ { false };
   bool useNormalTexture_  { false };
-  bool useTriangleStrip_  { false };
-  bool useTriangleFan_    { false };
 
+#if 0
   unsigned int pointsBufferId_   { 0 };
   unsigned int normalsBufferId_  { 0 };
   unsigned int colorsBufferId_   { 0 };
   unsigned int texCoordBufferId_ { 0 };
   unsigned int vertexArrayId_    { 0 };
   unsigned int indBufferId_      { 0 };
+#else
+  CQGLBuffer* buffer_ { nullptr };
+#endif
 };
 
 }

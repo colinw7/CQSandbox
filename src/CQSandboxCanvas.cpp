@@ -2,6 +2,7 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 #include <CQSandboxControl2D.h>
+#include <CQSandboxViewport.h>
 #include <CQSandboxToolbar2D.h>
 
 #include <CQSVGUtil.h>
@@ -1560,7 +1561,7 @@ exec(const QString &op, const QStringList &, QVariant &)
   return true;
 }
 
-Canvas::Viewport *
+Viewport *
 Canvas::
 currentViewport() const
 {
@@ -1575,7 +1576,7 @@ currentViewport() const
   return nullptr;
 }
 
-Canvas::Viewport *
+Viewport *
 Canvas::
 addViewport()
 {

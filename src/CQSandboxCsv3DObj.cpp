@@ -103,8 +103,9 @@ Csv3DObj::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
   if (op == "load") {
-    if (! csv_->load(filename_))
-      return false;
+    bool b = csv_->load(filename_);
+
+    res = QVariant(b);
   }
   else
     return Object3D::exec(op, args, res);

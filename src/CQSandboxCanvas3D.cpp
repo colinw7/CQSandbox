@@ -417,7 +417,7 @@ removeObject(Object3D *obj)
 
   for (auto *obj1 : objects_) {
     if (obj != obj1)
-      objects.push_back(obj);
+      objects.push_back(obj1);
   }
 
   std::swap(objects_, objects);

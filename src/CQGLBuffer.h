@@ -1,6 +1,8 @@
 #ifndef CQGLBuffer_H
 #define CQGLBuffer_H
 
+#include <CGLColor.h>
+
 #include <CBBox3D.h>
 #include <CRGBA.h>
 
@@ -108,6 +110,8 @@ class CQGLBuffer {
   bool hasColorPart  () const { return (data_.types & static_cast<unsigned int>(Parts::COLOR  )); }
   bool hasTexturePart() const { return (data_.types & static_cast<unsigned int>(Parts::TEXTURE)); }
 
+  void disableTexturePart() { data_.types &= ~static_cast<unsigned int>(Parts::TEXTURE); }
+
   //---
 
   void clearAll() {
@@ -126,6 +130,7 @@ class CQGLBuffer {
 
     data_.dataValid = false;
 
+    data_.inds         .clear();
     data_.points       .clear();
     data_.normals      .clear();
     data_.colors       .clear();
@@ -135,16 +140,36 @@ class CQGLBuffer {
     data_.indicesSet = false;
   }
 
+  void clearInds         () { data_.inds         .clear(); data_.dataValid = false; }
   void clearPoints       () { data_.points       .clear(); data_.dataValid = false; }
   void clearNormals      () { data_.normals      .clear(); data_.dataValid = false; }
   void clearColors       () { data_.colors       .clear(); data_.dataValid = false; }
   void clearTexturePoints() { data_.texturePoints.clear(); data_.dataValid = false; }
 
   void clearBuffers() {
-    clearPoints(); clearNormals(); clearColors(); clearTexturePoints();
+    clearInds(); clearPoints(); clearNormals(); clearColors(); clearTexturePoints();
   }
 
   //---
+
+  void addInd(uint ind) {
+    data_.inds.push_back(ind);
+  }
+
+  uint numInds() const { return data_.inds.size(); }
+
+  int mapInd(uint ind) const {
+    int i = -1;
+
+    for (auto &ind1 : data_.inds) {
+      ++i;
+
+      if (int(ind) == ind1)
+        return i;
+    }
+
+    return -1;
+  }
 
   void addPoint(float x, float y, float z) {
     addPoint(Point(x, y, z));
@@ -178,6 +203,10 @@ class CQGLBuffer {
 
   void addColor(const QColor &c) {
     addColor(Color(c.redF(), c.greenF(), c.blueF()));
+  }
+
+  void addColor(const CGLColor &c) {
+    addColor(Color(c.r, c.g, c.b));
   }
 
   void addColor(float r, float g, float b) {
@@ -310,9 +339,15 @@ class CQGLBuffer {
     // seeing as we only have a single VAO there's no need to bind it every time,
     // but we'll do so to keep things a bit more organized
     data_.vObj->bind();
+
+    if (data_.indicesSet)
+      data_.indBuffer->bind();
   }
 
   void unbind() {
+    if (data_.indicesSet)
+      data_.indBuffer->release();
+
     data_.vObj->release();
   }
 
@@ -398,13 +433,13 @@ class CQGLBuffer {
       }
 
       if (hasColorPart()) {
-        assert(data_.colors.size() == data_.points.size());
+        assert(data_.colors.size() == numPoints());
         data_.numData += data_.colors.size()*3;
         data_.span += 3;
       }
 
       if (hasTexturePart()) {
-        assert(data_.texturePoints.size() == data_.points.size());
+        assert(data_.texturePoints.size() == numPoints());
         data_.numData += data_.texturePoints.size()*2;
         data_.span += 2;
       }
@@ -412,7 +447,7 @@ class CQGLBuffer {
       data_.data = new float [data_.numData];
 
       int  i  = 0;
-      auto np = data_.points.size();
+      auto np = numPoints();
 
       for (size_t ip = 0; ip < np; ++ip) {
         if (hasPointPart()) {
@@ -479,6 +514,7 @@ class CQGLBuffer {
     unsigned int  numIndData { 0 };
     unsigned int  span       { 0 };
     bool          dataValid  { false };
+    Indices       inds;                    // vertex inds
     Points        points;                  // vertex point
     Points        normals;                 // vertex normal
     Colors        colors;                  // vertex color

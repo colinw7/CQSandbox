@@ -2,6 +2,8 @@
 #include <CQSandboxCanvas3D.h>
 //#include <CQSandboxCamera.h>
 #include <CQSandboxGeomObject.h>
+#include <CQSandboxShape3DObj.h>
+#include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxApp.h>
 //#include <Font.h>
 #include <CQSandboxUtil.h>
@@ -56,7 +58,8 @@ Overview3D(App *app) :
   //---
 
 #if 0
-  auto *camera = app_->canvas3D()->camera();
+  auto *canvas = app_->canvas3D();
+  auto *camera = canvas->camera();
 
   connect(dynamic_cast<Camera *>(camera), SIGNAL(stateChangedSignal()), this, SLOT(invalidate()));
 #endif
@@ -121,11 +124,12 @@ paintEvent(QPaintEvent *)
 
   //---
 
-//auto *canvas = app_->canvas3D();
-//auto *camera = dynamic_cast<Camera *>(canvas->camera());
+  auto *canvas = app_->canvas3D();
+  auto *camera = canvas->camera();
 
 //drawData_.worldMatrix = canvas->calcWorldMatrix();
-//drawData_.viewMatrix  = camera->viewMatrix();
+  drawData_.worldMatrix = CMatrix3DH::identity();
+  drawData_.viewMatrix  = camera->getViewMatrix().toCMatrixH();
 
   //---
 
@@ -169,6 +173,16 @@ paintEvent(QPaintEvent *)
   painter.save();
 
   drawModel();
+
+  for (auto *object : canvas->objects()) {
+    auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
+    auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
+
+    if      (shapeObj)
+      drawShape(shapeObj);
+    else if (particleListObj)
+      drawParticleList(particleListObj);
+  }
 
   painter.restore();
 
@@ -305,40 +319,6 @@ Overview3D::
 drawModel()
 {
   CQPerfTrace trace("Overview3D::drawModel");
-
-  auto drawPolygon2D = [&](const ViewData &view, const std::vector<CPoint2D> &points) {
-    drawData_.painter->setClipRect(view.rect);
-
-    std::vector<QPointF> ppoints;
-
-    for (const auto &p : points) {
-      double px, py;
-      view.range->windowToPixel(p.x, p.y, &px, &py);
-
-      ppoints.push_back(QPointF(px, py));
-    }
-
-    drawData_.painter->drawPolygon(&ppoints[0], ppoints.size());
-  };
-
-  auto drawPolygon = [&](const std::vector<CPoint3D> &points) {
-    std::vector<CPoint2D> xpoints, ypoints, zpoints, ppoints;
-
-    for (const auto &p : points) {
-      xpoints.push_back(CPoint2D(p.getX(), p.getY())); // XY
-      ypoints.push_back(CPoint2D(p.getZ(), p.getY())); // ZY
-      zpoints.push_back(CPoint2D(p.getX(), p.getZ())); // XZ
-
-      auto p1 = drawData_.worldMatrix*drawData_.viewMatrix*p;
-
-      ppoints.push_back(CPoint2D(p1.getX(), p1.getY()));
-    }
-
-    drawPolygon2D(xview_, xpoints);
-    drawPolygon2D(yview_, ypoints);
-    drawPolygon2D(zview_, zpoints);
-    drawPolygon2D(pview_, ppoints);
-  };
 
   for (auto &face : drawData_.faces) {
     if (isSolid()) {
@@ -483,6 +463,114 @@ getCameraShape(Camera *camera, CameraShape &shape) const
 
 void
 Overview3D::
+drawShape(Shape3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &shapeData = obj->shapeData();
+
+  const auto &inds   = shapeData.indices();
+  const auto &points = shapeData.points();
+
+  auto ni = inds.size();
+
+  if (ni > 0) {
+    for (uint i = 0; i < ni; i += 3) {
+      std::vector<CPoint3D> poly;
+
+      poly.push_back(mm*points[inds[i + 0]].point());
+      poly.push_back(mm*points[inds[i + 1]].point());
+      poly.push_back(mm*points[inds[i + 2]].point());
+
+      drawPolygon(poly);
+    }
+  }
+  else {
+    if      (shapeData.isUseTriangleStrip()) {
+      for (const auto &p : points)
+        drawPoint(mm*p.vector());
+    }
+    else if (shapeData.isUseTriangleFan()) {
+      for (const auto &p : points)
+        drawPoint(mm*p.vector());
+    }
+    else {
+      auto np = points.size();
+
+      for (uint i = 0; i < np; i += 3) {
+        std::vector<CPoint3D> poly;
+
+        poly.push_back(mm*points[i + 0].point());
+        poly.push_back(mm*points[i + 1].point());
+        poly.push_back(mm*points[i + 2].point());
+
+        drawPolygon(poly);
+      }
+    }
+  }
+}
+
+void
+Overview3D::
+drawParticleList(ParticleList3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &points = obj->points();
+  const auto &colors = obj->colors();
+
+  drawData_.pointSize = 3;
+
+  auto np = points.size();
+
+  for (uint i = 0; i < np; ++i) {
+    const auto &c = colors[i];
+
+    drawData_.pointColor = QColor(255*c.r, 255*c.g, 255*c.b, 255*c.a);
+
+    drawPoint(mm*points[i].vector());
+  }
+}
+
+void
+Overview3D::
+drawPolygon(const std::vector<CPoint3D> &points) const
+{
+  auto drawPolygon2D = [&](const ViewData &view, const std::vector<CPoint2D> &points) {
+    drawData_.painter->setClipRect(view.rect);
+
+    std::vector<QPointF> ppoints;
+
+    for (const auto &p : points) {
+      double px, py;
+      view.range->windowToPixel(p.x, p.y, &px, &py);
+
+      ppoints.push_back(QPointF(px, py));
+    }
+
+    drawData_.painter->drawPolygon(&ppoints[0], ppoints.size());
+  };
+
+  std::vector<CPoint2D> xpoints, ypoints, zpoints, ppoints;
+
+  for (const auto &p : points) {
+    xpoints.push_back(CPoint2D(p.getX(), p.getY())); // XY
+    ypoints.push_back(CPoint2D(p.getZ(), p.getY())); // ZY
+    zpoints.push_back(CPoint2D(p.getX(), p.getZ())); // XZ
+
+    auto p1 = drawData_.worldMatrix*drawData_.viewMatrix*p;
+
+    ppoints.push_back(CPoint2D(p1.getX(), p1.getY()));
+  }
+
+  drawPolygon2D(xview_, xpoints);
+  drawPolygon2D(yview_, ypoints);
+  drawPolygon2D(zview_, zpoints);
+  drawPolygon2D(pview_, ppoints);
+}
+
+void
+Overview3D::
 drawLine(const CPoint3D &p1, const CPoint3D &p2, const QString &) const
 {
   auto px1 = windowToPixelX(CPoint2D(p1.x, p1.y));
@@ -557,9 +645,9 @@ void
 Overview3D::
 drawPoint(const CPoint3D &p, const QString &text) const
 {
-  double s = 8.0;
+  auto s = drawData_.pointSize;
 
-  drawData_.painter->setBrush(Qt::red);
+  drawData_.painter->setBrush(drawData_.pointColor);
 
   auto px = windowToPixelX(CPoint2D(p.x, p.y));
   auto py = windowToPixelY(CPoint2D(p.z, p.y));
@@ -629,7 +717,8 @@ mousePressEvent(QMouseEvent *e)
   mouseData_.button   = e->button();
   mouseData_.pressed  = true;
 
-  auto *camera = app_->canvas3D()->camera();
+  auto *canvas = app_->canvas3D();
+  auto *camera = canvas->camera();
 
   if      (mouseData_.button == Qt::LeftButton) {
     if      (editType_ == EditType::SELECT) {
@@ -682,7 +771,8 @@ mouseMoveEvent(QMouseEvent *e)
 {
   mouseData_.movePos = CPoint2D(e->x(), e->y());
 
-//auto *camera = app_->canvas3D()->camera();
+//auto *canvas = app_->canvas3D();
+//auto *camera = canvas->camera();
 
 #if 0
   CPoint2D p;

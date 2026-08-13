@@ -48,6 +48,14 @@ class Shape3DData {
 
   CShape3D *geom() const { return geom_; }
 
+  bool isUseTriangleStrip() const { return useTriangleStrip_; }
+  void setUseTriangleStrip(bool b) { useTriangleStrip_ = b; }
+
+  bool isUseTriangleFan() const { return useTriangleFan_; }
+  void setUseTriangleFan(bool b) { useTriangleFan_ = b; }
+
+  //---
+
   void addCone(double r, double h);
   void addCylinder(double r, double h);
   void addCube(double sx, double sy, double sz);
@@ -65,6 +73,9 @@ class Shape3DData {
   TexCoords texCoords_;
 
   CShape3D *geom_ { nullptr };
+
+  bool useTriangleStrip_ { false };
+  bool useTriangleFan_   { false };
 };
 
 }

@@ -1,6 +1,7 @@
 #include <CQSandboxControl2D.h>
 #include <CQSandboxCanvas.h>
 #include <CQSandboxApp.h>
+#include <CQSandboxViewport.h>
 
 #include <CQXml.h>
 

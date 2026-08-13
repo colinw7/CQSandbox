@@ -6,6 +6,7 @@
 #include <CQSandboxUtil.h>
 
 #include <CQGLTexture.h>
+#include <CQGLBuffer.h>
 #include <CQGLUtil.h>
 #include <CShape3D.h>
 #include <CLine3D.h>
@@ -300,6 +301,7 @@ init()
 
   //---
 
+#if 0
   canvas_->glGenVertexArrays(1, &vertexArrayId_);
 
   canvas_->glGenBuffers(1, &pointsBufferId_);
@@ -307,6 +309,9 @@ init()
   canvas_->glGenBuffers(1, &colorsBufferId_);
   canvas_->glGenBuffers(1, &texCoordBufferId_);
   canvas_->glGenBuffers(1, &indBufferId_);
+#else
+  buffer_ = s_program->createBuffer();
+#endif
 }
 
 bool
@@ -352,18 +357,61 @@ updateGL()
 
   //---
 
+  const auto &points  = shapeData_.points();
+  const auto &indices = shapeData_.indices();
+  const auto &normals = shapeData_.normals();
+
+  auto np = points.size();
+  auto ni = indices.size();
+
+  assert(normals.size() == np);
+
+  //---
+
+  const auto &texCoords = shapeData_.texCoords();
+
+  auto nt = texCoords.size();
+
+  static Shape3DData::TexCoords s_texCoords;
+
+  if (nt != np) {
+    if (s_texCoords.size() != np) {
+      s_texCoords.resize(np);
+
+      for (uint i = 0; i < np; ++i)
+        s_texCoords[i] = CGLVector2D(0, 0);
+    }
+  }
+
+  auto nc = colors_.size();
+
+  static Colors s_colors;
+
+  if (nc != np) {
+    if (s_colors.size() != np)
+      s_colors.resize(np);
+
+    auto c = this->color();
+
+    if (isInside())
+      c = CGLColor(0.8, 0.4, 0.4, 0.5);
+
+    for (uint i = 0; i < np; ++i)
+      s_colors[i] = c;
+  }
+
+  //---
+
+#if 0
   // bind the Vertex Array Object
   canvas_->glBindVertexArray(vertexArrayId_);
 
   //---
 
-  int np = shapeData_.points().size();
-
   // store point data in array buffer (vec3, location 0)
   uint aPos = 0;
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D),
-                        &shapeData_.points()[0], GL_STATIC_DRAW);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &points[0], GL_STATIC_DRAW);
 
   // set points attrib data and format (for current buffer)
   canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
@@ -372,8 +420,7 @@ updateGL()
   // store normal data in array buffer (vec3, location 1)
   uint aNormal = 1;
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, normalsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D),
-                        &shapeData_.normals()[0], GL_STATIC_DRAW);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &normals[0], GL_STATIC_DRAW);
 
   // set normals attrib data and format (for current buffer)
   canvas_->glVertexAttribPointer(aNormal, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
@@ -381,29 +428,12 @@ updateGL()
 
   //---
 
-  int nc = colors_.size();
-
   // store color data in array buffer
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
-  if (nc > 0) {
-    canvas_->glBufferData(GL_ARRAY_BUFFER, nc*sizeof(CGLColor), &colors_[0], GL_STATIC_DRAW);
-  }
-  else {
-    static Colors s_colors_;
-
-    if (int(s_colors_.size()) != np)
-      s_colors_.resize(np);
-
-    auto c = this->color();
-
-    if (isInside())
-      c = CGLColor(0.8, 0.4, 0.4, 0.5);
-
-    for (int i = 0; i < np; ++i)
-      s_colors_[i] = c;
-
-    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &s_colors_[0], GL_STATIC_DRAW);
-  }
+  if (nc > 0)
+    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &colors_[0], GL_STATIC_DRAW);
+  else
+    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &s_colors[0], GL_STATIC_DRAW);
 
   // set colors attrib data and format (for current buffer) (vec4, location 2)
   uint aColor = 2;
@@ -411,8 +441,6 @@ updateGL()
   canvas_->glEnableVertexAttribArray(aColor);
 
   //---
-
-  int nt = shapeData_.texCoords().size();
 
   useDiffuseTexture_ = (texture_       && nt > 0);
   useNormalTexture_  = (normalTexture_ && nt > 0);
@@ -424,23 +452,11 @@ updateGL()
 
   // store texture point data in array buffer
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferId_);
-  if (useDiffuseTexture_) {
-    canvas_->glBufferData(GL_ARRAY_BUFFER, nt*sizeof(CGLVector2D),
-                          &shapeData_.texCoords()[0], GL_STATIC_DRAW);
-  }
-  else {
-    static Shape3DData::TexCoords s_texCoords;
-
-    if (int(s_texCoords.size()) != np) {
-      s_texCoords.resize(np);
-
-      for (int i = 0; i < np; ++i)
-        s_texCoords[i] = CGLVector2D(0, 0);
-    }
-
+  if (useDiffuseTexture_)
+    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector2D), &texCoords[0], GL_STATIC_DRAW);
+  else
     canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector2D),
                           &s_texCoords[0], GL_STATIC_DRAW);
-  }
 
   // set texture points attrib data and format (for current buffer) (vec2, location 3)
   uint aTexCoord = 3;
@@ -450,12 +466,10 @@ updateGL()
   //---
 
   // store index data in element buffer
-  int ni = shapeData_.indices().size();
-
   if (ni > 0) {
     canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufferId_);
     canvas_->glBufferData(GL_ELEMENT_ARRAY_BUFFER, ni*sizeof(unsigned int),
-                          &shapeData_.indices()[0], GL_STATIC_DRAW);
+                          &indices[0], GL_STATIC_DRAW);
   }
 
   //---
@@ -464,6 +478,39 @@ updateGL()
 //canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  0);
 
   canvas_->glBindVertexArray(0);
+#else
+  buffer_->clearBuffers();
+
+  for (uint i = 0; i < np; ++i) {
+    buffer_->addPoint (points [i].x(), points [i].y(), points [i].z());
+    buffer_->addNormal(normals[i].x(), normals[i].y(), normals[i].z());
+  }
+
+  if (nt == np) {
+    for (uint i = 0; i < np; ++i)
+      buffer_->addTexturePoint(texCoords[i].x(), texCoords[i].y());
+  }
+  else {
+    for (uint i = 0; i < np; ++i)
+      buffer_->addTexturePoint(s_texCoords[i].x(), s_texCoords[i].y());
+  }
+
+  if (nc == np) {
+    for (uint i = 0; i < np; ++i)
+      buffer_->addColor(colors_[i]);
+  }
+  else {
+    for (uint i = 0; i < np; ++i)
+      buffer_->addColor(s_colors[i]);
+  }
+
+  if (ni > 0) {
+    for (uint i = 0; i < ni; ++i)
+      buffer_->addIndex(indices[i]);
+  }
+
+  buffer_->load();
+#endif
 }
 
 CBBox3D
@@ -560,7 +607,11 @@ render()
 
   //---
 
+#if 0
   canvas_->glBindVertexArray(vertexArrayId_);
+#else
+  buffer_->bind();
+#endif
 
   //---
 
@@ -584,24 +635,30 @@ render()
     normalTexture_->bind();
   }
 
-  int np = shapeData_.points ().size();
-  int ni = shapeData_.indices().size();
+  auto np = shapeData_.points ().size();
+  auto ni = shapeData_.indices().size();
 
   if (ni > 0)
     glDrawElements(GL_TRIANGLES, ni, GL_UNSIGNED_INT, nullptr);
   else {
-    if      (useTriangleStrip_)
+    if      (shapeData_.isUseTriangleStrip())
       glDrawArrays(GL_TRIANGLE_STRIP, 0, np);
-    else if (useTriangleFan_)
+    else if (shapeData_.isUseTriangleFan())
       glDrawArrays(GL_TRIANGLE_FAN, 0, np);
     else
       glDrawArrays(GL_TRIANGLES, 0, np);
   }
 
-  //canvas_->glBindVertexArray(0);
-
   if (useDiffuseTexture_ || useNormalTexture_)
     glDisable(GL_TEXTURE_2D);
+
+  //---
+
+#if 0
+  //canvas_->glBindVertexArray(0);
+#else
+  buffer_->unbind();
+#endif
 }
 
 }

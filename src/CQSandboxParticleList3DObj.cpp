@@ -138,7 +138,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       auto i = Util::stringToInt(args[0]);
 
       if (i < 0 || i >= int(colors_.size()))
-        return false;
+        return app->errorMsg("Invalid index for color");
 
       colors_[i] = Util::stringToGLColor(tcl, value);
     }

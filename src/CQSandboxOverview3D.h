@@ -20,6 +20,8 @@ class Shape;
 //class Camera;
 class Light;
 class Text;
+class Shape3DObj;
+class ParticleList3DObj;
 
 class Overview3D : public QFrame {
   Q_OBJECT
@@ -90,6 +92,9 @@ class Overview3D : public QFrame {
   void drawTexts();
   //void drawText(Text *text);
 
+  void drawShape(Shape3DObj *obj);
+  void drawParticleList(ParticleList3DObj *obj);
+
   void drawLight(Light *light);
 
   void updateBBox();
@@ -97,10 +102,11 @@ class Overview3D : public QFrame {
  private:
   void updateRange();
 
+  void drawPolygon(const std::vector<CPoint3D> &points) const;
   void drawLine(const CPoint3D &, const CPoint3D &, const QString &) const;
   void drawVector(const CVector3D &, const CVector3D &, const QString &) const;
-  void drawPoint(const CVector3D &, const QString &) const;
-  void drawPoint(const CPoint3D &, const QString &) const;
+  void drawPoint(const CVector3D &v, const QString &text="") const;
+  void drawPoint(const CPoint3D &p, const QString &text="") const;
 
   CPoint2D windowToPixelX(const CPoint2D &p) const;
   CPoint2D windowToPixelY(const CPoint2D &p) const;
@@ -192,6 +198,9 @@ class Overview3D : public QFrame {
     CMatrix3DH viewMatrix;
     Faces      faces;
     CBBox3D    bbox;
+
+    QColor pointColor { Qt::red };
+    double pointSize  { 8 };
   };
 
   //---

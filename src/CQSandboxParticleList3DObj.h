@@ -25,6 +25,7 @@ class ParticleList3DObj : public Object3D {
 
  public:
   using Points = std::vector<CGLVector3D>;
+  using Colors = std::vector<CGLColor>;
 
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
@@ -39,7 +40,10 @@ class ParticleList3DObj : public Object3D {
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
+  const Points &points() const { return points_; }
   void setPoints(const Points &points);
+
+  const Colors &colors() const { return colors_; }
 
   const QString &textureFile() const { return textureFile_; }
   void setTextureFile(const QString &filename);
@@ -78,8 +82,6 @@ class ParticleList3DObj : public Object3D {
   static size_t s_maxPoints;
 
   static ParticleListShaderProgram *s_program;
-
-  using Colors = std::vector<CGLColor>;
 
   Points points_;
   Colors colors_;
