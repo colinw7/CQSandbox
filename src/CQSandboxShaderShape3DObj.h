@@ -4,6 +4,7 @@
 #include <CQSandboxShape3DObj.h>
 
 #include <CGLVector2D.h>
+#include <CGLVector3D.h>
 #include <CGLColor.h>
 
 class CQGLTexture;
@@ -47,7 +48,7 @@ class ShaderShape3DObj : public Object3D {
 
   void updateGL();
 
-  bool intersect(const CGLVector3D &p1, const CGLVector3D &p2,
+  bool intersect(const CVector3D &p1, const CVector3D &p2,
                  CPoint3D &pi1, CPoint3D &pi2) const override;
 
   CBBox3D calcBBox() override;

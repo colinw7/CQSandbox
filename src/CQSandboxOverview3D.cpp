@@ -1,15 +1,23 @@
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxCanvas3D.h>
-//#include <CQSandboxCamera.h>
 #include <CQSandboxGeomObject.h>
-#include <CQSandboxShape3DObj.h>
+#include <CQSandboxModel3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
+#include <CQSandboxPath3DObj.h>
+#include <CQSandboxShape3DObj.h>
+#include <CQSandboxSprite3DObj.h>
+#include <CQSandboxSurface3DObj.h>
+#include <CQSandboxText3DObj.h>
+#include <CQSandboxCamera.h>
+#include <CQSandboxLight3D.h>
 #include <CQSandboxApp.h>
-//#include <Font.h>
+#include <CQSandboxStatus.h>
 #include <CQSandboxUtil.h>
 
+#include <CQPixmapCache.h>
+#include <CQRubberBand.h>
 #include <CQGLBuffer.h>
-#include <CGLCamera.h>
+#include <CQGLTexture.h>
 
 #include <CGeomScene3D.h>
 #include <CGeomObject3D.h>
@@ -24,6 +32,30 @@ struct CQPerfTrace {
 
 #include <QPainter>
 #include <QMouseEvent>
+
+namespace {
+
+double polygonArea(const QPolygonF &poly) {
+  double area = 0.0;
+
+  int n = poly.size();
+
+  int i1 = n - 1;
+  int i2 = 0;
+
+  for ( ; i2 < n; i1 = i2++) {
+    const auto &p1 = poly[i1];
+    const auto &p2 = poly[i2];
+
+    area += std::abs(p1.x()*p2.y() - p1.y()*p2.x());
+  }
+
+  return area;
+}
+
+QPoint toQPoint(const CPoint2D &p) { return QPoint(p.x, p.y); }
+
+}
 
 namespace CQSandbox {
 
@@ -41,28 +73,26 @@ Overview3D(App *app) :
 
   //---
 
-  xview_.ind = 0; xview_.range = new CDisplayRange2D; xview_.type = ViewType::XY;
-  yview_.ind = 0; yview_.range = new CDisplayRange2D; yview_.type = ViewType::ZY;
-  zview_.ind = 0; zview_.range = new CDisplayRange2D; zview_.type = ViewType::XZ;
-  pview_.ind = 0; pview_.range = new CDisplayRange2D; pview_.type = ViewType::THREED;
+  lightPixmap_ = CQPixmapCacheInst->getSizedPixmap("LIGHT", QSize(32, 32));
 
-  views_.push_back(&xview_);
-  views_.push_back(&yview_);
-  views_.push_back(&zview_);
-  views_.push_back(&pview_);
+  rubberBand_ = new CQRubberBand(this);
+
+  //---
+
+  auto initView = [&](ViewData &view, int ind, ViewType type, const QString &name) {
+    view.ind = ind; view.range = new CDisplayRange2D; view.type = type; view.name = name;
+
+    views_.push_back(&view);
+  };
+
+  initView(xview_, 0, ViewType::XY    , "XY");
+  initView(yview_, 1, ViewType::ZY    , "ZY");
+  initView(zview_, 2, ViewType::XZ    , "XZ");
+  initView(pview_, 3, ViewType::THREED, "3D");
 
   views2d_.push_back(&xview_);
   views2d_.push_back(&yview_);
   views2d_.push_back(&zview_);
-
-  //---
-
-#if 0
-  auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
-
-  connect(dynamic_cast<Camera *>(camera), SIGNAL(stateChangedSignal()), this, SLOT(invalidate()));
-#endif
 }
 
 Overview3D::
@@ -72,10 +102,37 @@ Overview3D::
 
 void
 Overview3D::
+init()
+{
+  auto *canvas = app_->canvas3D();
+  auto *camera = canvas->camera();
+
+  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
+
+  for (auto *light : canvas->lights())
+    connect(light, SIGNAL(changedSignal()), this, SLOT(lightChangeSlot()));
+}
+
+void
+Overview3D::
 invalidate()
 {
-  facesValid_ = false;
+  valid_ = false;
 
+  update();
+}
+
+void
+Overview3D::
+cameraChangeSlot()
+{
+  update();
+}
+
+void
+Overview3D::
+lightChangeSlot()
+{
   update();
 }
 
@@ -84,6 +141,12 @@ Overview3D::
 resizeEvent(QResizeEvent *)
 {
   updateRange();
+}
+
+void
+Overview3D::
+updateState()
+{
 }
 
 void
@@ -98,16 +161,21 @@ updateRange()
   auto w2 = w_/2.0;
   auto h2 = h_/2.0;
 
-  xview_.range->setPixelRange( 0,  0,     w2, h2    ); // XY
-  yview_.range->setPixelRange(w2,  0, w_ - 1, h2    ); // ZY
-  zview_.range->setPixelRange( 0, h2,     w2, h_ - 1); // XZ
-  pview_.range->setPixelRange(w2, h2, w_ - 1, h_ - 1); // 3D
+  int x1 = 0, x2 = x1 + w2, x3 = x2 + w2;
+  int y1 = 0, y2 = y1 + h2, y3 = y2 + h2;
+
+  xview_.range->setPixelRange(x1, y1, x2, y2); // XY
+  yview_.range->setPixelRange(x2, y1, x3, y2); // ZY
+  zview_.range->setPixelRange(x1, y2, x2, y3); // XZ
+  pview_.range->setPixelRange(x2, y2, x3, y3); // 3D
 
   for (auto *view : views2d_)
-    view->range->setEqualScale(true);
+    view->range->setEqualScale(isEqualScale());
 
   for (auto *v : views_)
     v->range->zoomOut(zoomFactor);
+
+  invalidate();
 }
 
 void
@@ -127,16 +195,19 @@ paintEvent(QPaintEvent *)
   auto *canvas = app_->canvas3D();
   auto *camera = canvas->camera();
 
-//drawData_.worldMatrix = canvas->calcWorldMatrix();
-  drawData_.worldMatrix = CMatrix3DH::identity();
-  drawData_.viewMatrix  = camera->getViewMatrix().toCMatrixH();
+  drawData_.projectionMatrix = camera->perspectiveMatrix();
+  drawData_.viewMatrix       = camera->viewMatrix();
+  drawData_.pvMatrix         = drawData_.projectionMatrix*drawData_.viewMatrix;
+
+  drawData_.near = camera->near();
+  drawData_.far  = camera->far();
 
   //---
 
-  if (! facesValid_) {
-    updateModel();
+  if (! valid_) {
+    updateObjects();
 
-    facesValid_ = true;
+    valid_ = true;
   }
 
   updateBBox();
@@ -151,9 +222,14 @@ paintEvent(QPaintEvent *)
   // draw view borders (sets view rect)
 
   auto drawPixelBorder = [&](ViewData &viewData) {
-    painter.setPen(Qt::black);
+    bool current = (viewData.ind == ind_);
 
-    QBrush brush(QColor(255, 255, 255));
+    QPen pen;
+    pen.setColor(current ? Qt::red : Qt::black);
+    pen.setWidthF(current ? 3 : 0);
+    painter.setPen(pen);
+
+    QBrush brush(current ? QColor(220, 220, 240) : QColor(220, 220, 220));
     painter.setBrush(brush);
 
     double pxmin, pymin, pxmax, pymax;
@@ -170,21 +246,13 @@ paintEvent(QPaintEvent *)
 
   //---
 
-  painter.save();
+  drawObjects();
 
-  drawModel();
+  //---
 
-  for (auto *object : canvas->objects()) {
-    auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
-    auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
+  drawCameras();
 
-    if      (shapeObj)
-      drawShape(shapeObj);
-    else if (particleListObj)
-      drawParticleList(particleListObj);
-  }
-
-  painter.restore();
+  drawLights();
 
   //---
 
@@ -196,39 +264,196 @@ paintEvent(QPaintEvent *)
 
   //---
 
-#if 0
-  if (isShowCamera()) {
-    painter.save();
+  // draw labels
+  painter.setPen(Qt::black);
 
-    drawCamera(camera);
+  QFontMetrics fm(font());
 
-    painter.restore();
-  }
-#endif
+  auto drawTitle = [&](const ViewData &view) {
+    painter.setClipRect(view.rect);
+
+    double pxmin, pymin, pxmax, pymax;
+    view.range->getPixelRange(&pxmin, &pymin, &pxmax, &pymax);
+
+    auto r = QRectF(pxmin + 4, pymin + 4, fm.horizontalAdvance(view.name) + 4, fm.height() + 4);
+    painter.drawText(r, view.name);
+  };
+
+  for (auto *view : views2d_)
+    drawTitle(*view);
 }
 
 void
 Overview3D::
-updateModel()
+updateObjects()
 {
-  CQPerfTrace trace("Overview3D::updateModel");
+  CQPerfTrace trace("Overview3D::updateObjects");
 
   //---
 
   drawData_.bbox = CBBox3D();
 
-  drawData_.faces.clear();
-
   auto *canvas = app_->canvas3D();
 
-  auto *scene = canvas->scene();
-
-  for (auto *object : scene->getObjects()) {
-    if (object->parent())
+  for (auto *object : canvas->objects()) {
+    if (! object->isVisible())
       continue;
 
-    updateObject(object);
+    auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
+    auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
+    auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
+    auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
+    auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
+    auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
+    auto *textObj         = dynamic_cast<Text3DObj         *>(object);
+
+    if      (model3DObj)
+      updateModel(model3DObj);
+    else if (particleListObj)
+      updateParticleList(particleListObj);
+    else if (pathObj)
+      updatePath(pathObj);
+    else if (shapeObj)
+      updateShape(shapeObj);
+    else if (spriteObj)
+      updateSprite(spriteObj);
+    else if (surface3DObj)
+      updateSurface(surface3DObj);
+    else if (textObj)
+      updateText(textObj);
   }
+}
+
+void
+Overview3D::
+updateModel(Model3DObj *obj)
+{
+  updateObject(obj->object());
+}
+
+void
+Overview3D::
+updateParticleList(ParticleList3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &points = obj->points();
+
+  auto np = points.size();
+
+  for (uint i = 0; i < np; ++i) {
+    drawData_.bbox += mm*points[i].vector();
+  }
+}
+
+void
+Overview3D::
+updatePath(Path3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &points = obj->points();
+
+  auto np = points.size();
+
+  for (uint i = 0; i < np; i += 2) {
+    auto p1 = mm*points[i + 0].point();
+    auto p2 = mm*points[i + 1].point();
+
+    drawData_.bbox += p1;
+    drawData_.bbox += p2;
+  }
+}
+
+void
+Overview3D::
+updateShape(Shape3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &shapeData = obj->shapeData();
+
+  const auto &inds   = shapeData.indices();
+  const auto &points = shapeData.points();
+
+  auto ni = inds.size();
+
+  if (ni > 0) {
+    for (uint i = 0; i < ni; i += 3) {
+      drawData_.bbox += mm*points[inds[i + 0]].point();
+      drawData_.bbox += mm*points[inds[i + 1]].point();
+      drawData_.bbox += mm*points[inds[i + 2]].point();
+    }
+  }
+  else {
+    if      (shapeData.isUseTriangleStrip()) {
+      for (const auto &p : points)
+        drawData_.bbox += mm*p;
+    }
+    else if (shapeData.isUseTriangleFan()) {
+      for (const auto &p : points)
+        drawData_.bbox += mm*p;
+    }
+    else {
+      auto np = points.size();
+
+      for (uint i = 0; i < np; i += 3) {
+        drawData_.bbox += mm*points[i + 0].point();
+        drawData_.bbox += mm*points[i + 1].point();
+        drawData_.bbox += mm*points[i + 2].point();
+      }
+    }
+  }
+}
+
+void
+Overview3D::
+updateSprite(Sprite3DObj *obj)
+{
+  auto *texture = obj->currentTexture();
+  if (! texture) return;
+
+  auto pos = obj->position();
+
+  drawData_.bbox += pos;
+}
+
+void
+Overview3D::
+updateSurface(Surface3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &inds   = obj->indices();
+  const auto &points = obj->points();
+
+  auto ni = inds.size();
+
+  if (ni > 0) {
+    for (uint i = 0; i < ni; i += 3) {
+      drawData_.bbox += mm*points[inds[i + 0]].point();
+      drawData_.bbox += mm*points[inds[i + 1]].point();
+      drawData_.bbox += mm*points[inds[i + 2]].point();
+    }
+  }
+  else {
+    auto np = points.size();
+
+    for (uint i = 0; i < np; i += 3) {
+      drawData_.bbox += mm*points[i + 0].point();
+      drawData_.bbox += mm*points[i + 1].point();
+      drawData_.bbox += mm*points[i + 2].point();
+    }
+  }
+}
+
+void
+Overview3D::
+updateText(Text3DObj *obj)
+{
+  auto pos = obj->position();
+
+  drawPoint(CVector3D(pos.getX(), pos.getY(), pos.getZ()), obj->text());
 }
 
 void
@@ -255,6 +480,7 @@ updateObject(CGeomObject3D *object)
   //---
 
   auto modelMatrix = object1->getHierTransform();
+  auto meshMatrix  = object1->getMeshGlobalTransform();
 
 #if 0
   if (refObject && refObject != object)
@@ -263,26 +489,31 @@ updateObject(CGeomObject3D *object)
 
   //---
 
+  auto &faces = drawData_.objFaces[object];
+
+  faces.clear();
+
   const auto &faceDatas = geomObject1->faceDatas();
   auto       *buffer    = geomObject1->buffer();
 
   for (const auto &faceData : faceDatas) {
     Face face;
 
-    //face.color = faceData.diffuse;
+    face.face  = faceData.face;
+    face.color = faceData.color;
 
     for (int i = 0; i < faceData.len; ++i) {
       CQGLBuffer::PointData data;
       buffer->getPointData(faceData.pos + i, data);
 
-      auto p = modelMatrix*data.point->point();
+      auto p = modelMatrix*meshMatrix*data.point->point();
 
       face.points.push_back(p);
 
       drawData_.bbox += p;
     }
 
-    drawData_.faces.push_back(face);
+    faces.push_back(face);
   }
 
   //---
@@ -303,81 +534,173 @@ updateBBox()
 
   bbox_ = drawData_.bbox;
 
-  bbox_ += CPoint3D(-3, -3, -3);
-  bbox_ += CPoint3D( 3,  3,  3);
-
-  xview_.range->setWindowRange(bbox_.getXMin(), bbox_.getYMin(), bbox_.getXMax(), bbox_.getYMax());
-  yview_.range->setWindowRange(bbox_.getZMax(), bbox_.getYMin(), bbox_.getZMin(), bbox_.getYMax());
-  zview_.range->setWindowRange(bbox_.getXMin(), bbox_.getZMin(), bbox_.getXMax(), bbox_.getZMax());
-  pview_.range->setWindowRange(-1, -1, 1, 1); // 3D
-
   std::cerr << "Overview3D BBox: " << bbox_ << "\n";
+
+  auto c = bbox_.getCenter();
+
+  xs_ = bbox_.getXSize();
+  ys_ = bbox_.getYSize();
+  zs_ = bbox_.getZSize();
+
+  xview_.range->setWindowRange(c.x - xs_, c.y - ys_, c.x + xs_, c.y + ys_); // XY
+  yview_.range->setWindowRange(c.z + zs_, c.y - ys_, c.z - zs_, c.y + ys_); // ZY
+  zview_.range->setWindowRange(c.x - xs_, c.z + zs_, c.x + xs_, c.z - zs_); // XZ
+  pview_.range->setWindowRange(-1, -1, 1, 1); // 3D
 }
 
 void
 Overview3D::
-drawModel()
+drawObjects()
+{
+  auto *canvas = app_->canvas3D();
+
+  drawData_.painter->save();
+
+  for (auto *object : canvas->objects()) {
+    if (! object->isVisible())
+      continue;
+
+    auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
+    auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
+    auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
+    auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
+    auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
+    auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
+    auto *textObj         = dynamic_cast<Text3DObj         *>(object);
+
+    if      (model3DObj)
+      drawModel(model3DObj);
+    else if (particleListObj)
+      drawParticleList(particleListObj);
+    else if (pathObj)
+      drawPath(pathObj);
+    else if (shapeObj)
+      drawShape(shapeObj);
+    else if (spriteObj)
+      drawSprite(spriteObj);
+    else if (surface3DObj)
+      drawSurface(surface3DObj);
+    else if (textObj)
+      drawText(textObj);
+  }
+
+  drawData_.painter->restore();
+}
+
+void
+Overview3D::
+drawModel(Model3DObj *obj)
 {
   CQPerfTrace trace("Overview3D::drawModel");
 
-  for (auto &face : drawData_.faces) {
+  auto *object = obj->object();
+
+  drawObject(object);
+}
+
+void
+Overview3D::
+drawObject(CGeomObject3D *object)
+{
+  bool objSelected = object->getSelected();
+
+  auto &faces = drawData_.objFaces[object];
+
+  for (auto &face : faces) {
+    bool faceSelected = face.face->getSelected();
+
     if (isSolid()) {
       drawData_.painter->setPen(Qt::NoPen);
 
-      drawData_.painter->setBrush(Util::RGBAToQColor(face.color));
+      drawData_.painter->setBrush(face.color);
 
       drawPolygon(face.points);
     }
 
-    if (isWireframe()) {
-      drawData_.painter->setPen(Qt::black);
+    if (isWireframe() || objSelected || faceSelected) {
+      if (objSelected || faceSelected)
+        drawData_.painter->setPen(Qt::red);
+      else
+        drawData_.painter->setPen(Qt::black);
 
       drawData_.painter->setBrush(Qt::NoBrush);
 
       drawPolygon(face.points);
     }
   }
-}
 
-void
-Overview3D::
-drawTexts()
-{
-#if 0
-  auto *canvas = app_->canvas3D();
+  //---
 
-  for (auto *text : canvas->texts()) {
-    drawText(text);
+  if (isBasisVisible() && objSelected) {
+    CVector3D u, v, w;
+    getBasis(object, u, v, w);
+
+    CBBox3D bbox;
+    object->getTransformedModelBBox(bbox);
+
+    auto c = bbox.getCenter();
+
+    drawLine(c, c + u);
+    drawLine(c, c + v);
+    drawLine(c, c + w);
   }
-#endif
+
+  //---
+
+  for (auto *child : object->children()) {
+    drawObject(child);
+  }
 }
 
-#if 0
 void
 Overview3D::
-drawText(Text *text)
+getBasis(CGeomObject3D *object, CVector3D &u, CVector3D &v, CVector3D &w) const
 {
-  auto pos = text->position();
+  CVector3D u1, v1, w1;
+  object->getBasis(u1, v1, w1);
 
-  drawPoint(CVector3D(pos.getX(), pos.getY(), pos.getZ()),
-            QString::fromStdString(text->text()));
+  const auto &modelMatrix = object->getHierTransform();
+
+  u = (modelMatrix*u1).normalized();
+  v = (modelMatrix*v1).normalized();
+  w = (modelMatrix*w1).normalized();
 }
-#endif
+
+void
+Overview3D::
+drawCameras()
+{
+  if (! isCameraVisible() && editType() != EditType::CAMERA)
+    return;
+
+  auto *canvas = app_->canvas3D();
+  auto *camera = canvas->camera();
+
+  drawCamera(camera);
 
 #if 0
+  if (isEyeLineVisible())
+    drawEyeLine();
+#endif
+}
+
 void
 Overview3D::
 drawCamera(Camera *camera)
 {
-  CameraShape shape;
-  getCameraShape(camera, shape);
+  auto *camera1 = dynamic_cast<Camera *>(camera);
+  if (! camera1) return;
+
+#if 0
+  Camera::Shape shape;
+  camera1->getCameraShape(shape);
+#endif
 
   auto pos    = camera->position();
-  auto origin = camera->origin  ();
+  auto origin = camera->origin();
 
   //---
 
-  drawData_.painter->setPen(Qt::black);
   drawData_.painter->setBrush(Qt::NoBrush);
 
   //---
@@ -396,11 +719,12 @@ drawCamera(Camera *camera)
   drawPoint(origin, "O");
 
   drawCameraVector(front, QColor(255, 0, 0, 255), "F");
-  drawCameraVector(up,    QColor(0, 255, 0, 255), "U");
+  drawCameraVector(up   , QColor(0, 255, 0, 255), "U");
   drawCameraVector(right, QColor(0, 0, 255, 255), "R");
 
   //---
 
+#if 0
   // draw view frustrum
   drawData_.painter->setPen(Qt::black);
 
@@ -413,17 +737,16 @@ drawCamera(Camera *camera)
   drawLine(pos.point(), shape.p12, "");
   drawLine(pos.point(), shape.p22, "");
   drawLine(pos.point(), shape.p21, "");
+#endif
 
   //---
 
-#if 0
   // draw camera orbit
   drawData_.painter->setPen(QColor(100, 100, 100));
+  drawData_.painter->setBrush(Qt::NoBrush);
 
   drawSphere(origin.point(), pos.point());
-#endif
 }
-#endif
 
 #if 0
 void
@@ -463,8 +786,113 @@ getCameraShape(Camera *camera, CameraShape &shape) const
 
 void
 Overview3D::
+drawLights()
+{
+  if (! isLightsVisible() && editType_ != EditType::LIGHT)
+    return;
+
+  drawData_.painter->setPen(QColor(0, 0, 0, 255));
+  drawData_.painter->setBrush(Qt::NoBrush);
+
+  auto *canvas = app_->canvas3D();
+
+  // draw lights
+  for (auto *light : canvas->lights()) {
+    if (! light->getEnabled())
+      continue;
+
+    auto p = light->getPosition();
+
+    drawPixmap(p, lightPixmap_);
+
+    if      (light->getType() == Light3D::Type::DIRECTIONAL) {
+      auto d = light->getDirection();
+
+      drawVector(CVector3D(p), d, "D");
+    }
+    else if (light->getType() == Light3D::Type::POINT) {
+      auto r = light->getPointRadius();
+
+      drawCircle(p, r, "P");
+    }
+    else if (light->getType() == Light3D::Type::SPOT) {
+      auto d = light->getSpotDirection();
+      auto a = light->getSpotCutOffAngle();
+
+      auto a1 = CMathGen::DegToRad(a)/2.0;
+
+      drawCone(CVector3D(p), d, a1);
+    }
+#if 0
+    else if (light->type() == Light3D::Type::FLASHLIGHT) {
+      // TODO
+    }
+#endif
+  }
+}
+
+void
+Overview3D::
+drawTexts()
+{
+#if 0
+  auto *canvas = app_->canvas3D();
+
+  for (auto *text : canvas->texts()) {
+    drawText(text);
+  }
+#endif
+}
+
+void
+Overview3D::
+drawParticleList(ParticleList3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &points = obj->points();
+  const auto &colors = obj->colors();
+
+  drawData_.pointSize = 3;
+
+  auto np = points.size();
+
+  for (uint i = 0; i < np; ++i) {
+    const auto &c = colors[i];
+
+    drawData_.pointColor = QColor(255*c.r, 255*c.g, 255*c.b, 255*c.a);
+
+    drawPoint(mm*points[i].point());
+  }
+}
+
+void
+Overview3D::
+drawPath(Path3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &points = obj->points();
+
+  auto np = points.size();
+
+  for (uint i = 0; i < np; i += 2) {
+    auto p1 = mm*points[i + 0].point();
+    auto p2 = mm*points[i + 1].point();
+
+    drawLine(p1, p2);
+  }
+}
+
+void
+Overview3D::
 drawShape(Shape3DObj *obj)
 {
+  if (obj->isSelected())
+    drawData_.painter->setPen(Qt::red);
+  else
+    drawData_.painter->setPen(Qt::black);
+
   const auto &mm = obj->modelMatrix();
 
   const auto &shapeData = obj->shapeData();
@@ -488,11 +916,11 @@ drawShape(Shape3DObj *obj)
   else {
     if      (shapeData.isUseTriangleStrip()) {
       for (const auto &p : points)
-        drawPoint(mm*p.vector());
+        drawPoint(mm*p.point());
     }
     else if (shapeData.isUseTriangleFan()) {
       for (const auto &p : points)
-        drawPoint(mm*p.vector());
+        drawPoint(mm*p.point());
     }
     else {
       auto np = points.size();
@@ -512,24 +940,67 @@ drawShape(Shape3DObj *obj)
 
 void
 Overview3D::
-drawParticleList(ParticleList3DObj *obj)
+drawSprite(Sprite3DObj *obj)
+{
+  auto *texture = obj->currentTexture();
+  if (! texture) return;
+
+  auto pos = obj->position();
+
+  const auto &image = texture->getImage();
+
+  auto w = image.width ();
+  auto h = image.height();
+
+  auto image1 = image.scaled(w*obj->xscale(), h*obj->yscale());
+
+  drawImage(pos, image1);
+}
+
+void
+Overview3D::
+drawSurface(Surface3DObj *obj)
 {
   const auto &mm = obj->modelMatrix();
 
+  const auto &inds   = obj->indices();
   const auto &points = obj->points();
-  const auto &colors = obj->colors();
 
-  drawData_.pointSize = 3;
+  auto ni = inds.size();
 
-  auto np = points.size();
+  if (ni > 0) {
+    for (uint i = 0; i < ni; i += 3) {
+      std::vector<CPoint3D> poly;
 
-  for (uint i = 0; i < np; ++i) {
-    const auto &c = colors[i];
+      poly.push_back(mm*points[inds[i + 0]].point());
+      poly.push_back(mm*points[inds[i + 1]].point());
+      poly.push_back(mm*points[inds[i + 2]].point());
 
-    drawData_.pointColor = QColor(255*c.r, 255*c.g, 255*c.b, 255*c.a);
-
-    drawPoint(mm*points[i].vector());
+      drawPolygon(poly);
+    }
   }
+  else {
+    auto np = points.size();
+
+    for (uint i = 0; i < np; i += 3) {
+      std::vector<CPoint3D> poly;
+
+      poly.push_back(mm*points[i + 0].point());
+      poly.push_back(mm*points[i + 1].point());
+      poly.push_back(mm*points[i + 2].point());
+
+      drawPolygon(poly);
+    }
+  }
+}
+
+void
+Overview3D::
+drawText(Text3DObj *obj)
+{
+  auto pos = obj->position();
+
+  drawPoint(CVector3D(pos.getX(), pos.getY(), pos.getZ()), obj->text());
 }
 
 void
@@ -553,20 +1024,88 @@ drawPolygon(const std::vector<CPoint3D> &points) const
 
   std::vector<CPoint2D> xpoints, ypoints, zpoints, ppoints;
 
+#if 0
+  double z = 0.0;
+#endif
+
   for (const auto &p : points) {
     xpoints.push_back(CPoint2D(p.getX(), p.getY())); // XY
     ypoints.push_back(CPoint2D(p.getZ(), p.getY())); // ZY
     zpoints.push_back(CPoint2D(p.getX(), p.getZ())); // XZ
 
-    auto p1 = drawData_.worldMatrix*drawData_.viewMatrix*p;
+#if 0
+    auto p1 = drawData_.viewMatrix*p;
+    auto p2 = drawData_.projectionMatrix*p1;
+
+    ppoints.push_back(CPoint2D(p2.getX(), p2.getY()));
+
+    z += p1.z;
+#else
+    auto p1 = drawData_.pvMatrix*p;
 
     ppoints.push_back(CPoint2D(p1.getX(), p1.getY()));
+#endif
   }
 
   drawPolygon2D(xview_, xpoints);
   drawPolygon2D(yview_, ypoints);
   drawPolygon2D(zview_, zpoints);
+
+#if 0
+  z /= points.size();
+
+  //auto z1 = (z - bbox_.getZMin())/(bbox_.getZMax() - bbox_.getZMin());
+  //auto z1 = (z + 1.0)/2.0;
+  auto z1 = (z - drawData_.near)/(drawData_.far - drawData_.near);
+
+  if (z1 > 0) {
+    //auto c = drawData_.painter->pen().color();
+
+    auto gray  = 255*std::min(std::max(z1, 0.0), 1.0);
+    auto gray1 = 255 - gray;
+
+    drawData_.painter->setPen(QColor(gray, gray, gray, gray1));
+
+    drawPolygon2D(pview_, ppoints);
+  }
+#else
   drawPolygon2D(pview_, ppoints);
+#endif
+}
+
+void
+Overview3D::
+drawCone(const CVector3D &p, const CVector3D &d, double a) const
+{
+  auto m1 = CMatrix2D::rotation( a);
+  auto m2 = CMatrix2D::rotation(-a);
+
+  auto drawCone2D = [&](const ViewData &view, const CVector3D &p,
+                        const CVector3D &d, double sx, double sy) {
+    auto p1 = view.viewPoint(p.point());
+    auto dp = view.viewPoint(d.point());
+
+    drawData_.painter->setClipRect(view.rect);
+
+    auto s = std::sqrt(sx*sx + sy*sy)/3.0;
+
+    auto d1 = m1*dp;
+    auto d2 = m2*dp;
+
+    double px1, py1;
+    view.range->windowToPixel(p1.x, p1.y, &px1, &py1);
+    double px2, py2;
+    view.range->windowToPixel(p1.x + s*d1.x, p1.y + s*d1.y, &px2, &py2);
+    double px3, py3;
+    view.range->windowToPixel(p1.x + s*d2.x, p1.y + s*d2.y, &px3, &py3);
+
+    drawData_.painter->drawLine(px1, py1, px2, py2);
+    drawData_.painter->drawLine(px1, py1, px3, py3);
+  };
+
+  drawCone2D(xview_, p, d, xs_, ys_); // XY
+  drawCone2D(yview_, p, d, zs_, ys_); // ZY
+  drawCone2D(zview_, p, d, xs_, zs_); // XZ
 }
 
 void
@@ -591,8 +1130,8 @@ drawLine(const CPoint3D &p1, const CPoint3D &p2, const QString &) const
   drawData_.painter->setClipRect(zview_.rect);
   drawData_.painter->drawLine(pz1.x, pz1.y, pz2.x, pz2.y);
 
-  auto pv1 = drawData_.worldMatrix*drawData_.viewMatrix*p1;
-  auto pv2 = drawData_.worldMatrix*drawData_.viewMatrix*p2;
+  auto pv1 = drawData_.pvMatrix*p1;
+  auto pv2 = drawData_.pvMatrix*p2;
 
   auto pp1 = windowToPixelP(CPoint2D(pv1.x, pv1.y));
   auto pp2 = windowToPixelP(CPoint2D(pv2.x, pv2.y));
@@ -636,6 +1175,82 @@ drawVector(const CVector3D &p, const CVector3D &d, const QString &label) const
 
 void
 Overview3D::
+drawCircle(const CPoint3D &origin, double r, const QString &label) const
+{
+  auto drawCircle2D = [&](const ViewData &view, const CPoint2D &o, double r, const QString &label) {
+    drawData_.painter->setClipRect(view.rect);
+
+    double px1, py1;
+    view.range->windowToPixel(o.x - r, o.y - r, &px1, &py1);
+    double px2, py2;
+    view.range->windowToPixel(o.x + r, o.y + r, &px2, &py2);
+
+    drawData_.painter->drawEllipse(QRectF(px1, py1, px2 - px1, py2 - py1));
+
+    if (label != "")
+      drawData_.painter->drawText(px2, py2, label);
+  };
+
+  auto xo = CPoint2D(origin.x, origin.y);
+  auto yo = CPoint2D(origin.z, origin.y);
+  auto zo = CPoint2D(origin.x, origin.z);
+
+  drawCircle2D(xview_, xo, r, label); // XY
+  drawCircle2D(yview_, yo, r, label); // ZY
+  drawCircle2D(zview_, zo, r, label); // XZ
+}
+
+void
+Overview3D::
+drawSphere(const CPoint3D &origin, const CPoint3D &pos) const
+{
+  auto drawCircle2D = [&](const ViewData &view, const CPoint2D &o, double r) {
+    drawData_.painter->setClipRect(view.rect);
+
+    double px1, py1;
+    view.range->windowToPixel(o.x - r, o.y - r, &px1, &py1);
+    double px2, py2;
+    view.range->windowToPixel(o.x + r, o.y + r, &px2, &py2);
+
+    drawData_.painter->drawEllipse(QRectF(px1, py1, px2 - px1, py2 - py1));
+  };
+
+  auto x1 = CPoint2D(origin.x, origin.y); auto x2 = CPoint2D(pos.x, pos.y);
+  auto y1 = CPoint2D(origin.z, origin.y); auto y2 = CPoint2D(pos.z, pos.y);
+  auto z1 = CPoint2D(origin.x, origin.z); auto z2 = CPoint2D(pos.x, pos.z);
+
+  auto rx = x1.distanceTo(x2);
+  auto ry = y1.distanceTo(y2);
+  auto rz = z1.distanceTo(z2);
+
+  drawCircle2D(xview_, x1, rx); // XY
+  drawCircle2D(yview_, y1, ry); // ZY
+  drawCircle2D(zview_, z1, rz); // XZ
+}
+
+void
+Overview3D::
+drawImage(const CPoint3D &p, const QImage &image) const
+{
+  auto w = image.width ();
+  auto h = image.height();
+
+  auto px = windowToPixelX(CPoint2D(p.x, p.y));
+  auto py = windowToPixelY(CPoint2D(p.z, p.y));
+  auto pz = windowToPixelZ(CPoint2D(p.x, p.z));
+
+  drawData_.painter->setClipRect(xview_.rect);
+  drawData_.painter->drawImage(px.x - w/2, px.y - h/2, image);
+
+  drawData_.painter->setClipRect(yview_.rect);
+  drawData_.painter->drawImage(py.x - w/2, py.y - h/2, image);
+
+  drawData_.painter->setClipRect(zview_.rect);
+  drawData_.painter->drawImage(pz.x - w/2, pz.y - h/2, image);
+}
+
+void
+Overview3D::
 drawPoint(const CVector3D &v, const QString &text) const
 {
   drawPoint(v.point(), text);
@@ -665,12 +1280,32 @@ drawPoint(const CPoint3D &p, const QString &text) const
   drawData_.painter->drawEllipse(QRectF(pz.x - s/2, pz.y - s/2, s, s));
   drawData_.painter->drawText(pz.x, pz.y, text);
 
-  auto pv = drawData_.worldMatrix*drawData_.viewMatrix*p;
+  auto pv = drawData_.pvMatrix*p;
   auto pp = windowToPixelP(CPoint2D(pv.x, pv.y));
 
   drawData_.painter->setClipRect(pview_.rect);
   drawData_.painter->drawEllipse(QRectF(pp.x - s/2, pp.y - s/2, s, s));
   drawData_.painter->drawText(pp.x, pp.y, text);
+}
+
+void
+Overview3D::
+drawPixmap(const CPoint3D &p, const QPixmap &pixmap) const
+{
+  auto s = pixmap.width();
+
+  auto drawPixmap2D = [&](const ViewData &view, const CPoint2D &p, const QPixmap &pixmap) {
+    drawData_.painter->setClipRect(view.rect);
+
+    double px, py;
+    view.range->windowToPixel(p.x, p.y, &px, &py);
+
+    drawData_.painter->drawPixmap(px - s/2, py - s/2, pixmap);
+  };
+
+  drawPixmap2D(xview_, CPoint2D(p.getX(), p.getY()), pixmap); // XY
+  drawPixmap2D(yview_, CPoint2D(p.getZ(), p.getY()), pixmap); // ZY
+  drawPixmap2D(zview_, CPoint2D(p.getX(), p.getZ()), pixmap); // XZ
 }
 
 CPoint2D
@@ -713,112 +1348,154 @@ void
 Overview3D::
 mousePressEvent(QMouseEvent *e)
 {
-  mouseData_.pressPos = CPoint2D(e->x(), e->y());
-  mouseData_.button   = e->button();
   mouseData_.pressed  = true;
+  mouseData_.button   = e->button();
 
-  auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
+  mouseData_.isShift   = (e->modifiers() & Qt::ShiftModifier);
+  mouseData_.isControl = (e->modifiers() & Qt::ControlModifier);
+
+  mouseData_.pressPos = CPoint2D(e->x(), e->y());
+  mouseData_.movePos1 = mouseData_.pressPos;
+
+  //---
 
   if      (mouseData_.button == Qt::LeftButton) {
-    if      (editType_ == EditType::SELECT) {
+    if      (editType() == EditType::SELECT) {
+      rubberBand_->setBounds(toQPoint(mouseData_.pressPos), toQPoint(mouseData_.movePos1));
+      rubberBand_->show();
     }
-    else if (editType_ == EditType::CAMERA) {
-      auto position = camera->position();
-
-      CPoint2D p;
-      if (xview_.pressRange(mouseData_.pressPos, p))
-        camera->setPosition(CGLVector3D(p.x, p.y, position.z())); // XY
-      if (yview_.pressRange(mouseData_.pressPos, p))
-        camera->setPosition(CGLVector3D(position.x(), p.y, p.x)); // ZY
-      if (zview_.pressRange(mouseData_.pressPos, p))
-        camera->setPosition(CGLVector3D(p.x, position.y(), p.y)); // XZ
+    else if (editType() == EditType::CAMERA) {
+      if      (mouseData_.isShift)
+        setCameraPosition(mouseData_.pressPos);
+      else if (mouseData_.isControl)
+        setCameraOrigin(mouseData_.pressPos);
+    }
+    else if (editType() == EditType::LIGHT) {
+      if      (mouseData_.isShift)
+        setLightPosition(mouseData_.pressPos);
+      else if (mouseData_.isControl)
+        setLightDirection(mouseData_.pressPos);
     }
   }
   else if (mouseData_.button == Qt::MiddleButton) {
-    if      (editType_ == EditType::SELECT) {
-    }
-    else if (editType_ == EditType::CAMERA) {
-#if 0
-      auto origin = camera->origin();
-
-      CPoint2D p;
-      if (xview_.pressRange(mouseData_.pressPos, p))
-        camera->setOrigin(CVector3D(p.x, p.y, origin.z())); // XY
-      if (yview_.pressRange(mouseData_.pressPos, p))
-        camera->setOrigin(CVector3D(origin.x(), p.y, p.x)); // ZY
-      if (zview_.pressRange(mouseData_.pressPos, p))
-        camera->setOrigin(CVector3D(p.x, origin.y(), p.y)); // XZ
-#endif
-    }
   }
   else if (mouseData_.button == Qt::RightButton) {
   }
-
-  update();
-}
-
-void
-Overview3D::
-mouseReleaseEvent(QMouseEvent *)
-{
-  mouseData_.pressed = false;
 }
 
 void
 Overview3D::
 mouseMoveEvent(QMouseEvent *e)
 {
-  mouseData_.movePos = CPoint2D(e->x(), e->y());
-
-//auto *canvas = app_->canvas3D();
-//auto *camera = canvas->camera();
-
-#if 0
-  CPoint2D p;
-  if (xview_.pressRange(mouseData_.movePos, p))
-    app_->status()->setText(QString("X=%1 Y=%2").arg(p.x).arg(p.y));
-  if (yview_.pressRange(mouseData_.movePos, p))
-    app_->status()->setText(QString("Z=%1 Y=%2").arg(p.x).arg(p.y));
-  if (zview_.pressRange(mouseData_.movePos, p))
-    app_->status()->setText(QString("X=%1 Z=%2").arg(p.x).arg(p.y));
-#endif
+  mouseData_.movePos2 = CPoint2D(e->x(), e->y());
 
   //---
 
-  if (! mouseData_.pressed)
-    return;
+  if (mouseData_.pressed) {
+    if      (mouseData_.button == Qt::LeftButton) {
+      if      (editType() == EditType::SELECT) {
+        rubberBand_->setBounds(toQPoint(mouseData_.pressPos), toQPoint(mouseData_.movePos2));
+      }
+      else if (editType() == EditType::CAMERA) {
+        if      (mouseData_.isShift)
+          setCameraPosition(mouseData_.movePos2);
+        else if (mouseData_.isControl)
+          setCameraOrigin(mouseData_.movePos2);
+      }
+      else if (editType() == EditType::LIGHT) {
+        if      (mouseData_.isShift)
+          setLightPosition(mouseData_.movePos2);
+        else if (mouseData_.isControl)
+          setLightDirection(mouseData_.movePos2);
+      }
+    }
+    else if (mouseData_.button == Qt::MiddleButton) {
+      CPoint2D p2;
+      if      (xview_.pressRange(mouseData_.movePos2, p2)) {
+        CPoint2D p1;
+        xview_.pressRange(mouseData_.movePos1, p1);
 
-  if      (mouseData_.button == Qt::LeftButton) {
-#if 0
-    auto position = camera->position();
+        auto dx = p1.x - p2.x;
+        auto dy = p1.y - p2.y;
 
-    CPoint2D p;
-    if (xview_.pressRange(mouseData_.movePos, p))
-      camera->setPosition(CVector3D(p.x, p.y, position.z())); // XY
-    if (yview_.pressRange(mouseData_.movePos, p))
-      camera->setPosition(CVector3D(position.x(), p.y, p.x)); // ZY
-    if (zview_.pressRange(mouseData_.movePos, p))
-      camera->setPosition(CVector3D(p.x, position.y(), p.y)); // XZ
-#endif
+        xview_.range->scroll(dx, dy);
+        invalidate();
+      }
+      else if (yview_.pressRange(mouseData_.movePos2, p2)) {
+        CPoint2D p1;
+        yview_.pressRange(mouseData_.movePos1, p1);
+
+        auto dx = p1.x - p2.x;
+        auto dy = p1.y - p2.y;
+
+        yview_.range->scroll(dx, dy);
+        invalidate();
+      }
+      else if (zview_.pressRange(mouseData_.movePos2, p2)) {
+        CPoint2D p1;
+        zview_.pressRange(mouseData_.movePos1, p1);
+
+        auto dx = p1.x - p2.x;
+        auto dy = p1.y - p2.y;
+
+        zview_.range->scroll(dx, dy);
+        invalidate();
+      }
+    }
+    else if (mouseData_.button == Qt::RightButton) {
+    }
   }
-  else if (mouseData_.button == Qt::MiddleButton) {
-#if 0
-    auto origin = camera->origin();
 
-    CPoint2D p;
-    if (xview_.pressRange(mouseData_.movePos, p))
-      camera->setOrigin(CVector3D(p.x, p.y, origin.z())); // XY
-    if (yview_.pressRange(mouseData_.movePos, p))
-      camera->setOrigin(CVector3D(origin.x(), p.y, p.x)); // ZY
-    if (zview_.pressRange(mouseData_.movePos, p))
-      camera->setOrigin(CVector3D(p.x, origin.y(), p.y)); // XZ
-#endif
-  }
-  else if (mouseData_.button == Qt::RightButton) {
+  //---
+
+  auto showPoint = [&](const CPoint3D &p1) {
+    auto posStr = QString("X=%1, Y=%2, Z=%3").arg(p1.x).arg(p1.y).arg(p1.z);
+    app_->status()->setMouseLabel(posStr);
+  };
+
+  int ind = ind_;
+
+  ind_ = -1;
+
+  CPoint2D p;
+  if (xview_.pressRange(mouseData_.movePos2, p)) {
+    ind_ = xview_.ind; showPoint(CPoint3D(p.x, p.y, 0.0)); } // XY
+  if (yview_.pressRange(mouseData_.movePos2, p)) {
+    ind_ = yview_.ind; showPoint(CPoint3D(0.0, p.y, p.x)); } // ZY
+  if (zview_.pressRange(mouseData_.movePos2, p)) {
+    ind_ = zview_.ind; showPoint(CPoint3D(p.x, 0.0, p.y)); } // XZ
+
+  if (! mouseData_.pressed) {
+    if (ind_ != ind)
+      invalidate();
   }
 
-  update();
+  mouseData_.movePos1 = mouseData_.movePos2;
+}
+
+void
+Overview3D::
+mouseReleaseEvent(QMouseEvent *e)
+{
+  mouseData_.movePos2 = CPoint2D(e->x(), e->y());
+
+  if (mouseData_.button == Qt::LeftButton) {
+    if (editType() == EditType::SELECT) {
+      bool clear = ! mouseData_.isControl;
+
+      int dx = std::abs(mouseData_.pressPos.x - mouseData_.movePos2.x);
+      int dy = std::abs(mouseData_.pressPos.y - mouseData_.movePos2.y);
+
+      if (dx < 4 && dy < 4)
+        selectObjectAt(mouseData_.pressPos, clear);
+      else
+        selectObjectIn(mouseData_.pressPos, rubberBand_->bounds(), clear);
+
+      rubberBand_->hide();
+    }
+  }
+
+  mouseData_.pressed = false;
 }
 
 void
@@ -843,14 +1520,744 @@ void
 Overview3D::
 keyPressEvent(QKeyEvent *e)
 {
-  auto key = e->key();
+  auto *canvas = app_->canvas3D();
+//auto *camera = canvas->camera();
 
-  if (key == Qt::Key_R) {
+  auto k = e->key();
+
+  mouseData_.isShift   = (e->modifiers() & Qt::ShiftModifier);
+  mouseData_.isControl = (e->modifiers() & Qt::ControlModifier);
+
+//auto bbox = canvas->bbox();
+//auto bbox = bbox_;
+
+//auto d = bbox.getMaxSize()/100.0;
+
+  if      (editType() == EditType::CAMERA) {
+    if      (k == Qt::Key_A) {
+#if 0
+      if      (ind_ == 0)
+        camera->moveAroundZ(-3*d);
+      else if (ind_ == 1)
+        camera->moveAroundX(-3*d);
+      else if (ind_ == 2)
+        camera->moveAroundY(-3*d);
+#endif
+    }
+    else if (k == Qt::Key_D) {
+#if 0
+      if      (ind_ == 0)
+        camera->moveAroundZ(3*d);
+      else if (ind_ == 1)
+        camera->moveAroundX(3*d);
+      else if (ind_ == 2)
+        camera->moveAroundY(3*d);
+#endif
+    }
+  }
+  else if (editType() == EditType::LIGHT) {
+  }
+  else if (editType_ == EditType::SELECT) {
+#if 0
+    if (! mouseData_.isShift && ! mouseData_.isControl) {
+      if      (e->key() == Qt::Key_G) { // Grab
+        setEditType(EditType::MOVE);
+        return;
+      }
+      else if (e->key() == Qt::Key_S) { // Scale
+        setEditType(EditType::SCALE);
+        return;
+      }
+      else if (e->key() == Qt::Key_R) { // Rotate
+        setEditType(EditType::ROTATE);
+        return;
+      }
+    }
+#endif
+  }
+  if      (k == Qt::Key_Plus) {
+    for (auto *v : views_)
+      v->range->zoomIn(1.1);
+  }
+  else if (k == Qt::Key_Minus) {
+    for (auto *v : views_)
+      v->range->zoomOut(1.1);
+  }
+  else if (k == Qt::Key_Home) {
+    for (auto *v : views_)
+      v->range->reset();
+
+    bboxSet_ = false;
+  }
+#if 0
+  else if (k == Qt::Key_1) {
+    drawData_.pointLabels[0].show = ! drawData_.pointLabels[0].show;
+  }
+  else if (k == Qt::Key_2) {
+    drawData_.pointLabels[1].show = ! drawData_.pointLabels[1].show;
+  }
+  else if (k == Qt::Key_3) {
+    drawData_.pointLabels[2].show = ! drawData_.pointLabels[2].show;
+  }
+  else if (k == Qt::Key_4) {
+    drawData_.pointLabels[3].show = ! drawData_.pointLabels[3].show;
+  }
+  else if (k == Qt::Key_5) {
+    drawData_.pointLabels[4].show = ! drawData_.pointLabels[4].show;
+  }
+#endif
+  else if (k == Qt::Key_Space) {
     bboxSet_ = false;
     updateBBox();
   }
 
+  canvas->update();
+
+  invalidate();
+
   update();
+}
+
+void
+Overview3D::
+selectObjectAt(const CPoint2D &p, bool clear)
+{
+  auto *canvas = app_->canvas3D();
+  auto *camera = canvas->camera();
+
+  auto pos = camera->position();
+
+  CPoint2D p1;
+
+  if      (xview_.pressRange(p, p1))
+    selectObjectAt1(xview_, CPoint3D(p1.x, p1.y, pos.z()), clear); // XY
+  else if (yview_.pressRange(p, p1))
+    selectObjectAt1(yview_, CPoint3D(pos.x(), p1.y, p1.x), clear); // ZY
+  else if (zview_.pressRange(p, p1))
+    selectObjectAt1(zview_, CPoint3D(p1.x, pos.y(), p1.y), clear); // XZ
+}
+
+void
+Overview3D::
+selectObjectIn(const CPoint2D &p, const QRect &r, bool clear)
+{
+  auto *canvas = app_->canvas3D();
+
+  ViewType viewType { ViewType::NONE };
+
+  CPoint2D p1;
+
+  if      (xview_.pressRange(p, p1))
+    viewType = xview_.type;
+  else if (yview_.pressRange(p, p1))
+    viewType = yview_.type;
+  else if (zview_.pressRange(p, p1))
+    viewType = zview_.type;
+  else
+    return;
+
+  auto pr1 = pixelToView(viewType, r.topLeft    ());
+  auto pr2 = pixelToView(viewType, r.bottomRight());
+
+  auto r1 = QRectF(QPointF(pr1.x, pr1.y), QPointF(pr2.x, pr2.y)).normalized();
+
+  auto selectType = this->selectType();
+
+  if      (selectType == SelectType::OBJECT) {
+    std::set<Object3D *> selectObjectSet;
+
+    for (auto *object : canvas->objects()) {
+      if (! object->isVisible())
+        continue;
+
+      auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
+      auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
+      auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
+      auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
+      auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
+      auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
+      auto *textObj         = dynamic_cast<Text3DObj         *>(object);
+
+      if      (model3DObj) {
+        if (selectModelIn(model3DObj, viewType, r1))
+          selectObjectSet.insert(object);
+      }
+      else if (particleListObj) {
+        //selectParticleListIn(particleListObj);
+      }
+      else if (pathObj) {
+        //selectPathIn(pathObj);
+      }
+      else if (shapeObj) {
+        if (selectShapeIn(shapeObj, viewType, r1))
+          selectObjectSet.insert(object);
+      }
+      else if (spriteObj) {
+        //selectSpriteIn(spriteObj);
+      }
+      else if (surface3DObj) {
+        //selectSurfaceIn(surface3DObj);
+      }
+      else if (textObj) {
+        //selectTextIn(textObj);
+      }
+    }
+
+    std::vector<Object3D *> selectObjects;
+
+    for (auto *object : selectObjectSet)
+      selectObjects.push_back(object);
+
+    canvas->selectObjects(selectObjects, clear, /*update*/true);
+  }
+  else if (selectType == SelectType::FACE) {
+#if 0
+    std::vector<CGeomFace3D *> selectFaces;
+
+    for (auto &pf : drawData_.objFaces) {
+      auto *object = pf.first;
+
+      const auto &geomData = pf.second;
+
+      //---
+
+      for (auto *faceData : geomData.faceDatas) {
+        QPolygonF poly;
+
+        for (const auto &pf : faceData->points) {
+          auto pf1 = viewQPoint(viewType, pf);
+
+          poly << pf1;
+        }
+
+        if (poly.intersects(QPolygonF(r1)))
+          selectFaces.push_back(faceData->face);
+      }
+    }
+
+    canvas->selectFaces(selectFaces, clear, /*update*/true);
+#endif
+  }
+  else if (selectType == SelectType::EDGE) {
+#if 0
+#endif
+  }
+  else if (selectType == SelectType::POINT) {
+#if 0
+    CQCamera3DCanvas::ObjectSelectInds selectInds;
+
+    for (auto &pf : drawData_.objFaces) {
+      auto *object = pf.first;
+
+      const auto &geomData = pf.second;
+
+      //---
+
+      for (auto *faceData : geomData.faceDatas) {
+        int i = 0;
+
+        for (const auto &pf : faceData->points) {
+          auto pf1 = viewQPoint(viewType, pf);
+
+          if (r1.contains(pf1)) {
+            auto vInd = faceData->face->getVertex(i);
+
+            selectInds[object].insert(vInd);
+          }
+
+          ++i;
+        }
+      }
+    }
+
+    canvas->selectVertices(selectInds);
+#endif
+  }
+}
+
+bool
+Overview3D::
+selectModelIn(Model3DObj *obj, ViewType viewType, const QRectF &r)
+{
+  auto *object = obj->object();
+
+  auto &faces = drawData_.objFaces[object];
+
+  //---
+
+  bool intersect = false;
+
+  for (const auto &face : faces) {
+    QPolygonF poly;
+
+    for (const auto &pf : face.points) {
+      auto pf1 = viewQPoint(viewType, pf);
+
+      poly << pf1;
+    }
+
+    if (poly.intersects(QPolygonF(r))) {
+      intersect = true;
+      break;
+    }
+  }
+
+  return intersect;
+}
+
+bool
+Overview3D::
+selectShapeIn(Shape3DObj *obj, ViewType viewType, const QRectF &r)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &shapeData = obj->shapeData();
+
+  const auto &inds   = shapeData.indices();
+  const auto &points = shapeData.points();
+
+  auto ni = inds.size();
+
+  if (ni > 0) {
+    for (uint i = 0; i < ni; i += 3) {
+      QPolygonF poly;
+
+      poly.push_back(viewQPoint(viewType, mm*points[inds[i + 0]].point()));
+      poly.push_back(viewQPoint(viewType, mm*points[inds[i + 1]].point()));
+      poly.push_back(viewQPoint(viewType, mm*points[inds[i + 2]].point()));
+
+      if (poly.intersects(QPolygonF(r)))
+        return true;
+    }
+  }
+  else {
+    if      (shapeData.isUseTriangleStrip()) {
+      return false;
+    }
+    else if (shapeData.isUseTriangleFan()) {
+      return false;
+    }
+    else {
+      auto np = points.size();
+
+      for (uint i = 0; i < np; i += 3) {
+        QPolygonF poly;
+
+        poly.push_back(viewQPoint(viewType, mm*points[i + 0].point()));
+        poly.push_back(viewQPoint(viewType, mm*points[i + 1].point()));
+        poly.push_back(viewQPoint(viewType, mm*points[i + 2].point()));
+
+        if (poly.intersects(QPolygonF(r)))
+          return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+void
+Overview3D::
+selectObjectAt1(const ViewData &view, const CPoint3D &p, bool clear)
+{
+  SelectAtData selectAtData;
+
+  // get view point
+  auto p1 = viewQPoint(view.type, p);
+
+  auto *canvas = app_->canvas3D();
+
+  for (auto *object : canvas->objects()) {
+    if (! object->isVisible())
+      continue;
+
+    auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
+    auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
+    auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
+    auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
+    auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
+    auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
+    auto *textObj         = dynamic_cast<Text3DObj         *>(object);
+
+    if      (model3DObj) {
+      selectModelAt(model3DObj, view, p1, selectAtData);
+    }
+    else if (particleListObj) {
+    }
+    else if (pathObj) {
+    }
+    else if (shapeObj) {
+      selectShapeAt(shapeObj, view, p1, selectAtData);
+    }
+    else if (spriteObj) {
+    }
+    else if (surface3DObj) {
+    }
+    else if (textObj) {
+    }
+  }
+
+  //---
+
+  if (selectAtData.areaObjFaces.empty()) {
+    canvas->deselectAll();
+    return;
+  }
+
+  //---
+
+  // select associated shape type
+  auto selectType = this->selectType();
+
+  if      (selectType == SelectType::OBJECT) {
+    const auto &pf = selectAtData.areaObjFaces.begin()->second.begin();
+
+    auto *object = (*pf).first;
+
+    canvas->selectObject(object, clear, /*update*/true);
+  }
+  else if (selectType == SelectType::FACE) {
+    const auto &pf = selectAtData.areaObjFaces.begin()->second.begin();
+
+    auto *face = (*(*pf).second.begin()).face;
+
+    canvas->selectFace(face, clear, /*update*/true);
+  }
+  else if (selectType == SelectType::EDGE) {
+#if 0
+    auto pm = viewPoint(view.type, p);
+
+    CGeomEdge3D* minEdge = nullptr;
+    double       minDist = 0.0;
+
+    for (auto &pf : drawData_.objFaces) {
+      auto *object = pf.first;
+
+      const auto &geomData = pf.second;
+
+      const auto &edges = object->getEdges();
+
+      for (auto *edge : edges) {
+        auto getEdgeVertex = [&](uint ind) {
+          auto pv = geomData.vertexDatas.find(ind);
+          assert(pv != geomData.vertexDatas.end());
+          return (*pv).second->p;
+        };
+
+        auto pe1 = getEdgeVertex(edge->getStart());
+        auto pe2 = getEdgeVertex(edge->getEnd  ());
+
+        auto pf1 = viewPoint(view.type, pe1);
+        auto pf2 = viewPoint(view.type, pe2);
+
+        double dist = 0.0;
+        (void) CMathGeom2D::PointLineDistance(pm, CLine2D(pf1, pf2), &dist);
+
+        if (! minEdge || dist < minDist) {
+          minEdge = edge;
+          minDist = dist;
+        }
+      }
+    }
+
+    if (minEdge)
+      canvas->selectEdge(minEdge, clear, /*update*/true);
+#endif
+  }
+  else if (selectType == SelectType::POINT) {
+#if 0
+    auto pm = viewPoint(view.type, p);
+
+    int    minInd  = -1;
+    double minDist = 0.0;
+
+    CGeomFace3D *face = nullptr;
+
+    for (auto &pf : drawData_.objFaces) {
+      auto *object = pf.first;
+
+      const auto &geomData = pf.second;
+
+      //---
+
+      for (auto *faceData : geomData.faceDatas) {
+        int i = 0;
+
+        for (const auto &pf : faceData->points) {
+          auto pf1 = viewPoint(view.type, pf);
+
+          auto d = pf1.distanceTo(pm);
+
+          if (! face || d < minDist) {
+            face    = faceData->face;
+            minInd  = i;
+            minDist = d;
+          }
+
+          ++i;
+        }
+      }
+    }
+
+    auto  vInd = face->getVertex(minInd);
+    auto &v    = object->getVertex(vInd);
+
+    canvas->selectVertex(&v, clear, /*update*/true);
+#endif
+  }
+}
+
+void
+Overview3D::
+selectModelAt(Model3DObj *obj, const ViewData &view, const QPointF &p1, SelectAtData &selectAtData)
+{
+  auto *object = obj->object();
+
+  auto &faces = drawData_.objFaces[object];
+
+  //---
+
+  // get inside faces
+  for (const auto &face : faces) {
+    QPolygonF poly;
+
+    for (const auto &pf : face.points) {
+      auto pf1 = viewQPoint(view.type, pf);
+
+      poly.push_back(pf1);
+    }
+
+    if (poly.containsPoint(p1, Qt::WindingFill)) {
+      auto area = polygonArea(poly);
+
+      selectAtData.areaObjFaces[area][obj].push_back(face);
+    }
+  }
+}
+
+void
+Overview3D::
+selectShapeAt(Shape3DObj *obj, const ViewData &view, const QPointF &p1, SelectAtData &selectAtData)
+{
+  auto selectType = this->selectType();
+
+  if (selectType != SelectType::OBJECT)
+    return;
+
+  const auto &mm = obj->modelMatrix();
+
+  const auto &shapeData = obj->shapeData();
+
+  const auto &inds   = shapeData.indices();
+  const auto &points = shapeData.points();
+
+  auto ni = inds.size();
+
+  if (ni > 0) {
+    for (uint i = 0; i < ni; i += 3) {
+      QPolygonF poly;
+
+      poly.push_back(viewQPoint(view.type, mm*points[inds[i + 0]].point()));
+      poly.push_back(viewQPoint(view.type, mm*points[inds[i + 1]].point()));
+      poly.push_back(viewQPoint(view.type, mm*points[inds[i + 2]].point()));
+
+      if (poly.containsPoint(p1, Qt::WindingFill)) {
+        Face face;
+
+        face.ind = i;
+
+        auto area = polygonArea(poly);
+
+        selectAtData.areaObjFaces[area][obj].push_back(face);
+      }
+    }
+  }
+  else {
+    if      (shapeData.isUseTriangleStrip()) {
+    }
+    else if (shapeData.isUseTriangleFan()) {
+    }
+    else {
+      auto np = points.size();
+
+      for (uint i = 0; i < np; i += 3) {
+        QPolygonF poly;
+
+        poly.push_back(viewQPoint(view.type, mm*points[i + 0].point()));
+        poly.push_back(viewQPoint(view.type, mm*points[i + 1].point()));
+        poly.push_back(viewQPoint(view.type, mm*points[i + 2].point()));
+
+        if (poly.containsPoint(p1, Qt::WindingFill)) {
+          Face face;
+
+          face.ind = i;
+
+          auto area = polygonArea(poly);
+
+          selectAtData.areaObjFaces[area][obj].push_back(face);
+        }
+      }
+    }
+  }
+}
+
+QPointF
+Overview3D::
+viewQPoint(ViewType viewType, const CPoint3D &p) const
+{
+  auto p1 = viewPoint(viewType, p);
+
+  return QPointF(p1.x, p1.y);
+}
+
+CPoint2D
+Overview3D::
+viewPoint(ViewType viewType, const CPoint3D &p) const
+{
+  CPoint2D p1;
+
+  if      (viewType == ViewType::XY)
+    p1 = CPoint2D(p.x, p.y);
+  else if (viewType == ViewType::ZY)
+    p1 = CPoint2D(p.z, p.y);
+  else if (viewType == ViewType::XZ)
+    p1 = CPoint2D(p.x, p.z);
+  else
+    assert(false);
+
+  return p1;
+}
+
+CPoint2D
+Overview3D::
+pixelToView(ViewType viewType, const QPointF &p) const
+{
+  CPoint2D p0(p.x(), p.y());
+
+  CPoint2D p1;
+
+  if      (viewType == ViewType::XY) {
+    (void) xview_.pressRange(p0, p1);
+  }
+  else if (viewType == ViewType::ZY) {
+    (void) yview_.pressRange(p0, p1);
+  }
+  else if (viewType == ViewType::XZ) {
+    (void) zview_.pressRange(p0, p1);
+  }
+  else
+    assert(false);
+
+  return p1;
+}
+
+void
+Overview3D::
+setCameraPosition(const CPoint2D &pressPos)
+{
+  auto *canvas = app_->canvas3D();
+  auto *camera = canvas->camera();
+
+  auto position = camera->position();
+
+  CPoint2D p;
+  if (xview_.pressRange(pressPos, p))
+    camera->setPosition(CVector3D(p.x, p.y, position.z())); // XY
+  if (yview_.pressRange(pressPos, p))
+    camera->setPosition(CVector3D(position.x(), p.y, p.x)); // ZY
+  if (zview_.pressRange(pressPos, p))
+    camera->setPosition(CVector3D(p.x, position.y(), p.y)); // XZ
+}
+
+void
+Overview3D::
+setCameraOrigin(const CPoint2D &pressPos)
+{
+  auto *canvas = app_->canvas3D();
+  auto *camera = canvas->camera();
+
+  auto origin = camera->origin();
+
+  CPoint2D p;
+  if (xview_.pressRange(pressPos, p))
+    camera->setOrigin(CVector3D(p.x, p.y, origin.z())); // XY
+  if (yview_.pressRange(pressPos, p))
+    camera->setOrigin(CVector3D(origin.x(), p.y, p.x)); // ZY
+  if (zview_.pressRange(pressPos, p))
+    camera->setOrigin(CVector3D(p.x, origin.y(), p.y)); // XZ
+}
+
+void
+Overview3D::
+setLightPosition(const CPoint2D &pressPos)
+{
+  auto *canvas = app_->canvas3D();
+  auto *light  = canvas->currentLight();
+
+  auto pos = light->getPosition();
+
+  CPoint2D p;
+
+  if (xview_.pressRange(pressPos, p)) light->setPosition(CPoint3D(p.x, p.y, pos.z)); // XY
+  if (yview_.pressRange(pressPos, p)) light->setPosition(CPoint3D(pos.x, p.y, p.x)); // ZY
+  if (zview_.pressRange(pressPos, p)) light->setPosition(CPoint3D(p.x, pos.y, p.y)); // XZ
+
+  canvas->update();
+
+  //canvas->stateChanged();
+
+  invalidate();
+}
+
+void
+Overview3D::
+setLightDirection(const CPoint2D &pressPos)
+{
+  auto *canvas = app_->canvas3D();
+  auto *light  = canvas->currentLight();
+
+  auto pos = light->getPosition();
+
+  CVector3D dir { 1, 0, 0 };
+
+  if      (light->getType() == Light3D::Type::DIRECTIONAL)
+    dir = light->getDirection();
+  else if (light->getType() == Light3D::Type::SPOT)
+    dir = light->getSpotDirection();
+#if 0
+  else if (light->type() == Light3D::Type::FLASHLIGHT)
+    dir = light->getDirection();
+#endif
+  else
+    return;
+
+  auto pos1 = pos + dir;
+
+  CPoint2D p;
+
+  if (xview_.pressRange(pressPos, p)) pos1 = CPoint3D(p.x, p.y, pos1.z); // XY
+  if (yview_.pressRange(pressPos, p)) pos1 = CPoint3D(pos1.x, p.y, p.x); // ZY
+  if (zview_.pressRange(pressPos, p)) pos1 = CPoint3D(p.x, pos1.y, p.y); // XZ
+
+  auto dir1 = CVector3D(pos1 - pos).normalized();
+
+  if      (light->getType() == Light3D::Type::DIRECTIONAL) {
+    light->setDirection(dir1);
+  }
+  else if (light->getType() == Light3D::Type::SPOT) {
+    light->setSpotDirection(dir1);
+  }
+#if 0
+  else if (light->type() == Light3D::Type::FLASHLIGHT) {
+    light->setSpotDirection(dir1);
+  }
+#endif
+
+  canvas->update();
+
+  //canvas->stateChanged();
+
+  invalidate();
 }
 
 }

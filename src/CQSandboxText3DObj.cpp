@@ -46,7 +46,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Text3DObj::
 Text3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::TEXT)
 {
 }
 
@@ -58,6 +58,15 @@ init()
 
   //---
 
+  initShader();
+
+  initFont();
+}
+
+void
+Text3DObj::
+initShader()
+{
   if (! s_program) {
 #if 0
     static const char *vertexShaderSource =
@@ -116,8 +125,6 @@ init()
     s_program->textureUniform = s_program->uniformLocation("textureId");
     Q_ASSERT(s_program->textureUniform != -1);
   }
-
-  initFont();
 }
 
 void

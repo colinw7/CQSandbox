@@ -4,6 +4,7 @@
 #include <CQTclUtil.h>
 #include <CGLVector2D.h>
 #include <CGLVector3D.h>
+#include <CBBox3D.h>
 #include <CGLColor.h>
 
 #include <CPoint3D.h>
@@ -91,7 +92,14 @@ inline QString colorToString(const QColor &c) {
 }
 
 inline QColor RGBAToQColor(const CRGBA &c) {
-  return QColor(int(255*c.getRed()), int(255*c.getGreen()), int(255*c.getBlue()));
+  return QColor(int(255*c.getRed  ()),
+                int(255*c.getGreen()),
+                int(255*c.getBlue ()),
+                int(255*c.getAlpha()));
+}
+
+inline CRGBA QColorToRGBA(const QColor &c) {
+  return CRGBA(c.red()/255.0, c.green()/255.0, c.blue()/255.0, c.alpha()/255.0);
 }
 
 //---
@@ -124,7 +132,23 @@ inline bool stringToPoint3D(CQTcl *tcl, const QString &str, CPoint3D &p) {
 
 //---
 
-inline CGLVector2D stringToVector2D(CQTcl *tcl, const QString &str) {
+inline CVector2D stringToVector2D(CQTcl *tcl, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  CVector2D p;
+
+  if (strs.size() >= 2) {
+    auto x = stringToReal(strs[0]);
+    auto y = stringToReal(strs[1]);
+
+    p = CVector2D(x, y);
+  }
+
+  return p;
+}
+
+inline CGLVector2D stringToGLVector2D(CQTcl *tcl, const QString &str) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
@@ -140,11 +164,11 @@ inline CGLVector2D stringToVector2D(CQTcl *tcl, const QString &str) {
   return p;
 }
 
-inline std::vector<CGLVector2D> stringToVectors2D(CQTcl *tcl, const QString &str) {
+inline std::vector<CVector2D> stringToVectors2D(CQTcl *tcl, const QString &str) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  std::vector<CGLVector2D> points;
+  std::vector<CVector2D> points;
 
   for (const auto &str : strs) {
     auto p = stringToVector2D(tcl, str);
@@ -155,7 +179,41 @@ inline std::vector<CGLVector2D> stringToVectors2D(CQTcl *tcl, const QString &str
   return points;
 }
 
-inline CGLVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
+inline CPoint3D stringToPoint3D(CQTcl *tcl, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  CPoint3D p;
+
+  if (strs.size() >= 3) {
+    auto x = stringToReal(strs[0]);
+    auto y = stringToReal(strs[1]);
+    auto z = stringToReal(strs[2]);
+
+    p = CPoint3D(x, y, z);
+  }
+
+  return p;
+}
+
+inline CVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  CVector3D p;
+
+  if (strs.size() >= 3) {
+    auto x = stringToReal(strs[0]);
+    auto y = stringToReal(strs[1]);
+    auto z = stringToReal(strs[2]);
+
+    p = CVector3D(x, y, z);
+  }
+
+  return p;
+}
+
+inline CGLVector3D stringToGLVector3D(CQTcl *tcl, const QString &str) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
@@ -172,23 +230,27 @@ inline CGLVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
   return p;
 }
 
-inline QString vector3DToString(const CGLVector3D &p) {
-#if 1
+inline QString vector3DToString(const CVector3D &p) {
   auto xstr = QString::number(p.x());
   auto ystr = QString::number(p.y());
   auto zstr = QString::number(p.z());
 
   return xstr + " " + ystr + " " + zstr;
-#else
-  return QString::fromStdString(CUtil::toString(p));
-#endif
 }
 
-inline std::vector<CGLVector3D> stringToVectors3D(CQTcl *tcl, const QString &str) {
+inline QString vector3DToString(const CGLVector3D &p) {
+  auto xstr = QString::number(p.x());
+  auto ystr = QString::number(p.y());
+  auto zstr = QString::number(p.z());
+
+  return xstr + " " + ystr + " " + zstr;
+}
+
+inline std::vector<CVector3D> stringToVectors3D(CQTcl *tcl, const QString &str) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  std::vector<CGLVector3D> points;
+  std::vector<CVector3D> points;
 
   for (const auto &str : strs) {
     auto p = stringToVector3D(tcl, str);
@@ -197,6 +259,19 @@ inline std::vector<CGLVector3D> stringToVectors3D(CQTcl *tcl, const QString &str
   }
 
   return points;
+}
+
+//---
+
+inline QString bbox3DToString(const CBBox3D &bbox) {
+  auto x1str = QString::number(bbox.getXMin());
+  auto y1str = QString::number(bbox.getYMin());
+  auto z1str = QString::number(bbox.getZMin());
+  auto x2str = QString::number(bbox.getXMax());
+  auto y2str = QString::number(bbox.getYMax());
+  auto z2str = QString::number(bbox.getZMax());
+
+  return x1str + " " + y1str + " " + z1str + " " + x2str + " " + y2str + " " + z2str;
 }
 
 //---

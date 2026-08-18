@@ -29,7 +29,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Othello3DObj::
 Othello3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::OTHELLO)
 {
   board_ = new COthelloBoard;
 }

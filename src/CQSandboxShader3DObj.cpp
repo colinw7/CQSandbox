@@ -26,7 +26,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Shader3DObj::
 Shader3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::SHADER)
 {
 }
 

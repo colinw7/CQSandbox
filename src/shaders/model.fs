@@ -45,9 +45,9 @@ uniform float ambientStrength;
 uniform float diffuseStrength;
 uniform vec3  specularColor;
 uniform float specularStrength;
-uniform float shininess;
 uniform vec3  emissionColor;
 uniform float emissiveStrength;
+uniform float shininess;
 
 //--- Textures
 

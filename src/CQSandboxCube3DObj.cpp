@@ -38,103 +38,103 @@ init()
   //---
 
   static Shape3DData::Points points = {
-    CGLVector3D(-0.5f, -0.5f, -0.5f),
-    CGLVector3D( 0.5f, -0.5f, -0.5f),
-    CGLVector3D( 0.5f,  0.5f, -0.5f),
+    CVector3D(-0.5, -0.5, -0.5),
+    CVector3D( 0.5, -0.5, -0.5),
+    CVector3D( 0.5,  0.5, -0.5),
 
-    CGLVector3D( 0.5f,  0.5f, -0.5f),
-    CGLVector3D(-0.5f,  0.5f, -0.5f),
-    CGLVector3D(-0.5f, -0.5f, -0.5f),
+    CVector3D( 0.5,  0.5, -0.5),
+    CVector3D(-0.5,  0.5, -0.5),
+    CVector3D(-0.5, -0.5, -0.5),
 
-    CGLVector3D(-0.5f, -0.5f,  0.5f),
-    CGLVector3D( 0.5f, -0.5f,  0.5f),
-    CGLVector3D( 0.5f,  0.5f,  0.5f),
+    CVector3D(-0.5, -0.5,  0.5),
+    CVector3D( 0.5, -0.5,  0.5),
+    CVector3D( 0.5,  0.5,  0.5),
 
-    CGLVector3D( 0.5f,  0.5f,  0.5f),
-    CGLVector3D(-0.5f,  0.5f,  0.5f),
-    CGLVector3D(-0.5f, -0.5f,  0.5f),
+    CVector3D( 0.5,  0.5,  0.5),
+    CVector3D(-0.5,  0.5,  0.5),
+    CVector3D(-0.5, -0.5,  0.5),
 
-    CGLVector3D(-0.5f,  0.5f,  0.5f),
-    CGLVector3D(-0.5f,  0.5f, -0.5f),
-    CGLVector3D(-0.5f, -0.5f, -0.5f),
+    CVector3D(-0.5,  0.5,  0.5),
+    CVector3D(-0.5,  0.5, -0.5),
+    CVector3D(-0.5, -0.5, -0.5),
 
-    CGLVector3D(-0.5f, -0.5f, -0.5f),
-    CGLVector3D(-0.5f, -0.5f,  0.5f),
-    CGLVector3D(-0.5f,  0.5f,  0.5f),
+    CVector3D(-0.5, -0.5, -0.5),
+    CVector3D(-0.5, -0.5,  0.5),
+    CVector3D(-0.5,  0.5,  0.5),
 
-    CGLVector3D( 0.5f,  0.5f,  0.5f),
-    CGLVector3D( 0.5f,  0.5f, -0.5f),
-    CGLVector3D( 0.5f, -0.5f, -0.5f),
+    CVector3D( 0.5,  0.5,  0.5),
+    CVector3D( 0.5,  0.5, -0.5),
+    CVector3D( 0.5, -0.5, -0.5),
 
-    CGLVector3D( 0.5f, -0.5f, -0.5f),
-    CGLVector3D( 0.5f, -0.5f,  0.5f),
-    CGLVector3D( 0.5f,  0.5f,  0.5f),
+    CVector3D( 0.5, -0.5, -0.5),
+    CVector3D( 0.5, -0.5,  0.5),
+    CVector3D( 0.5,  0.5,  0.5),
 
-    CGLVector3D(-0.5f, -0.5f, -0.5f),
-    CGLVector3D( 0.5f, -0.5f, -0.5f),
-    CGLVector3D( 0.5f, -0.5f,  0.5f),
+    CVector3D(-0.5, -0.5, -0.5),
+    CVector3D( 0.5, -0.5, -0.5),
+    CVector3D( 0.5, -0.5,  0.5),
 
-    CGLVector3D( 0.5f, -0.5f,  0.5f),
-    CGLVector3D(-0.5f, -0.5f,  0.5f),
-    CGLVector3D(-0.5f, -0.5f, -0.5f),
+    CVector3D( 0.5, -0.5,  0.5),
+    CVector3D(-0.5, -0.5,  0.5),
+    CVector3D(-0.5, -0.5, -0.5),
 
-    CGLVector3D(-0.5f,  0.5f, -0.5f),
-    CGLVector3D( 0.5f,  0.5f, -0.5f),
-    CGLVector3D( 0.5f,  0.5f,  0.5f),
+    CVector3D(-0.5,  0.5, -0.5),
+    CVector3D( 0.5,  0.5, -0.5),
+    CVector3D( 0.5,  0.5,  0.5),
 
-    CGLVector3D( 0.5f,  0.5f,  0.5f),
-    CGLVector3D(-0.5f,  0.5f,  0.5f),
-    CGLVector3D(-0.5f,  0.5f, -0.5f)
+    CVector3D( 0.5,  0.5,  0.5),
+    CVector3D(-0.5,  0.5,  0.5),
+    CVector3D(-0.5,  0.5, -0.5)
   };
 
   static Shape3DData::TexCoords texCoords = {
-    CGLVector2D(0.0f, 0.0f),
-    CGLVector2D(1.0f, 0.0f),
-    CGLVector2D(1.0f, 1.0f),
+    CVector2D(0.0, 0.0),
+    CVector2D(1.0, 0.0),
+    CVector2D(1.0, 1.0),
 
-    CGLVector2D(1.0f, 1.0f),
-    CGLVector2D(0.0f, 1.0f),
-    CGLVector2D(0.0f, 0.0f),
+    CVector2D(1.0, 1.0),
+    CVector2D(0.0, 1.0),
+    CVector2D(0.0, 0.0),
 
-    CGLVector2D(0.0f, 0.0f),
-    CGLVector2D(1.0f, 0.0f),
-    CGLVector2D(1.0f, 1.0f),
+    CVector2D(0.0, 0.0),
+    CVector2D(1.0, 0.0),
+    CVector2D(1.0, 1.0),
 
-    CGLVector2D(1.0f, 1.0f),
-    CGLVector2D(0.0f, 1.0f),
-    CGLVector2D(0.0f, 0.0f),
+    CVector2D(1.0, 1.0),
+    CVector2D(0.0, 1.0),
+    CVector2D(0.0, 0.0),
 
-    CGLVector2D(1.0f, 0.0f),
-    CGLVector2D(1.0f, 1.0f),
-    CGLVector2D(0.0f, 1.0f),
+    CVector2D(1.0, 0.0),
+    CVector2D(1.0, 1.0),
+    CVector2D(0.0, 1.0),
 
-    CGLVector2D(0.0f, 1.0f),
-    CGLVector2D(0.0f, 0.0f),
-    CGLVector2D(1.0f, 0.0f),
+    CVector2D(0.0, 1.0),
+    CVector2D(0.0, 0.0),
+    CVector2D(1.0, 0.0),
 
-    CGLVector2D(1.0f, 0.0f),
-    CGLVector2D(1.0f, 1.0f),
-    CGLVector2D(0.0f, 1.0f),
+    CVector2D(1.0, 0.0),
+    CVector2D(1.0, 1.0),
+    CVector2D(0.0, 1.0),
 
-    CGLVector2D(0.0f, 1.0f),
-    CGLVector2D(0.0f, 0.0f),
-    CGLVector2D(1.0f, 0.0f),
+    CVector2D(0.0, 1.0),
+    CVector2D(0.0, 0.0),
+    CVector2D(1.0, 0.0),
 
-    CGLVector2D(0.0f, 1.0f),
-    CGLVector2D(1.0f, 1.0f),
-    CGLVector2D(1.0f, 0.0f),
+    CVector2D(0.0, 1.0),
+    CVector2D(1.0, 1.0),
+    CVector2D(1.0, 0.0),
 
-    CGLVector2D(1.0f, 0.0f),
-    CGLVector2D(0.0f, 0.0f),
-    CGLVector2D(0.0f, 1.0f),
+    CVector2D(1.0, 0.0),
+    CVector2D(0.0, 0.0),
+    CVector2D(0.0, 1.0),
 
-    CGLVector2D(0.0f, 1.0f),
-    CGLVector2D(1.0f, 1.0f),
-    CGLVector2D(1.0f, 0.0f),
+    CVector2D(0.0, 1.0),
+    CVector2D(1.0, 1.0),
+    CVector2D(1.0, 0.0),
 
-    CGLVector2D(1.0f, 0.0f),
-    CGLVector2D(0.0f, 0.0f),
-    CGLVector2D(0.0f, 1.0f)
+    CVector2D(1.0, 0.0),
+    CVector2D(0.0, 0.0),
+    CVector2D(0.0, 1.0)
   };
 
   shapeData_.setPoints   (points);

@@ -38,7 +38,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Skybox3DObj::
 Skybox3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::SKYBOX)
 {
   (void) load();
 }

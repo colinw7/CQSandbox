@@ -3,6 +3,7 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
+#include <CQGLBuffer.h>
 #include <CQGLUtil.h>
 
 namespace CQSandbox {
@@ -28,7 +29,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Path3DObj::
 Path3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::PATH)
 {
 }
 
@@ -40,9 +41,17 @@ init()
 
   //---
 
+  initShader();
+
+  //---
+
+#if 0
   canvas_->glGenVertexArrays(1, &vertexArrayId_);
 
   canvas_->glGenBuffers(1, &pointsBufferId_);
+#else
+  buffer_ = s_program->createBuffer();
+#endif
 }
 
 void
@@ -83,7 +92,7 @@ initShader()
 
 void
 Path3DObj::
-setLine(const CGLVector3D &p1, const CGLVector3D &p2)
+setLine(const CVector3D &p1, const CVector3D &p2)
 {
   path_.clear();
 
@@ -165,22 +174,21 @@ updateGL()
 
   //---
 
+  auto np = points_.size();
+
+#if 0
   // bind the Vertex Array Object
   canvas_->glBindVertexArray(vertexArrayId_);
-
-  //---
-
-  int np = points_.size();
 
   //---
 
   // store point data in array buffer
   uint aPos = 0;
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &points_[0], GL_STATIC_DRAW);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CVector3D), &points_[0], GL_STATIC_DRAW);
 
   // set points attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
+  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CVector3D), nullptr);
   canvas_->glEnableVertexAttribArray(aPos);
 
   //---
@@ -189,14 +197,20 @@ updateGL()
 //canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  0);
 
   canvas_->glBindVertexArray(0);
+#else
+  buffer_->clearBuffers();
+
+  for (uint i = 0; i < np; ++i)
+    buffer_->addPoint(points_[i].x(), points_[i].y(), points_[i].z());
+
+  buffer_->load();
+#endif
 }
 
 void
 Path3DObj::
 render()
 {
-  initShader();
-
   updateGL();
 
   //---
@@ -211,7 +225,11 @@ render()
 
   //---
 
+#if 0
   canvas_->glBindVertexArray(vertexArrayId_);
+#else
+  buffer_->bind();
+#endif
 
   //---
 

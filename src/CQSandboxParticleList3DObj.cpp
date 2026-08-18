@@ -1,13 +1,13 @@
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxBBox3DObj.h>
+#include <CQSandboxCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
 #include <CQGLTexture.h>
 #include <CQGLUtil.h>
 #include <CQTclUtil.h>
-#include <CGLCamera.h>
 
 #include <CLorenzCalc.h>
 
@@ -43,7 +43,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 ParticleList3DObj::
 ParticleList3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::PARTICLE_LIST)
 {
 }
 

@@ -3,6 +3,8 @@
 
 #include <CQSandboxObject3D.h>
 
+#include <CGLVector3D.h>
+
 #ifdef CQSANDBOX_WATER_SURFACE
 class CWaterSurface;
 #endif
@@ -19,6 +21,11 @@ class Surface3DObj : public Object3D {
   Q_OBJECT
 
  public:
+  using Points  = std::vector<CGLVector3D>;
+  using Colors  = std::vector<CGLVector3D>;
+  using Indices = std::vector<unsigned int>;
+
+ public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   Surface3DObj(Canvas3D *canvas);
@@ -26,6 +33,14 @@ class Surface3DObj : public Object3D {
   const char *typeName() const override { return "Surface"; }
 
   void init() override;
+
+  const Points  &points () const { return points_ ; }
+  const Points  &normals() const { return normals_; }
+  const Colors  &colors () const { return colors_ ; }
+  const Indices &indices() const { return indices_; }
+
+  int nx() const { return nx_; }
+  int ny() const { return ny_; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -49,10 +64,6 @@ class Surface3DObj : public Object3D {
   void render() override;
 
  private:
-  using Points  = std::vector<CGLVector3D>;
-  using Colors  = std::vector<CGLVector3D>;
-  using Indices = std::vector<unsigned int>;
-
   static ShaderProgram* s_program;
 
   Points  points_;

@@ -6,7 +6,6 @@
 #include <CTclUtil.h>
 #include <CGLMatrix3D.h>
 #include <CGLPath3D.h>
-#include <CGLVector3D.h>
 #include <CGLVector2D.h>
 #include <CGLColor.h>
 #include <CPoint3D.h>
@@ -20,7 +19,8 @@
 #include <QOpenGLShaderProgram>
 
 class CGeomScene3D;
-class CGLCamera;
+class CGeomObject3D;
+class CGeomFace3D;
 
 class QTimer;
 
@@ -36,6 +36,7 @@ class ShaderToyProgram;
 class Light3D;
 class Path3DObj;
 class ParticleList3DObj;
+class Camera;
 
 //---
 
@@ -111,7 +112,8 @@ class Canvas3D : public OpenGLWindow {
   Q_PROPERTY(bool frontFace   READ isFrontFace   WRITE setFrontFace)
   Q_PROPERTY(bool smoothShade READ isSmoothShade WRITE setSmoothShade)
 
-  Q_PROPERTY(int redrawTimeOut READ redrawTimeOut WRITE setRedrawTimeOut)
+  Q_PROPERTY(bool looping       READ isLooping     WRITE setLooping)
+  Q_PROPERTY(int  redrawTimeOut READ redrawTimeOut WRITE setRedrawTimeOut)
 
  public:
   enum class Type {
@@ -133,6 +135,9 @@ class Canvas3D : public OpenGLWindow {
   App *app() const { return app_; }
 
   //---
+
+  bool isLooping() const { return looping_; }
+  void setLooping(bool b);
 
   int redrawTimeOut() const { return redrawTimeOut_; }
   void setRedrawTimeOut(int t);
@@ -180,23 +185,28 @@ class Canvas3D : public OpenGLWindow {
   bool isShowBBox() const { return showBBox_; }
   void setShowBBox(bool b) { showBBox_ = b; }
 
+  bool isEyeLineVisible() const { return eyeLineVisible_; }
+  void setEyeLineVisible(bool b) { eyeLineVisible_ = b; }
+
   //---
 
   CGeomScene3D *scene() const { return scene_; }
 
   //---
 
-  CGLCamera *camera() const { return camera_; }
+  Camera *camera() const { return camera_; }
 
-  float modelXAngle() const { return modelXAngle_; }
-  float modelYAngle() const { return modelYAngle_; }
-  float modelZAngle() const { return modelZAngle_; }
+  double modelXAngle() const { return modelXAngle_; }
+  double modelYAngle() const { return modelYAngle_; }
+  double modelZAngle() const { return modelZAngle_; }
 
   //---
 
   Light3D *currentLight() const;
 
   void updateLights();
+
+  void resetLight(Light3D *);
 
   void setProgramLights(ShaderProgram *program);
 
@@ -248,11 +258,13 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  const CGLMatrix3D &projectionMatrix() const { return projectionMatrix_; }
+  const CMatrix3DH &projectionMatrix() const { return projectionMatrix_; }
 
-  const CGLMatrix3D &viewMatrix() const { return viewMatrix_; }
+  const CMatrix3DH &viewMatrix() const { return viewMatrix_; }
 
-  const CGLVector3D &viewPos() const { return viewPos_; }
+  const CVector3D &viewPos() const { return viewPos_; }
+
+  const CBBox3D &bbox() const { return bbox_; }
 
   //---
 
@@ -277,15 +289,30 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  void mousePressEvent  (QMouseEvent *event) override;
-  void mouseMoveEvent   (QMouseEvent *event) override;
-  void mouseReleaseEvent(QMouseEvent *event) override;
+  void mousePressEvent  (QMouseEvent *e) override;
+  void mouseMoveEvent   (QMouseEvent *e) override;
+  void mouseReleaseEvent(QMouseEvent *e) override;
 
-  void setMousePos(float xpos, float ypos);
+  void wheelEvent(QWheelEvent *e) override;
 
-  void wheelEvent(QWheelEvent *) override;
+  void keyPressEvent  (QKeyEvent *e) override;
+  void keyReleaseEvent(QKeyEvent *e) override;
 
-  void keyPressEvent(QKeyEvent *event) override;
+
+  //---
+
+  bool getKeyPressed(const std::string &key) const;
+
+  std::string getKeyString(QKeyEvent *e) const;
+
+  //---
+
+  void selectObjects(const std::vector<Object3D *> &objs, bool clear=false, bool update=true);
+  void selectObject(Object3D *obj, bool clear=false, bool update=true);
+  void selectFace(CGeomFace3D *face, bool clear=false, bool update=true);
+  void deselectAll();
+
+  void setMousePos(double xpos, double ypos);
 
   //---
 
@@ -296,11 +323,16 @@ class Canvas3D : public OpenGLWindow {
 
   const QStringList &modelDirs() const { return modelDirs_; }
 
+  //---
+
+  void resetCamera();
+
  private:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
   static int canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
   static int cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+  static int lightProc (void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
   static int customFormProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
@@ -313,14 +345,25 @@ class Canvas3D : public OpenGLWindow {
 
   bool getCameraValue(const QString &name, const QStringList &args, QVariant &value);
   bool setCameraValue(const QString &name, const QString &value, const QStringList &args);
+  bool execCamera(const QString &op, const QStringList &args, QVariant &res);
+
+  bool getLightValue(const QString &name, const QStringList &args, QVariant &value);
+  bool setLightValue(const QString &name, const QString &value, const QStringList &args);
+  bool execLight(const QString &op, const QStringList &args, QVariant &res);
 
  protected Q_SLOTS:
   void timerSlot();
+  void uiTimerSlot();
+
+  void cameraChangeSlot();
+  void lightChangeSlot();
 
  Q_SIGNALS:
-  void cameraChanged();
-
   void objectsChanged();
+
+  void uiUpdateSignal();
+
+  void lightAdded();
 
  private:
   struct MouseData {
@@ -329,38 +372,41 @@ class Canvas3D : public OpenGLWindow {
     bool            isControl { false };
     Qt::MouseButton button    { Qt::NoButton };
     CPoint2D        press     { 0.0, 0.0 };
-    CPoint2D        move      { 0.0, 0.0 };
+    CPoint2D        move1     { 0.0, 0.0 };
+    CPoint2D        move2     { 0.0, 0.0 };
   };
 
   //---
 
   static QString s_buildDir;
 
-  using Points = std::vector<CGLVector3D>;
+  using Points = std::vector<CVector3D>;
 
   App* app_ { nullptr };
 
-  QTimer *timer_ { nullptr };
+  bool    looping_       { false };
+  QTimer *timer_         { nullptr };
+  QTimer *uiTimer_       { nullptr };
   int     redrawTimeOut_ { 100 };
 
   size_t lastInd_ { 0 };
 
   // lighting
   CRGBA  ambientColor_     { CRGBA::white() };
-  double ambientStrength_  { 0.2 };
+  double ambientStrength_  { 0.1 };
   double diffuseStrength_  { 1.0 };
-  CRGBA  emissiveColor_    { CRGBA::white() };
-  double emissiveStrength_ { 0.0 };
   CRGBA  specularColor_    { CRGBA::white() };
   double specularStrength_ { 0.2 };
+  CRGBA  emissiveColor_    { CRGBA::white() };
+  double emissiveStrength_ { 0.1 };
+  double shininess_        { 32.0 };
 
-  double shininess_ { 32.0 };
-
-  bool polygonLine_ { false };
-  bool wireframe_   { false };
-  bool solid_       { false };
-  bool textured_    { true };
-  bool showBBox_    { false };
+  bool polygonLine_    { false };
+  bool wireframe_      { false };
+  bool solid_          { false };
+  bool textured_       { true };
+  bool showBBox_       { false };
+  bool eyeLineVisible_ { false };
 
   Type type_ { Type::CAMERA };
 
@@ -375,9 +421,11 @@ class Canvas3D : public OpenGLWindow {
   CRMinMax yrange_ { -1.0, 1.0 };
   CRMinMax zrange_ { -1.0, 1.0 };
 
-  CGLMatrix3D projectionMatrix_;
-  CGLMatrix3D viewMatrix_;
-  CGLVector3D viewPos_;
+  CMatrix3DH projectionMatrix_;
+  CMatrix3DH viewMatrix_;
+  CVector3D  viewPos_;
+
+  CBBox3D bbox_;
 
   // interaction
   MouseData mouseData_;
@@ -386,7 +434,7 @@ class Canvas3D : public OpenGLWindow {
 
   CGeomScene3D* scene_ { nullptr };
 
-  CGLCamera* camera_ { nullptr };
+  Camera* camera_ { nullptr };
 
   Path3DObj* eyeLine_ { nullptr };
 
@@ -400,9 +448,9 @@ class Canvas3D : public OpenGLWindow {
 
   ParticleList3DObj* intersectParticles_ { nullptr };
 
-  float modelXAngle_ { 0.0f };
-  float modelYAngle_ { 0.0f };
-  float modelZAngle_ { 0.0f };
+  double modelXAngle_ { 0.0 };
+  double modelYAngle_ { 0.0 };
+  double modelZAngle_ { 0.0 };
 
   Objects objects_;
   Objects allObjects_;
@@ -410,6 +458,14 @@ class Canvas3D : public OpenGLWindow {
   Points intersectPoints_;
 
   QStringList modelDirs_;
+
+  bool ignoreChange_ { false };
+
+  //---
+
+  using KeyPressed = std::map<std::string, bool>;
+
+  KeyPressed keyPressed_;
 };
 
 }

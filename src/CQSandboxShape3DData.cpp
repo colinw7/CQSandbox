@@ -78,7 +78,7 @@ void
 Shape3DData::
 addCube(double sx, double sy, double sz)
 {
-  static CGLVector3D cube_normal[6] = {
+  static CVector3D cube_normal[6] = {
     {-1.0,  0.0,  0.0},
     { 0.0,  1.0,  0.0},
     { 1.0,  0.0,  0.0},
@@ -124,20 +124,20 @@ addCube(double sx, double sy, double sz)
   for (int i = 5; i >= 0; --i) {
     const auto &normal = cube_normal[i];
 
-    auto addPoint = [&](const Point &p, const CGLVector2D &t) {
-      points_   [k] = CGLVector3D(p.x, p.y, p.z);
+    auto addPoint = [&](const Point &p, const CVector2D &t) {
+      points_   [k] = CVector3D(p.x, p.y, p.z);
       texCoords_[k] = t;
       normals_  [k] = normal;
       ++k;
     };
 
-    addPoint(v[cube_faces[i][0]], CGLVector2D(0.0, 0.0));
-    addPoint(v[cube_faces[i][1]], CGLVector2D(1.0, 0.0));
-    addPoint(v[cube_faces[i][2]], CGLVector2D(1.0, 1.0));
+    addPoint(v[cube_faces[i][0]], CVector2D(0.0, 0.0));
+    addPoint(v[cube_faces[i][1]], CVector2D(1.0, 0.0));
+    addPoint(v[cube_faces[i][2]], CVector2D(1.0, 1.0));
 
-    addPoint(v[cube_faces[i][2]], CGLVector2D(1.0, 1.0));
-    addPoint(v[cube_faces[i][3]], CGLVector2D(0.0, 1.0));
-    addPoint(v[cube_faces[i][0]], CGLVector2D(0.0, 0.0));
+    addPoint(v[cube_faces[i][2]], CVector2D(1.0, 1.0));
+    addPoint(v[cube_faces[i][3]], CVector2D(0.0, 1.0));
+    addPoint(v[cube_faces[i][0]], CVector2D(0.0, 0.0));
   }
 
   delete geom_;
@@ -230,9 +230,9 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
   uint *pindex2 = &index2[0];
 
   if (fabs(x[0]) < 1E-6) {
-    CGLVector3D p(0.0, float(y[0]), 0.0);
+    CVector3D p(0.0, float(y[0]), 0.0);
 
-    vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, 0)));
+    vertexDatas.push_back(VertexData(p, p, CVector2D(0, 0)));
 
     for (uint i = 0; i <= num_patches; i++)
       pindex1[i] = num_vertices;
@@ -241,9 +241,9 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
   }
   else {
     for (uint i = 0; i < num_patches; i++) {
-      CGLVector3D p(float(x[0]*c[i]), float(y[0]), float(-x[0]*s[i]));
+      CVector3D p(float(x[0]*c[i]), float(y[0]), float(-x[0]*s[i]));
 
-      vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, 0)));
+      vertexDatas.push_back(VertexData(p, p, CVector2D(0, 0)));
 
       pindex1[i] = num_vertices;
 
@@ -257,9 +257,9 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
     double ty = (num_xy > 1 ? 1.0*j/(num_xy - 1) : 0.0);
 
     if (fabs(x[j]) < 1E-6) {
-      CGLVector3D p(0.0, float(y[j]), 0.0);
+      CVector3D p(0.0, float(y[j]), 0.0);
 
-      vertexDatas.push_back(VertexData(p, p, CGLVector2D(0, float(ty))));
+      vertexDatas.push_back(VertexData(p, p, CVector2D(0, float(ty))));
 
       for (uint i = 0; i <= num_patches; ++i)
         pindex2[i] = num_vertices;
@@ -270,9 +270,9 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
       for (uint i = 0; i < num_patches; i++) {
         double tx = (num_patches > 1 ? 1.0*i/(num_patches - 1) : 0.0);
 
-        CGLVector3D p(float(x[j]*c[i]), float(y[j]), float(-x[j]*s[i]));
+        CVector3D p(float(x[j]*c[i]), float(y[j]), float(-x[j]*s[i]));
 
-        vertexDatas.push_back(VertexData(p, p, CGLVector2D(float(tx), float(ty))));
+        vertexDatas.push_back(VertexData(p, p, CVector2D(float(tx), float(ty))));
 
         pindex2[i] = num_vertices;
 

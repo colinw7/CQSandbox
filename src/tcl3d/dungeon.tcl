@@ -1,5 +1,5 @@
 proc init { } {
-  set idir "tcl/dungeon"
+  set idir "tcl3d/dungeon"
 
   set ::dungeon [sb3d::dungeon]
 

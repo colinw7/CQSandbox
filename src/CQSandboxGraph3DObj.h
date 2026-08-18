@@ -3,6 +3,7 @@
 
 #include <CQSandboxObject3D.h>
 
+#include <CGLVector3D.h>
 #include <CGLColor.h>
 
 class CForceDirected3D;

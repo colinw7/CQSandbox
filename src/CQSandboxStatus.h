@@ -17,9 +17,12 @@ class Status : public QFrame {
 
   void setText(const QString &text);
 
+  void setMouseLabel(const QString &text);
+
  private:
-  App*    app_   { nullptr };
-  QLabel* label_ { nullptr };
+  App*    app_        { nullptr };
+  QLabel* label_      { nullptr };
+  QLabel* mouseLabel_ { nullptr };
 };
 
 }

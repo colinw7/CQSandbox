@@ -5,6 +5,7 @@
 #include <CQSandboxShaderProgram.h>
 
 #include <CGLVector2D.h>
+#include <CGLVector3D.h>
 #include <CGLColor.h>
 
 namespace CQSandbox {
@@ -60,6 +61,7 @@ class Text3DObj : public Object3D {
   void render() override;
 
  private:
+  void initShader();
   void initFont();
 
   std::vector<uint8_t> readFile(const char *path) const;

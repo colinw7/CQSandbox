@@ -1,18 +1,20 @@
 proc init { } {
+  set idir "tcl3d/oceanblast"
+
   set ::whale [sb3d::sprite]
 
   set ::whale_dx 0.05
 
   $::whale set position {0.7 -0.2 1.0}
   $::whale set scale 0.2
-  $::whale set add_image oceanblast/whale_01_l.png
-  $::whale set add_image oceanblast/whale_02_l.png
-  $::whale set add_image oceanblast/whale_03_l.png
-  $::whale set add_image oceanblast/whale_04_l.png
-  $::whale set add_image oceanblast/whale_01_r.png
-  $::whale set add_image oceanblast/whale_02_r.png
-  $::whale set add_image oceanblast/whale_03_r.png
-  $::whale set add_image oceanblast/whale_04_r.png
+  $::whale set add_image $idir/whale_01_l.png
+  $::whale set add_image $idir/whale_02_l.png
+  $::whale set add_image $idir/whale_03_l.png
+  $::whale set add_image $idir/whale_04_l.png
+  $::whale set add_image $idir/whale_01_r.png
+  $::whale set add_image $idir/whale_02_r.png
+  $::whale set add_image $idir/whale_03_r.png
+  $::whale set add_image $idir/whale_04_r.png
   $::whale set velocity  [list -$::whale_dx 0.0]
   $::whale set image_start 0
   $::whale set image_end   3
@@ -23,36 +25,36 @@ proc init { } {
 
   $::squid set position {0.3 0.0 2.0}
   $::squid set scale 0.1
-  $::squid set add_image oceanblast/squid_01.png
-  $::squid set add_image oceanblast/squid_02.png
-  $::squid set add_image oceanblast/squid_03.png
-  $::squid set add_image oceanblast/squid_04.png
-  $::squid set add_image oceanblast/squid_05.png
+  $::squid set add_image $idir/squid_01.png
+  $::squid set add_image $idir/squid_02.png
+  $::squid set add_image $idir/squid_03.png
+  $::squid set add_image $idir/squid_04.png
+  $::squid set add_image $idir/squid_05.png
   $::squid set velocity  [list 0.0 -$::squid_dy]
 
   set ::starfish [sb3d::sprite]
 
   $::starfish set position {0.1 0.0 2.0}
   $::starfish set scale 0.05
-  $::starfish set add_image oceanblast/starfish.png
+  $::starfish set add_image $idir/starfish.png
 
   set ::fish1 [sb3d::sprite]
   
   $::fish1 set position {-0.1 0.0 2.0}
   $::fish1 set scale 0.05 
-  $::fish1 set add_image oceanblast/fish1.png
+  $::fish1 set add_image $idir/fish1.png
 
   set ::fish2 [sb3d::sprite]
   
   $::fish2 set position {-0.3 0.0 2.0}
   $::fish2 set scale 0.05 
-  $::fish2 set add_image oceanblast/fish2.png
+  $::fish2 set add_image $idir/fish2.png
 
   set ::fish3 [sb3d::sprite]
   
   $::fish3 set position {-0.5 0.0 2.0}
   $::fish3 set scale 0.05 
-  $::fish3 set add_image oceanblast/fish3.png
+  $::fish3 set add_image $idir/fish3.png
 
   set ::sub [sb3d::sprite]
 
@@ -62,8 +64,8 @@ proc init { } {
 
   $::sub set position [list $::sub_x $::sub_y $::sub_z]
   $::sub set scale 0.1
-  $::sub set add_image oceanblast/sub_01.png
-  $::sub set add_image oceanblast/sub_02.png
+  $::sub set add_image $idir/sub_01.png
+  $::sub set add_image $idir/sub_02.png
 
   updateSubImages 0
 
@@ -73,8 +75,8 @@ proc init { } {
     set ::torpedo($i) [sb3d::sprite]
 
     $::torpedo($i) set scale 0.1
-    $::torpedo($i) set add_image oceanblast/torpedo_l.png
-    $::torpedo($i) set add_image oceanblast/torpedo_r.png
+    $::torpedo($i) set add_image $idir/torpedo_l.png
+    $::torpedo($i) set add_image $idir/torpedo_r.png
 
     $::torpedo($i) set image_start 0
     $::torpedo($i) set image_end   0

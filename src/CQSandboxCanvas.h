@@ -2,7 +2,8 @@
 #define CQSandbox_H
 
 #include <CTclUtil.h>
-#include <CDisplayRange2D.h>
+//#include <CDisplayRange2D.h>
+#include <CWindowRange2D.h>
 #include <CMathUtil.h>
 #include <CRGBA.h>
 #include <CQuadTree.h>

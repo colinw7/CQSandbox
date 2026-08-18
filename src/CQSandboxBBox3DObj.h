@@ -2,6 +2,7 @@
 #define CQSandboxBBox3DObj_H
 
 #include <CQSandboxObject3D.h>
+#include <CGLVector3D.h>
 
 namespace CQSandbox {
 

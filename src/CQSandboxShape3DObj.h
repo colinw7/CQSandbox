@@ -38,7 +38,7 @@ class Shape3DObj : public Object3D {
   const QString &textureFile() const { return textureFile_; }
   void setTextureFile(const QString &filename);
 
-  void setTexture(CQGLTexture *texture) { texture_ = texture; }
+  void setTexture(CQGLTexture *texture) { diffuseTexture_ = texture; }
 
   void setNormalTexture(const QString &filename);
   void setNormalTexture(CQGLTexture *texture) { normalTexture_ = texture; }
@@ -47,7 +47,7 @@ class Shape3DObj : public Object3D {
 
   void updateGL();
 
-  bool intersect(const CGLVector3D &p1, const CGLVector3D &p2,
+  bool intersect(const CVector3D &p1, const CVector3D &p2,
                  CPoint3D &pi1, CPoint3D &pi2) const override;
 
   CBBox3D calcBBox() override;
@@ -57,6 +57,9 @@ class Shape3DObj : public Object3D {
   void render() override;
 
   void addCube(double sx, double sy, double sz);
+
+ private:
+  void initShader();
 
  protected:
   using Colors = std::vector<CGLColor>;
@@ -71,8 +74,8 @@ class Shape3DObj : public Object3D {
   bool   wireframe_ { false };
 
   QString      textureFile_;
-  CQGLTexture *texture_       { nullptr };
-  CQGLTexture *normalTexture_ { nullptr };
+  CQGLTexture *diffuseTexture_ { nullptr };
+  CQGLTexture *normalTexture_  { nullptr };
 
   bool useDiffuseTexture_ { false };
   bool useNormalTexture_  { false };

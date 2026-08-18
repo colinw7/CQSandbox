@@ -34,8 +34,117 @@ create(Canvas3D *canvas, const QStringList &)
 
 Shape3DObj::
 Shape3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::SHAPE)
 {
+}
+
+void
+Shape3DObj::
+init()
+{
+  Object3D::init();
+
+  //---
+
+  initShader();
+
+  //---
+
+#if 0
+  canvas_->glGenVertexArrays(1, &vertexArrayId_);
+
+  canvas_->glGenBuffers(1, &pointsBufferId_);
+  canvas_->glGenBuffers(1, &normalsBufferId_);
+  canvas_->glGenBuffers(1, &colorsBufferId_);
+  canvas_->glGenBuffers(1, &texCoordBufferId_);
+  canvas_->glGenBuffers(1, &indBufferId_);
+#else
+  buffer_ = s_program->createBuffer();
+#endif
+}
+
+void
+Shape3DObj::
+initShader()
+{
+  if (! s_program) {
+#if 0
+    static const char *vertexShaderSource =
+      "#version 330 core\n"
+      "layout (location = 0) in vec3 aPos;\n"
+      "layout (location = 1) in vec3 aNormal;\n"
+      "layout (location = 2) in vec4 aColor;\n"
+      "layout (location = 3) in vec2 aTexCoord;\n"
+      "uniform highp mat4 projection;\n"
+      "uniform highp mat4 view;\n"
+      "uniform highp mat4 model;\n"
+      "out vec3 FragPos;\n"
+      "out vec3 Normal;\n"
+      "out vec4 Color;\n"
+      "out vec2 TexCoord;\n"
+      "void main() {\n"
+      "  FragPos  = vec3(model * vec4(aPos, 1.0));\n"
+      "  Normal   = mat3(transpose(inverse(model)))*aNormal;\n"
+      "  Color    = aColor;\n"
+      "  TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n"
+      "  gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
+      "}";
+    static const char *fragmentShaderSource =
+      "#version 330 core\n"
+      "in vec3 FragPos;\n"
+      "in vec3 Normal;\n"
+      "in vec4 Color;\n"
+      "in vec2 TexCoord;\n"
+      "out vec4 FragColor;\n"
+      "uniform vec3 viewPos;\n"
+      "uniform vec3 lightPos;\n"
+      "uniform vec3 lightColor;\n"
+      "uniform float ambientStrength;\n"
+      "uniform float diffuseStrength;\n"
+      "uniform float specularStrength;\n"
+      "uniform float shininess;\n"
+      "uniform sampler2D textureId;\n"
+      "uniform sampler2D normTex;\n"
+      "uniform bool useDiffuseTexture;\n"
+      "uniform bool useNormalTexture;\n"
+      "void main() {\n"
+      "  vec3 norm;\n"
+      "  if (useNormalTexture) {\n"
+      "    norm = texture(normTex, TexCoord).rgb;\n"
+      "    norm = normalize(norm*2.0 - 1.0).rgb;\n"
+      "  } else {\n"
+      "    norm = normalize(Normal);\n"
+      "  }\n"
+      "  vec3 lightDir = normalize(lightPos - FragPos);\n"
+      "  float diff = max(dot(norm, lightDir), 0.0);\n"
+      "  vec4 diffuseColor = Color;\n"
+      "  if (useDiffuseTexture) {\n"
+      "    diffuseColor = texture(textureId, TexCoord);\n"
+      "  }\n"
+      "  vec3 diffuse = diffuseStrength*diff*vec3(diffuseColor);\n"
+      "  vec3 ambient = ambientStrength*vec3(diffuseColor);\n"
+      "  vec3 viewDir = normalize(viewPos - FragPos);\n"
+      "  vec3 reflectDir = reflect(-lightDir, norm);\n"
+      "  float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
+      "  vec3 specColor = lightColor;\n"
+      "  vec3 specular = specularStrength*spec*specColor;\n"
+      "  vec3 result = ambient + diffuse + specular;\n"
+      "  FragColor = vec4(result, diffuseColor.a);\n"
+      "}\n";
+#endif
+
+    s_program = new ShaderProgram(this);
+
+#if 0
+    s_program->addVertexCode  (vertexShaderSource);
+    s_program->addFragmentCode(fragmentShaderSource);
+#else
+    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/shape.vs");
+    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/shape.fs");
+#endif
+
+    s_program->link();
+  }
 }
 
 bool
@@ -187,16 +296,16 @@ setTextureFile(const QString &filename)
   textureFile_ = filename;
 
   if (textureFile_ != "") {
-    texture_ = new CQGLTexture;
+    diffuseTexture_ = new CQGLTexture;
 
-    if (! texture_->load(textureFile_, /*flip*/true)) {
-      delete texture_;
-      texture_ = nullptr;
+    if (! diffuseTexture_->load(textureFile_, /*flip*/true)) {
+      delete diffuseTexture_;
+      diffuseTexture_ = nullptr;
     }
   }
   else {
-    delete texture_;
-    texture_ = nullptr;
+    delete diffuseTexture_;
+    diffuseTexture_ = nullptr;
   }
 }
 
@@ -212,111 +321,9 @@ setNormalTexture(const QString &filename)
   }
 }
 
-void
-Shape3DObj::
-init()
-{
-  Object3D::init();
-
-  //---
-
-  if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "layout (location = 1) in vec3 aNormal;\n"
-      "layout (location = 2) in vec4 aColor;\n"
-      "layout (location = 3) in vec2 aTexCoord;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "out vec3 FragPos;\n"
-      "out vec3 Normal;\n"
-      "out vec4 Color;\n"
-      "out vec2 TexCoord;\n"
-      "void main() {\n"
-      "  FragPos  = vec3(model * vec4(aPos, 1.0));\n"
-      "  Normal   = mat3(transpose(inverse(model)))*aNormal;\n"
-      "  Color    = aColor;\n"
-      "  TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n"
-      "  gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
-      "}";
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "in vec3 FragPos;\n"
-      "in vec3 Normal;\n"
-      "in vec4 Color;\n"
-      "in vec2 TexCoord;\n"
-      "out vec4 FragColor;\n"
-      "uniform vec3 viewPos;\n"
-      "uniform vec3 lightPos;\n"
-      "uniform vec3 lightColor;\n"
-      "uniform float ambientStrength;\n"
-      "uniform float diffuseStrength;\n"
-      "uniform float specularStrength;\n"
-      "uniform float shininess;\n"
-      "uniform sampler2D textureId;\n"
-      "uniform sampler2D normTex;\n"
-      "uniform bool useDiffuseTexture;\n"
-      "uniform bool useNormalTexture;\n"
-      "void main() {\n"
-      "  vec3 norm;\n"
-      "  if (useNormalTexture) {\n"
-      "    norm = texture(normTex, TexCoord).rgb;\n"
-      "    norm = normalize(norm*2.0 - 1.0).rgb;\n"
-      "  } else {\n"
-      "    norm = normalize(Normal);\n"
-      "  }\n"
-      "  vec3 lightDir = normalize(lightPos - FragPos);\n"
-      "  float diff = max(dot(norm, lightDir), 0.0);\n"
-      "  vec4 diffuseColor = Color;\n"
-      "  if (useDiffuseTexture) {\n"
-      "    diffuseColor = texture(textureId, TexCoord);\n"
-      "  }\n"
-      "  vec3 diffuse = diffuseStrength*diff*vec3(diffuseColor);\n"
-      "  vec3 ambient = ambientStrength*vec3(diffuseColor);\n"
-      "  vec3 viewDir = normalize(viewPos - FragPos);\n"
-      "  vec3 reflectDir = reflect(-lightDir, norm);\n"
-      "  float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
-      "  vec3 specColor = lightColor;\n"
-      "  vec3 specular = specularStrength*spec*specColor;\n"
-      "  vec3 result = ambient + diffuse + specular;\n"
-      "  FragColor = vec4(result, diffuseColor.a);\n"
-      "}\n";
-#endif
-
-    s_program = new ShaderProgram(this);
-
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/shape.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/shape.fs");
-#endif
-
-    s_program->link();
-  }
-
-  //---
-
-#if 0
-  canvas_->glGenVertexArrays(1, &vertexArrayId_);
-
-  canvas_->glGenBuffers(1, &pointsBufferId_);
-  canvas_->glGenBuffers(1, &normalsBufferId_);
-  canvas_->glGenBuffers(1, &colorsBufferId_);
-  canvas_->glGenBuffers(1, &texCoordBufferId_);
-  canvas_->glGenBuffers(1, &indBufferId_);
-#else
-  buffer_ = s_program->createBuffer();
-#endif
-}
-
 bool
 Shape3DObj::
-intersect(const CGLVector3D &p1, const CGLVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
+intersect(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
 {
   if (! shapeData_.geom())
     return false;
@@ -379,7 +386,7 @@ updateGL()
       s_texCoords.resize(np);
 
       for (uint i = 0; i < np; ++i)
-        s_texCoords[i] = CGLVector2D(0, 0);
+        s_texCoords[i] = CVector2D(0, 0);
     }
   }
 
@@ -442,8 +449,8 @@ updateGL()
 
   //---
 
-  useDiffuseTexture_ = (texture_       && nt > 0);
-  useNormalTexture_  = (normalTexture_ && nt > 0);
+  useDiffuseTexture_ = (diffuseTexture_ && nt > 0);
+  useNormalTexture_  = (normalTexture_  && nt > 0);
 
   if (isInside()) {
     useDiffuseTexture_ = false;
@@ -553,7 +560,7 @@ calcNormals()
     normals.resize(np);
 
     for (uint i = 0; i < np; ++i)
-      normals[i] = CGLVector3D(0, 0, 1);
+      normals[i] = CVector3D(0, 0, 1);
 
     shapeData_.setNormals(normals);
   }
@@ -584,8 +591,8 @@ render()
 
   auto *light = canvas_->currentLight();
 
-  auto lightPos   = light->position();
-  auto lightColor = light->color();
+  auto lightPos   = light->getPosition();
+  auto lightColor = light->getDiffuse();
 
   s_program->bind();
 
@@ -626,7 +633,7 @@ render()
     glActiveTexture(GL_TEXTURE0);
 
     if (useDiffuseTexture_)
-      texture_->bind();
+      diffuseTexture_->bind();
   }
 
   if (useNormalTexture_) {

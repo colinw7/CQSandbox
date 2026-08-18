@@ -48,7 +48,7 @@ create(Canvas3D *canvas, const QStringList &args)
 
 Model3DObj::
 Model3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::MODEL)
 {
   vertShaderFile_ = canvas_->buildDir() + "/shaders/model.vs";
   fragShaderFile_ = canvas_->buildDir() + "/shaders/model.fs";
@@ -100,6 +100,12 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (! obj) return false;
 
     obj->object_ = object1;
+  }
+  else if (name == "transformed_model_bbox") {
+    CBBox3D bbox;
+    object_->getTransformedModelBBox(bbox);
+
+    value = Util::bbox3DToString(bbox);
   }
   else
     return Object3D::getValue(name, args, value);
@@ -375,14 +381,6 @@ render()
 
   //---
 
-  // lighting
-//auto *light = canvas_->currentLight();
-
-//auto lightPos   = light->position();
-//auto lightColor = light->color();
-
-  //---
-
   setModelMatrix();
 
   auto t = 1.0*ticks_/100.0;
@@ -399,7 +397,17 @@ drawObject(CGeomObject3D *object, double t)
 {
   auto *geomObject = dynamic_cast<GeomObject *>(object);
 
-  auto *buffer = geomObject->buffer();
+  auto *geomObject1 = geomObject;
+
+  if (geomObject->refObject()) {
+    geomObject1 = dynamic_cast<GeomObject *>(object->refObject());
+    assert(geomObject1);
+
+    if (! geomObject1->buffer())
+      updateObject(geomObject1);
+  }
+
+  auto *buffer = geomObject1->buffer();
 
   bool textured = canvas_->isTextured();
 
@@ -416,6 +424,8 @@ drawObject(CGeomObject3D *object, double t)
 
   s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
 
+  //---
+
   s_program->setUniformValue("ambientColor"    , CQGLUtil::toVector(canvas_->ambientColor()));
   s_program->setUniformValue("ambientStrength" , float(canvas_->ambientStrength()));
 
@@ -429,6 +439,8 @@ drawObject(CGeomObject3D *object, double t)
 
   s_program->setUniformValue("shininess", float(canvas_->shininess())); // per face ?
 
+  //---
+
   // pass projection matrix to shader (note that in this case it could change every frame)
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
 
@@ -439,7 +451,7 @@ drawObject(CGeomObject3D *object, double t)
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   // render model
-  for (const auto &faceData : geomObject->faceDatas()) {
+  for (const auto &faceData : geomObject1->faceDatas()) {
     // diffuse (texture 0)
     auto *diffuseTexture = faceData.diffuseTexture;
 
@@ -555,7 +567,8 @@ updateObjectData()
   CVector3D sceneSize(1, 1, 1);
 
   if (object_) {
-    object_->getModelBBox(bbox_);
+    //object_->getModelBBox(bbox_);
+    object_->getTransformedModelBBox(bbox_);
 
     sceneSize    = bbox_.getSize();
     sceneCenter_ = bbox_.getCenter();
@@ -588,6 +601,9 @@ updateObject(CGeomObject3D *object)
 {
   auto *geomObject = dynamic_cast<GeomObject *>(object);
 
+  if (object->refObject())
+    return;
+
   auto *buffer = geomObject->initBuffer(canvas_);
 
   //---
@@ -606,9 +622,13 @@ updateObject(CGeomObject3D *object)
   for (const auto *face : faces) {
     FaceData faceData;
 
+    faceData.face = const_cast<CGeomFace3D *>(face);
+
     //---
 
-    const auto &color = face->getColor();
+    auto color = face->getColor();
+
+    faceData.color = Util::RGBAToQColor(color);
 
     //---
 

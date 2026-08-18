@@ -5,6 +5,7 @@
 
 #include <CGLColor.h>
 #include <CGLVector2D.h>
+#include <CGLVector3D.h>
 
 #include <QColor>
 

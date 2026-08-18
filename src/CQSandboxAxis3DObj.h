@@ -35,10 +35,10 @@ class Axis3DObj : public Object3D {
  private:
   using TextObjs = std::vector<Text3DObj *>;
 
-  CGLVector3D start_ { 0, 0, 0 };
-  CGLVector3D end_   { 1, 0, 0 };
-  double      min_   { 0 };
-  double      max_   { 1 };
+  CVector3D start_ { 0, 0, 0 };
+  CVector3D end_   { 1, 0, 0 };
+  double    min_   { 0 };
+  double    max_   { 1 };
 
   Path3DObj *path_ { nullptr };
   TextObjs   textObjs_;

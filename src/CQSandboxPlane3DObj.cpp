@@ -30,7 +30,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Plane3DObj::
 Plane3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::PLANE)
 {
 }
 

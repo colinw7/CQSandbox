@@ -8,8 +8,8 @@
 namespace CQSandbox {
 
 Object3D::
-Object3D(Canvas3D *canvas) :
- canvas_(canvas)
+Object3D(Canvas3D *canvas, Type type) :
+ canvas_(canvas), type_(type)
 {
 }
 

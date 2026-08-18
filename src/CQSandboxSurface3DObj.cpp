@@ -38,7 +38,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Surface3DObj::
 Surface3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::SURFACE)
 {
 }
 
@@ -510,8 +510,8 @@ render()
 
   auto *light = canvas_->currentLight();
 
-  auto lightPos   = light->position();
-  auto lightColor = light->color();
+  auto lightPos   = light->getPosition();
+  auto lightColor = light->getDiffuse();
 
   s_program->bind();
 

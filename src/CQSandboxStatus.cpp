@@ -17,6 +17,10 @@ Status(App *app) :
   label_ = new QLabel(" ");
 
   layout->addWidget(label_);
+
+  mouseLabel_ = new QLabel(" ");
+
+  layout->addWidget(mouseLabel_);
 }
 
 void
@@ -24,6 +28,13 @@ Status::
 setText(const QString &str)
 {
   label_->setText(str);
+}
+
+void
+Status::
+setMouseLabel(const QString &str)
+{
+  mouseLabel_->setText(str);
 }
 
 }

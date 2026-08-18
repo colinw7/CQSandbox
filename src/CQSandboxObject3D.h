@@ -1,7 +1,7 @@
 #ifndef CQSandboxObject3D_H
 #define CQSandboxObject3D_H
 
-#include <CGLVector3D.h>
+#include <CVector3D.h>
 #include <CMatrix3DH.h>
 #include <CBBox3D.h>
 #include <CPoint3D.h>
@@ -37,6 +37,29 @@ class Object3D : public QObject {
   Q_PROPERTY(double  zscale   READ zscale     WRITE setZScale)
 
  public:
+  enum class Type {
+    NONE,
+    AXIS,
+    BBOX,
+    CSV,
+    DUNGEON,
+    FIELD_RUNNERS,
+    GRAPH,
+    GROUP,
+    MODEL,
+    OTHELLO,
+    PARTICLE_LIST,
+    PATH,
+    PLANE,
+    SHADER,
+    SHADER_SHAPE,
+    SHAPE,
+    SKYBOX,
+    SPRITE,
+    SURFACE,
+    TEXT
+  };
+
   enum ModelMatrixFlags : unsigned int {
     NONE      = 0,
     TRANSLATE = (1<<0),
@@ -46,11 +69,20 @@ class Object3D : public QObject {
   };
 
  public:
-  Object3D(Canvas3D *canvas);
+  Object3D(Canvas3D *canvas, Type type);
 
   Canvas3D *canvas() const { return canvas_; }
 
+  Object3D(const Object3D &) = delete;
+  Object3D &operator=(const Object3D &) = delete;
+
+  //---
+
   virtual const char *typeName() const = 0;
+
+  //---
+
+  Type type() const { return type_; }
 
   //---
 
@@ -157,7 +189,7 @@ class Object3D : public QObject {
 
   virtual void render();
 
-  virtual bool intersect(const CGLVector3D &, const CGLVector3D &, CPoint3D &, CPoint3D &) const {
+  virtual bool intersect(const CVector3D &, const CVector3D &, CPoint3D &, CPoint3D &) const {
     return false;
   }
 
@@ -173,6 +205,7 @@ class Object3D : public QObject {
   using OptPoint = std::optional<CPoint3D>;
 
   Canvas3D* canvas_ { nullptr };
+  Type      type_   { Type::NONE };
   size_t    ind_    { 0 };
 
   QString id_;

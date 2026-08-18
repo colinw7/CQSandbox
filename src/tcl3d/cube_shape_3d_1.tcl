@@ -22,9 +22,9 @@ proc init { } {
         $shape set texture "textures/white_marble.png"
       }
 
-      set x [expr {$x + 0.1}]
+      set x [expr {$x + 0.2}]
     }
 
-    set y [expr {$y + 0.1}]
+    set y [expr {$y + 0.2}]
   }
 }

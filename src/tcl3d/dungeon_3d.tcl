@@ -32,7 +32,7 @@ proc addTiles { model } {
 
       set pos [mapPos [list $ix 0 $iy]]
 
-      # $tile($ix,$iy) set position $pos
+    # $tile($ix,$iy) set position $pos
       $tile($ix,$iy) exec translate $pos
 
       $tile($ix,$iy) set visible 1
@@ -98,6 +98,8 @@ proc addObject { model ind pos } {
   $::obj($ind) set visible 1
 
   # echo [$::obj($ind) get bbox]
+
+  return $::obj($ind)
 }
 
 proc init { } {
@@ -107,26 +109,38 @@ proc init { } {
   set ::tileDy 0
   set ::tileDz 4.1
 
-  sb3d::canvas set model_dir "tcl/Dungeon_Assets/obj"
+  set model_dir "tcl3d/Dungeon_Assets/obj"
+
+  sb3d::canvas set model_dir $model_dir
 
   if {0} {
-  loadModel "tcl/Dungeon_Assets/obj/floor_dirt_large.obj"                  "floor"]
-  loadModel "tcl/Dungeon_Assets/obj/floor_dirt_large_rocky.obj"            "floor"]
-  loadModel "tcl/Dungeon_Assets/obj/floor_tile_extralarge_grates.obj"      "floor"]
-  loadModel "tcl/Dungeon_Assets/obj/floor_tile_extralarge_grates_open.obj" "floor"]
-  loadModel "tcl/Dungeon_Assets/obj/floor_tile_large.obj"                  "floor"]
-  loadModel "tcl/Dungeon_Assets/obj/floor_tile_large_rocks.obj"            "floor"]
-  loadModel "tcl/Dungeon_Assets/obj/floor_wood_large_dark.obj"             "floor"]
-  loadModel "tcl/Dungeon_Assets/obj/floor_wood_large.obj"                  "floor"]
+  loadModel "$model_dir/floor_dirt_large.obj"                  "floor"]
+  loadModel "$model_dir/floor_dirt_large_rocky.obj"            "floor"]
+  loadModel "$model_dir/floor_tile_extralarge_grates.obj"      "floor"]
+  loadModel "$model_dir/floor_tile_extralarge_grates_open.obj" "floor"]
+  loadModel "$model_dir/floor_tile_large.obj"                  "floor"]
+  loadModel "$model_dir/floor_tile_large_rocks.obj"            "floor"]
+  loadModel "$model_dir/floor_wood_large_dark.obj"             "floor"]
+  loadModel "$model_dir/floor_wood_large.obj"                  "floor"]
   }
 
-  set ::tileObj       [loadModel "tcl/Dungeon_Assets/obj/floor_wood_large.obj"       "tile"  ]
-  set ::barrelObj     [loadModel "tcl/Dungeon_Assets/obj/barrel_large_decorated.obj" "barrel"]
-  set ::chest1Obj     [loadModel "tcl/Dungeon_Assets/obj/chest_mimic.obj"            "chest1"]
-  set ::chest2Obj     [loadModel "tcl/Dungeon_Assets/obj/chest_mimic_lid.obj"        "chest2"]
-  set ::wallObj       [loadModel "tcl/Dungeon_Assets/obj/wall.obj"                   "wall"]
-  set ::wallPillarObj [loadModel "tcl/Dungeon_Assets/obj/wall_pillar.obj"            "wall_pillar"]
-  set ::wallCornerObj [loadModel "tcl/Dungeon_Assets/obj/wall_corner.obj"            "wall_corner"]
+  set ::tileObj       [loadModel "$model_dir/floor_wood_large.obj"       "tile"  ]
+  set ::barrelObj     [loadModel "$model_dir/barrel_large_decorated.obj" "barrel"]
+  set ::chest1Obj     [loadModel "$model_dir/chest_mimic.obj"            "chest1"]
+  set ::chest2Obj     [loadModel "$model_dir/chest_mimic_lid.obj"        "chest2"]
+  set ::wallObj       [loadModel "$model_dir/wall.obj"                   "wall"]
+  set ::wallPillarObj [loadModel "$model_dir/wall_pillar.obj"            "wall_pillar"]
+  set ::wallCornerObj [loadModel "$model_dir/wall_corner.obj"            "wall_corner"]
+
+  set model_dir "tcl3d/Dungeon_Characters/gltf"
+
+  sb3d::canvas set model_dir $model_dir
+
+if {0} {
+  set ::playerRefObj [loadModel "$model_dir/Barbarian.glb" "player"]
+  echo "$::playerRefObj [$::playerRefObj get transformed_model_bbox]"
+  # $::playerRefObj set visible 1
+}
 
   set ::nx 10
   set ::ny 10
@@ -145,51 +159,114 @@ proc init { } {
   addObject $::chest1Obj $::ind [list 5 0 5] ; incr ::ind
   addObject $::chest2Obj $::ind [list 5 1 5] ; incr ::ind
 
+if {0} {
+  set ::playerObj [addObject $::playerRefObj $::ind [list 0 0 0]] ; incr ::ind
+  echo "$::playerObj [$::playerObj get transformed_model_bbox]"
+}
+
   # setViewportValue "" bbox [list -10 -10 -10 10 10 10]
 
   sb3d::canvas set mode game
 
-  set ::player_x   0
-  set ::player_y   0
-  set ::player_h   1
-  set ::player_dir "N"
+  set ::player_x     0
+  set ::player_y     0
+  set ::player_h     3
+  set ::player_dir   "N"
+  set ::player_rot   0
+  set ::player_irot  0
+  set ::player_nrot  1000
+  set ::player_moved 0
 
-  updatePlayerCamera
+  set ::camera_x 0
+  set ::camera_y -1
+
+  # updatePlayer
+
+  sb3d::canvas set loop.enabled 1
+  sb3d::canvas set loop.timeout 250
+
+  sb3d::camera set disable_roll 1
 }
 
 proc tick { args } {
-  if {! $::cameraSet} {
-    set ::cameraSet 1
+  set mode [sb3d::canvas get mode]
 
-    # sb3d::camera set camera.distance 20
-
-    # sb3d::camera set origin [list 0 0 0]
-
-    sb3d::camera set position [list 0 10 20]
+  if {$mode == "game"} {
+    updatePlayer
   }
 }
 
-proc updatePlayerCamera { } {
-  sb3d::camera set position [list $::player_x $::player_h $::player_y]
+proc updatePlayer { } {
+  if {$::player_moved} {
+    # echo "Move Player"
 
-  if       {$::player_dir == "N"} {
-    sb3d::camera set yaw 90
-  } elseif {$::player_dir == "S"} {
-    sb3d::camera set yaw -90
-  } elseif {$::player_dir == "W"} {
-    sb3d::camera set yaw 180
-  } elseif {$::player_dir == "E"} {
-    sb3d::camera set yaw 0
+    set pos [list $::player_x 0 $::player_y]
+
+  # $::playerObj exec translate $pos
+
+    sb3d::camera set position [list $::camera_x $::player_h $::player_y]
+
+  # sb3d::camera set look_at [list 0 0 0]
+
+    set ::player_moved 0
   }
 
+  if {$::player_irot > 0} {
+    # echo "Rotate Player"
+
+    set yaw [sb3d::camera get yaw]
+
+    set dy [expr {$::player_rot/$::player_nrot}]
+
+    sb3d::camera set yaw [expr {$yaw + $dy}]
+#   sb3d::camera set pitch -15
+
+    incr ::player_irot -1
+  }
+
+if {0} {
+  updateCamera
+}
+
+   updateLight
+}
+
+proc updateCamera { } {
+  sb3d::camera set yaw $angle
+
   sb3d::camera set pitch 0
+}
+
+proc updateLight { } {
+  sb3d::light set current 1
+
+  sb3d::light set position [list $::camera_x $::player_h $::player_y]
+
+  sb3d::light set point_radius 10
+}
+
+proc dirToAngle { dir } {
+  if       {$dir == "N"} {
+    return -90
+  } elseif {$dir == "S"} {
+    return 90
+  } elseif {$dir == "W"} {
+    return 180
+  } elseif {$dir == "E"} {
+    return 0
+  } else {
+    return 0
+  }
 }
 
 proc keyPress { k } {
   #puts "keyPress $k"
 
-  if       {$k == "left"} {
-    echo "left"
+  if       {$k == "q" || $k == "Q" || $k == "left"} {
+    # echo "turn left"
+
+    set ::player_rot  -90.0
+    set ::player_irot $::player_nrot
 
     if       {$::player_dir == "N"} {
       set ::player_dir "W"
@@ -201,9 +278,12 @@ proc keyPress { k } {
       set ::player_dir "N"
     }
 
-    updatePlayerCamera
-  } elseif {$k == "right"} {
-    echo "right"
+    echo "Dir: $::player_dir"
+  } elseif {$k == "e" || $k == "E" || $k == "right"} {
+    # echo "turn right"
+
+    set ::player_rot 90.0
+    set ::player_irot $::player_nrot
 
     if       {$::player_dir == "N"} {
       set ::player_dir "E"
@@ -215,34 +295,96 @@ proc keyPress { k } {
       set ::player_dir "N"
     }
 
-    updatePlayerCamera
-  } elseif {$k == "up"} {
-    echo "up"
+    echo "Dir: $::player_dir"
+  } elseif {$k == "w" || $k == "W" || $k == "up"} {
+    # echo "move forward"
+
+    set d 0.1
 
     if       {$::player_dir == "N"} {
-      set ::player_y [expr {$::player_y + 1}]
+      set ::player_y [expr {$::player_y - $d}]
+      set ::camera_y [expr {$::camera_y - $d}]
     } elseif {$::player_dir == "E"} {
-      set ::player_x [expr {$::player_x + 1}]
+      set ::player_x [expr {$::player_x + $d}]
+      set ::camera_x [expr {$::camera_x + $d}]
     } elseif {$::player_dir == "S"} {
-      set ::player_y [expr {$::player_y - 1}]
+      set ::player_y [expr {$::player_y + $d}]
+      set ::camera_y [expr {$::camera_y + $d}]
     } elseif {$::player_dir == "W"} {
-      set ::player_x [expr {$::player_x - 1}]
+      set ::player_x [expr {$::player_x - $d}]
+      set ::camera_x [expr {$::camera_x - $d}]
     }
 
-    updatePlayerCamera
-  } elseif {$k == "down"} {
-    echo "down"
+    set ::player_moved 1
+  } elseif {$k == "s" || $k == "S" || $k == "down"} {
+    # echo "move back"
 
-    if      {$::player_dir == "N"} {
-      set ::player_y [expr {$::player_y - 1}]
+    set d 0.1
+
+    if       {$::player_dir == "N"} {
+      set ::player_y [expr {$::player_y + $d}]
+      set ::camera_y [expr {$::camera_y + $d}]
     } elseif {$::player_dir == "E"} {
-      set ::player_x [expr {$::player_x - 1}]
+      set ::player_x [expr {$::player_x - $d}]
+      set ::camera_x [expr {$::camera_x - $d}]
     } elseif {$::player_dir == "S"} {
-      set ::player_y [expr {$::player_y + 1}]
+      set ::player_y [expr {$::player_y - $d}]
+      set ::camera_y [expr {$::camera_y - $d}]
     } elseif {$::player_dir == "W"} {
-      set ::player_x [expr {$::player_x + 1}]
+      set ::player_x [expr {$::player_x + $d}]
+      set ::camera_x [expr {$::camera_x + $d}]
     }
 
-    updatePlayerCamera
+    set ::player_moved 1
+  } elseif {$k == "a" || $k == "A"} {
+    # echo "strafe left"
+
+    set d 0.1
+
+    if       {$::player_dir == "N"} {
+      set ::player_x [expr {$::player_x - $d}]
+      set ::camera_x [expr {$::camera_x - $d}]
+    } elseif {$::player_dir == "E"} {
+      set ::player_y [expr {$::player_y - $d}]
+      set ::camera_y [expr {$::camera_y - $d}]
+    } elseif {$::player_dir == "S"} {
+      set ::player_x [expr {$::player_x + $d}]
+      set ::camera_x [expr {$::camera_x + $d}]
+    } elseif {$::player_dir == "W"} {
+      set ::player_y [expr {$::player_y + $d}]
+      set ::camera_y [expr {$::camera_y + $d}]
+    }
+
+    set ::player_moved 1
+  } elseif {$k == "d" || $k == "D"} {
+    # echo "strafe right"
+
+    set d 0.1
+
+    if       {$::player_dir == "N"} {
+      set ::player_x [expr {$::player_x + $d}]
+      set ::camera_x [expr {$::camera_x + $d}]
+    } elseif {$::player_dir == "E"} {
+      set ::player_y [expr {$::player_y + $d}]
+      set ::camera_y [expr {$::camera_y + $d}]
+    } elseif {$::player_dir == "S"} {
+      set ::player_x [expr {$::player_x - $d}]
+      set ::camera_x [expr {$::camera_x - $d}]
+    } elseif {$::player_dir == "W"} {
+      set ::player_y [expr {$::player_y - $d}]
+      set ::camera_y [expr {$::camera_y - $d}]
+    }
+
+    set ::player_moved 1
+  } elseif {$k == "<"} {
+    set ::player_h [expr {$::player_h - 1}]
+
+    set ::player_moved 1
+  } elseif {$k == ">"} {
+    set ::player_h [expr {$::player_h + 1}]
+
+    set ::player_moved 1
+  } elseif {$k == "l" || $k == "L"} {
+    updateLight
   }
 }

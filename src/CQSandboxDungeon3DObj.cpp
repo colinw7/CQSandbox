@@ -2,10 +2,10 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxShape3DObj.h>
+#include <CQSandboxCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
-#include <CGLCamera.h>
 #include <CQGLTexture.h>
 
 #ifdef CQSANDBOX_DUNGEON
@@ -34,7 +34,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Dungeon3DObj::
 Dungeon3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::DUNGEON)
 {
   dungeon_ = new CDungeon;
 
@@ -131,24 +131,26 @@ updatePlayerCamera(bool isGame)
     double y = 0.5*dy_;
     double z = pos.y*dz_ + rpos.y*dy1;
 
-    camera->setPosition(CGLVector3D(x, y, z));
+    camera->setPosition(CVector3D(x, y, z));
 
     if      (dir == CCompassType::NORTH)
-      camera->setYaw(90);
+      camera->setYaw(CMathGen::DegToRad(90));
     else if (dir == CCompassType::SOUTH)
-      camera->setYaw(-90);
+      camera->setYaw(CMathGen::DegToRad(-90));
     else if (dir == CCompassType::WEST)
-      camera->setYaw(180);
+      camera->setYaw(CMathGen::DegToRad(180));
     else if (dir == CCompassType::EAST)
       camera->setYaw(0);
 
     camera->setPitch(0);
   }
   else {
-    camera->setPosition(CGLVector3D(0, 1, 0));
-    camera->setZoom(75);
-    camera->setYaw(45);
-    camera->setPitch(-45);
+    camera->setPosition(CVector3D(0, 1, 0));
+
+    //camera->setZoom(75);
+
+    camera->setYaw  (CMathGen::DegToRad( 45));
+    camera->setPitch(CMathGen::DegToRad(-45));
   }
 }
 

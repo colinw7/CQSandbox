@@ -32,7 +32,7 @@ create(Canvas3D *canvas, const QStringList &args)
 
 Csv3DObj::
 Csv3DObj(Canvas3D *canvas, const QString &filename) :
- Object3D(canvas), filename_(filename)
+ Object3D(canvas, Type::CSV), filename_(filename)
 {
   csv_ = new CQCsvModel;
 }

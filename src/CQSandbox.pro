@@ -53,6 +53,7 @@ CQSandboxToolbar2D.cpp \
 CQSandboxToolbar3D.cpp \
 CQSandboxOverview3D.cpp \
 CQSandboxStatus.cpp \
+CQSandboxCamera.cpp \
 \
 CCircleFactor.cpp \
 CQGLTexture.cpp \
@@ -68,6 +69,7 @@ CQArrow.cpp \
 CQPoint3DEdit.cpp \
 CQTclUtil.cpp \
 CTclUtil.cpp \
+CQRubberBand.cpp \
 \
 CForceDirected3D.cpp \
 CFlag.cpp \
@@ -125,6 +127,7 @@ CQSandboxToolbar2D.h \
 CQSandboxToolbar3D.h \
 CQSandboxOverview3D.h \
 CQSandboxStatus.h \
+CQSandboxCamera.h \
 CQSandboxUtil.h \
 \
 CQTclUtil.h \
@@ -137,6 +140,7 @@ CQSVGUtil.h \
 CSVGUtil.h \
 CQGLBuffer.h \
 CQAxis.h \
+CQRubberBand.h \
 
 DESTDIR     = ../bin
 OBJECTS_DIR = ../obj

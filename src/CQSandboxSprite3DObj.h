@@ -20,7 +20,10 @@ class Sprite3DObj : public Object3D {
 
   const char *typeName() const override { return "Sprite"; }
 
+  CQGLTexture *texture() const;
   void setTexture(CQGLTexture *texture);
+
+  CQGLTexture *currentTexture() const;
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -34,6 +37,8 @@ class Sprite3DObj : public Object3D {
   void render() override;
 
  private:
+  void initShader();
+
   void updateObjects();
 
   void updateModelMatrix() override;

@@ -1,6 +1,7 @@
 #include <CQSandboxToolbar3D.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxControl3D.h>
+#include <CQSandboxOverview3D.h>
 #include <CQSandboxApp.h>
 
 #include <CQIconButton.h>
@@ -10,13 +11,15 @@
 
 namespace CQSandbox {
 
-Toolbar3D::
-Toolbar3D(Canvas3D *canvas) :
+CanvasToolbar3D::
+CanvasToolbar3D(Canvas3D *canvas) :
  QFrame(canvas), canvas_(canvas)
 {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
   auto *layout = new QHBoxLayout(this);
+
+  //---
 
   auto addToolButton = [&](const QString &name, const QString &iconName,
                            const QString &tip, const char *slotName) {
@@ -123,21 +126,21 @@ Toolbar3D(Canvas3D *canvas) :
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 setInfo(const QString &label)
 {
   infoLabel_->setText(label);
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 setPos(const QString &label)
 {
   posLabel_->setText(label);
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 updateInfo()
 {
   auto type = canvas_->type();
@@ -162,35 +165,35 @@ updateInfo()
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 cameraSlot()
 {
   canvas_->setType(Canvas3D::Type::CAMERA);
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 modelSlot()
 {
   canvas_->setType(Canvas3D::Type::MODEL);
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 lightSlot()
 {
   canvas_->setType(Canvas3D::Type::LIGHT);
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 gameSlot()
 {
   canvas_->setType(Canvas3D::Type::GAME);
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 wireSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
@@ -201,7 +204,7 @@ wireSlot()
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 solidSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
@@ -212,7 +215,7 @@ solidSlot()
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 texturedSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
@@ -223,7 +226,7 @@ texturedSlot()
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 bboxSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
@@ -234,40 +237,175 @@ bboxSlot()
 }
 
 void
-Toolbar3D::
+CanvasToolbar3D::
 settingsSlot()
 {
-  auto *button = qobject_cast<CQIconButton *>(sender());
-
   auto *app     = canvas()->app();
   auto *control = app->control3D();
 
-  auto geom = app->geometry();
+  control->toggleShown();
+}
 
-  int w = control->sizeHint().width();
+//---
 
-  QRect geom1;
+OverviewToolbar3D::
+OverviewToolbar3D(Overview3D *overview) :
+ QFrame(overview), overview_(overview)
+{
+  setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-  if (button->isChecked()) {
-    geom1 = QRect(geom.x(), geom.y(), geom.width() + w + 6, geom.height());
+  auto *layout = new QHBoxLayout(this);
 
-    control->update();
-    control->show();
-  }
-  else {
-    geom1 = QRect(geom.x(), geom.y(), geom.width() - w - 6, geom.height());
+  //---
 
-    control->hide();
-  }
+  auto addToolButton = [&](const QString &name, const QString &iconName,
+                           const QString &tip, const char *slotName) {
+    auto *button = new CQIconButton;
 
-  app->setGeometry(geom1);
+    button->setObjectName(name);
+    button->setIcon(iconName);
+    button->setIconSize(QSize(32, 32));
+    button->setAutoRaise(true);
+    button->setToolTip(tip);
+    button->setFocusPolicy(Qt::NoFocus);
 
-  if (button->isChecked())
-    control->setFixedWidth(w);
-  else {
-    control->setMinimumWidth(0);
-    control->setMaximumWidth(QWIDGETSIZE_MAX);
-  }
+    connect(button, SIGNAL(clicked()), this, slotName);
+
+    return button;
+  };
+
+  auto addSeparator = [&]() {
+    auto *frame = new QFrame;
+
+    frame->setFixedWidth(16);
+    frame->setFrameStyle(QFrame::VLine);
+
+    return frame;
+  };
+
+  auto addCheckButton = [&](const QString &name, const QString &iconName,
+                            const QString &tip, const char *slotName) {
+    auto *button = new CQIconButton;
+
+    button->setObjectName(name);
+    button->setCheckable(true);
+    button->setIcon(iconName);
+    button->setIconSize(QSize(32, 32));
+    button->setAutoRaise(true);
+    button->setToolTip(tip);
+    button->setFocusPolicy(Qt::NoFocus);
+
+    connect(button, SIGNAL(clicked()), this, slotName);
+
+    return button;
+  };
+
+  //---
+
+  cameraButton_ = addToolButton("camera", "CAMERA", "Mode: Camera", SLOT(cameraSlot()));
+  modelButton_  = addToolButton("model" , "MODEL" , "Mode: Model" , SLOT(modelSlot()));
+  lightButton_  = addToolButton("light" , "LIGHT" , "Mode: Light" , SLOT(lightSlot()));
+
+  layout->addWidget(cameraButton_);
+  layout->addWidget(modelButton_);
+  layout->addWidget(lightButton_);
+
+  layout->addWidget(addSeparator());
+
+  //---
+
+  objectSelectButton_  =
+    addToolButton("objectSelect", "OBJECT_SELECT", "Object Select", SLOT(objectSelectSlot()));
+  faceSelectButton_  =
+    addToolButton("faceSelect"  , "FACE_SELECT"  , "Face Select"  , SLOT(faceSelectSlot()));
+  edgeSelectButton_  =
+    addToolButton("edgeSelect"  , "EDGE_SELECT"  , "Edge Select"  , SLOT(edgeSelectSlot()));
+  pointSelectButton_ =
+    addToolButton("pointSelect" , "POINT_SELECT" , "Point Select" , SLOT(pointSelectSlot()));
+
+  layout->addWidget(objectSelectButton_);
+  layout->addWidget(faceSelectButton_);
+  layout->addWidget(edgeSelectButton_);
+  layout->addWidget(pointSelectButton_);
+
+  layout->addWidget(addSeparator());
+
+  //---
+
+  infoLabel_ = new QLabel(" ");
+
+  layout->addWidget(infoLabel_);
+
+  posLabel_ = new QLabel(" ");
+
+  layout->addWidget(posLabel_);
+
+  layout->addStretch(1);
+
+  //---
+
+  settingsButton_ = addCheckButton("settings", "SETTINGS" , "Settings", SLOT(settingsSlot()));
+
+  layout->addWidget(settingsButton_);
+}
+
+void
+OverviewToolbar3D::
+cameraSlot()
+{
+  overview_->setEditType(CQSandbox::Overview3D::EditType::CAMERA);
+}
+
+void
+OverviewToolbar3D::
+modelSlot()
+{
+  overview_->setEditType(CQSandbox::Overview3D::EditType::SELECT);
+}
+
+void
+OverviewToolbar3D::
+lightSlot()
+{
+  overview_->setEditType(CQSandbox::Overview3D::EditType::LIGHT);
+}
+
+void
+OverviewToolbar3D::
+objectSelectSlot()
+{
+  overview_->setSelectType(CQSandbox::Overview3D::SelectType::OBJECT);
+}
+
+void
+OverviewToolbar3D::
+faceSelectSlot()
+{
+  overview_->setSelectType(CQSandbox::Overview3D::SelectType::FACE);
+}
+
+void
+OverviewToolbar3D::
+edgeSelectSlot()
+{
+  overview_->setSelectType(CQSandbox::Overview3D::SelectType::EDGE);
+}
+
+void
+OverviewToolbar3D::
+pointSelectSlot()
+{
+  overview_->setSelectType(CQSandbox::Overview3D::SelectType::POINT);
+}
+
+void
+OverviewToolbar3D::
+settingsSlot()
+{
+  auto *app     = overview_->app();
+  auto *control = app->control3D();
+
+  control->toggleShown();
 }
 
 }

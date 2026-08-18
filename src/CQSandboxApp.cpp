@@ -9,8 +9,8 @@
 #include <CQSandboxOverview3D.h>
 
 #include <CQTclUtil.h>
+#include <CQTabSplit.h>
 
-#include <QTabWidget>
 #include <QVBoxLayout>
 #include <QFile>
 
@@ -22,6 +22,11 @@
 #include <svg/model_svg.h>
 #include <svg/light_svg.h>
 #include <svg/game_svg.h>
+
+#include <svg/edge_select_svg.h>
+#include <svg/face_select_svg.h>
+#include <svg/object_select_svg.h>
+#include <svg/point_select_svg.h>
 
 #include <svg/wireframe_svg.h>
 #include <svg/solid_fill_svg.h>
@@ -62,30 +67,47 @@ init()
   //---
 
   if (is3D()) {
-    canvas3D_  = new Canvas3D(this);
-    toolbar3D_ = new Toolbar3D(canvas3D_);
-
-    if (isOverview())
-      overview3D_ = new Overview3D(this);
-
-    canvas3D_->init();
-
-    layout->addWidget(toolbar3D_);
     layout->addLayout(clayout);
 
-    if (overview3D_) {
-      tab_ = new QTabWidget;
+    //---
 
-      tab_->addTab(canvas3D_  , "3D");
-      tab_->addTab(overview3D_, "2D");
+    canvas3D_        = new Canvas3D(this);
+    canvasToolbar3D_ = new CanvasToolbar3D(canvas3D_);
+
+    auto *canvasFrame = new QFrame;
+
+    auto *canvasLayout = new QVBoxLayout(canvasFrame);
+    canvasLayout->setMargin(0); canvasLayout->setSpacing(0);
+
+    canvasLayout->addWidget(canvasToolbar3D_);
+    canvasLayout->addWidget(canvas3D_);
+
+    if (isOverview()) {
+      overview3D_        = new Overview3D(this);
+      overviewToolbar3D_ = new OverviewToolbar3D(overview3D_);
+
+      auto *overviewFrame = new QFrame;
+
+      auto *overviewLayout = new QVBoxLayout(overviewFrame);
+      overviewLayout->setMargin(0); overviewLayout->setSpacing(0);
+
+      overviewLayout->addWidget(overviewToolbar3D_);
+      overviewLayout->addWidget(overview3D_);
+
+      //---
+
+      tab_ = new CQTabSplit;
+
+      tab_->setState(CQTabSplit::State::TAB);
+
+      tab_->addWidget(canvasFrame  , "3D");
+      tab_->addWidget(overviewFrame, "2D");
 
       clayout->addWidget(tab_);
     }
     else {
-      clayout->addWidget(canvas3D_);
+      clayout->addWidget(canvasFrame);
     }
-
-    connect(canvas3D_, &Canvas3D::typeChanged, toolbar3D_, &Toolbar3D::updateInfo);
 
     //---
 
@@ -94,6 +116,17 @@ init()
     clayout->addWidget(control3D_);
 
     control3D_->hide();
+
+    //---
+
+    canvas3D_->init();
+
+    if (overview3D_)
+      overview3D_->init();
+
+    control3D_->init();
+
+    connect(canvas3D_, &Canvas3D::typeChanged, canvasToolbar3D_, &CanvasToolbar3D::updateInfo);
   }
   else {
     canvas_    = new Canvas(this);

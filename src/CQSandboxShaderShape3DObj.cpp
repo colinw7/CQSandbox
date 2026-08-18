@@ -35,7 +35,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 ShaderShape3DObj::
 ShaderShape3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::SHADER_SHAPE)
 {
 }
 
@@ -216,7 +216,7 @@ setShaderToyTexture(const QString &file)
 
 bool
 ShaderShape3DObj::
-intersect(const CGLVector3D &p1, const CGLVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
+intersect(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
 {
   if (! shapeData_.geom())
     return false;
@@ -408,7 +408,7 @@ calcNormals()
     normals.resize(np);
 
     for (uint i = 0; i < np; ++i)
-      normals[i] = CGLVector3D(0, 0, 1);
+      normals[i] = CVector3D(0, 0, 1);
 
     shapeData_.setNormals(normals);
   }

@@ -29,6 +29,8 @@ class Model3DObj : public Object3D {
   bool isAutoScale() const { return autoScale_; }
   void setAutoScale(bool b) { autoScale_ = b; }
 
+  CGeomObject3D *object() const { return object_; }
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 

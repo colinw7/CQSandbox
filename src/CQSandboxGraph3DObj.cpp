@@ -34,7 +34,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Graph3DObj::
 Graph3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::GRAPH)
 {
 }
 

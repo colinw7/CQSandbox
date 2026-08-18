@@ -24,26 +24,63 @@ class Control3D : public QFrame {
  public:
   Control3D(Canvas3D *canvas);
 
-  void update();
+  void init();
+
+  void updateWidgets();
+
+  void toggleShown();
+
+ private:
+  void connectLights(bool);
+
+  void updateControl();
+  void updateCamera();
   void updateLights();
   void updateObjects();
+  void updateOverview();
+
+ private:
+  QFrame *addControlFrame();
+  QFrame *addCameraFrame();
+  QFrame *addLightFrame();
+  QFrame *addObjectsFrame();
+  QFrame *addOverviewFrame();
 
  private Q_SLOTS:
+  // control
   void depthTestSlot(int b);
   void cullFaceSlot(int b);
   void frontFaceSlot(int b);
 
   void bgColorSlot(const QColor &c);
 
-  void cameraRotateSlot(int b);
-  void cameraZoomSlot(double r);
+  void ambientColorSlot(const QColor &c);
+  void ambientStrengthSlot();
+  void diffuseSlot();
+  void specularColorSlot(const QColor &c);
+  void specularSlot();
+  void emissiveColorSlot(const QColor &c);
+  void emissiveSlot();
+  void shininessSlot();
+
+  // camera
+//void cameraRotateSlot(int b);
+//void cameraZoomSlot(double r);
+
+  void cameraPitchSlot(double r);
+  void cameraYawSlot(double r);
+  void cameraRollSlot(double r);
+
   void cameraNearSlot(double r);
   void cameraFarSlot(double r);
-  void cameraYawSlot(double r);
-  void cameraPitchSlot(double r);
-  void cameraRollSlot(double r);
+  void cameraFovSlot(double r);
+
+  void cameraOriginSlot();
   void cameraPosSlot();
 
+  void resetCameraSlot();
+
+  // light
   void lightSelectedSlot(QListWidgetItem *, QListWidgetItem *);
 
   void lightCheckSlot(int b);
@@ -52,11 +89,25 @@ class Control3D : public QFrame {
   void lightDirSlot();
   void lightCutoffSlot(double);
   void lightRadiusSlot(double);
+  void resetLightSlot();
 
+  // objects
   void objectSelectedSlot(QListWidgetItem *, QListWidgetItem *);
+
+  // overview
+  void overviewWireframeSlot(int);
+  void overviewSolidSlot(int);
+  void overviewShowCameraSlot(int);
+  void overviewShowLightSlot(int);
+  void overviewShowBasisSlot(int);
 
  private Q_SLOTS:
   void updateSlot();
+
+  void lightAddedSlot();
+
+  void uiSlot();
+
   void closeSlot();
 
  private:
@@ -64,36 +115,67 @@ class Control3D : public QFrame {
 
   QTabWidget* tab_ { nullptr };
 
-  QCheckBox*   depthTestCheck_ { nullptr };
-  QCheckBox*   cullFaceCheck_  { nullptr };
-  QCheckBox*   frontFaceCheck_ { nullptr };
-  CQColorEdit* bgColorEdit_    { nullptr };
+  struct ControlData {
+    QCheckBox*   depthTestCheck      { nullptr };
+    QCheckBox*   cullFaceCheck       { nullptr };
+    QCheckBox*   frontFaceCheck      { nullptr };
+    CQColorEdit* bgColorEdit         { nullptr };
+    CQColorEdit* ambientColorEdit    { nullptr };
+    CQRealSpin*  ambientStrengthEdit { nullptr };
+    CQRealSpin*  diffuseEdit         { nullptr };
+    CQColorEdit* specularColorEdit   { nullptr };
+    CQRealSpin*  specularEdit        { nullptr };
+    CQColorEdit* emissiveColorEdit   { nullptr };
+    CQRealSpin*  emissiveEdit        { nullptr };
+    CQRealSpin*  shininessEdit       { nullptr };
+  };
 
-  QCheckBox*     cameraRotateCheck_ { nullptr };
-  CQRealSpin*    cameraZoomEdit_    { nullptr };
-  CQRealSpin*    cameraNearEdit_    { nullptr };
-  CQRealSpin*    cameraFarEdit_     { nullptr };
-  CQRealSpin*    cameraYawEdit_     { nullptr };
-  CQRealSpin*    cameraPitchEdit_   { nullptr };
-  CQRealSpin*    cameraRollEdit_    { nullptr };
-  CQPoint3DEdit* cameraPosEdit_     { nullptr };
+  ControlData controlData_;
 
-  QListWidget*   lightsList_      { nullptr };
-  QComboBox*     lightTypeCombo_  { nullptr };
-  QCheckBox*     lightCheck_      { nullptr };
-  CQColorEdit*   lightColorEdit_  { nullptr };
-  CQPoint3DEdit* lightPosEdit_    { nullptr };
-  CQPoint3DEdit* lightDirEdit_    { nullptr };
-  CQRealSpin*    lightCutoffEdit_ { nullptr };
-  CQRealSpin*    lightRadiusEdit_ { nullptr };
+  struct CameraData {
+//  QCheckBox*     rotateCheck { nullptr };
+//  CQRealSpin*    zoomEdit    { nullptr };
+    CQRealSpin*    pitchEdit   { nullptr };
+    CQRealSpin*    yawEdit     { nullptr };
+    CQRealSpin*    rollEdit    { nullptr };
+    CQRealSpin*    nearEdit    { nullptr };
+    CQRealSpin*    farEdit     { nullptr };
+    CQRealSpin*    fovEdit     { nullptr };
+    CQPoint3DEdit* originEdit  { nullptr };
+    CQPoint3DEdit* posEdit     { nullptr };
+  };
+
+  CameraData cameraData_;
+
+  struct LightData {
+    QListWidget*   list         { nullptr };
+    QComboBox*     typeCombo    { nullptr };
+    QCheckBox*     enabledCheck { nullptr };
+    CQColorEdit*   colorEdit    { nullptr };
+    CQPoint3DEdit* posEdit      { nullptr };
+    CQPoint3DEdit* dirEdit      { nullptr };
+    CQRealSpin*    cutoffEdit   { nullptr };
+    CQRealSpin*    radiusEdit   { nullptr };
+  };
+
+  LightData lightData_;
 
   QListWidget*        objectsList_ { nullptr };
   CQPropertyViewTree* objectTree_  { nullptr };
 
-  CQRealSpin* ambientEdit_    { nullptr };
-  CQRealSpin* diffuseEdit_    { nullptr };
-  CQRealSpin* specularEdit_   { nullptr };
-  CQRealSpin* shininessEdit_  { nullptr };
+  struct OverviewData {
+    QCheckBox* wireFrameCheck { nullptr };
+    QCheckBox* solidCheck     { nullptr };
+    QCheckBox* cameraCheck    { nullptr };
+    QCheckBox* lightCheck     { nullptr };
+    QCheckBox* basisCheck     { nullptr };
+  };
+
+  OverviewData overviewData_;
+
+  bool shown_         { false };
+  bool needsUpdate_   { false };
+  bool lightsChanged_ { true };
 };
 
 }

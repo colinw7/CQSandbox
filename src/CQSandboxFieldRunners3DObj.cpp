@@ -29,7 +29,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 FieldRunners3DObj::
 FieldRunners3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::FIELD_RUNNERS)
 {
   enum { NUM_ROWS = 15 };
   enum { NUM_COLS = 26 };

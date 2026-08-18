@@ -28,7 +28,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Axis3DObj::
 Axis3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::AXIS)
 {
   path_ = new Path3DObj(canvas);
 
@@ -82,24 +82,24 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if      (value == "x") {
       const auto &xrange = canvas_->xrange();
 
-      start_ = CGLVector3D(-1, -0.5, -0.5);
-      end_   = CGLVector3D( 1, -0.5, -0.5);
+      start_ = CVector3D(-1, -0.5, -0.5);
+      end_   = CVector3D( 1, -0.5, -0.5);
       min_   = xrange.min();
       max_   = xrange.max();
     }
     else if (value == "y") {
       const auto &yrange = canvas_->yrange();
 
-      start_ = CGLVector3D(-0.5, -1, -0.5);
-      end_   = CGLVector3D(-0.5,  1, -0.5);
+      start_ = CVector3D(-0.5, -1, -0.5);
+      end_   = CVector3D(-0.5,  1, -0.5);
       min_   = yrange.min();
       max_   = yrange.max();
     }
     else if (value == "z") {
       const auto &zrange = canvas_->zrange();
 
-      start_ = CGLVector3D(-0.5, -0.5,  1);
-      end_   = CGLVector3D(-0.5, -0.5, -1);
+      start_ = CVector3D(-0.5, -0.5,  1);
+      end_   = CVector3D(-0.5, -0.5, -1);
       min_   = zrange.min();
       max_   = zrange.max();
     }
@@ -180,7 +180,7 @@ updateModelMatrix()
 
   //---
 
-  auto setTextPos = [&](uint i, const CGLVector3D &p) {
+  auto setTextPos = [&](uint i, const CVector3D &p) {
     double x, y, z;
     modelMatrix_.multiplyPoint(p.x(), p.y(), p.z(), &x, &y, &z);
 
@@ -198,7 +198,7 @@ updateModelMatrix()
     auto y = CMathUtil::map(r, 0.0, 1.0, start_.getY(), end_.getY());
     auto z = CMathUtil::map(r, 0.0, 1.0, start_.getZ(), end_.getZ());
 
-    setTextPos(i, CGLVector3D(x, y, z));
+    setTextPos(i, CVector3D(x, y, z));
   }
 }
 

@@ -30,7 +30,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Sprite3DObj::
 Sprite3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::SPRITE)
 {
 }
 
@@ -42,6 +42,15 @@ init()
 
   //---
 
+  initShader();
+
+  updateBuffer();
+}
+
+void
+Sprite3DObj::
+initShader()
+{
   if (! s_program) {
 #if 0
     static const char *vertexShaderSource =
@@ -82,10 +91,6 @@ init()
 
     s_program->link();
   }
-
-  //---
-
-  updateBuffer();
 }
 
 void
@@ -106,6 +111,16 @@ updateBuffer()
   buffer_->load();
 }
 
+CQGLTexture *
+Sprite3DObj::
+texture() const
+{
+  if (textures_.empty())
+    return nullptr;
+
+  return textures_[0];
+}
+
 void
 Sprite3DObj::
 setTexture(CQGLTexture *texture)
@@ -113,6 +128,18 @@ setTexture(CQGLTexture *texture)
   textures_.clear();
 
   textures_.push_back(texture);
+}
+
+CQGLTexture *
+Sprite3DObj::
+currentTexture() const
+{
+  int textureNum = textureNum_ + textureStart_;
+
+  if (textureNum >= 0 && textureNum < int(textures_.size()))
+    return textures_[textureNum];
+
+  return nullptr;
 }
 
 bool
@@ -225,10 +252,10 @@ render()
 
   glActiveTexture(GL_TEXTURE0);
 
-  int textureNum = textureNum_ + textureStart_;
+  auto *texture = currentTexture();
 
-  if (textureNum >= 0 && textureNum < int(textures_.size()))
-    textures_[textureNum]->bind();
+  if (texture)
+    texture->bind();
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

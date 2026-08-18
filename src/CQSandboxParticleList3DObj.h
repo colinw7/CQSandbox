@@ -5,6 +5,7 @@
 #include <CQSandboxShaderProgram.h>
 
 #include <CGLColor.h>
+#include <CGLVector3D.h>
 
 #ifdef CQSANDBOX_FLOCKING
 class CFlocking;

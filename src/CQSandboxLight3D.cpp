@@ -11,8 +11,9 @@ ShaderProgram* Light3D::s_program;
 
 Light3D::
 Light3D(Canvas3D *canvas, const Type &type) :
- canvas_(canvas), type_(type)
+ CGeomLight3D(canvas->scene()), canvas_(canvas)
 {
+  setType(type);
 }
 
 Light3D::
@@ -80,11 +81,12 @@ render()
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
-  auto lightMatrix = CGLMatrix3D::translation(position());
-  lightMatrix.scaled(0.01f, 0.01f, 0.01f);
+  auto lightMatrix =
+    CMatrix3D::translation(getPosition().getX(), getPosition().getY(), getPosition().getZ());
+  lightMatrix.scaled(0.01, 0.01, 0.01);
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(lightMatrix));
 
-  s_program->setUniformValue("color", CQGLUtil::toVector(color()));
+  s_program->setUniformValue("color", CQGLUtil::toVector(getDiffuse()));
 
   // draw light
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -93,6 +95,13 @@ render()
   s_program->release();
 
   buffer_->unbind();
+}
+
+void
+Light3D::
+notifyChanged()
+{
+  Q_EMIT changedSignal();
 }
 
 }

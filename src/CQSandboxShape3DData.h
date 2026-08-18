@@ -1,8 +1,8 @@
 #ifndef CQSandboxShape3DData_H
 #define CQSandboxShape3DData_H
 
-#include <CGLVector3D.h>
-#include <CGLVector2D.h>
+#include <CVector2D.h>
+#include <CVector3D.h>
 
 #include <vector>
 
@@ -12,17 +12,16 @@ namespace CQSandbox {
 
 class Shape3DData {
  public:
-  using Points    = std::vector<CGLVector3D>;
+  using Points    = std::vector<CVector3D>;
   using Indices   = std::vector<unsigned int>;
-  using TexCoords = std::vector<CGLVector2D>;
+  using TexCoords = std::vector<CVector2D>;
 
   struct VertexData {
-    CGLVector3D position;
-    CGLVector3D normal;
-    CGLVector2D texCoord;
+    CVector3D position;
+    CVector3D normal;
+    CVector2D texCoord;
 
-    VertexData(const CGLVector3D &position, const CGLVector3D &normal,
-               const CGLVector2D &texCoord) :
+    VertexData(const CVector3D &position, const CVector3D &normal, const CVector2D &texCoord) :
      position(position), normal(normal), texCoord(texCoord) {
     }
   };

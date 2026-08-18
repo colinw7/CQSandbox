@@ -37,6 +37,8 @@ class CGLCamera {
   CGLCamera(float posX, float posY, float posZ, float upX, float upY, float upZ,
             float yaw, float pitch);
 
+  virtual ~CGLCamera() { }
+
   //---
 
   bool isRotate() const { return rotate_; }
@@ -45,7 +47,10 @@ class CGLCamera {
   //---
 
   const CGLVector3D &position() const { return position_; }
-  void setPosition(const CGLVector3D &p);
+  virtual void setPosition(const CGLVector3D &p);
+
+  const CGLVector3D &origin() const { return origin_; }
+  virtual void setOrigin(const CGLVector3D &p);
 
   // returns the view matrix calculated using Euler Angles and the LookAt Matrix
   const CGLMatrix3D &getViewMatrix() const { return viewMatrix_; }
@@ -101,19 +106,29 @@ class CGLCamera {
 
   float deltaTime() const;
 
-  const CGLVector3D &up() const { return up_; }
+  //---
+
+  const CGLVector3D &front() const { return front_; }
+  const CGLVector3D &up   () const { return up_   ; }
   const CGLVector3D &right() const { return right_; }
 
   float yaw() const { return yaw_; }
-  void setYaw(float a);
+  virtual void setYaw(float a);
 
   float pitch() const { return pitch_; }
-  void setPitch(float a);
+  virtual void setPitch(float a);
 
   float roll() const { return roll_; }
-  void setRoll(float r);
+  virtual void setRoll(float r);
+
+  //---
+
+  virtual void notifyChanged() { }
 
  private:
+  CGLCamera(const CGLCamera &) = delete;
+  CGLCamera &operator=(const CGLCamera &) = delete;
+
   void init(const CGLVector3D &position, const CGLVector3D &up, float yaw, float pitch);
   void init();
 

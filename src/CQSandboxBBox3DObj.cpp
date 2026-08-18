@@ -28,7 +28,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 BBox3DObj::
 BBox3DObj(Canvas3D *canvas) :
- Object3D(canvas)
+ Object3D(canvas, Type::BBOX)
 {
 }
 

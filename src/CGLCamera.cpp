@@ -43,6 +43,19 @@ setPosition(const CGLVector3D &p)
   position_ = p;
 
   updateViewMatrix();
+
+  notifyChanged();
+}
+
+void
+CGLCamera::
+setOrigin(const CGLVector3D &p)
+{
+  origin_ = p;
+
+  updateViewMatrix(true);
+
+  notifyChanged();
 }
 
 void
@@ -50,6 +63,8 @@ CGLCamera::
 setZoom(float z)
 {
   zoom_ = z;
+
+  notifyChanged();
 }
 
 CGLMatrix3D
@@ -102,6 +117,8 @@ moveLeft(float deltaTime)
   position_ -= right_*velocity;
 
   updateViewMatrix();
+
+  notifyChanged();
 }
 
 void
@@ -113,6 +130,8 @@ moveRight(float deltaTime)
   position_ += right_*velocity;
 
   updateViewMatrix();
+
+  notifyChanged();
 }
 
 void
@@ -124,6 +143,8 @@ moveUp(float deltaTime)
   position_ -= up_*velocity;
 
   updateViewMatrix();
+
+  notifyChanged();
 }
 
 void
@@ -135,6 +156,8 @@ moveDown(float deltaTime)
   position_ += up_*velocity;
 
   updateViewMatrix();
+
+  notifyChanged();
 }
 
 void
@@ -144,6 +167,8 @@ rotateLeft(float deltaAngle)
   yaw_ += deltaAngle;
 
   updateCameraVectors(/*rotate*/true);
+
+  notifyChanged();
 }
 
 void
@@ -153,6 +178,8 @@ rotateRight(float deltaAngle)
   yaw_ -= deltaAngle;
 
   updateCameraVectors(/*rotate*/true);
+
+  notifyChanged();
 }
 
 void
@@ -162,6 +189,8 @@ rotateUp(float deltaAngle)
   pitch_ += deltaAngle;
 
   updateCameraVectors(/*rotate*/true);
+
+  notifyChanged();
 }
 
 void
@@ -171,6 +200,8 @@ rotateDown(float deltaAngle)
   pitch_ -= deltaAngle;
 
   updateCameraVectors(/*rotate*/true);
+
+  notifyChanged();
 }
 
 void
@@ -182,6 +213,8 @@ moveIn(float deltaTime)
   position_ += front_*velocity;
 
   updateViewMatrix();
+
+  notifyChanged();
 }
 
 void
@@ -193,6 +226,8 @@ moveOut(float deltaTime)
   position_ -= front_*velocity;
 
   updateViewMatrix();
+
+  notifyChanged();
 }
 
 void
@@ -215,6 +250,8 @@ processMouseMovement(float xoffset, float yoffset, bool constrainPitch)
 
   // update front_, right_ and up_ Vectors using the updated Euler angles
   updateCameraVectors();
+
+  notifyChanged();
 }
 
 void
@@ -227,6 +264,8 @@ processMouseScroll(float yoffset)
     zoom_ = 1.0f;
   if (zoom_ > 90.0f)
     zoom_ = 90.0f;
+
+  notifyChanged();
 }
 
 void
@@ -270,6 +309,8 @@ setYaw(float a)
   yaw_ = a;
 
   updateCameraVectors();
+
+  notifyChanged();
 }
 
 void
@@ -279,6 +320,8 @@ setPitch(float a)
   pitch_ = a;
 
   updateCameraVectors();
+
+  notifyChanged();
 }
 
 void
@@ -290,6 +333,8 @@ setRoll(float a)
                          0.0);
 
   updateCameraVectors();
+
+  notifyChanged();
 }
 
 void
