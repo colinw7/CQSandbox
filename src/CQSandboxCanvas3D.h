@@ -16,11 +16,11 @@
 #include <QFrame>
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
-#include <QOpenGLShaderProgram>
 
 class CGeomScene3D;
 class CGeomObject3D;
 class CGeomFace3D;
+class CQGLBuffer;
 
 class QTimer;
 
@@ -31,7 +31,6 @@ class QTimer;
 namespace CQSandbox {
 
 class App;
-//class ShaderProgram;
 class ShaderToyProgram;
 class Light3D;
 class Path3DObj;
@@ -125,14 +124,30 @@ class Canvas3D : public OpenGLWindow {
 
   using Objects = std::vector<Object3D *>;
 
- public:
-  static QString buildDir() { return s_buildDir; }
-
   //---
 
+  enum { NUM_NODE_MATRICES = 128 };
+
+  using NodeMatrices       = std::map<int, CMatrix3D>;
+  using ObjectNodeMatrices = std::map<uint, NodeMatrices>;
+
+  using FrameMatrix = std::map<int, CMatrix3DH>;
+
+  struct ObjectMeshData {
+    double tmin { 0.0 };
+    double tmax { 1.0 };
+    int    nt   { 10 };
+    double dt   { 0.1 };
+
+    FrameMatrix frameMatrix;
+  };
+
+ public:
   Canvas3D(App *app);
 
   App *app() const { return app_; }
+
+  int ind() const { return 0; }
 
   //---
 
@@ -187,6 +202,9 @@ class Canvas3D : public OpenGLWindow {
 
   bool isEyeLineVisible() const { return eyeLineVisible_; }
   void setEyeLineVisible(bool b) { eyeLineVisible_ = b; }
+
+  bool isAnimEnabled() const { return animEnabled_; }
+  void setAnimEnabled(bool b) { animEnabled_ = b; }
 
   //---
 
@@ -287,6 +305,15 @@ class Canvas3D : public OpenGLWindow {
 
   void render() override;
 
+  void bindBuffer (CQGLBuffer *buffer);
+  void bindProgram(ShaderProgram *program);
+
+  bool addObjectMeshData(CGeomObject3D *object, CMatrix3DH &meshMatrix);
+
+  bool hasObjectMeshData(CGeomObject3D *object) const;
+
+  ObjectMeshData &getObjectMeshData(CGeomObject3D *object);
+
   //---
 
   void mousePressEvent  (QMouseEvent *e) override;
@@ -327,6 +354,25 @@ class Canvas3D : public OpenGLWindow {
 
   void resetCamera();
 
+  //---
+
+  void updateNodeMatrices(CGeomObject3D *object);
+
+  const NodeMatrices &getObjectNodeMatrices(CGeomObject3D *object) const;
+
+  const ObjectNodeMatrices &getNodeMatrices() const;
+
+  ObjectNodeMatrices calcNodeMatrices() const;
+
+  void invalidateNodeMatrices() { objectNodeMatricesValid_ = false; }
+
+  QMatrix4x4 *nodeQMatrices() const;
+  int numNodeQMatrices() const { return NUM_NODE_MATRICES; }
+
+  //---
+
+  std::vector<CGeomObject3D *> getAnimObjects() const;
+
  private:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
@@ -366,6 +412,21 @@ class Canvas3D : public OpenGLWindow {
   void lightAdded();
 
  private:
+  struct PaintData {
+    CGeomObject3D*          animObject { nullptr };
+    std::vector<CMatrix3D>  nodeMatrices;
+    std::vector<QMatrix4x4> nodeQMatrices;
+
+    void reset() {
+      animObject = nullptr;
+
+      nodeMatrices .clear();
+      nodeQMatrices.clear();
+    }
+  };
+
+  //---
+
   struct MouseData {
     bool            pressed   { false };
     bool            isShift   { false };
@@ -378,7 +439,9 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  static QString s_buildDir;
+  using ObjectMeshDataMap = std::map<CGeomObject3D *, ObjectMeshData>;
+
+  //---
 
   using Points = std::vector<CVector3D>;
 
@@ -407,6 +470,7 @@ class Canvas3D : public OpenGLWindow {
   bool textured_       { true };
   bool showBBox_       { false };
   bool eyeLineVisible_ { false };
+  bool animEnabled_    { true };
 
   Type type_ { Type::CAMERA };
 
@@ -429,6 +493,9 @@ class Canvas3D : public OpenGLWindow {
 
   // interaction
   MouseData mouseData_;
+
+  CQGLBuffer*    currentBuffer_  { nullptr };
+  ShaderProgram* currentProgram_ { nullptr };
 
   //---
 
@@ -454,12 +521,22 @@ class Canvas3D : public OpenGLWindow {
 
   Objects objects_;
   Objects allObjects_;
+  bool    objectsValid_ { false };
 
   Points intersectPoints_;
 
   QStringList modelDirs_;
 
   bool ignoreChange_ { false };
+
+  //---
+
+  PaintData paintData_;
+
+  ObjectMeshDataMap objectMeshData_;
+
+  ObjectNodeMatrices objectNodeMatrices_;
+  bool               objectNodeMatricesValid_ { false };
 
   //---
 

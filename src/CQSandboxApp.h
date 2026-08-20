@@ -28,6 +28,10 @@ class App : public QFrame {
   Q_OBJECT
 
  public:
+  static QString buildDir() { return s_buildDir; }
+
+  //---
+
   App(QWidget *parent=nullptr);
 
   CQTcl *tcl() const { return tcl_; }
@@ -65,7 +69,15 @@ class App : public QFrame {
 
   bool errorMsg(const QString &msg) const;
 
+  //---
+
+  void showMetaEdit();
+  void showPerfDialog();
+  void showAppOptions();
+
  private:
+  static QString s_buildDir;
+
   CQTcl* tcl_ { nullptr };
 
   bool initialized_ { false };

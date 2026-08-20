@@ -61,6 +61,11 @@ class ShaderProgram {
   }
 
   template<typename T>
+  void setUniformValueArray(const char *name, const T *values, int count) {
+    program_->setUniformValueArray(name, values, count);
+  }
+
+  template<typename T>
   void setAttributeArray(int name, const T &value) {
     program_->setAttributeArray(name, value);
   }

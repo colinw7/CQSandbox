@@ -48,10 +48,12 @@ init()
   //---
 
   if (! s_program) {
+    auto *app = canvas_->app();
+
     s_program = new ShaderProgram(this);
 
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/shader_shape.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/shader_shape.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/shader_shape.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/shader_shape.fs");
 
     s_program->link();
   }
@@ -430,7 +432,8 @@ preRender()
 
     auto *program = shaderToyData_.program->program();
 
-    program->bind();
+    //program->bind();
+    canvas_->bindProgram(program);
 
     //---
 
@@ -461,7 +464,7 @@ preRender()
 
     //---
 
-    program->release();
+    //program->release();
 
     //---
 
@@ -492,7 +495,8 @@ render()
 
   //---
 
-  s_program->bind();
+  //s_program->bind();
+  canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));

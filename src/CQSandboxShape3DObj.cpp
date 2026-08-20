@@ -133,14 +133,16 @@ initShader()
       "}\n";
 #endif
 
+    auto *app = canvas_->app();
+
     s_program = new ShaderProgram(this);
 
 #if 0
     s_program->addVertexCode  (vertexShaderSource);
     s_program->addFragmentCode(fragmentShaderSource);
 #else
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/shape.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/shape.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/shape.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/shape.fs");
 #endif
 
     s_program->link();
@@ -594,7 +596,8 @@ render()
   auto lightPos   = light->getPosition();
   auto lightColor = light->getDiffuse();
 
-  s_program->bind();
+  //s_program->bind();
+  canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
 
@@ -617,7 +620,8 @@ render()
 #if 0
   canvas_->glBindVertexArray(vertexArrayId_);
 #else
-  buffer_->bind();
+  //buffer_->bind();
+  canvas_->bindBuffer(buffer_);
 #endif
 
   //---
@@ -664,7 +668,7 @@ render()
 #if 0
   //canvas_->glBindVertexArray(0);
 #else
-  buffer_->unbind();
+  //buffer_->unbind();
 #endif
 }
 

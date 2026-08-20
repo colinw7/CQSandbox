@@ -383,17 +383,19 @@ init()
       "}\n";
 #endif
 
+    auto *app = canvas_->app();
+
     s_program = new ParticleListShaderProgram(this);
 
 #if 0
     s_program->addVertexCode  (vertexShaderSource);
     s_program->addFragmentCode(fragmentShaderSource);
 #else
-    //s_program->addVertexFile  (canvas_->buildDir() + "/shaders/particle_list.vs");
-    //s_program->addFragmentFile(canvas_->buildDir() + "/shaders/particle_list.fs");
+    //s_program->addVertexFile  (app->buildDir() + "/shaders/particle_list.vs");
+    //s_program->addFragmentFile(app->buildDir() + "/shaders/particle_list.fs");
 
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/particle_list_billboard.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/particle_list_billboard.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/particle_list_billboard.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/particle_list_billboard.fs");
 #endif
 
     s_program->link();
@@ -658,7 +660,7 @@ render()
   // but faster.
   canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, n);
 
-  s_program->release();
+  //s_program->release();
 }
 
 }

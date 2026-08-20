@@ -3,8 +3,10 @@
 #include <CQSandboxBBox3DObj.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxGeomObject.h>
+#include <CQSandboxTexture.h>
 #include <CQSandboxUtil.h>
 
+#include <CQGLTexture.h>
 #include <CQGLBuffer.h>
 #include <CQGLUtil.h>
 #include <CGLTexture.h>
@@ -26,7 +28,8 @@ Object3D *
 Model3DObj::
 create(Canvas3D *canvas, const QStringList &args)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *app = canvas->app();
+  auto *tcl = app->tcl();
 
   auto *obj = new Model3DObj(canvas);
 
@@ -50,8 +53,10 @@ Model3DObj::
 Model3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::MODEL)
 {
-  vertShaderFile_ = canvas_->buildDir() + "/shaders/model.vs";
-  fragShaderFile_ = canvas_->buildDir() + "/shaders/model.fs";
+  auto *app = canvas_->app();
+
+  vertShaderFile_ = app->buildDir() + "/shaders/model.vs";
+  fragShaderFile_ = app->buildDir() + "/shaders/model.fs";
 }
 
 void
@@ -73,7 +78,7 @@ bool
 Model3DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  if (name == "ref_object") {
+  if      (name == "ref_object") {
     if (! object_)
       return false;
 
@@ -121,7 +126,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     CFile imageFile(filename.toStdString());
 
     if (! imageFile.exists())
-      return static_cast<CGLTexture *>(nullptr);
+      return static_cast<CQGLTexture *>(nullptr);
 
     CImageFileSrc src(imageFile);
 
@@ -130,7 +135,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (flipY)
       image = image->flippedH();
 
-    return new CGLTexture(image);
+    auto *texture = dynamic_cast<Texture *>(CGeometry3DInst->createTexture(image));
+
+    return texture->glTexture(canvas_);
   };
 
   auto resetShader = [&]() {
@@ -173,6 +180,52 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     resetShader();
   }
+  else if (name == "anim.name") {
+    auto *geomObject = dynamic_cast<GeomObject *>(object_);
+
+    auto *geomObject1 = geomObject;
+
+    if (geomObject->refObject()) {
+      geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+      assert(geomObject1);
+    }
+
+    geomObject1->setAnimName(value.toStdString());
+  }
+  else if (name == "anim.repeat") {
+    auto *geomObject = dynamic_cast<GeomObject *>(object_);
+
+    auto *geomObject1 = geomObject;
+
+    if (geomObject->refObject()) {
+      geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+      assert(geomObject1);
+    }
+
+    geomObject1->setAnimRepeat(Util::stringToBool(value));
+  }
+  else if (name == "anim.step") {
+    auto *geomObject = dynamic_cast<GeomObject *>(object_);
+
+    auto *geomObject1 = geomObject;
+
+    if (geomObject->refObject()) {
+      geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+      assert(geomObject1);
+    }
+
+    geomObject1->setAnimTimeStep(Util::stringToReal(value));
+  }
+  else if (name == "child.visible") {
+    if (args.size() < 1)
+      return false;
+
+    auto *child = object_->getChildOfName(value.toStdString());
+    if (! child) return false;
+
+    child->setVisible(Util::stringToBool(args[0]));
+
+  }
   else
     return Object3D::setValue(name, value, args);
 
@@ -183,7 +236,8 @@ bool
 Model3DObj::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
-  auto *tcl = canvas_->app()->tcl();
+  auto *app = canvas_->app();
+  auto *tcl = app->tcl();
 
   if      (op == "translate") {
     if (args.size() < 1)
@@ -246,6 +300,8 @@ load(const QString &filename)
 
   //---
 
+  auto *app = canvas_->app();
+
   filename_ = filename;
 
   QFileInfo fi(filename);
@@ -256,7 +312,7 @@ load(const QString &filename)
   auto *im = CImportBase::createModel(type);
 
   if (! im)
-    return canvas_->app()->errorMsg(QString("Invalid model type for '%1'").arg(filename_));
+    return app->errorMsg(QString("Invalid model type for '%1'").arg(filename_));
 
   for (const auto &dir : canvas_->modelDirs())
     im->addModelDir(dir.toStdString());
@@ -264,7 +320,7 @@ load(const QString &filename)
   CFile file(filename_.toStdString());
 
   if (! im->read(file)) {
-    (void) canvas_->app()->errorMsg(QString("Failed to load file '%1'").arg(filename_));
+    (void) app->errorMsg(QString("Failed to load file '%1'").arg(filename_));
     delete im;
     return false;
   }
@@ -334,8 +390,9 @@ tick()
 
 void
 Model3DObj::
-setModelMatrix(uint matrixFlags)
+setModelMatrix(uint /*matrixFlags*/)
 {
+#if 0
   if (transformed_) {
     modelMatrix_ = CMatrix3DH(object_->getHierTransform());
   }
@@ -359,6 +416,7 @@ setModelMatrix(uint matrixFlags)
     if (matrixFlags & ModelMatrixFlags::TRANSLATE)
       modelMatrix_.translated(-c.getX(), -c.getY(), -c.getZ());
   }
+#endif
 }
 
 void
@@ -381,51 +439,39 @@ render()
 
   //---
 
-  setModelMatrix();
+  //setModelMatrix();
 
   auto t = 1.0*ticks_/100.0;
 
-  if (t >= 1.0)
+  if      (dt_ > 0 && t >= 1.0)
+    dt_ = -dt_;
+  else if (dt_ < 0 && t <= 0.0)
     dt_ = -dt_;
 
-  drawObject(object_, t);
+  drawObject(object_, elapsed_);
 }
 
 void
 Model3DObj::
-drawObject(CGeomObject3D *object, double t)
+initDraw(double t)
 {
-  auto *geomObject = dynamic_cast<GeomObject *>(object);
-
-  auto *geomObject1 = geomObject;
-
-  if (geomObject->refObject()) {
-    geomObject1 = dynamic_cast<GeomObject *>(object->refObject());
-    assert(geomObject1);
-
-    if (! geomObject1->buffer())
-      updateObject(geomObject1);
-  }
-
-  auto *buffer = geomObject1->buffer();
-
-  bool textured = canvas_->isTextured();
-
-  //---
-
-  // setup model shader
-  buffer->bind();
-
-  s_program->bind();
+  //s_program->bind();
+  canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("ticks", float(t));
 
-  canvas_->setProgramLights(s_program);
+  // camera projection
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
 
+  // camera/view transformation
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+
+  // view pos
   s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
 
   //---
 
+  // light data
   s_program->setUniformValue("ambientColor"    , CQGLUtil::toVector(canvas_->ambientColor()));
   s_program->setUniformValue("ambientStrength" , float(canvas_->ambientStrength()));
 
@@ -439,16 +485,82 @@ drawObject(CGeomObject3D *object, double t)
 
   s_program->setUniformValue("shininess", float(canvas_->shininess())); // per face ?
 
+  canvas_->setProgramLights(s_program);
+}
+
+void
+Model3DObj::
+drawObject(CGeomObject3D *object, double t)
+{
+  initDraw(t);
+
   //---
 
-  // pass projection matrix to shader (note that in this case it could change every frame)
-  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
+  auto *geomObject = dynamic_cast<GeomObject *>(object);
 
-  // camera/view transformation
-  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  auto *geomObject1 = geomObject;
 
-  // model rotation
-  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  if (geomObject->refObject()) {
+    geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+    assert(geomObject1);
+
+    if (! geomObject1->buffer())
+      updateObject(geomObject1);
+  }
+
+  //---
+
+  auto *animObject = geomObject1->getAnimObject();
+
+  bool isAnim = false;
+
+  if (canvas_->isAnimEnabled())
+    isAnim = (animObject && animObject->animName() != "");
+
+  // mesh matrix
+  CMatrix3DH meshMatrix;
+  bool       hasMeshMatrix { false };
+
+  if (isAnim)
+    hasMeshMatrix = canvas_->addObjectMeshData(geomObject1, meshMatrix);
+
+  if (! hasMeshMatrix)
+    meshMatrix = CMatrix3DH(object->getMeshGlobalTransform());
+
+  s_program->setUniformValue("meshMatrix", CQGLUtil::toQMatrix(meshMatrix));
+
+  //---
+
+  // model matrix
+  auto modelMatrix = CMatrix3DH(object->getHierTransform());
+
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
+
+  //---
+
+  // anim
+  s_program->setUniformValue("useBonePoints", isAnim);
+
+  if (isAnim) {
+    canvas_->updateNodeMatrices(geomObject1);
+
+    s_program->setUniformValueArray("globalBoneTransform",
+      canvas_->nodeQMatrices(), canvas_->numNodeQMatrices());
+  }
+
+  //---
+
+  // setup data buffer
+  auto *buffer = geomObject1->buffer();
+
+  //buffer->bind();
+  canvas_->bindBuffer(buffer);
+
+  //---
+
+  bool textured = canvas_->isTextured();
+
+  //---
 
   // render model
   for (const auto &faceData : geomObject1->faceDatas()) {
@@ -471,26 +583,7 @@ drawObject(CGeomObject3D *object, double t)
 
     //---
 
-    // specular (texture 1)
-    auto *specularTexture = faceData.specularTexture;
-
-    if (! specularTexture)
-      specularTexture = specularTexture_;
-
-    bool useSpecularTexture = !!specularTexture;
-
-    s_program->setUniformValue("specularTexture.enabled", textured && useSpecularTexture);
-
-    if (useSpecularTexture) {
-      glActiveTexture(GL_TEXTURE1);
-      specularTexture->bind();
-
-      s_program->setUniformValue("specularTexture.texture", 1);
-    }
-
-    //---
-
-    // normal (texture 2)
+    // normal (texture 1)
     auto *normalTexture = faceData.normalTexture;
 
     if (! normalTexture)
@@ -501,10 +594,29 @@ drawObject(CGeomObject3D *object, double t)
     s_program->setUniformValue("normalTexture.enabled", textured && useNormalTexture);
 
     if (useNormalTexture) {
-      glActiveTexture(GL_TEXTURE2);
+      glActiveTexture(GL_TEXTURE1);
       normalTexture->bind();
 
-      s_program->setUniformValue("normalTexture.texture", 2);
+      s_program->setUniformValue("normalTexture.texture", 1);
+    }
+
+    //---
+
+    // specular (texture 2)
+    auto *specularTexture = faceData.specularTexture;
+
+    if (! specularTexture)
+      specularTexture = specularTexture_;
+
+    bool useSpecularTexture = !!specularTexture;
+
+    s_program->setUniformValue("specularTexture.enabled", textured && useSpecularTexture);
+
+    if (useSpecularTexture) {
+      glActiveTexture(GL_TEXTURE2);
+      specularTexture->bind();
+
+      s_program->setUniformValue("specularTexture.texture", 2);
     }
 
     //---
@@ -520,11 +632,19 @@ drawObject(CGeomObject3D *object, double t)
     s_program->setUniformValue("emissiveTexture.enabled", textured && useEmissiveTexture);
 
     if (useEmissiveTexture) {
-      glActiveTexture(GL_TEXTURE2);
+      glActiveTexture(GL_TEXTURE3);
       emissiveTexture->bind();
 
-      s_program->setUniformValue("emissiveTexture.texture", 2);
+      s_program->setUniformValue("emissiveTexture.texture", 3);
     }
+
+    //---
+
+#if 0
+    s_program->setUniformValue("emissionColor", CQGLUtil::toVector(faceData.emission));
+    s_program->setUniformValue("shininess"    , float(faceData.shininess));
+    s_program->setUniformValue("transparency" , float(1.0 - transparency));
+#endif
 
     //---
 
@@ -546,12 +666,16 @@ drawObject(CGeomObject3D *object, double t)
     }
   }
 
-  buffer->unbind();
+  //buffer->unbind();
 
   //---
 
-  for (auto *child : object->children())
+  for (auto *child : geomObject->children()) {
+    if (! child->getVisible())
+      continue;
+
     drawObject(child, t);
+  }
 }
 
 void
@@ -601,12 +725,75 @@ updateObject(CGeomObject3D *object)
 {
   auto *geomObject = dynamic_cast<GeomObject *>(object);
 
-  if (object->refObject())
+  if (geomObject->refObject())
     return;
+
+  //---
+
+  int    boneNodeIds[4];
+  double boneWeights[4];
+
+  //---
+
+  auto modelMatrix = CMatrix3DH(object->getHierTransform());
+  auto meshMatrix  = CMatrix3DH(object->getMeshGlobalTransform());
+
+  //---
+
+  auto *animObject = object->getAnimObject();
+
+  auto animName = (animObject ? animObject->animName() : "");
+
+  bool isAnim = false;
+
+  if (canvas_->isAnimEnabled())
+    isAnim = (animObject && animName != "");
+
+  //double animTime { 0.0 };
+
+  if (isAnim) {
+    //animTime = animObject->animTime();
+
+    auto meshNodeId = object->getMeshNode();
+
+    CGeomNodeData *node = nullptr;
+
+    if (meshNodeId >= 0)
+      node = const_cast<CGeomNodeData *>(&animObject->getNode(meshNodeId));
+
+    auto isJointed = (node && object->isJointed());
+
+    if (node && ! isJointed) {
+      auto &objectMeshData = canvas_->getObjectMeshData(object);
+
+      objectMeshData.nt = object->animTimeFrames();
+
+      (void) animObject->getAnimationTranslationRange(animName,
+               objectMeshData.tmin, objectMeshData.tmax);
+
+      if (objectMeshData.nt > 1)
+        objectMeshData.dt = (objectMeshData.tmax - objectMeshData.tmin)/(objectMeshData.nt - 1);
+      else
+        objectMeshData.dt = (objectMeshData.tmax - objectMeshData.tmin);
+
+      for (int i = 0; i < objectMeshData.nt; ++i) {
+        auto animTime1 = objectMeshData.tmin + i*objectMeshData.dt;
+
+        auto meshMatrix1 =
+          CMatrix3DH(object->getNodeAnimHierTransform(*node, animName, animTime1));
+
+        objectMeshData.frameMatrix[i] = meshMatrix1;
+      }
+    }
+  }
+
+  //---
 
   auto *buffer = geomObject->initBuffer(canvas_);
 
   //---
+
+  auto *objectMaterial = object->getMaterialP();
 
   auto *diffuseTexture  = object->getDiffuseTexture();
   auto *specularTexture = object->getSpecularTexture();
@@ -615,9 +802,50 @@ updateObject(CGeomObject3D *object)
 
   //---
 
-  const auto &faces = object->getFaces();
+  auto makeTexture = [&](const CImagePtr &image) {
+    auto *texture = new CQGLTexture(image);
+
+    texture->setFunctions(const_cast<Canvas3D *>(canvas_));
+
+    return texture;
+  };
+
+  auto initGLTexture = [&](Texture *texture) {
+    const auto &image = texture->image()->image();
+
+    auto flippedImage = image->dup();
+
+    flippedImage->flipH();
+
+    auto *t1 = makeTexture(image);
+    auto *t2 = makeTexture(flippedImage);
+
+    t1->setName(texture->name());
+    t2->setName(texture->name() + ".flip");
+
+    texture->setGlTextures(canvas_, t1, t2);
+  };
+
+  auto getGLTexture = [&](CGeomTexture *texture, bool /*add*/) {
+    auto *texture1 = dynamic_cast<Texture *>(texture);
+    assert(texture1);
+
+    if (! texture1->glTexture(canvas_)) {
+      //if (! add) return nullptr;
+
+      initGLTexture(texture1);
+    }
+
+    return texture1->glTexture(canvas_);
+  };
+
+  //---
+
+  CBBox3D bbox1;
 
   int pos = 0;
+
+  const auto &faces = geomObject->getFaces();
 
   for (const auto *face : faces) {
     FaceData faceData;
@@ -626,146 +854,167 @@ updateObject(CGeomObject3D *object)
 
     //---
 
-    auto color = face->getColor();
+    auto *faceMaterial = faceData.face->getMaterialP();
+
+    if (! faceMaterial && objectMaterial)
+      faceMaterial = objectMaterial;
+
+    //---
+
+    auto color = face->color().value_or(CRGBA(1, 1, 1));
+
+    if (faceMaterial && faceMaterial->diffuse())
+      color = faceMaterial->diffuse().value();
 
     faceData.color = Util::RGBAToQColor(color);
 
     //---
 
-    auto *diffuseTexture1 = face->getDiffuseTexture();
-
-    if (! diffuseTexture1)
-      diffuseTexture1 = diffuseTexture;
-
+    // set face textures
+    auto *diffuseTexture1  = face->getDiffuseTexture();
+    auto *normalTexture1   = face->getNormalTexture();
     auto *specularTexture1 = face->getSpecularTexture();
-
-    if (! specularTexture1)
-      specularTexture1 = specularTexture;
-
-    auto *normalTexture1 = face->getNormalTexture();
-
-    if (! normalTexture1)
-      normalTexture1 = normalTexture;
-
     auto *emissiveTexture1 = face->getEmissiveTexture();
 
-    if (! emissiveTexture1)
-      emissiveTexture1 = emissiveTexture;
+    if (! diffuseTexture1 ) diffuseTexture1  = diffuseTexture;
+    if (! normalTexture1  ) normalTexture1   = normalTexture;
+    if (! specularTexture1) specularTexture1 = specularTexture;
+    if (! emissiveTexture1) emissiveTexture1 = emissiveTexture;
+
+    if (faceMaterial) {
+      if (faceMaterial->diffuseTexture ()) diffuseTexture1  = faceMaterial->diffuseTexture ();
+      if (faceMaterial->normalTexture  ()) normalTexture1   = faceMaterial->normalTexture  ();
+      if (faceMaterial->specularTexture()) specularTexture1 = faceMaterial->specularTexture();
+      if (faceMaterial->emissiveTexture()) emissiveTexture1 = faceMaterial->emissiveTexture();
+    }
+
+    if (diffuseTexture1)
+      faceData.diffuseTexture = getGLTexture(diffuseTexture1, /*add*/true);
+
+    if (normalTexture1)
+      faceData.normalTexture = getGLTexture(normalTexture1, /*add*/true);
+
+    if (specularTexture1)
+      faceData.specularTexture = getGLTexture(specularTexture1, /*add*/true);
+
+    if (emissiveTexture1)
+      faceData.emissiveTexture = getGLTexture(emissiveTexture1, /*add*/true);
 
     //---
 
-    if (diffuseTexture1) {
-      auto pt = glTextures_.find(diffuseTexture1->id());
-
-      if (pt == glTextures_.end()) {
-        const auto &image = diffuseTexture1->image()->image();
-
-        auto *glTexture = new CGLTexture(image);
-
-        pt = glTextures_.insert(pt, GLTextures::value_type(diffuseTexture1->id(), glTexture));
-      }
-
-      faceData.diffuseTexture = (*pt).second;
-    }
-
-    if (specularTexture1) {
-      auto pt = glTextures_.find(specularTexture1->id());
-
-      if (pt == glTextures_.end()) {
-        const auto &image = specularTexture1->image()->image();
-
-        auto *glTexture = new CGLTexture(image);
-
-        pt = glTextures_.insert(pt, GLTextures::value_type(specularTexture1->id(), glTexture));
-      }
-
-      faceData.specularTexture = (*pt).second;
-    }
-
-    if (normalTexture1) {
-      auto pt = glTextures_.find(normalTexture1->id());
-
-      if (pt == glTextures_.end()) {
-        const auto &image = normalTexture1->image()->image();
-
-        auto *glTexture = new CGLTexture(image);
-
-        pt = glTextures_.insert(pt, GLTextures::value_type(normalTexture1->id(), glTexture));
-      }
-
-      faceData.normalTexture = (*pt).second;
-    }
-
-    if (emissiveTexture1) {
-      auto pt = glTextures_.find(emissiveTexture1->id());
-
-      if (pt == glTextures_.end()) {
-        const auto &image = emissiveTexture1->image()->image();
-
-        auto *glTexture = new CGLTexture(image);
-
-        pt = glTextures_.insert(pt, GLTextures::value_type(emissiveTexture1->id(), glTexture));
-      }
-
-      faceData.emissiveTexture = (*pt).second;
-    }
+    const auto &vertices = face->getVertices();
 
     //---
 
-  //const auto &ambient   = face->getMaterial().getAmbient  ();
-  //const auto &diffuse   = face->getMaterial().getDiffuse  ();
-  //const auto &specular  = face->getMaterial().getSpecular ();
-  //double      shininess = face->getMaterial().getShininess();
-
+    // get face normal
     CVector3D normal;
 
     if (face->getNormalSet())
       normal = face->getNormal();
-    else
-      face->calcModelNormal(normal);
+    else {
+      for (const auto &v : vertices) {
+        auto &vertex = object->getVertex(v);
 
-    const auto &vertices = face->getVertices();
+        vertex.setViewed(vertex.getModel());
+      }
+
+      face->calcModelNormal(normal);
+    }
+
+    //---
 
     faceData.pos = pos;
     faceData.len = int(vertices.size());
 
+    int iv = 0;
+
     for (const auto &v : vertices) {
-      auto &vertex = object->getVertex(v);
+      const auto &vertex = geomObject->getVertex(v);
+      const auto &model  = vertex.getModel();
 
-      const auto &model = vertex.getModel();
+      auto model1 = meshMatrix *model;
+      auto model2 = modelMatrix*model1;
 
-      auto vnormal = vertex.getNormal(normal);
+      //---
 
-      if (! flipYZ_) {
-        buffer->addPoint(float(model.x), float(model.y), float(model.z));
-        buffer->addNormal(float(vnormal.getX()), float(vnormal.getY()), float(vnormal.getZ()));
+      // update color, normal for custom vertex value
+
+      auto normal1 = normal;
+      auto color1  = color;
+
+      if      (face->hasVertexNormals())
+        normal1 = face->getVertexNormal(iv);
+      else if (vertex.hasNormal())
+        normal1 = vertex.getNormal();
+
+      if (vertex.hasColor())
+        color1 = vertex.getColor();
+
+      //---
+
+      if (faceData.normalTexture) {
+        CPoint2D tpoint;
+
+        if (vertex.hasTextureMap())
+          tpoint = vertex.getTextureMap();
+        else
+          tpoint = face->getTexturePoint(vertex, iv);
+
+        int tw = faceData.normalTexture->getWidth ();
+        int th = faceData.normalTexture->getHeight();
+
+        auto tx = CMathUtil::clamp(tpoint.x, 0.0, 1.0);
+        auto ty = CMathUtil::clamp(tpoint.y, 0.0, 1.0);
+
+        // get normal value from texture
+        auto rgba = faceData.normalTexture->getImage().pixel(tx*(tw - 1), ty*(th - 1));
+        auto tnormal = CVector3D(qRed(rgba)/255.0, qGreen(rgba)/255.0, qBlue(rgba)/255.0);
+
+        // this normal is in tangent space
+        normal1 = (tnormal*2.0 - CVector3D(1.0, 1.0, 1.0)).normalized();
       }
-      else {
-        buffer->addPoint(float(model.x), float(model.z), float(model.y));
-        buffer->addNormal(float(vnormal.getX()), float(vnormal.getZ()), float(vnormal.getY()));
+
+      //---
+
+      buffer->addInd(vertex.getInd());
+
+      buffer->addPoint(float(model.x), float(model.y), float(model.z));
+
+      buffer->addNormal(float(normal1.getX()), float(normal1.getY()), float(normal1.getZ()));
+
+      buffer->addColor(color1);
+
+      //---
+
+      if (isAnim) {
+        if (vertex.hasJointData()) {
+          const auto &jointData = vertex.getJointData();
+
+          for (int i = 0; i < 4; ++i) {
+            boneNodeIds[i] = jointData.nodeDatas[i].node;
+            boneWeights[i] = jointData.nodeDatas[i].weight;
+          }
+
+          buffer->addBoneIds    (boneNodeIds[0], boneNodeIds[1], boneNodeIds[2], boneNodeIds[3]);
+          buffer->addBoneWeights(boneWeights[0], boneWeights[1], boneWeights[2], boneWeights[3]);
+        }
       }
 
-      auto vcolor = vertex.getColor(color);
+      //---
 
-      buffer->addColor(vcolor.getRedF(), vcolor.getGreenF(), vcolor.getBlueF());
-
-      auto *diffuseTexture  = faceData.diffuseTexture;
-      auto *specularTexture = faceData.specularTexture;
-      auto *normalTexture   = faceData.normalTexture;
-      auto *emissiveTexture = faceData.emissiveTexture;
-
-      if (! diffuseTexture ) diffuseTexture  = diffuseTexture_;
-      if (! specularTexture) specularTexture = specularTexture_;
-      if (! normalTexture  ) normalTexture   = normalTexture_;
-      if (! emissiveTexture) emissiveTexture = emissiveTexture_;
-
-      if (diffuseTexture || specularTexture || normalTexture || emissiveTexture) {
-        const auto &tpoint = vertex.getTextureMap();
+      if (faceData.diffuseTexture) {
+        const auto &tpoint = face->getTexturePoint(vertex, iv);
 
         buffer->addTexturePoint(float(tpoint.x), float(tpoint.y));
       }
       else
         buffer->addTexturePoint(0.0f, 0.0f);
+
+      //---
+
+      ++iv;
+
+      bbox1 += model2;
     }
 
     pos += faceData.len;
@@ -773,12 +1022,18 @@ updateObject(CGeomObject3D *object)
     geomObject->addFaceData(faceData);
   }
 
+  //---
+
   buffer->load();
 
   //---
 
-  for (auto *child : object->children())
+  for (auto *child : geomObject->children()) {
+    if (! child->getVisible())
+      continue;
+
     updateObject(child);
+  }
 }
 
 void
@@ -793,23 +1048,23 @@ calcTangents()
 
 void
 Model3DObj::
-calcTangents1(CGeomObject3D *object)
+calcTangents1(CGeomObject3D *geomObject)
 {
   std::vector<CVector3D> tangents;
 
-  auto nv = object->getNumVertices();
+  auto nv = geomObject->getNumVertices();
 
   tangents.resize(nv);
 
-  const auto &faces = object->getFaces();
+  const auto &faces = geomObject->getFaces();
 
   for (const auto *face : faces) {
     const auto &vertices = face->getVertices();
     if (vertices.size() < 3) continue;
 
-    const auto &v0 = object->getVertex(vertices[0]);
-    const auto &v1 = object->getVertex(vertices[1]);
-    const auto &v2 = object->getVertex(vertices[2]);
+    const auto &v0 = geomObject->getVertex(vertices[0]);
+    const auto &v1 = geomObject->getVertex(vertices[1]);
+    const auto &v2 = geomObject->getVertex(vertices[2]);
 
     auto uv0 = v0.getTextureMap();
     auto uv1 = v1.getTextureMap();
@@ -840,8 +1095,12 @@ calcTangents1(CGeomObject3D *object)
 
   //---
 
-  for (auto *child : object->children())
+  for (auto *child : geomObject->children()) {
+    if (! child->getVisible())
+      continue;
+
     calcTangents1(child);
+  }
 }
 
 }

@@ -11,6 +11,13 @@
 #include <CQTclUtil.h>
 #include <CQTabSplit.h>
 
+#include <CQMetaEdit.h>
+#include <CQAppOptions.h>
+
+#ifdef CQ_PERF_GRAPH
+#include <CQPerfGraph.h>
+#endif
+
 #include <QVBoxLayout>
 #include <QFile>
 
@@ -37,6 +44,13 @@
 #include <svg/settings_svg.h>
 
 namespace CQSandbox {
+
+//---
+
+#define Q(x) #x
+#define QUOTE(x) Q(x)
+
+QString App::s_buildDir = QUOTE(BUILD_DIR);
 
 //---
 
@@ -260,6 +274,40 @@ errorMsg(const QString &msg) const
 {
   std::cerr << msg.toStdString() << "\n";
   return false;
+}
+
+//---
+
+void
+App::
+showMetaEdit()
+{
+  static CQMetaEdit *metaEdit;
+
+  if (! metaEdit)
+    metaEdit = new CQMetaEdit;
+
+  metaEdit->show();
+
+  metaEdit->raise();
+}
+
+void
+App::
+showPerfDialog()
+{
+#ifdef CQ_PERF_GRAPH
+  auto *dialog = CQPerfDialog::instance();
+
+  dialog->show();
+#endif
+}
+
+void
+App::
+showAppOptions()
+{
+  CQAppOptions::show();
 }
 
 }

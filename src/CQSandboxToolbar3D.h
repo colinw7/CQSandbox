@@ -19,6 +19,8 @@ class CanvasToolbar3D : public QFrame {
 
   Canvas3D *canvas() const { return canvas_; }
 
+  QToolButton *addDebugButton();
+
   void setInfo(const QString &label);
 
   void setPos(const QString &label);
@@ -38,6 +40,10 @@ class CanvasToolbar3D : public QFrame {
   void bboxSlot();
 
   void settingsSlot();
+
+  void metaEditSlot();
+  void performanceSlot();
+  void optionsSlot();
 
  private:
   Canvas3D* canvas_ { nullptr };

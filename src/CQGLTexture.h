@@ -1,6 +1,7 @@
 #ifndef CQGL_TEXTURE_H
 #define CQGL_TEXTURE_H
 
+#include <CImagePtr.h>
 #include <QImage>
 #include <QOpenGLExtraFunctions>
 
@@ -14,6 +15,7 @@ class CQGLTexture {
  public:
   CQGLTexture();
   CQGLTexture(const QImage &image);
+  CQGLTexture(const CImagePtr &image);
 
  ~CQGLTexture();
 
@@ -31,6 +33,7 @@ class CQGLTexture {
 
   const QImage &getImage() const { return image_; }
   void setImage(const QImage &image);
+  void setImage(const CImagePtr &image);
 
   int getWidth () const { return width_ ; }
   int getHeight() const { return height_; }

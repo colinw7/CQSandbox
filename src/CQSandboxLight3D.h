@@ -25,34 +25,7 @@ class Light3D : public QObject, public CGeomLight3D {
   virtual ~Light3D();
 
   int id() const { return id_; }
-  void setId(int i) { id_ = i; }
-
-  void setType(const Type &t) override {
-    CGeomLight3D::setType(t); notifyChanged(); }
-
-  void setEnabled(bool b) override {
-    CGeomLight3D::setEnabled(b); notifyChanged(); }
-
-  void setDiffuse(const CRGBA &c) override {
-    CGeomLight3D::setDiffuse(c); notifyChanged(); }
-
-  // position (for directional light)
-  void setPosition(const CPoint3D &p) override {
-    CGeomLight3D::setPosition(p); notifyChanged(); }
-
-  // direction (for point or spot)
-  void setDirection(const CVector3D &d) override {
-    CGeomLight3D::setDirection(d); notifyChanged(); }
-
-  // cut off (for spot light)
-  void setSpotCutOffAngle(double a) override {
-    CGeomLight3D::setSpotCutOffAngle(a); notifyChanged(); }
-
-  // radius (for point light)
-  void setPointRadius(double r) override {
-    CGeomLight3D::setPointRadius(r); notifyChanged(); }
-
-  //---
+  void setId(int i) { id_ = i; notifyChanged(); }
 
   void initBuffer();
   void initShader();
@@ -63,7 +36,7 @@ class Light3D : public QObject, public CGeomLight3D {
   void changedSignal();
 
  private:
-  void notifyChanged();
+  void notifyChanged() override;
 
  private:
   static ShaderProgram* s_program;

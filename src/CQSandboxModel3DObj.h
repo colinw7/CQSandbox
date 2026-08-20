@@ -4,8 +4,8 @@
 #include <CQSandboxObject3D.h>
 #include <CQSandboxFaceData.h>
 
-class CGLTexture;
 class CQGLBuffer;
+class CQGLTexture;
 class CGeomObject3D;
 
 namespace CQSandbox {
@@ -51,6 +51,8 @@ class Model3DObj : public Object3D {
  private:
   void updateObject(CGeomObject3D *object);
 
+  void initDraw(double t);
+
   void drawObject(CGeomObject3D *object, double t);
 
   void updateObjectData();
@@ -58,8 +60,16 @@ class Model3DObj : public Object3D {
   void calcTangents1(CGeomObject3D *object);
 
  protected:
-  using FaceDatas  = std::vector<FaceData>;
-  using GLTextures = std::map<int, CGLTexture *>;
+  using FaceDatas = std::vector<FaceData>;
+
+  //---
+
+  struct TextureBuffer {
+    CQGLTexture*   texture       { nullptr };
+    ShaderProgram* shaderProgram { nullptr };
+    CQGLBuffer*    buffer        { nullptr };
+    FaceDataList   faceDataList;
+  };
 
   //---
 
@@ -74,18 +84,16 @@ class Model3DObj : public Object3D {
 
   CGeomObject3D* object_ { nullptr };
 
-  CGLTexture* diffuseTexture_  { nullptr };
-  CGLTexture* specularTexture_ { nullptr };
-  CGLTexture* normalTexture_   { nullptr };
-  CGLTexture* emissiveTexture_ { nullptr };
+  CQGLTexture* diffuseTexture_  { nullptr };
+  CQGLTexture* specularTexture_ { nullptr };
+  CQGLTexture* normalTexture_   { nullptr };
+  CQGLTexture* emissiveTexture_ { nullptr };
 
   CPoint3D sceneCenter_ { 0 , 0, 0 };
 
   bool flipYZ_      { false };
   bool autoScale_   { false };
   bool transformed_ { false };
-
-  GLTextures glTextures_;
 };
 
 }

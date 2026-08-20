@@ -1,6 +1,8 @@
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxBBox3DObj.h>
+#include <CQSandboxModel3DObj.h>
+#include <CQSandboxGeomObject.h>
 #include <CQSandboxApp.h>
 
 #include <CQTclUtil.h>
@@ -115,6 +117,35 @@ void
 Group3DObj::
 render()
 {
+#if 0
+  bool        singleBuffer = true;
+  CQGLBuffer* buffer       = nullptr;
+
+  for (auto *obj : objects_) {
+    auto *modelObj = dynamic_cast<Model3DObj *>(obj);
+    if (! modelObj) { singleBuffer = false; break; }
+
+    auto *geomObject = dynamic_cast<GeomObject *>(modelObj->object());
+    if (! geomObject->refObject()) { singleBuffer = false; break; }
+
+    auto *geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+    if (! geomObject1) { singleBuffer = false; break; }
+
+    auto *buffer1 = geomObject1->buffer();
+
+    if (! buffer)
+      buffer = buffer1;
+    else if (buffer1 != buffer) {
+      singleBuffer = false; break;
+    }
+  }
+
+  if (singleBuffer)
+    std::cerr << "Single Buffer\n";
+#endif
+
+  //---
+
   for (auto *obj : objects_) {
     if (! obj || ! obj->isVisible())
       continue;

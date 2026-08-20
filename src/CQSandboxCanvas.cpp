@@ -606,6 +606,8 @@ step()
   bool buffered;
   stepInit(buffered);
 
+  //---
+
   psys_->tick(0.01);
 
   for (auto *viewport : viewports_) {

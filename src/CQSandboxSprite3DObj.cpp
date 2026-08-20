@@ -79,14 +79,16 @@ initShader()
       "}\n";
 #endif
 
+    auto *app = canvas_->app();
+
     s_program = new ShaderProgram(this);
 
 #if 0
     s_program->addVertexCode  (vertexShaderSource);
     s_program->addFragmentCode(fragmentShaderSource);
 #else
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/sprite.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/sprite.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/sprite.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/sprite.fs");
 #endif
 
     s_program->link();
@@ -236,11 +238,13 @@ void
 Sprite3DObj::
 render()
 {
-  buffer_->bind();
+  //buffer_->bind();
+  canvas_->bindBuffer(buffer_);
 
   //---
 
-  s_program->bind();
+  //s_program->bind();
+  canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("textureId", 0);
 
@@ -259,9 +263,9 @@ render()
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-  s_program->release();
+  //s_program->release();
 
-  buffer_->unbind();
+  //buffer_->unbind();
 }
 
 }

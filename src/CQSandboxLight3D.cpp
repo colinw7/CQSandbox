@@ -1,6 +1,7 @@
 #include <CQSandboxLight3D.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxShaderProgram.h>
+#include <CQSandboxApp.h>
 
 #include <CQGLBuffer.h>
 #include <CQGLUtil.h>
@@ -58,10 +59,12 @@ Light3D::
 initShader()
 {
   if (! s_program) {
+    auto *app = canvas_->app();
+
     s_program = new ShaderProgram;
 
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/light.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/light.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/light.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/light.fs");
 
     s_program->link();
   }
@@ -74,9 +77,11 @@ render()
   initBuffer();
 
   // setup light shader
-  buffer_->bind();
+  //buffer_->bind();
+  canvas_->bindBuffer(buffer_);
 
-  s_program->bind();
+  //s_program->bind();
+  canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
@@ -92,9 +97,9 @@ render()
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   //buffer_->drawTriangles();
 
-  s_program->release();
+  //s_program->release();
 
-  buffer_->unbind();
+  //buffer_->unbind();
 }
 
 void

@@ -26,6 +26,8 @@ proc mapPos { pos } {
 proc addTiles { model } {
   echo "addTiles $model"
 
+  set ::tile_group [sb3d::group "tile_group"]
+
   for {set iy 0} {$iy < $::ny} {incr iy} {
     for {set ix 0} {$ix < $::nx} {incr ix} {
       set tile($ix,$iy) [$model get ref_object]
@@ -38,6 +40,8 @@ proc addTiles { model } {
       $tile($ix,$iy) set visible 1
 
       # echo [$tile($ix,$iy) get bbox]
+
+      $tile($ix,$iy) set group $::tile_group 
     }
   }
 }
@@ -136,11 +140,14 @@ proc init { } {
 
   sb3d::canvas set model_dir $model_dir
 
-if {0} {
   set ::playerRefObj [loadModel "$model_dir/Barbarian.glb" "player"]
-  echo "$::playerRefObj [$::playerRefObj get transformed_model_bbox]"
+  # echo "$::playerRefObj [$::playerRefObj get transformed_model_bbox]"
   # $::playerRefObj set visible 1
-}
+
+  $::playerRefObj set child.visible "Barbarian_Hat"  0
+  $::playerRefObj set child.visible "Mug"            0
+  $::playerRefObj set child.visible "1H_Axe"         0
+  $::playerRefObj set child.visible "1H_Axe_Offhand" 0
 
   set ::nx 10
   set ::ny 10
@@ -159,33 +166,49 @@ if {0} {
   addObject $::chest1Obj $::ind [list 5 0 5] ; incr ::ind
   addObject $::chest2Obj $::ind [list 5 1 5] ; incr ::ind
 
-if {0} {
   set ::playerObj [addObject $::playerRefObj $::ind [list 0 0 0]] ; incr ::ind
-  echo "$::playerObj [$::playerObj get transformed_model_bbox]"
-}
+  #echo "$::playerObj [$::playerObj get transformed_model_bbox]"
+
+  $::playerObj set anim.name "Idle"
+  $::playerObj set anim.step 0.1
+
+  $::playerObj set child.visible "Barbarian_Hat"  0
+  $::playerObj set child.visible "Mug"            0
+  $::playerObj set child.visible "1H_Axe"         0
+  $::playerObj set child.visible "1H_Axe_Offhand" 0
 
   # setViewportValue "" bbox [list -10 -10 -10 10 10 10]
 
   sb3d::canvas set mode game
 
-  set ::player_x     0
-  set ::player_y     0
-  set ::player_h     3
-  set ::player_dir   "N"
-  set ::player_rot   0
-  set ::player_irot  0
-  set ::player_nrot  1000
+  set ::player_x   0
+  set ::player_y   0
+  set ::player_h   3
+  set ::player_dir "N"
+
+  set ::player_move  4.0
+  set ::player_imove 0
+  set ::player_nmove 250
+  set ::player_dx    0
+  set ::player_dy    0
+
+  set ::player_rot  0
+  set ::player_irot 0
+  set ::player_nrot 250
+
   set ::player_moved 0
 
   set ::camera_x 0
-  set ::camera_y -1
+  set ::camera_y 0
 
   # updatePlayer
 
   sb3d::canvas set loop.enabled 1
-  sb3d::canvas set loop.timeout 250
+  sb3d::canvas set loop.timeout 100
 
   sb3d::camera set disable_roll 1
+
+  set ::player_moved 1
 }
 
 proc tick { args } {
@@ -200,28 +223,43 @@ proc updatePlayer { } {
   if {$::player_moved} {
     # echo "Move Player"
 
-    set pos [list $::player_x 0 $::player_y]
+    updatePlayerPos
 
-  # $::playerObj exec translate $pos
-
-    sb3d::camera set position [list $::camera_x $::player_h $::player_y]
-
-  # sb3d::camera set look_at [list 0 0 0]
+    updateCamera
 
     set ::player_moved 0
   }
 
-  if {$::player_irot > 0} {
+  if {$::player_imove >= 0} {
+    incr ::player_imove -1
+
+    set d [expr {$::player_move/$::player_nmove}]
+
+    set ::player_x [expr {$::player_x + $::player_dx*$d}]
+    set ::player_y [expr {$::player_y + $::player_dy*$d}]
+    
+    updatePlayerPos
+
+    updateCamera
+
+    if {$::player_imove < 0} {
+      $::playerObj set anim.name "Idle"
+    }
+  }
+
+  if {$::player_irot >= 0} {
     # echo "Rotate Player"
 
     set yaw [sb3d::camera get yaw]
 
-    set dy [expr {$::player_rot/$::player_nrot}]
+    set d [expr {$::player_rot/$::player_nrot}]
 
-    sb3d::camera set yaw [expr {$yaw + $dy}]
+    sb3d::camera set yaw [expr {$yaw + $d}]
 #   sb3d::camera set pitch -15
 
     incr ::player_irot -1
+
+    updateCamera
   }
 
 if {0} {
@@ -231,18 +269,50 @@ if {0} {
    updateLight
 }
 
+proc updatePlayerPos { } {
+  set pos [list $::player_x 0 $::player_y]
+
+  $::playerObj exec translate $pos
+
+  set a [dirToAngle $::player_dir]
+
+  $::playerObj exec rotate [list 0 1 0] [expr {90 - $a}]
+}
+
 proc updateCamera { } {
+if {0} {
   sb3d::camera set yaw $angle
 
   sb3d::camera set pitch 0
 }
 
+  set v [dirToVector $::player_dir]
+  set vx [lindex $v 0]
+  set vz [lindex $v 2]
+
+  set ::camera_x [expr {$::player_x - 4*$vx}]
+  set ::camera_y [expr {$::player_y - 4*$vz}]
+
+  sb3d::camera set position [list $::camera_x $::player_h $::camera_y]
+
+# sb3d::camera set look_at [list 0 0 0]
+}
+
 proc updateLight { } {
   sb3d::light set current 1
 
+  set v [dirToVector $::player_dir]
+  set vx [lindex $v 0]
+  set vz [lindex $v 2]
+
+  set ::camera_x [expr {$::player_x - 4*$vx}]
+  set ::camera_y [expr {$::player_y - 4*$vz}]
+
   sb3d::light set position [list $::camera_x $::player_h $::player_y]
 
-  sb3d::light set point_radius 10
+  sb3d::light set direction [dirToVector $::player_dir]
+
+  sb3d::light set point_radius 30
 }
 
 proc dirToAngle { dir } {
@@ -259,12 +329,24 @@ proc dirToAngle { dir } {
   }
 }
 
-proc keyPress { k } {
-  #puts "keyPress $k"
+proc dirToVector { dir } {
+  if       {$dir == "N"} {
+    return [list 0 0 -1]
+  } elseif {$dir == "S"} {
+    return [list 0 0 1]
+  } elseif {$dir == "W"} {
+    return [list -1 0 0]
+  } elseif {$dir == "E"} {
+    return [list 1 0 0]
+  } else {
+    return 0
+  }
+}
 
-  if       {$k == "q" || $k == "Q" || $k == "left"} {
-    # echo "turn left"
+proc playerRotateLeft { } {
+  # echo "turn left"
 
+  if {$::player_irot <= 0} {
     set ::player_rot  -90.0
     set ::player_irot $::player_nrot
 
@@ -278,10 +360,16 @@ proc keyPress { k } {
       set ::player_dir "N"
     }
 
-    echo "Dir: $::player_dir"
-  } elseif {$k == "e" || $k == "E" || $k == "right"} {
-    # echo "turn right"
+    set ::player_moved 1
 
+    echo "Dir: $::player_dir"
+  }
+}
+
+proc playerRotateRight { } {
+  # echo "turn right"
+
+  if {$::player_irot <= 0} {
     set ::player_rot 90.0
     set ::player_irot $::player_nrot
 
@@ -295,87 +383,187 @@ proc keyPress { k } {
       set ::player_dir "N"
     }
 
+    set ::player_moved 1
+
     echo "Dir: $::player_dir"
+  }
+}
+
+proc playerMoveForward { } {
+  # echo "move forward"
+
+if {0} {
+  set d 0.1
+
+  if       {$::player_dir == "N"} {
+    set ::player_y [expr {$::player_y - $d}]
+  } elseif {$::player_dir == "E"} {
+    set ::player_x [expr {$::player_x + $d}]
+  } elseif {$::player_dir == "S"} {
+    set ::player_y [expr {$::player_y + $d}]
+  } elseif {$::player_dir == "W"} {
+    set ::player_x [expr {$::player_x - $d}]
+  }
+
+  set ::player_moved 1
+} else {
+  if {$::player_imove <= 0} {
+    $::playerObj set anim.name "Walking_A"
+
+    set ::player_imove $::player_nmove
+
+    if       {$::player_dir == "N"} {
+      set ::player_dx 0
+      set ::player_dy -1
+    } elseif {$::player_dir == "E"} {
+      set ::player_dx 1
+      set ::player_dy 0
+    } elseif {$::player_dir == "S"} {
+      set ::player_dx 0
+      set ::player_dy 1
+    } elseif {$::player_dir == "W"} {
+      set ::player_dx -1
+      set ::player_dy 0
+    }
+  }
+}
+}
+
+proc playerMoveBack { } {
+  # echo "move back"
+
+if {0} {
+  set d 0.1
+
+  if       {$::player_dir == "N"} {
+    set ::player_y [expr {$::player_y + $d}]
+  } elseif {$::player_dir == "E"} {
+    set ::player_x [expr {$::player_x - $d}]
+  } elseif {$::player_dir == "S"} {
+    set ::player_y [expr {$::player_y - $d}]
+  } elseif {$::player_dir == "W"} {
+    set ::player_x [expr {$::player_x + $d}]
+  }
+
+  set ::player_moved 1
+} else {
+  if {$::player_imove <= 0} {
+    $::playerObj set anim.name "Walking_A"
+
+    set ::player_imove $::player_nmove
+
+    if       {$::player_dir == "N"} {
+      set ::player_dx 0
+      set ::player_dy 1
+    } elseif {$::player_dir == "E"} {
+      set ::player_dx -1
+      set ::player_dy 0
+    } elseif {$::player_dir == "S"} {
+      set ::player_dx 0
+      set ::player_dy -1
+    } elseif {$::player_dir == "W"} {
+      set ::player_dx 1
+      set ::player_dy 0
+    }
+  } 
+}
+}
+
+proc playerStrafeLeft { } {
+  # echo "strafe left"
+
+if {0} {
+  set d 0.1
+
+  if       {$::player_dir == "N"} {
+    set ::player_x [expr {$::player_x - $d}]
+  } elseif {$::player_dir == "E"} {
+    set ::player_y [expr {$::player_y - $d}]
+  } elseif {$::player_dir == "S"} {
+    set ::player_x [expr {$::player_x + $d}]
+  } elseif {$::player_dir == "W"} {
+    set ::player_y [expr {$::player_y + $d}]
+  }
+
+  set ::player_moved 1
+} else {
+  if {$::player_imove <= 0} {
+    $::playerObj set anim.name "Walking_A"
+    
+    set ::player_imove $::player_nmove
+  
+    if       {$::player_dir == "N"} {
+      set ::player_dx -1
+      set ::player_dy 0
+    } elseif {$::player_dir == "E"} {
+      set ::player_dx 0
+      set ::player_dy -1
+    } elseif {$::player_dir == "S"} {
+      set ::player_dx 1
+      set ::player_dy 0
+    } elseif {$::player_dir == "W"} {
+      set ::player_dx 0
+      set ::player_dy 1
+    }
+  }
+}
+}
+
+proc playerStrafeRight { } {
+  # echo "strafe right"
+
+if {0} {
+  set d 0.1
+
+  if       {$::player_dir == "N"} {
+    set ::player_x [expr {$::player_x + $d}]
+  } elseif {$::player_dir == "E"} {
+    set ::player_y [expr {$::player_y + $d}]
+  } elseif {$::player_dir == "S"} {
+    set ::player_x [expr {$::player_x - $d}]
+  } elseif {$::player_dir == "W"} {
+    set ::player_y [expr {$::player_y - $d}]
+  }
+
+  set ::player_moved 1
+} else {
+  if {$::player_imove <= 0} {
+    $::playerObj set anim.name "Walking_A"
+    
+    set ::player_imove $::player_nmove
+
+    if       {$::player_dir == "N"} {
+      set ::player_dx 1
+      set ::player_dy 0
+    } elseif {$::player_dir == "E"} {
+      set ::player_dx 0
+      set ::player_dy 1
+    } elseif {$::player_dir == "S"} {
+      set ::player_dx -1
+      set ::player_dy 0
+    } elseif {$::player_dir == "W"} {
+      set ::player_dx 0
+      set ::player_dy -1
+    }
+  }
+}
+}
+
+proc keyPress { k } {
+  #puts "keyPress $k"
+
+  if       {$k == "q" || $k == "Q" || $k == "left"} {
+    playerRotateLeft
+  } elseif {$k == "e" || $k == "E" || $k == "right"} {
+    playerRotateRight
   } elseif {$k == "w" || $k == "W" || $k == "up"} {
-    # echo "move forward"
-
-    set d 0.1
-
-    if       {$::player_dir == "N"} {
-      set ::player_y [expr {$::player_y - $d}]
-      set ::camera_y [expr {$::camera_y - $d}]
-    } elseif {$::player_dir == "E"} {
-      set ::player_x [expr {$::player_x + $d}]
-      set ::camera_x [expr {$::camera_x + $d}]
-    } elseif {$::player_dir == "S"} {
-      set ::player_y [expr {$::player_y + $d}]
-      set ::camera_y [expr {$::camera_y + $d}]
-    } elseif {$::player_dir == "W"} {
-      set ::player_x [expr {$::player_x - $d}]
-      set ::camera_x [expr {$::camera_x - $d}]
-    }
-
-    set ::player_moved 1
+    playerMoveForward
   } elseif {$k == "s" || $k == "S" || $k == "down"} {
-    # echo "move back"
-
-    set d 0.1
-
-    if       {$::player_dir == "N"} {
-      set ::player_y [expr {$::player_y + $d}]
-      set ::camera_y [expr {$::camera_y + $d}]
-    } elseif {$::player_dir == "E"} {
-      set ::player_x [expr {$::player_x - $d}]
-      set ::camera_x [expr {$::camera_x - $d}]
-    } elseif {$::player_dir == "S"} {
-      set ::player_y [expr {$::player_y - $d}]
-      set ::camera_y [expr {$::camera_y - $d}]
-    } elseif {$::player_dir == "W"} {
-      set ::player_x [expr {$::player_x + $d}]
-      set ::camera_x [expr {$::camera_x + $d}]
-    }
-
-    set ::player_moved 1
+    playerMoveBack
   } elseif {$k == "a" || $k == "A"} {
-    # echo "strafe left"
-
-    set d 0.1
-
-    if       {$::player_dir == "N"} {
-      set ::player_x [expr {$::player_x - $d}]
-      set ::camera_x [expr {$::camera_x - $d}]
-    } elseif {$::player_dir == "E"} {
-      set ::player_y [expr {$::player_y - $d}]
-      set ::camera_y [expr {$::camera_y - $d}]
-    } elseif {$::player_dir == "S"} {
-      set ::player_x [expr {$::player_x + $d}]
-      set ::camera_x [expr {$::camera_x + $d}]
-    } elseif {$::player_dir == "W"} {
-      set ::player_y [expr {$::player_y + $d}]
-      set ::camera_y [expr {$::camera_y + $d}]
-    }
-
-    set ::player_moved 1
+    playerStrafeLeft
   } elseif {$k == "d" || $k == "D"} {
-    # echo "strafe right"
-
-    set d 0.1
-
-    if       {$::player_dir == "N"} {
-      set ::player_x [expr {$::player_x + $d}]
-      set ::camera_x [expr {$::camera_x + $d}]
-    } elseif {$::player_dir == "E"} {
-      set ::player_y [expr {$::player_y + $d}]
-      set ::camera_y [expr {$::camera_y + $d}]
-    } elseif {$::player_dir == "S"} {
-      set ::player_x [expr {$::player_x - $d}]
-      set ::camera_x [expr {$::camera_x - $d}]
-    } elseif {$::player_dir == "W"} {
-      set ::player_y [expr {$::player_y - $d}]
-      set ::camera_y [expr {$::camera_y - $d}]
-    }
-
-    set ::player_moved 1
+    playerStrafeRight
   } elseif {$k == "<"} {
     set ::player_h [expr {$::player_h - 1}]
 
@@ -384,7 +572,23 @@ proc keyPress { k } {
     set ::player_h [expr {$::player_h + 1}]
 
     set ::player_moved 1
+  } elseif {$k == "\["} {
+    set pitch [sb3d::camera get pitch]
+
+    sb3d::camera set pitch [expr {$pitch + 1}]
+  } elseif {$k == "]"} {
+    set pitch [sb3d::camera get pitch]
+
+    sb3d::camera set pitch [expr {$pitch - 1}]
   } elseif {$k == "l" || $k == "L"} {
     updateLight
+  } elseif {$k == "1"} {
+    $::playerObj exec rotate [list 0 1 0] 0
+  } elseif {$k == "2"} {
+    $::playerObj exec rotate [list 0 1 0] 90
+  } elseif {$k == "3"} {
+    $::playerObj exec rotate [list 0 1 0] 180
+  } elseif {$k == "4"} {
+    $::playerObj exec rotate [list 0 1 0] -90
   }
 }

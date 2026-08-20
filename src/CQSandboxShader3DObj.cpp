@@ -77,7 +77,8 @@ render()
 
   auto *program = shaderToyProgram_->program();
 
-  program->bind();
+  //program->bind();
+  canvas_->bindProgram(program);
 
   //---
 
@@ -106,7 +107,7 @@ render()
 
   program->disableAttributeArray(coordsLocation);
 
-  program->release();
+  //program->release();
 }
 
 }

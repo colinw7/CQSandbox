@@ -1,4 +1,5 @@
 #include <CQGLTexture.h>
+#include <CQImage.h>
 #include <CMathGen.h>
 
 #include <QFileInfo>
@@ -35,6 +36,12 @@ CQGLTexture()
 
 CQGLTexture::
 CQGLTexture(const QImage &image)
+{
+  setImage(image);
+}
+
+CQGLTexture::
+CQGLTexture(const CImagePtr &image)
 {
   setImage(image);
 }
@@ -84,6 +91,15 @@ CQGLTexture::
 setImage(const QImage &image)
 {
   init(image, /*flip*/false);
+}
+
+void
+CQGLTexture::
+setImage(const CImagePtr &image)
+{
+  QImage &qimage = dynamic_cast<CQImage *>(image.get())->getQImage();
+
+  init(qimage, /*flip*/false);
 }
 
 bool

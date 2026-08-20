@@ -24,17 +24,24 @@
 #include <CQSandboxCamera.h>
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxGeomObject.h>
+#include <CQSandboxTexture.h>
 #include <CQSandboxUtil.h>
 #include <CQSandboxShaderToyProgram.h>
 
 #include <CQGLUtil.h>
+#include <CQGLBuffer.h>
 #include <CGeometry3D.h>
+
+#ifdef CQ_PERF_GRAPH
+#include <CQPerfMonitor.h>
+#else
+struct CQPerfTrace {
+  CQPerfTrace(const char *) { }
+};
+#endif
 
 #include <QMouseEvent>
 #include <QTimer>
-
-#define Q(x) #x
-#define QUOTE(x) Q(x)
 
 //---
 
@@ -68,11 +75,9 @@ class GeomFactory : public CGeometryFactory {
     return light;
   }
 
-#if 0
   CGeomTexture *createTexture() const override {
     return new Texture;
   }
-#endif
 
  private:
   Canvas3D* canvas_ { nullptr };
@@ -83,10 +88,6 @@ class GeomFactory : public CGeometryFactory {
 //---
 
 namespace CQSandbox {
-
-//---
-
-QString Canvas3D::s_buildDir = QUOTE(BUILD_DIR);
 
 //---
 
@@ -165,6 +166,10 @@ void
 OpenGLWindow::
 paintGL()
 {
+  CQPerfTrace trace("OpenGLWindow::paintGL");
+
+  //---
+
   glClearColor(bgColor_.redF(), bgColor_.greenF(), bgColor_.blueF(), 1.0f);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -429,6 +434,8 @@ addObject(Object3D *obj)
 
   obj->setGroup(nullptr);
 
+  objectsValid_ = false;
+
   Q_EMIT objectsChanged();
 }
 
@@ -444,6 +451,8 @@ removeObject(Object3D *obj)
   }
 
   std::swap(objects_, objects);
+
+  objectsValid_ = false;
 
   Q_EMIT objectsChanged();
 }
@@ -514,8 +523,11 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
         for (auto *obj : objects)
           delete obj;
-
       }
+
+      th->objectsValid_ = false;
+
+      Q_EMIT th->objectsChanged();
     }
   }
   else
@@ -987,18 +999,19 @@ bool
 Canvas3D::
 getLightValue(const QString &name, const QStringList &, QVariant &res)
 {
+  auto *light = currentLight();
+
   if      (name == "current") {
     res = lightNum();
   }
   else if (name == "position") {
-    auto *light = currentLight();
-
     res = Util::point3DToString(light->getPosition());
   }
   else if (name == "direction") {
-    auto *light = currentLight();
-
-    res = Util::vector3DToString(light->getDirection());
+    if (light->getType() == CGeomLight3DType::SPOT)
+      res = Util::vector3DToString(light->getSpotDirection());
+    else
+      res = Util::vector3DToString(light->getDirection());
   }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
@@ -1012,7 +1025,23 @@ setLightValue(const QString &name, const QString &value, const QStringList &)
 {
   auto *tcl = app_->tcl();
 
-  if      (name == "current") {
+  auto *light = currentLight();
+
+  if      (name == "type") {
+    auto lvalue = value.toLower();
+
+    if      (lvalue == "directional")
+      light->setType(CGeomLight3DType::DIRECTIONAL);
+    else if (lvalue == "point")
+      light->setType(CGeomLight3DType::POINT);
+    else if (lvalue == "spot")
+      light->setType(CGeomLight3DType::SPOT);
+    else if (lvalue == "flashlight")
+      light->setType(CGeomLight3DType::FLASHLIGHT);
+    else
+      return app_->errorMsg(QString("Invalid type '%1'").arg(value));
+  }
+  else if (name == "current") {
     auto n = Util::stringToInt(value);
 
     setLightNum(n);
@@ -1020,21 +1049,21 @@ setLightValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "position") {
     auto pos = Util::stringToPoint3D(tcl, value);
 
-    auto *light = currentLight();
-
     light->setPosition(pos);
   }
-  else if (name == "position") {
+  else if (name == "direction") {
     auto dir = Util::stringToVector3D(tcl, value);
 
-    auto *light = currentLight();
-
-    light->setDirection(dir);
+    if (light->getType() == CGeomLight3DType::SPOT)
+      light->setSpotDirection(dir);
+    else
+      light->setDirection(dir);
+  }
+  else if (name == "color" || name == "diffuse") {
+    light->setDiffuse(Util::QColorToRGBA(Util::stringToColor(tcl, value)));
   }
   else if (name == "point_radius") {
     auto r = Util::stringToReal(value);
-
-    auto *light = currentLight();
 
     light->setPointRadius(r);
   }
@@ -1452,12 +1481,21 @@ void
 Canvas3D::
 timerSlot()
 {
+  for (auto *animObject : getAnimObjects())
+    animObject->stepAnimTime();
+
+  invalidateNodeMatrices();
+
+  //---
+
   auto objects = objects_;
 
   for (auto *obj : objects)
     obj->tick();
 
   app_->runTclCmd("update");
+
+  //---
 
   update();
 
@@ -1496,6 +1534,18 @@ void
 Canvas3D::
 render()
 {
+  CQPerfTrace trace("Canvas3D::paintGL");
+
+  //---
+
+  if (! objectsValid_) {
+    objectsValid_ = true;
+
+    objectMeshData_.clear();
+  }
+
+  //---
+
   glPushAttrib(GL_ALL_ATTRIB_BITS);
 
   for (auto *obj : objects_) {
@@ -1506,6 +1556,9 @@ render()
   }
 
   glPopAttrib();
+
+  currentBuffer_  = nullptr;
+  currentProgram_ = nullptr;
 
   //---
 
@@ -1551,6 +1604,9 @@ render()
     if (! obj || ! obj->isVisible())
       continue;
 
+    if (obj->group())
+      continue;
+
     obj->render();
 
     bbox_ += obj->bbox();
@@ -1566,6 +1622,251 @@ render()
   //---
 
   //std::cerr << "BBox: " << bbox_ << "\n";
+
+  //---
+
+  bindBuffer(nullptr);
+  bindProgram(nullptr);
+}
+
+bool
+Canvas3D::
+addObjectMeshData(CGeomObject3D *object, CMatrix3DH &meshMatrix)
+{
+  auto pm = objectMeshData_.find(object);
+
+  if (pm != objectMeshData_.end()) {
+    auto *animObject = object->getAnimObject();
+
+    auto animTime = animObject->animTime();
+
+    const auto &objectMeshData = (*pm).second;
+
+    auto frame = int((animTime - objectMeshData.tmin)/objectMeshData.dt + 0.5);
+
+    auto pf = objectMeshData.frameMatrix.find(frame);
+
+    if (pf != objectMeshData.frameMatrix.end()) {
+      meshMatrix = (*pf).second;
+
+      return true;
+    }
+    else {
+      std::cerr << "Bad meshMatrix anim time\n";
+    }
+  }
+
+  return false;
+}
+
+bool
+Canvas3D::
+hasObjectMeshData(CGeomObject3D *object) const
+{
+  auto po = objectMeshData_.find(object);
+
+  return (po != objectMeshData_.end());
+}
+
+Canvas3D::ObjectMeshData &
+Canvas3D::
+getObjectMeshData(CGeomObject3D *object)
+{
+  auto po = objectMeshData_.find(object);
+
+  if (po == objectMeshData_.end())
+    po = objectMeshData_.insert(po, ObjectMeshDataMap::value_type(object, ObjectMeshData()));
+
+  return (*po).second;
+}
+
+void
+Canvas3D::
+bindBuffer(CQGLBuffer *buffer)
+{
+  if (buffer) {
+    if (buffer != currentBuffer_) {
+      if (currentBuffer_)
+        currentBuffer_->unbind();
+
+      buffer->bind();
+
+      currentBuffer_ = buffer;
+    }
+  }
+  else {
+    if (currentBuffer_)
+      currentBuffer_->unbind();
+  }
+}
+
+void
+Canvas3D::
+bindProgram(ShaderProgram *program)
+{
+  if (program) {
+    if (program != currentProgram_) {
+      if (currentProgram_)
+        currentProgram_->release();
+
+      program->bind();
+
+      currentProgram_ = program;
+    }
+  }
+  else {
+    if (currentProgram_)
+      currentProgram_->release();
+  }
+}
+
+void
+Canvas3D::
+updateNodeMatrices(CGeomObject3D *object)
+{
+  // anim data on anim object
+  auto *animObject = object->getAnimObject();
+
+  if (animObject == paintData_.animObject)
+    return;
+
+  paintData_.animObject = animObject;
+
+  //---
+
+  // get node matrices for anim name and anim time
+  const auto &nodeMatrices = getObjectNodeMatrices(animObject);
+
+  //---
+
+  std::vector<CMatrix3D> nodeMatrixArray;
+
+  for (int i = 0; i < NUM_NODE_MATRICES; i++)
+    nodeMatrixArray.push_back(CMatrix3D::identity());
+
+  for (const auto &pn : nodeMatrices) {
+    auto nodeId = pn.first;
+
+    if (nodeId < 0) {
+      std::cerr << "Invalid node id " << nodeId << "\n";
+      continue;
+    }
+
+    if (nodeId >= NUM_NODE_MATRICES) {
+      std::cerr << "Too few node matrices for node " << nodeId << "\n";
+      continue;
+    }
+
+    nodeMatrixArray[nodeId] = pn.second;
+  }
+
+  paintData_.nodeMatrices .resize(NUM_NODE_MATRICES);
+  paintData_.nodeQMatrices.resize(NUM_NODE_MATRICES);
+
+  int im = 0;
+  for (const auto &m : nodeMatrixArray) {
+    paintData_.nodeMatrices [im] = m;
+    paintData_.nodeQMatrices[im] = CQGLUtil::toQMatrix(m);
+
+    ++im;
+  }
+}
+
+const Canvas3D::NodeMatrices &
+Canvas3D::
+getObjectNodeMatrices(CGeomObject3D *object) const
+{
+  const auto &objectNodeMatrices = getNodeMatrices();
+
+  auto po = objectNodeMatrices.find(object->getInd());
+  assert(po != objectNodeMatrices.end());
+
+  return (*po).second;
+}
+
+const Canvas3D::ObjectNodeMatrices &
+Canvas3D::
+getNodeMatrices() const
+{
+  auto *th = const_cast<Canvas3D *>(this);
+
+  if (! th->objectNodeMatricesValid_) {
+    th->objectNodeMatrices_ = calcNodeMatrices();
+
+    th->objectNodeMatricesValid_ = true;
+  }
+
+  return objectNodeMatrices_;
+}
+
+Canvas3D::ObjectNodeMatrices
+Canvas3D::
+calcNodeMatrices() const
+{
+  ObjectNodeMatrices objectNodeMatrices;
+
+  auto animObjects = getAnimObjects();
+
+  for (auto *animObject : animObjects) {
+    if (! animObject->getVisible())
+      continue;
+
+    auto animName = animObject->animName();
+    if (animName == "") continue;
+
+    auto animTime = animObject->animTime();
+
+    auto &nodeMatrices = objectNodeMatrices[animObject->getInd()];
+
+    animObject->updateNodesAnimationData(animName, animTime);
+
+    auto meshMatrix        = animObject->getMeshGlobalTransform();
+    auto inverseMeshMatrix = meshMatrix.inverse();
+
+    //---
+
+    for (const auto &pn : animObject->getNodes()) {
+      auto &node = const_cast<CGeomNodeData &>(pn.second);
+      //if (! node.isJoint()) continue;
+
+      if (node.index() < 0)
+        continue;
+
+      nodeMatrices[node.index()] = node.calcNodeAnimMatrix(inverseMeshMatrix);
+    }
+  }
+
+  return objectNodeMatrices;
+}
+
+QMatrix4x4 *
+Canvas3D::
+nodeQMatrices() const
+{
+  return const_cast<QMatrix4x4 *>(&paintData_.nodeQMatrices[0]);
+}
+
+std::vector<CGeomObject3D *>
+Canvas3D::
+getAnimObjects() const
+{
+  std::set<CGeomObject3D *>    animObjectSet;
+  std::vector<CGeomObject3D *> animObjects;
+
+  const auto &objects = scene_->getObjects();
+
+  for (auto *object : objects) {
+    auto *animObject = object->getAnimObject();
+    if (! animObject) continue;
+
+    if (animObjectSet.find(animObject) == animObjectSet.end()) {
+      animObjectSet.insert(animObject);
+
+      animObjects.push_back(animObject);
+    }
+  }
+
+  return animObjects;
 }
 
 //---

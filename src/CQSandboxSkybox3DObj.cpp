@@ -87,14 +87,16 @@ initShader()
       "}\n";
 #endif
 
+    auto *app = canvas_->app();
+
     s_program = new ShaderProgram(this);
 
 #if 0
     s_program->addVertexCode  (vertexShaderSource);
     s_program->addFragmentCode(fragmentShaderSource);
 #else
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/skybox.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/skybox.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/skybox.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/skybox.fs");
 #endif
 
     s_program->link();
@@ -105,7 +107,9 @@ bool
 Skybox3DObj::
 load()
 {
-  auto filename = canvas_->buildDir() + "/models/ply/cube.ply";
+  auto *app = canvas_->app();
+
+  auto filename = app->buildDir() + "/models/ply/cube.ply";
 
   QFileInfo fi(filename);
 
@@ -288,9 +292,11 @@ render()
   for (auto &po : objectDatas_) {
     auto *objectData = po.second;
 
-    objectData->buffer->bind();
+    //objectData->buffer->bind();
+    canvas_->bindBuffer(objectData->buffer);
 
-    s_program->bind();
+    //s_program->bind();
+    canvas_->bindProgram(s_program);
 
     if (useCubemap_) {
       if (cubemap_) {
@@ -370,7 +376,7 @@ render()
       }
     }
 
-    objectData->buffer->unbind();
+    //objectData->buffer->unbind();
   }
 
 //glDepthMask(GL_TRUE);

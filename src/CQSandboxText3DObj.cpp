@@ -96,14 +96,16 @@ initShader()
       "}\n";
 #endif
 
+    auto *app = canvas_->app();
+
     s_program = new TextShaderProgram(this);
 
 #if 0
     s_program->addVertexCode  (vertexShaderSource);
     s_program->addFragmentCode(fragmentShaderSource);
 #else
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/text.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/text.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/text.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/text.fs");
 #endif
 
     s_program->link();
@@ -356,7 +358,8 @@ render()
 
   //------
 
-  s_program->bind();
+  //s_program->bind();
+  canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
@@ -441,7 +444,7 @@ render()
 
   //---
 
-  s_program->release();
+  //s_program->release();
 
   glPopAttrib();
 }

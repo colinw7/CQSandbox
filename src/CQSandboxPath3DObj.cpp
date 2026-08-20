@@ -76,14 +76,16 @@ initShader()
       "}\n";
 #endif
 
+    auto *app = canvas_->app();
+
     s_program = new ShaderProgram(this);
 
 #if 0
     s_program->addVertexCode  (vertexShaderSource);
     s_program->addFragmentCode(fragmentShaderSource);
 #else
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/path.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/path.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/path.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/path.fs");
 #endif
 
     s_program->link();
@@ -215,7 +217,8 @@ render()
 
   //---
 
-  s_program->bind();
+  //s_program->bind();
+  canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
@@ -228,7 +231,8 @@ render()
 #if 0
   canvas_->glBindVertexArray(vertexArrayId_);
 #else
-  buffer_->bind();
+  //buffer_->bind();
+  canvas_->bindBuffer(buffer_);
 #endif
 
   //---

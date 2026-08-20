@@ -139,6 +139,8 @@ init()
       "}\n";
 #endif
 
+    auto *app = canvas_->app();
+
     s_program1 = new ShaderProgram(this);
 
 #if 0
@@ -146,9 +148,9 @@ init()
     s_program1->addGeometryCode(geometryShader1);
     s_program1->addFragmentCode(fragmentShader1);
 #else
-    s_program1->addVertexFile  (canvas_->buildDir() + "/shaders/graph1.vs");
-    s_program1->addGeometryFile(canvas_->buildDir() + "/shaders/graph1.gs");
-    s_program1->addFragmentFile(canvas_->buildDir() + "/shaders/graph1.fs");
+    s_program1->addVertexFile  (app->buildDir() + "/shaders/graph1.vs");
+    s_program1->addGeometryFile(app->buildDir() + "/shaders/graph1.gs");
+    s_program1->addFragmentFile(app->buildDir() + "/shaders/graph1.fs");
 #endif
 
     s_program1->link();
@@ -181,8 +183,8 @@ init()
     s_program2->addVertexCode  (vertexShader2);
     s_program2->addFragmentCode(fragmentShader2);
 #else
-    s_program2->addVertexFile  (canvas_->buildDir() + "/shaders/graph2.vs");
-    s_program2->addFragmentFile(canvas_->buildDir() + "/shaders/graph2.fs");
+    s_program2->addVertexFile  (app->buildDir() + "/shaders/graph2.vs");
+    s_program2->addFragmentFile(app->buildDir() + "/shaders/graph2.fs");
 #endif
 
     s_program2->link();
@@ -414,7 +416,8 @@ void
 Graph3DObj::
 render()
 {
-  s_program1->bind();
+  //s_program1->bind();
+  canvas_->bindProgram(s_program1);
 
   s_program1->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program1->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
@@ -428,11 +431,12 @@ render()
   glDrawArrays(GL_POINTS, 0, np);
 //glDrawArrays(GL_TRIANGLES, 0, np);
 
-  s_program1->release();
+  //s_program1->release();
 
   //------
 
-  s_program2->bind();
+  //s_program2->bind();
+  canvas_->bindProgram(s_program2);
 
   s_program2->setUniformValue("lineColor", Util::toVector(lineColor_));
 
@@ -447,7 +451,7 @@ render()
 
   glDrawArrays(GL_LINES, 0, nl);
 
-  s_program2->release();
+  //s_program2->release();
 }
 
 }

@@ -110,6 +110,8 @@ BBox3DObj::
 initShader()
 {
   if (! s_program) {
+    auto *app = canvas_->app();
+
 #if 0
     static const char *vertexShaderSource =
       "#version 330 core\n"
@@ -134,8 +136,8 @@ initShader()
     s_program->addVertexCode  (vertexShaderSource);
     s_program->addFragmentCode(fragmentShaderSource);
 #else
-    s_program->addVertexFile  (canvas_->buildDir() + "/shaders/bbox.vs");
-    s_program->addFragmentFile(canvas_->buildDir() + "/shaders/bbox.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/bbox.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/bbox.fs");
 #endif
 
     s_program->link();
@@ -190,7 +192,8 @@ render()
 
   //---
 
-  s_program->bind();
+  //s_program->bind();
+  canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
   s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
