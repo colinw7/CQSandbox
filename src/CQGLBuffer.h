@@ -100,11 +100,12 @@ class CQGLBuffer {
 
  public:
   enum Parts {
-    POINT   = (1<<0),
-    NORMAL  = (1<<1),
-    COLOR   = (1<<2),
-    TEXTURE = (1<<3),
-    BONE    = (1<<4)
+    IND     = (1<<0),
+    POINT   = (1<<1),
+    NORMAL  = (1<<2),
+    COLOR   = (1<<3),
+    TEXTURE = (1<<4),
+    BONE    = (1<<5)
   };
 
  public:
@@ -141,6 +142,7 @@ class CQGLBuffer {
 
   //---
 
+  bool hasIndPart    () const { return (data_.types & static_cast<unsigned int>(Parts::IND    )); }
   bool hasPointPart  () const { return (data_.types & static_cast<unsigned int>(Parts::POINT  )); }
   bool hasNormalPart () const { return (data_.types & static_cast<unsigned int>(Parts::NORMAL )); }
   bool hasColorPart  () const { return (data_.types & static_cast<unsigned int>(Parts::COLOR  )); }
@@ -195,6 +197,8 @@ class CQGLBuffer {
   //---
 
   void addInd(uint ind) {
+    data_.types |= static_cast<unsigned int>(Parts::IND);
+
     data_.inds.push_back(ind);
   }
 
@@ -300,6 +304,7 @@ class CQGLBuffer {
   //---
 
   struct PointData {
+    std::optional<int>          ind;
     std::optional<Point>        point;
     std::optional<Point>        normal;
     std::optional<Color>        color;
@@ -311,6 +316,7 @@ class CQGLBuffer {
   void getPointData(int i, PointData &data) const {
     assert(i < int(data_.points.size()));
 
+    if (hasIndPart    ()) data.ind          = data_.inds[i];
     if (hasPointPart  ()) data.point        = data_.points[i];
     if (hasNormalPart ()) data.normal       = data_.normals[i];
     if (hasColorPart  ()) data.color        = data_.colors[i];

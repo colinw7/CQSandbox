@@ -563,4 +563,25 @@ calcLookAt(const CVector3D &forward, const CVector3D &up) const
   return CQuaternion(ow, CVector3D(ox, oy, oz));
 }
 
+//---
+
+void
+Camera::
+getPixelRay(double x, double y, CPoint3D &rp1, CPoint3D &rp2) const
+{
+  updateOrientation();
+
+  auto iperspectiveMatrix = perspectiveMatrix_.inverse();
+  auto iviewMatrix        = viewMatrix_       .inverse();
+
+  // unproject pixel point
+  auto p1 = CVector3D(x, y, 0.0);
+  auto p2 = iperspectiveMatrix*p1;
+
+  auto rd = p2.unit();
+
+  rp1 = (iviewMatrix* p2      ).point();
+  rp2 = (iviewMatrix*(p2 + rd)).point();
+}
+
 }

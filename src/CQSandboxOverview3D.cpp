@@ -107,6 +107,9 @@ init()
   auto *canvas = app_->canvas3D();
   auto *camera = canvas->camera();
 
+//connect(canvas_, SIGNAL(animStateChanged()), this, SLOT(invalidate()));
+//connect(canvas_, SIGNAL(animTimeChanged()), this, SLOT(invalidate()));
+
   connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
 
   for (auto *light : canvas->lights())
@@ -201,6 +204,10 @@ paintEvent(QPaintEvent *)
 
   drawData_.near = camera->near();
   drawData_.far  = camera->far();
+
+  drawData_.cameraOrigin   = camera->origin();
+  drawData_.cameraPosition = camera->position();
+  drawData_.cameraFront    = camera->front();
 
   //---
 
@@ -479,13 +486,47 @@ updateObject(CGeomObject3D *object)
 
   //---
 
-  auto modelMatrix = object1->getHierTransform();
-  auto meshMatrix  = object1->getMeshGlobalTransform();
+  auto modelMatrix = CMatrix3DH(object1->getHierTransform());
+  auto meshMatrix  = CMatrix3DH(object1->getMeshGlobalTransform());
 
 #if 0
   if (refObject && refObject != object)
     modelMatrix = refObject->getHierTransform()*modelMatrix;
 #endif
+
+  //---
+
+  auto *canvas = app_->canvas3D();
+
+  auto animObject = object->getAnimObject();
+
+  auto animName = (animObject ? animObject->animName() : "");
+
+  bool useAnim = false;
+
+  if (canvas->isAnimEnabled())
+    useAnim = (animObject && animName != "");
+
+  if (useAnim) {
+    auto meshNodeId = object->getMeshNode();
+
+    CGeomNodeData *node = nullptr;
+
+    if (meshNodeId >= 0)
+      node = const_cast<CGeomNodeData *>(&animObject->getNode(meshNodeId));
+
+    auto isJointed = (node && object->isJointed());
+
+    if (node && ! isJointed) {
+      auto animTime = animObject->animTime();
+
+      meshMatrix = CMatrix3DH(object->getNodeAnimHierTransform(*node, animName, animTime));
+    }
+  }
+
+  //---
+
+  auto *nodeMatrices = (useAnim ? &canvas->getObjectNodeMatrices(animObject) : nullptr);
 
   //---
 
@@ -506,7 +547,16 @@ updateObject(CGeomObject3D *object)
       CQGLBuffer::PointData data;
       buffer->getPointData(faceData.pos + i, data);
 
-      auto p = modelMatrix*meshMatrix*data.point->point();
+      auto p = data.point->point();
+
+      if (useAnim) {
+        auto *vertex = geomObject1->getVertexP(*data.ind);
+
+        if (vertex->hasJointData())
+          p = canvas->adjustAnimPoint(*vertex, p, *nodeMatrices);
+      }
+
+      p = modelMatrix*meshMatrix*p;
 
       face.points.push_back(p);
 
@@ -1024,14 +1074,16 @@ drawPolygon(const std::vector<CPoint3D> &points) const
 
   std::vector<CPoint2D> xpoints, ypoints, zpoints, ppoints;
 
-#if 0
-  double z = 0.0;
-#endif
+  bool behind = true;
 
   for (const auto &p : points) {
     xpoints.push_back(CPoint2D(p.getX(), p.getY())); // XY
     ypoints.push_back(CPoint2D(p.getZ(), p.getY())); // ZY
     zpoints.push_back(CPoint2D(p.getX(), p.getZ())); // XZ
+
+    auto dir1 = p - drawData_.cameraPosition;
+    auto a = drawData_.cameraFront.dotProduct(dir1);
+    if (a > 0) behind = false;
 
 #if 0
     auto p1 = drawData_.viewMatrix*p;
@@ -1051,26 +1103,8 @@ drawPolygon(const std::vector<CPoint3D> &points) const
   drawPolygon2D(yview_, ypoints);
   drawPolygon2D(zview_, zpoints);
 
-#if 0
-  z /= points.size();
-
-  //auto z1 = (z - bbox_.getZMin())/(bbox_.getZMax() - bbox_.getZMin());
-  //auto z1 = (z + 1.0)/2.0;
-  auto z1 = (z - drawData_.near)/(drawData_.far - drawData_.near);
-
-  if (z1 > 0) {
-    //auto c = drawData_.painter->pen().color();
-
-    auto gray  = 255*std::min(std::max(z1, 0.0), 1.0);
-    auto gray1 = 255 - gray;
-
-    drawData_.painter->setPen(QColor(gray, gray, gray, gray1));
-
+  if (! behind)
     drawPolygon2D(pview_, ppoints);
-  }
-#else
-  drawPolygon2D(pview_, ppoints);
-#endif
 }
 
 void
@@ -1521,7 +1555,7 @@ Overview3D::
 keyPressEvent(QKeyEvent *e)
 {
   auto *canvas = app_->canvas3D();
-//auto *camera = canvas->camera();
+  auto *camera = canvas->camera();
 
   auto k = e->key();
 
@@ -1529,35 +1563,49 @@ keyPressEvent(QKeyEvent *e)
   mouseData_.isControl = (e->modifiers() & Qt::ControlModifier);
 
 //auto bbox = canvas->bbox();
-//auto bbox = bbox_;
+  auto bbox = bbox_;
 
-//auto d = bbox.getMaxSize()/100.0;
+  auto d = bbox.getMaxSize()/100.0;
 
   if      (editType() == EditType::CAMERA) {
     if      (k == Qt::Key_A) {
-#if 0
       if      (ind_ == 0)
         camera->moveAroundZ(-3*d);
       else if (ind_ == 1)
         camera->moveAroundX(-3*d);
       else if (ind_ == 2)
         camera->moveAroundY(-3*d);
-#endif
     }
     else if (k == Qt::Key_D) {
-#if 0
       if      (ind_ == 0)
         camera->moveAroundZ(3*d);
       else if (ind_ == 1)
         camera->moveAroundX(3*d);
       else if (ind_ == 2)
         camera->moveAroundY(3*d);
-#endif
+    }
+    else if (k == Qt::Key_P) {
+      if (mouseData_.isShift)
+        camera->setPitch(camera->pitch() - 0.1);
+      else
+        camera->setPitch(camera->pitch() + 0.1);
+    }
+    else if (k == Qt::Key_R) {
+      if (mouseData_.isShift)
+        camera->setRoll(camera->roll() - 0.1);
+      else
+        camera->setRoll(camera->roll() + 0.1);
+    }
+    else if (k == Qt::Key_Y) {
+      if (mouseData_.isShift)
+        camera->setYaw(camera->yaw() - 0.1);
+      else
+        camera->setYaw(camera->yaw() + 0.1);
     }
   }
   else if (editType() == EditType::LIGHT) {
   }
-  else if (editType_ == EditType::SELECT) {
+  else if (editType() == EditType::SELECT) {
 #if 0
     if (! mouseData_.isShift && ! mouseData_.isControl) {
       if      (e->key() == Qt::Key_G) { // Grab
@@ -1575,6 +1623,7 @@ keyPressEvent(QKeyEvent *e)
     }
 #endif
   }
+
   if      (k == Qt::Key_Plus) {
     for (auto *v : views_)
       v->range->zoomIn(1.1);

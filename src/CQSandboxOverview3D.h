@@ -299,6 +299,10 @@ class Overview3D : public QFrame {
     double near { 0.0 };
     double far  { 1.0 };
 
+    CVector3D cameraOrigin;
+    CVector3D cameraPosition;
+    CVector3D cameraFront;
+
     QColor pointColor { Qt::red };
     double pointSize  { 8 };
   };

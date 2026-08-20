@@ -20,6 +20,7 @@
 class CGeomScene3D;
 class CGeomObject3D;
 class CGeomFace3D;
+class CGeomVertex3D;
 class CQGLBuffer;
 
 class QTimer;
@@ -287,6 +288,9 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   void init();
+
+  void initCamera();
+
   void addCommands();
 
   void createObjCommand(Object3D *obj);
@@ -308,9 +312,11 @@ class Canvas3D : public OpenGLWindow {
   void bindBuffer (CQGLBuffer *buffer);
   void bindProgram(ShaderProgram *program);
 
-  bool addObjectMeshData(CGeomObject3D *object, CMatrix3DH &meshMatrix);
+  //---
 
-  bool hasObjectMeshData(CGeomObject3D *object) const;
+  void clearObjectMeshData();
+
+  bool addObjectMeshData(CGeomObject3D *object, CMatrix3DH &meshMatrix);
 
   ObjectMeshData &getObjectMeshData(CGeomObject3D *object);
 
@@ -368,6 +374,11 @@ class Canvas3D : public OpenGLWindow {
 
   QMatrix4x4 *nodeQMatrices() const;
   int numNodeQMatrices() const { return NUM_NODE_MATRICES; }
+
+  CPoint3D adjustAnimPoint(const CGeomVertex3D &vertex, const CPoint3D &p,
+                           const NodeMatrices &nodeMatrices) const;
+
+  bool getNodeMatrix(const NodeMatrices &nodeMatrices, int nodeId, CMatrix3D &m) const;
 
   //---
 

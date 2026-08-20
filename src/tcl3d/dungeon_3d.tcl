@@ -1,4 +1,6 @@
 proc loadModel { filename name { s 1.0 } } {
+  # echo "$filename $name"
+
   set obj [sb3d::model $filename]
 
   $obj set id      $name
@@ -24,7 +26,7 @@ proc mapPos { pos } {
 }
 
 proc addTiles { model } {
-  echo "addTiles $model"
+  # echo "addTiles $model"
 
   set ::tile_group [sb3d::group "tile_group"]
 
@@ -47,7 +49,7 @@ proc addTiles { model } {
 }
 
 proc addWalls { wallObj cornerObj } {
-  echo "addWalls $wallObj $cornerObj"
+  # echo "addWalls $wallObj $cornerObj"
 
   set ix1 [expr {$::nx - 1}]
   set iy1 [expr {$::ny - 1}]
@@ -92,6 +94,8 @@ proc addWalls { wallObj cornerObj } {
 }
 
 proc addObject { model ind pos } {
+  # echo "addObject $model $ind $pos"
+
   set ::obj($ind) [$model get ref_object]
 
   set pos [mapPos $pos]
@@ -169,6 +173,9 @@ proc init { } {
   set ::playerObj [addObject $::playerRefObj $::ind [list 0 0 0]] ; incr ::ind
   #echo "$::playerObj [$::playerObj get transformed_model_bbox]"
 
+  # set ::playerObj $::playerRefObj
+  # $::playerObj set visible 1
+
   $::playerObj set anim.name "Idle"
   $::playerObj set anim.step 0.1
 
@@ -195,6 +202,9 @@ proc init { } {
   set ::player_rot  0
   set ::player_irot 0
   set ::player_nrot 250
+
+  set ::player_ianim 0
+  set ::player_nanim 300
 
   set ::player_moved 0
 
@@ -262,11 +272,15 @@ proc updatePlayer { } {
     updateCamera
   }
 
-if {0} {
-  updateCamera
-}
+  if {$::player_ianim >= 0} {
+    incr ::player_ianim -1
 
-   updateLight
+    if {$::player_ianim < 0} {
+      $::playerObj set anim.name "Idle"
+    }
+  }
+
+  updateLight
 }
 
 proc updatePlayerPos { } {
@@ -362,7 +376,7 @@ proc playerRotateLeft { } {
 
     set ::player_moved 1
 
-    echo "Dir: $::player_dir"
+    # echo "Dir: $::player_dir"
   }
 }
 
@@ -385,7 +399,7 @@ proc playerRotateRight { } {
 
     set ::player_moved 1
 
-    echo "Dir: $::player_dir"
+    # echo "Dir: $::player_dir"
   }
 }
 
@@ -590,5 +604,8 @@ proc keyPress { k } {
     $::playerObj exec rotate [list 0 1 0] 180
   } elseif {$k == "4"} {
     $::playerObj exec rotate [list 0 1 0] -90
+  } elseif {$k == "space"} {
+    $::playerObj set anim.name "1H_Melee_Attack_Chop"
+    set ::player_ianim $::player_nanim
   }
 }

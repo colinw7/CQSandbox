@@ -4,12 +4,16 @@
 #include <CQSandboxObject3D.h>
 #include <CQSandboxFaceData.h>
 
+#include <CImagePtr.h>
+
 class CQGLBuffer;
 class CQGLTexture;
 class CGeomObject3D;
+class CGeomTexture;
 
 namespace CQSandbox {
 
+class Texture;
 class ShaderProgram;
 
 class Model3DObj : public Object3D {
@@ -56,6 +60,16 @@ class Model3DObj : public Object3D {
   void drawObject(CGeomObject3D *object, double t);
 
   void updateObjectData();
+
+  //---
+
+  CQGLTexture *getGLTexture(CGeomTexture *texture, bool /*add*/);
+
+  void initGLTexture(Texture *texture);
+
+  CQGLTexture *makeTexture(const CImagePtr &image) const;
+
+  //---
 
   void calcTangents1(CGeomObject3D *object);
 

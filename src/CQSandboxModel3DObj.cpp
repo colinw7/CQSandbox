@@ -191,6 +191,10 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     }
 
     geomObject1->setAnimName(value.toStdString());
+
+    needsUpdate_ = true;
+
+    canvas_->invalidateNodeMatrices();
   }
   else if (name == "anim.repeat") {
     auto *geomObject = dynamic_cast<GeomObject *>(object_);
@@ -492,20 +496,20 @@ void
 Model3DObj::
 drawObject(CGeomObject3D *object, double t)
 {
+  updateObjectData();
+
+  //---
+
   initDraw(t);
 
   //---
 
-  auto *geomObject = dynamic_cast<GeomObject *>(object);
-
+  auto *geomObject  = dynamic_cast<GeomObject *>(object);
   auto *geomObject1 = geomObject;
 
   if (geomObject->refObject()) {
     geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
     assert(geomObject1);
-
-    if (! geomObject1->buffer())
-      updateObject(geomObject1);
   }
 
   //---
@@ -516,6 +520,8 @@ drawObject(CGeomObject3D *object, double t)
 
   if (canvas_->isAnimEnabled())
     isAnim = (animObject && animObject->animName() != "");
+
+  //---
 
   // mesh matrix
   CMatrix3DH meshMatrix;
@@ -725,8 +731,13 @@ updateObject(CGeomObject3D *object)
 {
   auto *geomObject = dynamic_cast<GeomObject *>(object);
 
-  if (geomObject->refObject())
-    return;
+  //---
+
+  if (geomObject->refObject()) {
+    auto *geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+
+    updateObject(geomObject1);
+  }
 
   //---
 
@@ -802,46 +813,7 @@ updateObject(CGeomObject3D *object)
 
   //---
 
-  auto makeTexture = [&](const CImagePtr &image) {
-    auto *texture = new CQGLTexture(image);
-
-    texture->setFunctions(const_cast<Canvas3D *>(canvas_));
-
-    return texture;
-  };
-
-  auto initGLTexture = [&](Texture *texture) {
-    const auto &image = texture->image()->image();
-
-    auto flippedImage = image->dup();
-
-    flippedImage->flipH();
-
-    auto *t1 = makeTexture(image);
-    auto *t2 = makeTexture(flippedImage);
-
-    t1->setName(texture->name());
-    t2->setName(texture->name() + ".flip");
-
-    texture->setGlTextures(canvas_, t1, t2);
-  };
-
-  auto getGLTexture = [&](CGeomTexture *texture, bool /*add*/) {
-    auto *texture1 = dynamic_cast<Texture *>(texture);
-    assert(texture1);
-
-    if (! texture1->glTexture(canvas_)) {
-      //if (! add) return nullptr;
-
-      initGLTexture(texture1);
-    }
-
-    return texture1->glTexture(canvas_);
-  };
-
-  //---
-
-  CBBox3D bbox1;
+  bbox_ = CBBox3D();
 
   int pos = 0;
 
@@ -1014,13 +986,22 @@ updateObject(CGeomObject3D *object)
 
       ++iv;
 
-      bbox1 += model2;
+      bbox_ += model2;
     }
 
     pos += faceData.len;
 
     geomObject->addFaceData(faceData);
   }
+
+  //---
+
+  if (! bbox_.isSet()) {
+    bbox_.add(CPoint3D(-1, -1, -1));
+    bbox_.add(CPoint3D( 1,  1,  1));
+  }
+
+  geomObject->setBBox(bbox_);
 
   //---
 
@@ -1035,6 +1016,54 @@ updateObject(CGeomObject3D *object)
     updateObject(child);
   }
 }
+
+CQGLTexture *
+Model3DObj::
+getGLTexture(CGeomTexture *texture, bool /*add*/)
+{
+  auto *texture1 = dynamic_cast<Texture *>(texture);
+  assert(texture1);
+
+  if (! texture1->glTexture(canvas_)) {
+    //if (! add) return nullptr;
+
+    initGLTexture(texture1);
+  }
+
+  return texture1->glTexture(canvas_);
+}
+
+void
+Model3DObj::
+initGLTexture(Texture *texture)
+{
+  const auto &image = texture->image()->image();
+
+  auto flippedImage = image->dup();
+
+  flippedImage->flipH();
+
+  auto *t1 = makeTexture(image);
+  auto *t2 = makeTexture(flippedImage);
+
+  t1->setName(texture->name());
+  t2->setName(texture->name() + ".flip");
+
+  texture->setGlTextures(canvas_, t1, t2);
+}
+
+CQGLTexture *
+Model3DObj::
+makeTexture(const CImagePtr &image) const
+{
+  auto *texture = new CQGLTexture(image);
+
+  texture->setFunctions(const_cast<Canvas3D *>(canvas_));
+
+  return texture;
+}
+
+//---
 
 void
 Model3DObj::

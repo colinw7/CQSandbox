@@ -11,6 +11,7 @@ class CQGLBuffer;
 namespace CQSandbox {
 
 class Canvas3D;
+class ShaderProgram;
 
 class GeomObject : public CGeomObject3D {
  public:
@@ -27,7 +28,14 @@ class GeomObject : public CGeomObject3D {
 
   //---
 
+  const CBBox3D &bbox() const { return bbox_; }
+  void setBBox(const CBBox3D &v) { bbox_ = v; }
+
+  //---
+
   CQGLBuffer *buffer() const { return buffer_; }
+
+  ShaderProgram* program() const { return program_; }
 
   const FaceDatas &faceDatas() const { return faceDatas_; }
 
@@ -35,10 +43,12 @@ class GeomObject : public CGeomObject3D {
 
   void addFaceData(const FaceData &faceData);
 
-  //---
-
  private:
+  CBBox3D bbox_;
+
   CQGLBuffer* buffer_ { nullptr };
+
+  ShaderProgram* program_ { nullptr };
 
   FaceDatas faceDatas_;
 };

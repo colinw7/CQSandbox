@@ -65,6 +65,8 @@ class Camera : public QObject, public CGLCameraIFace {
   const CVector3D &position() const override;
   void setPosition(const CVector3D &p) override;
 
+  void movePosition(const CVector3D &p);
+
   //---
 
   // rotation x angle
@@ -102,6 +104,12 @@ class Camera : public QObject, public CGLCameraIFace {
 
   double distance() const { return distance_; }
   void setDistance(double r) { if (distance_ != r) { distance_ = r; stateChanged(); } }
+
+  //---
+
+  void getPixelRay(double x, double y, CPoint3D &rp1, CPoint3D &rp2) const;
+
+  //---
 
   void stateChanged() override { orientationValid_ = false; Q_EMIT stateChangedSignal(); }
 

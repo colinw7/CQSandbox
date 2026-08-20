@@ -255,6 +255,13 @@ init()
 
   //---
 
+  initCamera();
+}
+
+void
+Canvas3D::
+initCamera()
+{
   camera_ = new Camera(app_);
 }
 
@@ -1541,7 +1548,7 @@ render()
   if (! objectsValid_) {
     objectsValid_ = true;
 
-    objectMeshData_.clear();
+    clearObjectMeshData();
   }
 
   //---
@@ -1629,6 +1636,15 @@ render()
   bindProgram(nullptr);
 }
 
+//---
+
+void
+Canvas3D::
+clearObjectMeshData()
+{
+  objectMeshData_.clear();
+}
+
 bool
 Canvas3D::
 addObjectMeshData(CGeomObject3D *object, CMatrix3DH &meshMatrix)
@@ -1659,15 +1675,6 @@ addObjectMeshData(CGeomObject3D *object, CMatrix3DH &meshMatrix)
   return false;
 }
 
-bool
-Canvas3D::
-hasObjectMeshData(CGeomObject3D *object) const
-{
-  auto po = objectMeshData_.find(object);
-
-  return (po != objectMeshData_.end());
-}
-
 Canvas3D::ObjectMeshData &
 Canvas3D::
 getObjectMeshData(CGeomObject3D *object)
@@ -1679,6 +1686,8 @@ getObjectMeshData(CGeomObject3D *object)
 
   return (*po).second;
 }
+
+//---
 
 void
 Canvas3D::
@@ -1727,7 +1736,7 @@ updateNodeMatrices(CGeomObject3D *object)
   // anim data on anim object
   auto *animObject = object->getAnimObject();
 
-  if (animObject == paintData_.animObject)
+  if (animObject == paintData_.animObject && objectNodeMatricesValid_)
     return;
 
   paintData_.animObject = animObject;
@@ -1867,6 +1876,73 @@ getAnimObjects() const
   }
 
   return animObjects;
+}
+
+CPoint3D
+Canvas3D::
+adjustAnimPoint(const CGeomVertex3D &vertex, const CPoint3D &p,
+                const NodeMatrices &nodeMatrices) const
+{
+  const auto &jointData = vertex.getJointData();
+
+  if (! jointData.set)
+    return p;
+
+  struct NodeWeight {
+    int    nodeId { -1 };
+    double weight { 0.0 };
+  };
+
+  std::vector<NodeWeight> nodeWeights;
+
+  double total = 0.0;
+
+  for (int i = 0; i < 4; ++i) {
+    if (jointData.nodeDatas[i].node >= 0 && jointData.nodeDatas[i].weight > 0.0) {
+      NodeWeight nodeWeight;
+
+      nodeWeight.nodeId = jointData.nodeDatas[i].node;
+      nodeWeight.weight = jointData.nodeDatas[i].weight;
+
+      nodeWeights.push_back(nodeWeight);
+
+      total += nodeWeight.weight;
+    }
+  }
+
+  auto f = (total > 0.0 ? 1.0/total : 1.0);
+
+  if (! nodeWeights.empty()) {
+    for (auto &nodeWeight : nodeWeights)
+      nodeWeight.weight *= f;
+
+    auto p1 = CPoint3D(0, 0, 0);
+
+    for (const auto &nodeWeight : nodeWeights) {
+      CMatrix3D boneTransform;
+
+      if (getNodeMatrix(nodeMatrices, nodeWeight.nodeId, boneTransform))
+        p1 += nodeWeight.weight*(boneTransform*p);
+      else
+        p1 += nodeWeight.weight*p;
+    }
+
+    return p1;
+  }
+  else
+    return p;
+}
+
+bool
+Canvas3D::
+getNodeMatrix(const NodeMatrices &nodeMatrices, int nodeId, CMatrix3D &m) const
+{
+  auto pm = nodeMatrices.find(nodeId);
+  if (pm == nodeMatrices.end()) return false;
+
+  m = (*pm).second;
+
+  return true;
 }
 
 //---
