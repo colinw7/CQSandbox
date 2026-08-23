@@ -16,7 +16,7 @@ class Axis3DObj : public Object3D {
 
   Axis3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Axis"; }
+  const char *typeName() const override { return "axis"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

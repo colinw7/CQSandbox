@@ -42,7 +42,7 @@ class Text3DObj : public Object3D {
 
   Text3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Text"; }
+  const char *typeName() const override { return "text"; }
 
   const QString &text() const { return text_; }
   void setText(const QString &s);

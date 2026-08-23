@@ -28,7 +28,7 @@ class Model3DObj : public Object3D {
 
   Model3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Model"; }
+  const char *typeName() const override { return "model"; }
 
   bool isAutoScale() const { return autoScale_; }
   void setAutoScale(bool b) { autoScale_ = b; }

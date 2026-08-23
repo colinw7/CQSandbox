@@ -338,7 +338,7 @@ proc updatePlayer { } {
   }
 
   if {$::enemy_moved} {
-    # echo "Move Enemy"
+    echo "Move Enemy"
 
     updateEnemyPos
 
@@ -460,7 +460,7 @@ if {0} {
   set dx [expr {[lindex $to1 0] - [lindex $from 0]}]
   set dy [expr {[lindex $to1 1] - [lindex $from 1]}]
 
-  if {$dx > 0 || $dy > 0} {
+  if {abs($dx) > 0 || abs($dy) > 0} {
     set dir $::enemy_dir
 
     if {abs($dx) > abs($dy)} {

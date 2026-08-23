@@ -1,14 +1,12 @@
 #ifndef CQSandbox_H
 #define CQSandbox_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxGroupObj.h>
 
 #include <CTclUtil.h>
-//#include <CDisplayRange2D.h>
 #include <CWindowRange2D.h>
 #include <CMathUtil.h>
 #include <CRGBA.h>
-#include <CQuadTree.h>
 #include <CArray2D.h>
 
 #include <QFrame>
@@ -21,7 +19,6 @@
 
 class CQArrow;
 class CQAxis;
-class CQCsvModel;
 
 class QTimer;
 
@@ -32,50 +29,6 @@ class Canvas;
 class ParticleSystem;
 class Particle;
 class Viewport;
-
-//---
-
-class GroupObj : public Object {
-  Q_OBJECT
-
- public:
-  using Objects = std::vector<Object *>;
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  GroupObj(Canvas *canvas, const Rect &rect);
-
-  const char *typeName() const override { return "group"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  const CDisplayRange2D &displayRange() const { return displayRange_; }
-
-  const Objects &objects() const { return objects_; }
-
-  Rect calcRect() const override;
-
-  void draw(QPainter *) override;
-
-  void addObject(Object *obj);
-  void removeObject(Object *obj);
-
-  Rect rectToPixel(const Rect &p) const;
-  Point pointToPixel(const Point &p) const;
-
-//Point pointToWindow(const Point &p) const override;
-
- Q_SIGNALS:
-  void objectsChanged();
-
- protected:
-  Rect rect_;
-
-  CDisplayRange2D displayRange_;
-  Objects         objects_;
-};
 
 //---
 
@@ -117,25 +70,6 @@ class CirclesGroupObj : public GroupObj {
 
  protected:
   CirclesMgr *mgr_ { nullptr };
-};
-
-//---
-
-class QuadTreeObj : public GroupObj {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  QuadTreeObj(Canvas *canvas);
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
- private:
-  using QuadTree = CQuadTree<Object, Rect>;
-
-  QuadTree quadTree_;
 };
 
 //---
@@ -221,49 +155,6 @@ class LineObj : public Object {
 
 //---
 
-class TextObj : public Object {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  TextObj(Canvas *canvas, const Point &pos, const QString &text);
-
-  const char *typeName() const override { return "text"; }
-
-  const Point &position() const { return pos_; }
-  void setPosition(const Point &v) { pos_ = v; }
-
-  const QString &text() const { return text_; }
-  void setText(const QString &s) { text_ = s; }
-
-  const QFont &font() const { return font_; }
-  void setFont(const QFont &f) { font_ = f; }
-
-  bool isHtml() const { return html_; }
-  void setHtml(bool b) { html_ = b; }
-
-  const Qt::Alignment &align() const { return align_; }
-  void setAlign(const Qt::Alignment &v) { align_ = v; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect calcRect() const override;
-
-  void draw(QPainter *) override;
-
- protected:
-  Point         pos_;
-  QString       text_;
-  QFont         font_;
-  QPen          border_;
-  Qt::Alignment align_ { Qt::AlignCenter };
-  bool          html_  { false };
-};
-
-//---
-
 class ImageObj : public Object {
   Q_OBJECT
 
@@ -294,29 +185,6 @@ class ImageObj : public Object {
   Rect     rect_;
   Position posType_ { Position::TOP_LEFT };
   QImage   image_;
-};
-
-//---
-
-class PathObj : public Object {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  PathObj(Canvas *canvas, const QPainterPath &path);
-
-  const char *typeName() const override { return "path"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect calcRect() const override;
-
-  void draw(QPainter *) override;
-
- protected:
-  QPainterPath path_;
 };
 
 //---
@@ -463,68 +331,6 @@ class ParticleObj : public Object {
  protected:
   Point     pos_;
   Particle* particle_ { nullptr };
-};
-
-//---
-
-class VectorObj : public Object {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  VectorObj(Canvas *canvas);
-
-  const char *typeName() const override { return "vector"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
- protected:
-  CVector2D v_;
-};
-
-//---
-
-class ArrayObj : public Object {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  ArrayObj(Canvas *canvas, uint dim0, uint dim1);
-  ArrayObj(Canvas *canvas, const CArray2D<double> &a);
-
-  const char *typeName() const override { return "array"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
- protected:
-  CArray2D<double> a_;
-};
-
-//---
-
-class CsvObj : public Object {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  CsvObj(Canvas *canvas, const QString &filename);
-
-  const char *typeName() const override { return "csv"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
-
- protected:
-  QString filename_;
-
-  CQCsvModel *csv_ { nullptr };
 };
 
 //---

@@ -1,14 +1,18 @@
 #ifndef CQSandboxUtil_H
 #define CQSandboxUtil_H
 
+#include <CQSandboxGeom.h>
+
 #include <CQTclUtil.h>
+#include <CQSVGUtil.h>
 #include <CGLVector2D.h>
 #include <CGLVector3D.h>
 #include <CBBox3D.h>
 #include <CGLColor.h>
-
+#include <CWindowRange2D.h>
 #include <CPoint3D.h>
 
+#include <QPainterPath>
 #include <QString>
 #include <QVector3D>
 
@@ -103,6 +107,139 @@ inline CRGBA QColorToRGBA(const QColor &c) {
 }
 
 //---
+
+inline QString rangeToString(CQTcl *tcl, const CDisplayRange2D &range) {
+  double x1, y1, x2, y2;
+  range.getWindowRange(&x1, &y1, &x2, &y2);
+
+  QStringList strs;
+  strs << Util::realToString(x1);
+  strs << Util::realToString(y1);
+  strs << Util::realToString(x2);
+  strs << Util::realToString(y2);
+
+  return tcl->mergeList(strs);
+}
+
+inline void stringToRange(CQTcl *tcl, CDisplayRange2D &range, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  if (strs.size() == 4) {
+    auto x1 = Util::stringToReal(strs[0]);
+    auto y1 = Util::stringToReal(strs[1]);
+    auto x2 = Util::stringToReal(strs[2]);
+    auto y2 = Util::stringToReal(strs[3]);
+
+    range.setWindowRange(x1, y1, x2, y2);
+  }
+}
+
+inline Rect stringToRect(CQTcl *tcl, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  Point ll, ur;
+
+  if (strs.size() > 4 && strs[2] == "px") {
+    ll.x.units = Units::PIXEL;
+    ll.y.units = Units::PIXEL;
+    ur.x.units = Units::PIXEL;
+    ur.y.units = Units::PIXEL;
+  }
+
+  if (strs.size() >= 4) {
+    auto x1 = Util::stringToReal(strs[0]);
+    auto y1 = Util::stringToReal(strs[1]);
+    auto x2 = Util::stringToReal(strs[2]);
+    auto y2 = Util::stringToReal(strs[3]);
+
+    ll.x.value = std::min(x1, x2);
+    ll.y.value = std::min(y1, y2);
+    ur.x.value = std::max(x1, x2);
+    ur.y.value = std::max(y1, y2);
+  }
+
+  Rect rect;
+
+  rect.ll = ll;
+  rect.ur = ur;
+
+  return rect;
+}
+
+inline QString rectToString(const Rect &r) {
+  auto x1str = QString::number(r.ll.x.value);
+  auto y1str = QString::number(r.ll.y.value);
+  auto x2str = QString::number(r.ur.x.value);
+  auto y2str = QString::number(r.ur.y.value);
+
+  auto str = x1str + " " + y1str + " " + x2str + " " + y2str;
+
+  if (r.ll.x.units == Units::PIXEL)
+    str += " px";
+
+  return str;
+}
+
+inline QString coordToString(const Coord &coord) {
+  auto str = QString::number(coord.value);
+
+  if (coord.units == Units::PIXEL)
+    str += "px";
+
+  return str;
+}
+
+inline Coord stringToCoord(const QString &str) {
+  Coord coord;
+
+  auto str1 = str;
+
+  if (str1.right(2) == "px") {
+    coord.units = Units::PIXEL;
+
+    str1 = str1.mid(0, str1.length() - 2);
+  }
+
+  coord.value = Util::stringToReal(str1);
+
+  return coord;
+}
+
+inline Point stringToPoint(CQTcl *tcl, const QString &str) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  Point p;
+
+  if (strs.size() > 2 && strs[2] == "px") {
+    p.x.units = Units::PIXEL;
+    p.y.units = Units::PIXEL;
+  }
+
+  if (strs.size() >= 2) {
+    auto x = Util::stringToReal(strs[0]);
+    auto y = Util::stringToReal(strs[1]);
+
+    p.x.value = x;
+    p.y.value = y;
+  }
+
+  return p;
+}
+
+inline QString pointToString(const Point &p) {
+  auto xstr = QString::number(p.x.value);
+  auto ystr = QString::number(p.y.value);
+
+  auto str = xstr + " " + ystr;
+
+  if (p.x.units == Units::PIXEL)
+    str += " px";
+
+  return str;
+}
 
 inline QString point2DToString(const CPoint2D &p) {
   auto xstr = QString::number(p.x);
@@ -424,6 +561,58 @@ inline double degToRad(double d) {
 
 inline double radToDeg(double d) {
   return 180.0*d/M_PI;
+}
+
+//---
+
+inline QPainterPath stringToPath(const QString &str) {
+  QPainterPath path;
+  (void) CQSVGUtil::stringToPath(str, path);
+  return path;
+}
+
+inline QString pathToString(const QPainterPath &path) {
+  return CQSVGUtil::pathToString(path);
+}
+
+//---
+
+inline QString alignToString(Qt::Alignment align) {
+  QString str;
+
+  if (align == Qt::AlignCenter)
+    return "Center";
+
+  if      (align & Qt::AlignLeft   ) str += "Left";
+  else if (align & Qt::AlignRight  ) str += "Right";
+  else if (align & Qt::AlignHCenter) str += "HCenter";
+
+  if      (align & Qt::AlignTop    ) str += "Top";
+  else if (align & Qt::AlignBottom ) str += "Bottom";
+  else if (align & Qt::AlignVCenter) str += "VCenter";
+
+  return str;
+}
+
+inline Qt::Alignment stringToAlign(const QString &str) {
+  Qt::Alignment align = Qt::AlignmentFlag(0);
+
+  auto str1 = str.toLower();
+
+  if (str1 == "center")
+    return Qt::AlignCenter;
+
+  if      (str1.left(4) == "left"   ) align |= Qt::AlignLeft;
+  else if (str1.left(5) == "right"  ) align |= Qt::AlignRight;
+  else if (str1.left(7) == "hcenter") align |= Qt::AlignHCenter;
+  else                                align |= Qt::AlignHCenter;
+
+  if      (str1.right(3) == "top"    ) align |= Qt::AlignTop;
+  else if (str1.right(6) == "bottom" ) align |= Qt::AlignBottom;
+  else if (str1.right(7) == "vcenter") align |= Qt::AlignVCenter;
+  else                                 align |= Qt::AlignVCenter;
+
+  return align;
 }
 
 //---

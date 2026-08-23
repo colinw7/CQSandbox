@@ -1,19 +1,19 @@
-#ifndef CQSandboxCsv3DObj_H
-#define CQSandboxCsv3DObj_H
+#ifndef CQSandboxCsvObj_H
+#define CQSandboxCsvObj_H
 
-#include <CQSandboxObject3D.h>
+#include <CQSandboxObject.h>
 
 class CQCsvModel;
 
 namespace CQSandbox {
 
-class Csv3DObj : public Object3D {
+class CsvObj : public Object {
   Q_OBJECT
 
  public:
-  static Object3D *create(Canvas3D *canvas, const QStringList &args);
+  static bool create(Canvas *canvas, const QStringList &args);
 
-  Csv3DObj(Canvas3D *canvas, const QString &filename);
+  CsvObj(Canvas *canvas, const QString &filename);
 
   const char *typeName() const override { return "csv"; }
 
@@ -21,10 +21,6 @@ class Csv3DObj : public Object3D {
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   bool exec(const QString &op, const QStringList &args, QVariant &res) override;
-
-  //---
-
-  void init() override;
 
  protected:
   QString filename_;

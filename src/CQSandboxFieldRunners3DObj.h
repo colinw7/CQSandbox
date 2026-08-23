@@ -17,7 +17,7 @@ class FieldRunners3DObj : public Object3D {
 
   FieldRunners3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "FieldRunners"; }
+  const char *typeName() const override { return "field_runners"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

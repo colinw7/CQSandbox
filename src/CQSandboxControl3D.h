@@ -110,7 +110,6 @@ class Control3D : public QFrame {
   void overviewSelectedColorSlot(const QColor &c);
   void overviewPointSizeSlot(double a);
 
-
  private Q_SLOTS:
   void updateSlot();
 

@@ -33,7 +33,7 @@ class ParticleList3DObj : public Object3D {
 
   ParticleList3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "ParticleList"; }
+  const char *typeName() const override { return "particle_list"; }
 
   double particleSize() const { return particleSize_; }
   void setParticleSize(double r) { particleSize_ = r; }

@@ -23,7 +23,7 @@ class Path3DObj : public Object3D {
 
   Path3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Path"; }
+  const char *typeName() const override { return "path"; }
 
   const CGLPath3D &path() const { return path_; }
 

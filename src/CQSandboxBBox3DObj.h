@@ -16,7 +16,7 @@ class BBox3DObj : public Object3D {
 
   BBox3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "BBox"; }
+  const char *typeName() const override { return "bbox"; }
 
   void init() override;
 

@@ -25,7 +25,7 @@ class Shape3DObj : public Object3D {
 
   Shape3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Shape"; }
+  const char *typeName() const override { return "shape"; }
 
   const Shape3DData &shapeData() const { return shapeData_; }
 

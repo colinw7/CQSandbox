@@ -26,7 +26,7 @@ class Plane3DObj : public Object3D {
 
   Plane3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Plane"; }
+  const char *typeName() const override { return "plane"; }
 
   const QColor &color() const { return color_; }
   void setColor(const QColor &c);

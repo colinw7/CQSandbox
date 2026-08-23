@@ -16,7 +16,7 @@ class Group3DObj : public Object3D {
 
   Group3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Group"; }
+  const char *typeName() const override { return "group"; }
 
   const Objects &objects() const { return objects_; }
 

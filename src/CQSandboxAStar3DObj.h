@@ -17,7 +17,7 @@ class AStar3DObj : public Object3D {
 
   AStar3DObj(Canvas3D *canvas, uint nx, uint ny);
 
-  const char *typeName() const override { return "array"; }
+  const char *typeName() const override { return "astar"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

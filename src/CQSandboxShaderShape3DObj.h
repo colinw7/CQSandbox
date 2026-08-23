@@ -34,7 +34,7 @@ class ShaderShape3DObj : public Object3D {
 
   ShaderShape3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "ShaderShape"; }
+  const char *typeName() const override { return "shader_shape"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

@@ -331,7 +331,6 @@ class Canvas3D : public OpenGLWindow {
   void keyPressEvent  (QKeyEvent *e) override;
   void keyReleaseEvent(QKeyEvent *e) override;
 
-
   //---
 
   bool getKeyPressed(const std::string &key) const;

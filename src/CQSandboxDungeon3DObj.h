@@ -18,7 +18,7 @@ class Dungeon3DObj : public Object3D {
 
   Dungeon3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Dungeon"; }
+  const char *typeName() const override { return "dungeon"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

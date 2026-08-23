@@ -25,7 +25,7 @@ class Graph3DObj : public Object3D {
 
   Graph3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Graph"; }
+  const char *typeName() const override { return "graph"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

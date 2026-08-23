@@ -30,7 +30,7 @@ class Surface3DObj : public Object3D {
 
   Surface3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Surface"; }
+  const char *typeName() const override { return "surface"; }
 
   void init() override;
 

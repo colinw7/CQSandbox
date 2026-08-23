@@ -1,4 +1,13 @@
 #include <CQSandboxCanvas.h>
+
+#include <CQSandboxArrayObj.h>
+#include <CQSandboxCsvObj.h>
+#include <CQSandboxGroupObj.h>
+#include <CQSandboxPathObj.h>
+#include <CQSandboxQuadTreeObj.h>
+#include <CQSandboxTextObj.h>
+#include <CQSandboxVectorObj.h>
+
 #include <CQSandboxParticleSystem.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -6,14 +15,11 @@
 #include <CQSandboxViewport.h>
 #include <CQSandboxToolbar2D.h>
 
-#include <CQSVGUtil.h>
 #include <CQTclUtil.h>
 #include <CQUtil.h>
 
-#include <CQHtmlTextPainter.h>
 #include <CQArrow.h>
 #include <CQAxis.h>
-#include <CQCsvModel.h>
 #include <CCircleFactor.h>
 #include <CFile.h>
 
@@ -37,148 +43,6 @@ int createObjectProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
   return TCL_OK;
 }
 
-QString
-coordToString(const Coord &coord) {
-  auto str = QString::number(coord.value);
-
-  if (coord.units == Units::PIXEL)
-    str += "px";
-
-  return str;
-}
-
-Coord
-stringToCoord(const QString &str) {
-  Coord coord;
-
-  auto str1 = str;
-
-  if (str1.right(2) == "px") {
-    coord.units = Units::PIXEL;
-
-    str1 = str1.mid(0, str1.length() - 2);
-  }
-
-  coord.value = Util::stringToReal(str1);
-
-  return coord;
-}
-
-QString
-rectToString(const Rect &r) {
-  auto x1str = QString::number(r.ll.x.value);
-  auto y1str = QString::number(r.ll.y.value);
-  auto x2str = QString::number(r.ur.x.value);
-  auto y2str = QString::number(r.ur.y.value);
-
-  auto str = x1str + " " + y1str + " " + x2str + " " + y2str;
-
-  if (r.ll.x.units == Units::PIXEL)
-    str += " px";
-
-  return str;
-}
-
-QString
-pointToString(const Point &p) {
-  auto xstr = QString::number(p.x.value);
-  auto ystr = QString::number(p.y.value);
-
-  auto str = xstr + " " + ystr;
-
-  if (p.x.units == Units::PIXEL)
-    str += " px";
-
-  return str;
-}
-
-Point
-stringToPoint(CQTcl *tcl, const QString &str) {
-  QStringList strs;
-  (void) tcl->splitList(str, strs);
-
-  Point p;
-
-  if (strs.size() > 2 && strs[2] == "px") {
-    p.x.units = Units::PIXEL;
-    p.y.units = Units::PIXEL;
-  }
-
-  if (strs.size() >= 2) {
-    auto x = Util::stringToReal(strs[0]);
-    auto y = Util::stringToReal(strs[1]);
-
-    p.x.value = x;
-    p.y.value = y;
-  }
-
-  return p;
-}
-
-Rect
-stringToRect(CQTcl *tcl, const QString &str) {
-  QStringList strs;
-  (void) tcl->splitList(str, strs);
-
-  Point ll, ur;
-
-  if (strs.size() > 4 && strs[2] == "px") {
-    ll.x.units = Units::PIXEL;
-    ll.y.units = Units::PIXEL;
-    ur.x.units = Units::PIXEL;
-    ur.y.units = Units::PIXEL;
-  }
-
-  if (strs.size() >= 4) {
-    auto x1 = Util::stringToReal(strs[0]);
-    auto y1 = Util::stringToReal(strs[1]);
-    auto x2 = Util::stringToReal(strs[2]);
-    auto y2 = Util::stringToReal(strs[3]);
-
-    ll.x.value = std::min(x1, x2);
-    ll.y.value = std::min(y1, y2);
-    ur.x.value = std::max(x1, x2);
-    ur.y.value = std::max(y1, y2);
-  }
-
-  Rect rect;
-
-  rect.ll = ll;
-  rect.ur = ur;
-
-  return rect;
-}
-
-QString
-rangeToString(CQTcl *tcl, const CDisplayRange2D &range) {
-  double x1, y1, x2, y2;
-  range.getWindowRange(&x1, &y1, &x2, &y2);
-
-  QStringList strs;
-  strs << Util::realToString(x1);
-  strs << Util::realToString(y1);
-  strs << Util::realToString(x2);
-  strs << Util::realToString(y2);
-
-  return tcl->mergeList(strs);
-}
-
-void
-stringToRange(CQTcl *tcl, CDisplayRange2D &range, const QString &str)
-{
-  QStringList strs;
-  (void) tcl->splitList(str, strs);
-
-  if (strs.size() == 4) {
-    auto x1 = Util::stringToReal(strs[0]);
-    auto y1 = Util::stringToReal(strs[1]);
-    auto x2 = Util::stringToReal(strs[2]);
-    auto y2 = Util::stringToReal(strs[3]);
-
-    range.setWindowRange(x1, y1, x2, y2);
-  }
-}
-
 bool
 stringToImage(const QString &str, QImage &image) {
   auto cstr = str.toStdString();
@@ -198,60 +62,6 @@ stringToImage(const QString &str, QImage &image) {
 QString
 imageToString(const QImage &image) {
   return image.text("name");
-}
-
-QPainterPath
-stringToPath(const QString &str) {
-  QPainterPath path;
-  (void) CQSVGUtil::stringToPath(str, path);
-  return path;
-}
-
-QString
-pathToString(const QPainterPath &path) {
-  return CQSVGUtil::pathToString(path);
-}
-
-QString
-alignToString(Qt::Alignment align)
-{
-  QString str;
-
-  if (align == Qt::AlignCenter)
-    return "Center";
-
-  if      (align & Qt::AlignLeft   ) str += "Left";
-  else if (align & Qt::AlignRight  ) str += "Right";
-  else if (align & Qt::AlignHCenter) str += "HCenter";
-
-  if      (align & Qt::AlignTop    ) str += "Top";
-  else if (align & Qt::AlignBottom ) str += "Bottom";
-  else if (align & Qt::AlignVCenter) str += "VCenter";
-
-  return str;
-}
-
-Qt::Alignment
-stringToAlign(const QString &str)
-{
-  Qt::Alignment align = Qt::AlignmentFlag(0);
-
-  auto str1 = str.toLower();
-
-  if (str1 == "center")
-    return Qt::AlignCenter;
-
-  if      (str1.left(4) == "left"   ) align |= Qt::AlignLeft;
-  else if (str1.left(5) == "right"  ) align |= Qt::AlignRight;
-  else if (str1.left(7) == "hcenter") align |= Qt::AlignHCenter;
-  else                                align |= Qt::AlignHCenter;
-
-  if      (str1.right(3) == "top"    ) align |= Qt::AlignTop;
-  else if (str1.right(6) == "bottom" ) align |= Qt::AlignBottom;
-  else if (str1.right(7) == "vcenter") align |= Qt::AlignVCenter;
-  else                                 align |= Qt::AlignVCenter;
-
-  return align;
 }
 
 QColor RGBAToQColor(const CRGBA &c) {
@@ -1265,7 +1075,7 @@ viewportProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   auto *tcl = th->app_->tcl();
 
-  auto rect = stringToRect(tcl, args[0]);
+  auto rect = Util::stringToRect(tcl, args[0]);
 
   auto *viewport = th->addViewport();
 
@@ -1326,7 +1136,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = Util::realToString(viewport->pen.widthF());
   }
   else if (name == "range") {
-    value = rangeToString(tcl, viewport->displayRange);
+    value = Util::rangeToString(tcl, viewport->displayRange);
   }
   else if (name == "range.xmin") {
     double x1, y1, x2, y2;
@@ -1429,7 +1239,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "pen.width")
     viewport->pen.setWidthF(Util::stringToReal(value));
   else if (name == "range") {
-    stringToRange(tcl, viewport->displayRange, value);
+    Util::stringToRange(tcl, viewport->displayRange, value);
 
     viewport->hasRange = true;
   }
@@ -1444,7 +1254,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
     currentViewportName_ = value;
   }
   else if (name == "view.rect") {
-    viewport->rect = stringToRect(tcl, value);
+    viewport->rect = Util::stringToRect(tcl, value);
 
     updatePixelRanges();
   }
@@ -1471,7 +1281,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
     blendFactor_ = Util::stringToReal(value);
   }
   else if (name == "window.size") {
-    auto size = stringToPoint(tcl, value);
+    auto size = Util::stringToPoint(tcl, value);
 
     int w = size.x.value;
     int h = size.y.value;
@@ -1765,12 +1575,12 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
         viewport->brush = b;
       }
       else if (name == "range") {
-        stringToRange(tcl, viewport->displayRange, value);
+        Util::stringToRange(tcl, viewport->displayRange, value);
 
         viewport->hasRange = true;
       }
       else if (name == "clip") {
-        viewport->clip = stringToRect(tcl, value);
+        viewport->clip = Util::stringToRect(tcl, value);
       }
       else
         app->errorMsg("Invalid set name '" + name + "' for viewport");
@@ -1883,154 +1693,6 @@ uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 //---
 
 bool
-GroupObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  if (args.size() != 1) return false;
-
-  auto *tcl = canvas->app()->tcl();
-
-  auto rect = stringToRect(tcl, args[0]);
-
-  auto *obj = new GroupObj(canvas, rect);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-GroupObj::
-GroupObj(Canvas *canvas, const Rect &rect) :
- Object(canvas), rect_(rect)
-{
-}
-
-bool
-GroupObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  auto *tcl = canvas()->app()->tcl();
-
-  if      (name == "rect")
-    value = rectToString(calcRect());
-  else if (name == "range")
-    value = rangeToString(tcl, displayRange_);
-  else
-    return Object::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-GroupObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *tcl = canvas()->app()->tcl();
-
-  if      (name == "rect")
-    rect_ = stringToRect(tcl, value);
-  else if (name == "range")
-    stringToRange(tcl, displayRange_, value);
-  else
-    return Object::setValue(name, value, args);
-
-  return true;
-}
-
-Rect
-GroupObj::
-calcRect() const
-{
-  return rect_;
-}
-
-void
-GroupObj::
-draw(QPainter *painter)
-{
-  auto rect  = rectToWindow(rect_);
-  auto prect = canvas()->rectToPixel(rect).qrect();
-
-  painter->setPen(pen_);
-  painter->setBrush(brush_.value());
-
-  painter->drawRect(prect);
-
-  painter->save();
-  painter->setClipRect(prect);
-
-  auto qrect = rect.qrect();
-
-  displayRange_.setPixelRange(qrect.left(), qrect.bottom(), qrect.right(), qrect.top());
-
-  for (auto *obj : objects_) {
-    if (obj->isVisible())
-      obj->draw(painter);
-  }
-
-  painter->restore();
-}
-
-void
-GroupObj::
-addObject(Object *obj)
-{
-  objects_.push_back(obj);
-
-  obj->setGroup(this);
-
-  Q_EMIT objectsChanged();
-}
-
-void
-GroupObj::
-removeObject(Object *obj)
-{
-  Objects objects;
-
-  for (auto *obj1 : objects_) {
-    if (obj1 != obj)
-      objects.push_back(obj1);
-  }
-
-  std::swap(objects, objects_);
-
-  Q_EMIT objectsChanged();
-}
-
-Rect
-GroupObj::
-rectToPixel(const Rect &r) const
-{
-  auto p1 = pointToPixel(r.ll);
-  auto p2 = pointToPixel(r.ur);
-
-  return Rect(p1, p2);
-}
-
-Point
-GroupObj::
-pointToPixel(const Point &p) const
-{
-  if (p.x.units == Units::PIXEL)
-    return p;
-
-  double px, py;
-  displayRange_.windowToPixel(p.x.value, p.y.value, &px, &py);
-
-  auto p1 = Point::makePixel(px, py);
-
-  if (group_)
-    return group_->pointToPixel(p1);
-  else
-    return canvas_->pointToPixel(p1);
-}
-
-//---
-
-bool
 RendererObj::
 create(Canvas *canvas, const QStringList &args)
 {
@@ -2128,7 +1790,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     auto *painter = canvas()->painter();
     if (! painter) return false;
 
-    auto p = stringToPoint(tcl, args[0]);
+    auto p = Util::stringToPoint(tcl, args[0]);
 
     painter->setPen(pen_);
 
@@ -2145,11 +1807,11 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     auto *painter = canvas()->painter();
     if (! painter) return false;
 
-    auto r = stringToRect(tcl, args[0]);
+    auto r = Util::stringToRect(tcl, args[0]);
 
     painter->setPen(pen_);
 
-    auto pr = canvas()->rectToPixel(r).qrect();;
+    auto pr = canvas()->rectToPixel(r).qrect();
 
     painter->drawRect(pr);
 
@@ -2162,7 +1824,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     auto *painter = canvas()->painter();
     if (! painter) return false;
 
-    auto p    = stringToPoint(tcl, args[0]);
+    auto p    = Util::stringToPoint(tcl, args[0]);
     auto text = args[1];
 
     painter->setPen(pen_);
@@ -2273,7 +1935,7 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto rect = stringToRect(tcl, args[0]);
+  auto rect = Util::stringToRect(tcl, args[0]);
 
   auto *obj = new CirclesGroupObj(canvas, rect);
 
@@ -2338,109 +2000,6 @@ pointToWindow(const Point &p) const
 //---
 
 bool
-QuadTreeObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  if (args.size() != 0)
-    return false;
-
-  auto *tcl = canvas->app()->tcl();
-
-  auto *obj = new QuadTreeObj(canvas);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-QuadTreeObj::
-QuadTreeObj(Canvas *canvas) :
- GroupObj(canvas, Rect())
-{
-}
-
-bool
-QuadTreeObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  auto *tcl = canvas()->app()->tcl();
-
-  if      (name == "object.in_rect") {
-    if (args.size() < 1)
-      return false;
-
-    auto rect = stringToRect(tcl, args[0]);
-
-    QuadTree::DataList dataList;
-    quadTree_.getDataInsideBBox(rect, dataList);
-
-    QStringList names;
-
-    for (auto *obj : dataList)
-      names.push_back(obj->getCommandName());
-
-    value = names;
-  }
-  else if (name == "object.at_point") {
-    if (args.size() < 1)
-      return false;
-
-    auto p = stringToPoint(tcl, args[0]);
-
-    QuadTree::DataList dataList;
-    quadTree_.getDataAtPoint(p.x.value, p.y.value, dataList);
-
-    QStringList names;
-
-    for (auto *obj : dataList)
-      names.push_back(obj->getCommandName());
-
-    value = names;
-  }
-  else
-    return GroupObj::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-QuadTreeObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *app = canvas()->app();
-
-  if      (name == "reset") {
-    quadTree_.reset();
-  }
-  else if (name == "object.add") {
-    if (args.size() != 0)
-      return app->errorMsg("Invalid number of args");
-
-    auto *obj = canvas()->getObjectByName(value);
-    if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
-
-    quadTree_.add(obj);
-  }
-  else if (name == "object.remove") {
-    if (args.size() != 0)
-      return app->errorMsg("Invalid number of args");
-
-    auto *obj = canvas()->getObjectByName(value);
-    if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
-
-    quadTree_.remove(obj);
-  }
-  else
-    return GroupObj::setValue(name, value, args);
-
-  return true;
-}
-
-//---
-
-bool
 CircleObj::
 create(Canvas *canvas, const QStringList &args)
 {
@@ -2448,8 +2007,8 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto center = stringToPoint(tcl, args[0]);
-  auto r      = stringToCoord(args[1]);
+  auto center = Util::stringToPoint(tcl, args[0]);
+  auto r      = Util::stringToCoord(args[1]);
 
   auto *obj = new CircleObj(canvas, center, r);
 
@@ -2471,17 +2030,17 @@ CircleObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "rect")
-    value = rectToString(calcRect());
+    value = Util::rectToString(calcRect());
   else if (name == "center")
-    value = pointToString(center_.value());
+    value = Util::pointToString(center_.value());
   else if (name == "center.target")
-    value = pointToString(center_.target());
+    value = Util::pointToString(center_.target());
   else if (name == "center.steps")
     value = int(center_.steps());
   else if (name == "radius")
-    value = coordToString(radius_.value());
+    value = Util::coordToString(radius_.value());
   else if (name == "radius.target")
-    value = coordToString(radius_.target());
+    value = Util::coordToString(radius_.target());
   else if (name == "radius.steps")
     value = int(radius_.steps());
   else
@@ -2497,19 +2056,19 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->app()->tcl();
 
   if      (name == "center") {
-    center_.setValue(stringToPoint(tcl, value));
+    center_.setValue(Util::stringToPoint(tcl, value));
   }
   else if (name == "center.target") {
-    center_.setTarget(stringToPoint(tcl, value));
+    center_.setTarget(Util::stringToPoint(tcl, value));
   }
   else if (name == "center.steps") {
     center_.setSteps(Util::stringToInt(value));
   }
   else if (name == "radius") {
-    radius_.setValue(stringToCoord(value));
+    radius_.setValue(Util::stringToCoord(value));
   }
   else if (name == "radius.target") {
-    radius_.setTarget(stringToCoord(value));
+    radius_.setTarget(Util::stringToCoord(value));
   }
   else if (name == "radius.steps") {
     radius_.setSteps(Util::stringToInt(value));
@@ -2580,7 +2139,7 @@ create(Canvas *canvas, const QStringList &args)
   auto rect = Rect(Point(0, 0), Point(1, 1));
 
   if (args.size() >= 1)
-    rect = stringToRect(tcl, args[0]);
+    rect = Util::stringToRect(tcl, args[0]);
 
   auto *obj = new RectObj(canvas, rect);
 
@@ -2602,7 +2161,7 @@ RectObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if (name == "rect")
-    value = rectToString(calcRect());
+    value = Util::rectToString(calcRect());
   else
     return Object::getValue(name, args, value);
 
@@ -2616,7 +2175,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->app()->tcl();
 
   if (name == "rect") {
-    rect_ = stringToRect(tcl, value);
+    rect_ = Util::stringToRect(tcl, value);
   }
   else
     return Object::setValue(name, value, args);
@@ -2654,8 +2213,8 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto p1 = stringToPoint(tcl, args[0]);
-  auto p2 = stringToPoint(tcl, args[1]);
+  auto p1 = Util::stringToPoint(tcl, args[0]);
+  auto p2 = Util::stringToPoint(tcl, args[1]);
 
   auto *obj = new LineObj(canvas, p1, p2);
 
@@ -2677,9 +2236,9 @@ LineObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "p1")
-    value = pointToString(p1_);
+    value = Util::pointToString(p1_);
   else if (name == "p2")
-    value = pointToString(p2_);
+    value = Util::pointToString(p2_);
   else
     return Object::getValue(name, args, value);
 
@@ -2693,9 +2252,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->app()->tcl();
 
   if      (name == "p1")
-    p1_ = stringToPoint(tcl, value);
+    p1_ = Util::stringToPoint(tcl, value);
   else if (name == "p2")
-    p2_ = stringToPoint(tcl, value);
+    p2_ = Util::stringToPoint(tcl, value);
   else
     return Object::setValue(name, value, args);
 
@@ -2772,7 +2331,7 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto pos = stringToPoint(tcl, args[0]);
+  auto pos = Util::stringToPoint(tcl, args[0]);
 
   auto *obj = new RealEdit(canvas, pos, args[1]);
 
@@ -2794,7 +2353,7 @@ RealEdit::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "position")
-    value = pointToString(p_);
+    value = Util::pointToString(p_);
   else if (name == "min_value")
     value = minValue_;
   else if (name == "max_value")
@@ -2812,7 +2371,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   if      (name == "position") {
     auto *tcl = canvas()->app()->tcl();
 
-    p_ = stringToPoint(tcl, value);
+    p_ = Util::stringToPoint(tcl, value);
   }
   else if (name == "min_value") {
     minValue_ = Util::stringToReal(value);
@@ -2901,7 +2460,7 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto pos = stringToPoint(tcl, args[0]);
+  auto pos = Util::stringToPoint(tcl, args[0]);
 
   auto *obj = new IntegerEdit(canvas, pos, args[1]);
 
@@ -2923,7 +2482,7 @@ IntegerEdit::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "position")
-    value = pointToString(p_);
+    value = Util::pointToString(p_);
   else if (name == "min_value")
     value = minValue_;
   else if (name == "max_value")
@@ -2941,7 +2500,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   if      (name == "position") {
     auto *tcl = canvas()->app()->tcl();
 
-    p_ = stringToPoint(tcl, value);
+    p_ = Util::stringToPoint(tcl, value);
   }
   else if (name == "min_value") {
     minValue_ = Util::stringToInt(value);
@@ -3084,7 +2643,7 @@ create(Canvas *canvas, const QStringList &args)
   QString text;
 
   if      (args.size() >= 2) {
-    pos  = stringToPoint(tcl, args[0]);
+    pos  = Util::stringToPoint(tcl, args[0]);
     text = args[1];
   }
   else if (args.size() >= 1) {
@@ -3111,7 +2670,7 @@ ButtonObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "position")
-    value = pointToString(p_);
+    value = Util::pointToString(p_);
   else if (name == "name")
     value = name_;
   else if (name == "proc")
@@ -3129,7 +2688,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   if      (name == "position") {
     auto *tcl = canvas()->app()->tcl();
 
-    p_ = stringToPoint(tcl, value);
+    p_ = Util::stringToPoint(tcl, value);
   }
   else if (name == "name")
     name_ = value;
@@ -3189,160 +2748,6 @@ click(int, int)
 //---
 
 bool
-TextObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  auto *tcl = canvas->app()->tcl();
-
-  Point   pos;
-  QString text;
-
-  if      (args.size() >= 2) {
-    pos  = stringToPoint(tcl, args[0]);
-    text = args[1];
-  }
-  else if (args.size() >= 1) {
-    pos= stringToPoint(tcl, args[0]);
-  }
-
-  auto *obj = new TextObj(canvas, pos, text);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-TextObj::
-TextObj(Canvas *canvas, const Point &pos, const QString &text) :
- Object(canvas), pos_(pos), text_(text)
-{
-  font_ = canvas->font();
-}
-
-bool
-TextObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if      (name == "position")
-    value = pointToString(pos_);
-  else if (name == "text")
-    value = text_;
-  else if (name == "align")
-    value = alignToString(align_);
-  else if (name == "html")
-    value = html_;
-  else
-    return Object::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-TextObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *tcl = canvas()->app()->tcl();
-
-  if      (name == "position")
-    pos_ = stringToPoint(tcl, value);
-  else if (name == "text")
-    text_ = value;
-  else if (name == "align")
-    align_ = stringToAlign(value);
-  else if (name == "html")
-    html_ = Util::stringToBool(value);
-  else if (name == "border.color")
-    border_.setColor(Util::stringToColor(tcl, value));
-  else
-    return Object::setValue(name, value, args);
-
-  return true;
-}
-
-Rect
-TextObj::
-calcRect() const
-{
-  QSizeF s;
-
-  if (html_) {
-    CQHtmlTextPainter textPainter;
-
-    textPainter.setText(text_);
-
-    textPainter.setMargin(4);
-    textPainter.setFont(font_);
-
-    s = canvas()->pixelSizeToWindow(textPainter.textSize());
-  }
-  else {
-    QFontMetrics fm(font_);
-
-    int w = fm.horizontalAdvance(text_);
-    int h = fm.height();
-
-    s = canvas()->pixelSizeToWindow(QSizeF(w, h));
-  }
-
-  auto p = pointToWindow(pos_);
-
-  double x = p.x.value;
-  double y = p.y.value;
-
-  if      (align_ & Qt::AlignRight  ) x -= s.width();
-  else if (align_ & Qt::AlignHCenter) x -= s.width()/2.0;
-
-  if      (align_ & Qt::AlignBottom ) y -= s.height();
-  else if (align_ & Qt::AlignVCenter) y -= s.height()/2.0;
-
-  auto ll = Point(Coord(x            ), Coord(y             ));
-  auto ur = Point(Coord(x + s.width()), Coord(y + s.height()));
-
-  return Rect(ll, ur);
-}
-
-void
-TextObj::
-draw(QPainter *painter)
-{
-  auto rect  = calcRect();
-  auto prect = canvas()->rectToPixel(rect).qrect();
-
-  // draw border
-  painter->setPen(border_);
-  painter->setBrush(Qt::NoBrush);
-  painter->drawRect(prect);
-
-  // draw text
-  painter->setPen(pen_);
-  painter->setBrush(brush_.value());
-
-  if (isHtml()) {
-    CQHtmlTextPainter textPainter;
-
-    textPainter.setText(text_);
-
-    textPainter.setMargin(4);
-    textPainter.setAlignment(align_);
-    textPainter.setTextColor(brush_.value().color());
-    textPainter.setFont(font_);
-
-    textPainter.drawInRect(painter, prect.toRect());
-  }
-  else {
-    QFontMetrics fm(font_);
-
-    painter->setFont(font_);
-
-    painter->drawText(prect.left(), prect.top() + fm.ascent(), text_);
-  }
-}
-
-//---
-
-bool
 ImageObj::
 create(Canvas *canvas, const QStringList &args)
 {
@@ -3352,7 +2757,7 @@ create(Canvas *canvas, const QStringList &args)
   QImage image;
 
   if (args.size() >= 1)
-    pos = stringToPoint(tcl, args[0]);
+    pos = Util::stringToPoint(tcl, args[0]);
 
   if (args.size() >= 2) {
     if (args[1] != "") {
@@ -3383,14 +2788,14 @@ ImageObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "position")
-    value = pointToString(pos_);
+    value = Util::pointToString(pos_);
   else if (name == "center") {
     auto ppos = pointToPixel(pos_);
 
     ppos.x.value += image_.width ()/2;
     ppos.y.value += image_.height()/2;
 
-    value = pointToString(ppos);
+    value = Util::pointToString(ppos);
   }
   else if (name == "image")
     value = imageToString(image_);
@@ -3408,15 +2813,15 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = app->tcl();
 
   if      (name == "position") {
-    pos_     = stringToPoint(tcl, value);
+    pos_     = Util::stringToPoint(tcl, value);
     posType_ = Position::TOP_LEFT;
   }
   else if (name == "center") {
-    pos_     = stringToPoint(tcl, value);
+    pos_     = Util::stringToPoint(tcl, value);
     posType_ = Position::CENTER;
   }
   else if (name == "rect") {
-    rect_    = stringToRect(tcl, value);
+    rect_    = Util::stringToRect(tcl, value);
     posType_ = Position::RECT;
   }
   else if (name == "image") {
@@ -3441,7 +2846,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     image_ = image_.mirrored(false, true);
   }
   else if (name == "scale") {
-    auto size = stringToPoint(tcl, value);
+    auto size = Util::stringToPoint(tcl, value);
 
     image_ = image_.scaled(image_.width()*size.x.value, image_.height()*size.y.value);
   }
@@ -3504,81 +2909,6 @@ draw(QPainter *painter)
 //---
 
 bool
-PathObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  if (args.size() != 1) return false;
-
-  auto *tcl = canvas->app()->tcl();
-
-  auto path = stringToPath(args[0]);
-
-  auto *obj = new PathObj(canvas, path);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-PathObj::
-PathObj(Canvas *canvas, const QPainterPath &path) :
- Object(canvas), path_(path)
-{
-}
-
-bool
-PathObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if (name == "path")
-    value = pathToString(path_);
-  else
-    return Object::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-PathObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  if (name == "path") {
-    path_ = stringToPath(value);
-  }
-  else
-    return Object::setValue(name, value, args);
-
-  return true;
-}
-
-Rect
-PathObj::
-calcRect() const
-{
-  auto r = path_.boundingRect();
-
-  auto tl = r.topLeft();
-  auto br = r.bottomRight();
-
-  return Rect(Point(Coord(tl.x()), Coord(tl.y())),
-              Point(Coord(br.x()), Coord(br.y())));
-}
-
-void
-PathObj::
-draw(QPainter *painter)
-{
-  painter->setPen(pen_);
-  painter->setBrush(brush_.value());
-
-  painter->drawPath(path_);
-}
-
-//---
-
-bool
 PointListObj::
 create(Canvas *canvas, const QStringList &args)
 {
@@ -3586,7 +2916,7 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto r = stringToCoord(args[0]);
+  auto r = Util::stringToCoord(args[0]);
 
   auto *obj = new PointListObj(canvas, r);
 
@@ -3611,9 +2941,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   auto *tcl = app->tcl();
 
   if      (name == "radius")
-    value = coordToString(radius_.value());
+    value = Util::coordToString(radius_.value());
   else if (name == "radius.target")
-    value = coordToString(radius_.target());
+    value = Util::coordToString(radius_.target());
   else if (name == "radius.steps")
     value = int(radius_.steps());
   else if (name == "size")
@@ -3627,12 +2957,12 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "scale")
     value = scale();
   else if (name == "offset")
-    value = pointToString(offset());
+    value = Util::pointToString(offset());
   else if (name == "fill_under")
     value = Util::boolToString(isFillUnder());
   else if (name == "fill_under.y") {
     if (fillUnderY())
-      value = coordToString(*fillUnderY());
+      value = Util::coordToString(*fillUnderY());
     else
       value = QVariant();
   }
@@ -3643,7 +2973,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
       if (i < 0 || i >= int(points_.size()))
         return false;
 
-      value = pointToString(points_[i]);
+      value = Util::pointToString(points_[i]);
     }
     else
       return false;
@@ -3652,7 +2982,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (args.size() < 0)
       return false;
 
-    auto pos = stringToPoint(tcl, args[0]);
+    auto pos = Util::stringToPoint(tcl, args[0]);
 
     auto pos1 = canvas()->pointToPixel(pos).qpoint();
 
@@ -3685,9 +3015,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = app->tcl();
 
   if      (name == "radius")
-    radius_.setValue(stringToCoord(value));
+    radius_.setValue(Util::stringToCoord(value));
   else if (name == "radius.target")
-    radius_.setTarget(stringToCoord(value));
+    radius_.setTarget(Util::stringToCoord(value));
   else if (name == "radius.steps")
     radius_.setSteps(Util::stringToInt(value));
   else if (name == "size") {
@@ -3711,13 +3041,13 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "fill_under")
     setFillUnder(Util::stringToBool(value));
   else if (name == "fill_under.y")
-    setFillUnderY(stringToCoord(value));
+    setFillUnderY(Util::stringToCoord(value));
   else if (name == "angle")
     setAngle(Util::stringToReal(value));
   else if (name == "scale")
     setScale(Util::stringToReal(value));
   else if (name == "offset")
-    setOffset(stringToPoint(tcl, value));
+    setOffset(Util::stringToPoint(tcl, value));
   else if (name == "position") {
     // get index from args
     if (args.size() > 0) {
@@ -3726,7 +3056,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       if (i < 0 || i >= int(points_.size()))
         return false;
 
-      points_[i] = stringToPoint(tcl, value);
+      points_[i] = Util::stringToPoint(tcl, value);
     }
     else
       return app->errorMsg("Missing index for position");
@@ -3909,8 +3239,8 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto p1 = stringToPoint(tcl, args[0]);
-  auto p2 = stringToPoint(tcl, args[1]);
+  auto p1 = Util::stringToPoint(tcl, args[0]);
+  auto p2 = Util::stringToPoint(tcl, args[1]);
 
   auto *obj = new ArrowObj(canvas, p1, p2);
 
@@ -3933,9 +3263,9 @@ ArrowObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "p1")
-    value = pointToString(p1_);
+    value = Util::pointToString(p1_);
   else if (name == "p2")
-    value = pointToString(p2_);
+    value = Util::pointToString(p2_);
   else
     return Object::getValue(name, args, value);
 
@@ -3949,9 +3279,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->app()->tcl();
 
   if      (name == "p1")
-    p1_ = stringToPoint(tcl, value);
+    p1_ = Util::stringToPoint(tcl, value);
   else if (name == "p2")
-    p2_ = stringToPoint(tcl, value);
+    p2_ = Util::stringToPoint(tcl, value);
   else if (name == "lineWidth")
     arrow_->setLineWidth(Util::stringToReal(value));
   else if (name == "front.visible")
@@ -4037,8 +3367,8 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto pos = stringToPoint(tcl, args[0]);
-  auto len = stringToCoord(args[1]);
+  auto pos = Util::stringToPoint(tcl, args[0]);
+  auto len = Util::stringToCoord(args[1]);
 
   auto *obj = new AxisObj(canvas, pos, len);
 
@@ -4061,9 +3391,9 @@ AxisObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "pos")
-    value = pointToString(pos_);
+    value = Util::pointToString(pos_);
   else if (name == "p2")
-    value = coordToString(len_);
+    value = Util::coordToString(len_);
   else
     return Object::getValue(name, args, value);
 
@@ -4077,9 +3407,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->app()->tcl();
 
   if      (name == "pos")
-    pos_ = stringToPoint(tcl, value);
+    pos_ = Util::stringToPoint(tcl, value);
   else if (name == "p2")
-    len_ = stringToCoord(value);
+    len_ = Util::stringToCoord(value);
   else if (name == "direction") {
     auto lstr = value.toLower();
 
@@ -4149,7 +3479,7 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->app()->tcl();
 
-  auto pos = stringToPoint(tcl, args[0]);
+  auto pos = Util::stringToPoint(tcl, args[0]);
 
   auto *obj = new ParticleObj(canvas, pos);
 
@@ -4191,12 +3521,12 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   if      (name == "position") {
     auto *position = particle_->position();
 
-    value = pointToString(Point(position->x(), position->y()));
+    value = Util::pointToString(Point(position->x(), position->y()));
   }
   else if (name == "velocity") {
     auto *velocity = particle_->velocity();
 
-    value = pointToString(Point(velocity->x(), velocity->y()));
+    value = Util::pointToString(Point(velocity->x(), velocity->y()));
   }
   else if (name == "dead") {
     value = Util::boolToString(particle_->isDead());
@@ -4218,12 +3548,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = app->tcl();
 
   if      (name == "position") {
-    auto p = stringToPoint(tcl, value);
+    auto p = Util::stringToPoint(tcl, value);
 
     particle_->setPosition(p.x.value, p.y.value, 0);
   }
   else if (name == "velocity") {
-    auto p = stringToPoint(tcl, value);
+    auto p = Util::stringToPoint(tcl, value);
 
     particle_->setVelocity(p.x.value, p.y.value, 0);
   }
@@ -4237,12 +3567,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     particle_->setSize(Util::stringToReal(value));
   }
   else if (name == "tpos") {
-    auto p = stringToPoint(tcl, value);
+    auto p = Util::stringToPoint(tcl, value);
 
     particle_->setTPos(CPoint2D(p.x.value, p.y.value));
   }
   else if (name == "tsize") {
-    auto p = stringToPoint(tcl, value);
+    auto p = Util::stringToPoint(tcl, value);
 
     particle_->setTSize(CSize2D(p.x.value, p.y.value));
   }
@@ -4292,276 +3622,5 @@ draw(QPainter *)
 }
 
 //---
-
-bool
-VectorObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  if (args.size() > 1)
-    return false;
-
-  auto *tcl = canvas->app()->tcl();
-
-  auto *obj = new VectorObj(canvas);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-VectorObj::
-VectorObj(Canvas *canvas) :
- Object(canvas)
-{
-}
-
-bool
-VectorObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if      (name == "x")
-    value = v_.x();
-  else if (name == "y")
-    value = v_.y();
-  else
-    return Object::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-VectorObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  if      (name == "x")
-    v_.setX(Util::stringToReal(value));
-  else if (name == "y")
-    v_.setY(Util::stringToReal(value));
-  else
-    return Object::setValue(name, value, args);
-
-  return true;
-}
-
-//---
-
-bool
-ArrayObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  if (args.size() != 2)
-    return false;
-
-  auto *tcl = canvas->app()->tcl();
-
-  auto dim0 = Util::stringToInt(args[0]);
-  auto dim1 = Util::stringToInt(args[1]);
-
-  auto *obj = new ArrayObj(canvas, dim0, dim1);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-ArrayObj::
-ArrayObj(Canvas *canvas, uint dim0, uint dim1) :
- Object(canvas), a_(dim0, dim1, 0.0)
-{
-}
-
-ArrayObj::
-ArrayObj(Canvas *canvas, const CArray2D<double> &a) :
- Object(canvas), a_(a)
-{
-}
-
-bool
-ArrayObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  auto *app = canvas()->app();
-  auto *tcl = app->tcl();
-
-  if      (name == "value") {
-    uint dim0, dim1;
-
-    if      (args.size() == 2) {
-      dim0 = Util::stringToInt(args[0]);
-      dim1 = Util::stringToInt(args[1]);
-    }
-    else if (args.size() == 1) {
-      std::vector<int> a;
-      if (! Util::stringToIntArray(tcl, args[0], a) || a.size() != 2)
-        return false;
-
-      dim0 = a[0];
-      dim1 = a[1];
-    }
-    else
-      return false;
-
-    if (! a_.validIndex(dim0, dim1))
-      return false;
-
-    value = a_.get(dim0, dim1);
-  }
-  else if (name == "dim0") {
-    value = int(a_.dim(0));
-  }
-  else if (name == "dim1") {
-    value = int(a_.dim(1));
-  }
-  else if (name == "dup") {
-    auto *obj = new ArrayObj(canvas(), a_);
-
-    auto name = canvas()->addNewObject(obj);
-
-    value = name;
-  }
-  else
-    return Object::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-ArrayObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *app = canvas()->app();
-  auto *tcl = app->tcl();
-
-  if (name == "value") {
-    uint dim0, dim1;
-
-    if      (args.size() == 2) {
-      dim0 = Util::stringToInt(args[0]);
-      dim1 = Util::stringToInt(args[1]);
-    }
-    else if (args.size() == 1) {
-      std::vector<int> a;
-      if (! Util::stringToIntArray(tcl, args[0], a) || a.size() != 2)
-        return false;
-
-      dim0 = a[0];
-      dim1 = a[1];
-    }
-    else
-      return false;
-
-    if (! a_.validIndex(dim0, dim1))
-      return false;
-
-    auto r = Util::stringToReal(value);
-
-    a_.set(dim0, dim1, r);
-  }
-  else
-    return Object::setValue(name, value, args);
-
-  return true;
-}
-
-//---
-
-bool
-CsvObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  if (args.size() != 1)
-    return false;
-
-  auto *tcl = canvas->app()->tcl();
-
-  auto filename = args[0];
-
-  auto *obj = new CsvObj(canvas, filename);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-CsvObj::
-CsvObj(Canvas *canvas, const QString &filename) :
- Object(canvas), filename_(filename)
-{
-  csv_ = new CQCsvModel;
-}
-
-bool
-CsvObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  auto *app = canvas()->app();
-
-  if      (name == "filename")
-    value = filename_;
-  else if (name == "comment_header")
-    value = csv_->isCommentHeader();
-  else if (name == "first_line_header")
-    value = csv_->isFirstLineHeader();
-  else if (name == "first_column_header")
-    value = csv_->isFirstColumnHeader();
-  else if (name == "num_rows")
-    value = csv_->rowCount();
-  else if (name == "num_columns" || name == "num_cols")
-    value = csv_->columnCount();
-  else if (name == "data") {
-    if (args.size() == 2) {
-      auto row = Util::stringToInt(args[0]);
-      auto col = Util::stringToInt(args[1]);
-
-      auto ind = csv_->index(row, col, QModelIndex());
-
-      value = csv_->data(ind);
-    }
-    else
-      return app->errorMsg("missing row/col for data");
-  }
-  else
-    return Object::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-CsvObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  if      (name == "filename")
-    filename_ = value;
-  else if (name == "comment_header")
-    csv_->setCommentHeader(Util::stringToBool(value));
-  else if (name == "first_line_header")
-    csv_->setFirstLineHeader(Util::stringToBool(value));
-  else if (name == "first_column_header")
-    csv_->setFirstColumnHeader(Util::stringToBool(value));
-  else
-    return Object::setValue(name, value, args);
-
-  return true;
-}
-
-bool
-CsvObj::
-exec(const QString &op, const QStringList &args, QVariant &res)
-{
-  if (op == "load") {
-    if (! csv_->load(filename_))
-      return false;
-
-    return true;
-  }
-  else
-    return Object::exec(op, args, res);
-}
 
 }

@@ -18,7 +18,7 @@ class Sprite3DObj : public Object3D {
 
   Sprite3DObj(Canvas3D *canvas);
 
-  const char *typeName() const override { return "Sprite"; }
+  const char *typeName() const override { return "sprite"; }
 
   CQGLTexture *texture() const;
   void setTexture(CQGLTexture *texture);
