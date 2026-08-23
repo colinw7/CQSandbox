@@ -97,9 +97,19 @@ class Control3D : public QFrame {
   // overview
   void overviewWireframeSlot(int);
   void overviewSolidSlot(int);
+  void overviewZClipSlot(int);
   void overviewShowCameraSlot(int);
   void overviewShowLightSlot(int);
   void overviewShowBasisSlot(int);
+
+  void overviewBgColorSlot(const QColor &c);
+  void overviewStrokeColorSlot(const QColor &c);
+  void overviewStrokeAlphaSlot(double a);
+  void overviewFillColorSlot(const QColor &c);
+  void overviewFillAlphaSlot(double a);
+  void overviewSelectedColorSlot(const QColor &c);
+  void overviewPointSizeSlot(double a);
+
 
  private Q_SLOTS:
   void updateSlot();
@@ -166,9 +176,18 @@ class Control3D : public QFrame {
   struct OverviewData {
     QCheckBox* wireFrameCheck { nullptr };
     QCheckBox* solidCheck     { nullptr };
+    QCheckBox* zclipCheck     { nullptr };
     QCheckBox* cameraCheck    { nullptr };
     QCheckBox* lightCheck     { nullptr };
     QCheckBox* basisCheck     { nullptr };
+
+    CQColorEdit* bgColor       { nullptr };
+    CQColorEdit* strokeColor   { nullptr };
+    CQRealSpin*  strokeAlpha   { nullptr };
+    CQColorEdit* fillColor     { nullptr };
+    CQRealSpin*  fillAlpha     { nullptr };
+    CQColorEdit* selectedColor { nullptr };
+    CQRealSpin*  pointSize     { nullptr };
   };
 
   OverviewData overviewData_;

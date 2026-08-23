@@ -104,6 +104,13 @@ inline CRGBA QColorToRGBA(const QColor &c) {
 
 //---
 
+inline QString point2DToString(const CPoint2D &p) {
+  auto xstr = QString::number(p.x);
+  auto ystr = QString::number(p.y);
+
+  return xstr + " " + ystr;
+}
+
 inline QString point3DToString(const CPoint3D &p) {
   auto xstr = QString::number(p.x);
   auto ystr = QString::number(p.y);
@@ -295,6 +302,23 @@ inline CPoint2D stringToPoint2D(CQTcl *tcl, const QString &str) {
 
 //---
 
+inline bool stringToIntArray(CQTcl *tcl, const QString &str, std::vector<int> &a) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  a.resize(strs.size());
+
+  for (int i = 0; i < strs.size(); ++i) {
+    int ii;
+    if (! stringToInt(strs[i], ii))
+      return false;
+
+    a[i] = ii;
+  }
+
+  return true;
+}
+
 inline std::vector<unsigned int> stringToUIntArray(CQTcl *tcl, const QString &str) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
@@ -380,6 +404,10 @@ inline QString colorToString(const CGLColor &c) {
 
 inline CGLColor qcolorToColor(const QColor &c) {
   return CGLColor(c.redF(), c.greenF(), c.blueF(), c.alphaF());
+}
+
+inline QColor colorToQColor(const CGLColor &c) {
+  return QColor(c.r*255, c.g*255, c.b*255, c.a*255);
 }
 
 //---

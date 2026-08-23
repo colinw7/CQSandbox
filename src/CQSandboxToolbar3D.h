@@ -76,6 +76,8 @@ class OverviewToolbar3D : public QFrame {
   Overview3D *overview() const { return overview_; }
 
  public Q_SLOTS:
+  void updateInfo();
+
   void cameraSlot();
   void modelSlot();
   void lightSlot();

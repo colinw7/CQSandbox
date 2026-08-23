@@ -131,6 +131,8 @@ CanvasToolbar3D(Canvas3D *canvas) :
   //---
 
   updateInfo();
+
+  connect(canvas_, SIGNAL(typeChanged()), this, SLOT(updateInfo()));
 }
 
 QToolButton *
@@ -411,6 +413,13 @@ OverviewToolbar3D(Overview3D *overview) :
   settingsButton_ = addCheckButton("settings", "SETTINGS" , "Settings", SLOT(settingsSlot()));
 
   layout->addWidget(settingsButton_);
+
+  //---
+
+  updateInfo();
+
+  connect(overview_, SIGNAL(editTypeChanged()), this, SLOT(updateInfo()));
+  connect(overview_, SIGNAL(selectTypeChanged()), this, SLOT(updateInfo()));
 }
 
 void
@@ -470,6 +479,30 @@ settingsSlot()
   auto *control = app->control3D();
 
   control->toggleShown();
+}
+
+void
+OverviewToolbar3D::
+updateInfo()
+{
+  auto type = overview_->editType();
+
+  auto *canvas = overview_->app()->canvas3D();
+
+  QString text;
+
+  if      (type == Overview3D::EditType::SELECT) {
+    text += "Mode: Select";
+  }
+  else if (type == Overview3D::EditType::CAMERA) {
+    text += "Mode: Camera";
+  }
+  else if (type == Overview3D::EditType::LIGHT) {
+    text += "Mode: Light";
+    text += " #" + QString::number(canvas->lightNum());
+  }
+
+  infoLabel_->setText(text);
 }
 
 }

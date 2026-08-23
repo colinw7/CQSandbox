@@ -139,8 +139,6 @@ init()
       overview3D_->init();
 
     control3D_->init();
-
-    connect(canvas3D_, &Canvas3D::typeChanged, canvasToolbar3D_, &CanvasToolbar3D::updateInfo);
   }
   else {
     canvas_    = new Canvas(this);

@@ -2,13 +2,16 @@
 #define Overview_H
 
 #include <CWindowRange2D.h>
-//#include <CDisplayRange2D.h>
 #include <CMatrix3DH.h>
 #include <CBBox3D.h>
 #include <CPoint3D.h>
 #include <CRGBA.h>
 
 #include <QFrame>
+#include <QBrush>
+#include <QPen>
+
+#include <map>
 
 class CGeomObject3D;
 class CGeomFace3D;
@@ -23,6 +26,7 @@ class Camera;
 class Light;
 class Text;
 
+class Group3DObj;
 class Model3DObj;
 class ParticleList3DObj;
 class Path3DObj;
@@ -30,6 +34,7 @@ class Shape3DObj;
 class Sprite3DObj;
 class Surface3DObj;
 class Text3DObj;
+
 class Object3D;
 
 class Overview3D : public QFrame {
@@ -55,6 +60,13 @@ class Overview3D : public QFrame {
     SELECT,
     CAMERA,
     LIGHT
+  };
+
+  enum SymbolType {
+    POINT,
+    ELLIPSE,
+    PLUS,
+    CROSS
   };
 
  private:
@@ -83,16 +95,24 @@ class Overview3D : public QFrame {
   void setEqualScale(bool b) { equalScale_ = b; updateRange(); }
 
   const EditType &editType() const { return editType_; }
-  void setEditType(const EditType &v) { editType_ = v; updateState(); }
+  void setEditType(const EditType &t);
 
   const SelectType &selectType() const { return selectType_; }
-  void setSelectType(const SelectType &v) { selectType_ = v; updateState(); }
+  void setSelectType(const SelectType &t);
+
+  bool isValid() const { return valid_; }
+  void setValid(bool b) { valid_ = b; }
+
+  //---
 
   bool isWireframe() const { return wireframe_; }
   void setWireframe(bool b) { wireframe_ = b; update(); }
 
   bool isSolid() const { return solid_; }
   void setSolid(bool b) { solid_ = b; update(); }
+
+  bool isZClip() const { return zClip_; }
+  void setZClip(bool b) { zClip_ = b; update(); }
 
   bool isCameraVisible() const { return cameraVisible_; }
   void setCameraVisible(bool b) { cameraVisible_ = b; update(); }
@@ -102,6 +122,29 @@ class Overview3D : public QFrame {
 
   bool isBasisVisible() const { return basisVisible_; }
   void setBasisVisible(bool b) { basisVisible_ = b; update(); }
+
+  //---
+
+  const QColor &bgColor() const { return bgColor_; }
+  void setBgColor(const QColor &c) { bgColor_ = c; update(); }
+
+  const QColor &strokeColor() const { return strokeColor_; }
+  void setStrokeColor(const QColor &c) { strokeColor_ = c; update(); }
+
+  double strokeAlpha() const { return strokeAlpha_; }
+  void setStrokeAlpha(double r) { strokeAlpha_ = r; update(); }
+
+  const QColor &fillColor() const { return fillColor_; }
+  void setFillColor(const QColor &c) { fillColor_ = c; update(); }
+
+  double fillAlpha() const { return fillAlpha_; }
+  void setFillAlpha(double r) { fillAlpha_ = r; update(); }
+
+  const QColor &selectedColor() const { return selectedColor_; }
+  void setSelectedColor(const QColor &c) { selectedColor_ = c; update(); }
+
+  double pointSize() const { return pointSize_; }
+  void setPointSize(double r) { pointSize_ = r; update(); }
 
   //---
 
@@ -119,8 +162,10 @@ class Overview3D : public QFrame {
   //---
 
   void updateObjects();
-  void updateObject(CGeomObject3D *object);
+  void updateObject(Object3D *object);
+  void updateGroup(Group3DObj *obj);
   void updateModel(Model3DObj *obj);
+  void updateGeomObject(CGeomObject3D *object);
   void updateParticleList(ParticleList3DObj *obj);
   void updatePath(Path3DObj *obj);
   void updateShape(Shape3DObj *obj);
@@ -129,20 +174,21 @@ class Overview3D : public QFrame {
   void updateText(Text3DObj *obj);
 
   void drawObjects();
+  void drawObject(Object3D *object);
+  void drawGroup(Group3DObj *obj);
   void drawModel(Model3DObj *obj);
-  void drawObject(CGeomObject3D *object);
-
-  void drawCameras();
-  void drawCamera(Camera *camera);
-
-  void drawLights();
-
+  void drawGeomObject(CGeomObject3D *object);
   void drawParticleList(ParticleList3DObj *obj);
   void drawPath(Path3DObj *obj);
   void drawShape(Shape3DObj *obj);
   void drawSprite(Sprite3DObj *obj);
   void drawSurface(Surface3DObj *obj);
   void drawText(Text3DObj *obj);
+
+  void drawCameras();
+  void drawCamera(Camera *camera);
+
+  void drawLights();
 
   void drawTexts();
 //void drawText(Text *text);
@@ -160,18 +206,23 @@ class Overview3D : public QFrame {
 
   void updateRange();
 
-  void drawPolygon(const std::vector<CPoint3D> &points) const;
+  void drawModelPolygon(const std::vector<CPoint3D> &points, bool selected=false) const;
 
   void drawCone(const CVector3D &p, const CVector3D &d, double a) const;
 
-  void drawLine(const CPoint3D &p1, const CPoint3D &p2, const QString &text="") const;
+  void drawModelLine(const CPoint3D &p1, const CPoint3D &p2,
+                     const QString &text="", bool selected=false) const;
+  void drawLine(const CPoint3D &p1, const CPoint3D &p2,
+                const QString &text="", bool selected=false) const;
+
   void drawVector(const CVector3D &v1, const CVector3D &v2, const QString &text="") const;
 
   void drawCircle(const CPoint3D &origin, double r, const QString &label) const;
   void drawSphere(const CPoint3D &o, const CPoint3D &r) const;
 
-  void drawPoint(const CVector3D &v, const QString &text="") const;
-  void drawPoint(const CPoint3D &p, const QString &text="") const;
+  void drawModelPoint(const CPoint3D &p, const QString &text="", bool selected=false) const;
+  void drawPoint(const CPoint3D &p, const QString &text="",
+                 const SymbolType &symbolType=SymbolType::ELLIPSE) const;
 
   void drawImage(const CPoint3D &p, const QImage &image) const;
   void drawPixmap(const CPoint3D &p, const QPixmap &pixmap) const;
@@ -205,6 +256,10 @@ class Overview3D : public QFrame {
   void selectObjectIn(const CPoint2D &p, const QRect &r, bool clear);
   bool selectModelIn(Model3DObj *obj, ViewType viewType, const QRectF &r);
   bool selectShapeIn(Shape3DObj *obj, ViewType viewType, const QRectF &r);
+
+ Q_SIGNALS:
+  void editTypeChanged();
+  void selectTypeChanged();
 
  public Q_SLOTS:
   void cameraChangeSlot();
@@ -287,14 +342,47 @@ class Overview3D : public QFrame {
 
   //---
 
+  using Polygon2D = std::vector<QPointF>;
+
+  struct PolygonData {
+    bool      solid     { false };
+    bool      wireframe { true };
+    bool      selected  { false };
+    Polygon2D points;
+    QString   label;
+    QBrush    brush;
+    QPen      pen;
+  };
+
+  struct PointData {
+    bool    selected { false };
+    QPointF point;
+    QString label;
+    double  size { -1 };
+    QColor  color { Qt::black };
+    QBrush  brush;
+    QPen    pen;
+  };
+
+  using Polygon2DArray           = std::vector<PolygonData>;
+  using Point2DArray             = std::vector<PointData>;
+  using SortedPolygon2DArray     = std::map<double, Polygon2DArray>;
+  using SortedPoint2DArray       = std::map<double, Point2DArray>;
+  using ViewSortedPolygon2DArray = std::map<int, SortedPolygon2DArray>;
+  using ViewSortedLine2DArray    = std::map<int, SortedPolygon2DArray>;
+  using ViewSortedPoint2DArray   = std::map<int, SortedPoint2DArray>;
+
   struct DrawData {
     QPainter* painter { nullptr };
 
     CMatrix3DH projectionMatrix;
     CMatrix3DH viewMatrix;
     CMatrix3DH pvMatrix;
-    ObjFaces   objFaces;
-    CBBox3D    bbox;
+    CMatrix3DH modelMatrix;
+    CMatrix3DH meshMatrix;
+
+    ObjFaces objFaces;
+    CBBox3D  bbox;
 
     double near { 0.0 };
     double far  { 1.0 };
@@ -305,6 +393,10 @@ class Overview3D : public QFrame {
 
     QColor pointColor { Qt::red };
     double pointSize  { 8 };
+
+    mutable ViewSortedPolygon2DArray viewSortedPolygon2DArray;
+    mutable ViewSortedLine2DArray    viewSortedLine2DArray;
+    mutable ViewSortedPoint2DArray   viewSortedPoint2DArray;
   };
 
   //---
@@ -362,6 +454,14 @@ class Overview3D : public QFrame {
 
   DrawData drawData_;
 
+  QColor bgColor_       { 220, 220, 220 };
+  QColor strokeColor_   { 0, 0, 0 };
+  double strokeAlpha_   { 0.2 };
+  QColor fillColor_     { 0, 255, 0 };
+  double fillAlpha_     { 0.1 };
+  QColor selectedColor_ { 255, 0, 0 };
+  double pointSize_     { -1 };
+
   int w_ { 100 };
   int h_ { 100 };
 
@@ -370,6 +470,7 @@ class Overview3D : public QFrame {
 
   bool wireframe_ { true };
   bool solid_     { false };
+  bool zClip_     { true };
 
   QPixmap lightPixmap_;
 

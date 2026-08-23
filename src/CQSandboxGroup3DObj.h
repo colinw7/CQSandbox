@@ -18,6 +18,8 @@ class Group3DObj : public Object3D {
 
   const char *typeName() const override { return "Group"; }
 
+  const Objects &objects() const { return objects_; }
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 

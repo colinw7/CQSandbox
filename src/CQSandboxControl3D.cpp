@@ -302,6 +302,18 @@ addLightFrame()
     ++lightRow;
   };
 
+  auto addRealEdit = [&](const QString &label) {
+    auto *edit = new CQRealSpin;
+    addLabelEdit(label, edit);
+    return edit;
+  };
+
+  auto addColorEdit = [&](const QString &label) {
+    auto *edit = new CQColorEdit;
+    addLabelEdit(label, edit);
+    return edit;
+  };
+
   //---
 
   lightData_.list = new QListWidget;
@@ -324,8 +336,7 @@ addLightFrame()
 
   addLabelEdit("Enabled", lightData_.enabledCheck);
 
-  lightData_.colorEdit = new CQColorEdit; // diffuse
-  addLabelEdit("Color", lightData_.colorEdit);
+  lightData_.colorEdit = addColorEdit("Color"); // diffuse
 
   //---
 
@@ -339,13 +350,11 @@ addLightFrame()
 
   //---
 
-  lightData_.cutoffEdit = new CQRealSpin;
-  addLabelEdit("Cut Off Angle", lightData_.cutoffEdit);
+  lightData_.cutoffEdit = addRealEdit("Cut Off Angle");
 
   //---
 
-  lightData_.radiusEdit = new CQRealSpin;
-  addLabelEdit("Point Radius", lightData_.radiusEdit);
+  lightData_.radiusEdit = addRealEdit("Point Radius");
 
   //---
 
@@ -427,13 +436,43 @@ addOverviewFrame()
     return checkBox;
   };
 
+  auto addRealEdit = [&](const QString &label, const char *slotName) {
+    auto *edit = new CQRealSpin;
+    connect(edit, SIGNAL(realValueChanged(double)), this, slotName);
+    addLabelEdit(label, edit);
+    return edit;
+  };
+
+  auto addColorEdit = [&](const QString &label, const char *slotName) {
+    auto *edit = new CQColorEdit;
+    connect(edit, SIGNAL(colorChanged(const QColor &)), this, slotName);
+    addLabelEdit(label, edit);
+    return edit;
+  };
+
   //---
 
   overviewData_.wireFrameCheck = addCheck("Wireframe"  , SLOT(overviewWireframeSlot(int)));
   overviewData_.solidCheck     = addCheck("Solid"      , SLOT(overviewSolidSlot(int)));
+  overviewData_.zclipCheck     = addCheck("Z Clip"     , SLOT(overviewZClipSlot(int)));
   overviewData_.cameraCheck    = addCheck("Show Camera", SLOT(overviewShowCameraSlot(int)));
   overviewData_.lightCheck     = addCheck("Show Light" , SLOT(overviewShowLightSlot(int)));
   overviewData_.basisCheck     = addCheck("Show Basis" , SLOT(overviewShowBasisSlot(int)));
+
+  overviewData_.bgColor =
+    addColorEdit("Background"    , SLOT(overviewBgColorSlot(const QColor &)));
+  overviewData_.strokeColor =
+    addColorEdit("Stroke Color"  , SLOT(overviewStrokeColorSlot(const QColor &)));
+  overviewData_.strokeAlpha =
+    addRealEdit ("Stroke Alpha"  , SLOT(overviewStrokeAlphaSlot(double)));
+  overviewData_.fillColor =
+    addColorEdit("Fill Color"    , SLOT(overviewFillColorSlot(const QColor &)));
+  overviewData_.fillAlpha =
+    addRealEdit ("Fill Alpha"    , SLOT(overviewFillAlphaSlot(double)));
+  overviewData_.selectedColor =
+    addColorEdit("Selected Color", SLOT(overviewSelectedColorSlot(const QColor &)));
+  overviewData_.pointSize =
+    addRealEdit ("Point Size"    , SLOT(overviewPointSizeSlot(double)));
 
   //---
 
@@ -809,6 +848,8 @@ updateOverview()
              this, &Control3D::overviewWireframeSlot);
   disconnect(overviewData_.solidCheck, &QCheckBox::stateChanged,
              this, &Control3D::overviewSolidSlot);
+  disconnect(overviewData_.zclipCheck, &QCheckBox::stateChanged,
+             this, &Control3D::overviewZClipSlot);
   disconnect(overviewData_.cameraCheck, &QCheckBox::stateChanged,
              this, &Control3D::overviewShowCameraSlot);
   disconnect(overviewData_.lightCheck, &QCheckBox::stateChanged,
@@ -816,22 +857,63 @@ updateOverview()
   disconnect(overviewData_.basisCheck, &QCheckBox::stateChanged,
              this, &Control3D::overviewShowBasisSlot);
 
+  disconnect(overviewData_.bgColor, &CQColorEdit::colorChanged,
+             this, &Control3D::overviewBgColorSlot);
+  disconnect(overviewData_.strokeColor, &CQColorEdit::colorChanged,
+             this, &Control3D::overviewStrokeColorSlot);
+  disconnect(overviewData_.strokeAlpha, &CQRealSpin::realValueChanged,
+             this, &Control3D::overviewStrokeAlphaSlot);
+  disconnect(overviewData_.fillColor, &CQColorEdit::colorChanged,
+             this, &Control3D::overviewFillColorSlot);
+  disconnect(overviewData_.fillAlpha, &CQRealSpin::realValueChanged,
+             this, &Control3D::overviewFillAlphaSlot);
+  disconnect(overviewData_.selectedColor, &CQColorEdit::colorChanged,
+             this, &Control3D::overviewSelectedColorSlot);
+  disconnect(overviewData_.pointSize, &CQRealSpin::realValueChanged,
+             this, &Control3D::overviewPointSizeSlot);
+
   overviewData_.wireFrameCheck->setChecked(overview->isWireframe());
   overviewData_.solidCheck    ->setChecked(overview->isSolid());
+  overviewData_.zclipCheck    ->setChecked(overview->isZClip());
   overviewData_.cameraCheck   ->setChecked(overview->isCameraVisible());
   overviewData_.lightCheck    ->setChecked(overview->isLightsVisible());
   overviewData_.basisCheck    ->setChecked(overview->isBasisVisible());
+
+  overviewData_.bgColor      ->setColor  (overview->bgColor());
+  overviewData_.strokeColor  ->setColor  (overview->strokeColor());
+  overviewData_.strokeAlpha  ->setValue  (overview->strokeAlpha());
+  overviewData_.fillColor    ->setColor  (overview->fillColor());
+  overviewData_.fillAlpha    ->setValue  (overview->fillAlpha());
+  overviewData_.selectedColor->setColor  (overview->selectedColor());
+  overviewData_.pointSize    ->setValue  (overview->pointSize());
 
   connect(overviewData_.wireFrameCheck, &QCheckBox::stateChanged,
           this, &Control3D::overviewWireframeSlot);
   connect(overviewData_.solidCheck, &QCheckBox::stateChanged,
           this, &Control3D::overviewSolidSlot);
+  connect(overviewData_.zclipCheck, &QCheckBox::stateChanged,
+          this, &Control3D::overviewZClipSlot);
   connect(overviewData_.cameraCheck, &QCheckBox::stateChanged,
           this, &Control3D::overviewShowCameraSlot);
   connect(overviewData_.lightCheck, &QCheckBox::stateChanged,
           this, &Control3D::overviewShowLightSlot);
   connect(overviewData_.basisCheck, &QCheckBox::stateChanged,
           this, &Control3D::overviewShowBasisSlot);
+
+  connect(overviewData_.bgColor, &CQColorEdit::colorChanged,
+          this, &Control3D::overviewBgColorSlot);
+  connect(overviewData_.strokeColor, &CQColorEdit::colorChanged,
+          this, &Control3D::overviewStrokeColorSlot);
+  connect(overviewData_.strokeAlpha, &CQRealSpin::realValueChanged,
+          this, &Control3D::overviewStrokeAlphaSlot);
+  connect(overviewData_.fillColor, &CQColorEdit::colorChanged,
+          this, &Control3D::overviewFillColorSlot);
+  connect(overviewData_.fillAlpha, &CQRealSpin::realValueChanged,
+          this, &Control3D::overviewFillAlphaSlot);
+  connect(overviewData_.selectedColor, &CQColorEdit::colorChanged,
+          this, &Control3D::overviewSelectedColorSlot);
+  connect(overviewData_.pointSize, &CQRealSpin::realValueChanged,
+          this, &Control3D::overviewPointSizeSlot);
 }
 
 void
@@ -1212,6 +1294,15 @@ overviewSolidSlot(int state)
 
 void
 Control3D::
+overviewZClipSlot(int state)
+{
+  auto *overview = canvas_->app()->overview3D();
+
+  overview->setZClip(state);
+}
+
+void
+Control3D::
 overviewShowCameraSlot(int state)
 {
   auto *overview = canvas_->app()->overview3D();
@@ -1235,6 +1326,69 @@ overviewShowBasisSlot(int state)
   auto *overview = canvas_->app()->overview3D();
 
   overview->setBasisVisible(state);
+}
+
+void
+Control3D::
+overviewBgColorSlot(const QColor &c)
+{
+  auto *overview = canvas_->app()->overview3D();
+
+  overview->setBgColor(c);
+}
+
+void
+Control3D::
+overviewStrokeColorSlot(const QColor &c)
+{
+  auto *overview = canvas_->app()->overview3D();
+
+  overview->setStrokeColor(c);
+}
+
+void
+Control3D::
+overviewStrokeAlphaSlot(double a)
+{
+  auto *overview = canvas_->app()->overview3D();
+
+  overview->setStrokeAlpha(a);
+}
+
+void
+Control3D::
+overviewFillColorSlot(const QColor &c)
+{
+  auto *overview = canvas_->app()->overview3D();
+
+  overview->setFillColor(c);
+}
+
+void
+Control3D::
+overviewFillAlphaSlot(double a)
+{
+  auto *overview = canvas_->app()->overview3D();
+
+  overview->setFillAlpha(a);
+}
+
+void
+Control3D::
+overviewSelectedColorSlot(const QColor &c)
+{
+  auto *overview = canvas_->app()->overview3D();
+
+  overview->setSelectedColor(c);
+}
+
+void
+Control3D::
+overviewPointSizeSlot(double s)
+{
+  auto *overview = canvas_->app()->overview3D();
+
+  overview->setPointSize(s);
 }
 
 }

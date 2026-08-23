@@ -39,6 +39,7 @@ class Object3D : public QObject {
  public:
   enum class Type {
     NONE,
+    ARRAY,
     AXIS,
     BBOX,
     CSV,
@@ -57,7 +58,8 @@ class Object3D : public QObject {
     SKYBOX,
     SPRITE,
     SURFACE,
-    TEXT
+    TEXT,
+    VECTOR
   };
 
   enum ModelMatrixFlags : unsigned int {
@@ -71,10 +73,10 @@ class Object3D : public QObject {
  public:
   Object3D(Canvas3D *canvas, Type type);
 
-  Canvas3D *canvas() const { return canvas_; }
-
   Object3D(const Object3D &) = delete;
   Object3D &operator=(const Object3D &) = delete;
+
+  Canvas3D *canvas() const { return canvas_; }
 
   //---
 
@@ -174,6 +176,8 @@ class Object3D : public QObject {
 
   virtual void setModelMatrix(uint flags=ModelMatrixFlags::ALL);
 
+  //---
+
   virtual bool getValue(const QString &name, const QStringList &args, QVariant &value);
   virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
 
@@ -182,6 +186,12 @@ class Object3D : public QObject {
   //---
 
   virtual void updateModelMatrix();
+
+  const CBBox3D &bbox() { return bbox_; }
+
+  virtual CBBox3D calcBBox() { return bbox_; }
+
+  //---
 
   virtual void tick();
 
@@ -194,10 +204,6 @@ class Object3D : public QObject {
   }
 
   QString getCommandName() const;
-
-  const CBBox3D &bbox() { return bbox_; }
-
-  virtual CBBox3D calcBBox() { return bbox_; }
 
   void createBBoxObj();
 

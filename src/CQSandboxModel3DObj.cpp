@@ -289,6 +289,67 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 
     setNeedsUpdate();
   }
+  else if (op == "add_anim") {
+    if (args.size() < 1)
+      return false;
+
+    assert(object_);
+
+    auto *animObj = dynamic_cast<Model3DObj *>(canvas()->getObjectByName(args[0]));
+    if (! animObj) return false;
+
+//  std::cerr << id().toStdString() << " " << object_->numNodes() << "\n";
+
+    std::map<std::string, int> nodeNameInd;
+
+    for (uint i = 0; i < object_->numNodes(); ++i) {
+      const auto &node = object_->getNode(i);
+//    std::cerr << i << ":" << node.name() << "\n";
+
+      nodeNameInd[node.name()] = i;
+    }
+
+#if 0
+    std::vector<std::string> animNames;
+    object_->getAnimationNames(animNames);
+    for (const auto &name : animNames)
+      std::cerr << name << " ";
+    std::cerr << "\n";
+#endif
+
+    std::map<int, int> nodeNodeMap;
+
+//  std::cerr << animObj->id().toStdString() << " " << animObj->object_->numNodes() << "\n";
+
+    for (uint i = 0; i < animObj->object_->numNodes(); ++i) {
+      const auto &node = animObj->object_->getNode(i);
+//    std::cerr << i << ":" << node.name() << "\n";
+
+      auto pn = nodeNameInd.find(node.name());
+      if (pn != nodeNameInd.end())
+        nodeNodeMap[i] = (*pn).second;
+    }
+
+    std::vector<std::string> animNames;
+    animObj->object_->getAnimationNames(animNames);
+
+#if 0
+    for (const auto &name : animNames)
+      std::cerr << name << " ";
+    std::cerr << "\n";
+#endif
+
+    for (uint i = 0; i < animObj->object_->numNodes(); ++i) {
+      for (const auto &name : animNames) {
+        const auto &animData = animObj->object_->getNodeAnimationData(i, name);
+
+        auto pn = nodeNodeMap.find(i);
+
+        if (pn != nodeNodeMap.end())
+          object_->setNodeAnimationData((*pn).second, name, animData);
+      }
+    }
+  }
   else
     return Object3D::exec(op, args, res);
 

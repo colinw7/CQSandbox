@@ -3,7 +3,10 @@
 #include <CQSandboxLight3D.h>
 #include <CQSandboxModel3DObj.h>
 #include <CQSandboxSkybox3DObj.h>
+#include <CQSandboxVector3DObj.h>
+#include <CQSandboxArray3DObj.h>
 #include <CQSandboxCsv3DObj.h>
+#include <CQSandboxAStar3DObj.h>
 #include <CQSandboxShape3DObj.h>
 #include <CQSandboxShaderShape3DObj.h>
 #include <CQSandboxCube3DObj.h>
@@ -311,8 +314,20 @@ addCommands()
   //---
 
   // data
+  tcl->createObjCommand("sb3d::vector",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Vector3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::array",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Array3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb3d::csv",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Csv3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::astar",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<AStar3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
@@ -1506,8 +1521,11 @@ timerSlot()
 
   update();
 
-  if (app_->overview3D())
+  if (app_->overview3D()) {
+    app_->overview3D()->setValid(false);
+
     app_->overview3D()->update();
+  }
 }
 
 void

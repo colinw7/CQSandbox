@@ -6,6 +6,8 @@ namespace CQSandbox {
 class Canvas;
 
 struct Viewport {
+  using Objects = std::vector<Object *>;
+
   Canvas*         canvas { nullptr };
   QString         name;
   CDisplayRange2D displayRange;
