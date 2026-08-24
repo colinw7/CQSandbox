@@ -36,7 +36,7 @@ class ParticleList3DObj : public Object3D {
   const char *typeName() const override { return "particle_list"; }
 
   double particleSize() const { return particleSize_; }
-  void setParticleSize(double r) { particleSize_ = r; }
+  void setParticleSize(double r) { particleSize_ = r; setNeedsUpdate(); }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

@@ -148,6 +148,8 @@ setNeedsUpdate()
 {
   needsUpdate_ = true;
   bboxValid_   = false;
+
+  canvas_->update();
 }
 
 void

@@ -1,0 +1,120 @@
+#ifndef CQSandboxAStarObj_H
+#define CQSandboxAStarObj_H
+
+#include <CQSandboxObject.h>
+
+#include <CAStar.h>
+
+class CQAStarModel;
+
+namespace CQSandbox {
+
+class AStarObj : public Object {
+  Q_OBJECT
+
+ public:
+  static Object *create(Canvas *canvas, const QStringList &args);
+
+  AStarObj(Canvas *canvas, uint nx, uint ny);
+
+  const char *typeName() const override { return "astar"; }
+
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  //---
+
+  uint nx() const { return nx_; }
+  uint ny() const { return ny_; }
+
+ protected:
+  struct CellPos {
+    int row { -1 };
+    int col { -1 };
+
+    CellPos() { }
+
+    CellPos(int row1, int col1) :
+     row(row1), col(col1) {
+    }
+
+    // equality
+    bool operator==(const CellPos &pos) const {
+      return (row == pos.row && col == pos.col);
+    }
+
+    // inequality
+    bool operator!=(const CellPos &pos) const {
+      return ! operator==(pos);
+    }
+
+    // less than (for sort)
+    bool operator<(const CellPos &pos) const {
+      return (row < pos.row || (row == pos.row && col < pos.col));
+    }
+
+    // print (for debug)
+    friend std::ostream &operator<<(std::ostream &os, const CellPos &pos) {
+      os << "(" << pos.row << "," << pos.col << ")";
+
+      return os;
+    }
+  };
+
+  class SearchData : public CAStar<CellPos> {
+   protected:
+    using AStar = CAStar<CellPos>;
+
+   public:
+    SearchData(AStarObj *obj);
+
+    // smallest/optimal cost to goal
+    double pathCostEstimate(const CellPos &startLoc, const CellPos &goalLoc) override;
+
+    double traverseCost(const CellPos &pos, const CellPos &newPos) override;
+
+    NodeList getNextNodes(Node *node) const override;
+
+    Node *lookupNode(const CellPos &loc) const override;
+
+   private:
+    AStarObj* obj_ { nullptr };
+  };
+
+  class SearchNode : public CAStar<CellPos>::Node {
+   public:
+    SearchNode(const CellPos &pos) :
+     CAStar<CellPos>::Node(pos) {
+    }
+
+    bool isEmpty() const { return empty_; }
+    void setEmpty(bool b) { empty_ = b; }
+
+    int value() const { return value_; }
+    void setValue(int i) { value_ = i; }
+
+   private:
+    double value_ { 0 };
+    bool   empty_ { true };
+  };
+
+ private:
+  friend class SearchData;
+
+  SearchNode *getNode(uint x, uint y) const {
+    return nodesArray_[y][x];
+  }
+
+ private:
+  using Nodes      = std::vector<SearchNode *>;
+  using NodesArray = std::vector<Nodes>;
+
+  uint       nx_ { 1 };
+  uint       ny_ { 1 };
+  SearchData searchData_;
+  NodesArray nodesArray_;
+};
+
+}
+
+#endif

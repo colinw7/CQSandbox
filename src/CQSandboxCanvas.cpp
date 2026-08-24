@@ -1,6 +1,9 @@
 #include <CQSandboxCanvas.h>
 
 #include <CQSandboxArrayObj.h>
+#include <CQSandboxArrowObj.h>
+#include <CQSandboxAStarObj.h>
+#include <CQSandboxAxisObj.h>
 #include <CQSandboxCsvObj.h>
 #include <CQSandboxGroupObj.h>
 #include <CQSandboxPathObj.h>
@@ -18,9 +21,10 @@
 #include <CQTclUtil.h>
 #include <CQUtil.h>
 
-#include <CQArrow.h>
-#include <CQAxis.h>
+#ifdef CQSANDBOX_CIRCLES
 #include <CCircleFactor.h>
+#endif
+
 #include <CFile.h>
 
 #include <QFile>
@@ -218,6 +222,10 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<CsvObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  tcl->createObjCommand("sb::astar",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<AStarObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   //---
 
   // ui
@@ -231,6 +239,10 @@ addCommands()
 
   tcl->createObjCommand("sb::button",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ButtonObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb::ui",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::uiProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
@@ -247,13 +259,16 @@ addCommands()
   //---
 
   // layout
+#ifdef CQSANDBOX_CIRCLES
   tcl->createObjCommand("sb::circles_group",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<CirclesGroupObj>),
     static_cast<CQTcl::ObjCmdData>(this));
-
+#endif
   tcl->createObjCommand("sb::quad_tree",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<QuadTreeObj>),
     static_cast<CQTcl::ObjCmdData>(this));
+
+  //---
 
   // math
   tcl->createObjCommand("sb::fmul",
@@ -265,12 +280,6 @@ addCommands()
 
   tcl->createObjCommand("sb::hypot",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::hypotProc),
-    static_cast<CQTcl::ObjCmdData>(this));
-
-  //---
-
-  tcl->createObjCommand("sb::ui",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::uiProc),
     static_cast<CQTcl::ObjCmdData>(this));
 }
 
@@ -851,6 +860,7 @@ getKeyString(QKeyEvent *e) const
   else if (e->key() == Qt::Key_Up   ) keyStr = "up";
   else if (e->key() == Qt::Key_Down ) keyStr = "down";
   else if (e->key() == Qt::Key_Space) keyStr = "space";
+  else if (e->key() == Qt::Key_Tab  ) keyStr = "tab";
   else                                keyStr = e->text();
 
   if (keyStr == "")
@@ -1845,6 +1855,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 
 //---
 
+#ifdef CQSANDBOX_CIRCLES
 class CirclesMgr : public CCircleFactor::CircleMgr {
  public:
   CirclesMgr(CirclesGroupObj *group) :
@@ -1980,20 +1991,6 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     return GroupObj::setValue(name, value, args);
 
   return true;
-}
-
-#if 0
-Point
-GroupObj::
-pointToWindow(const Point &p) const
-{
-  if (p.x.units == Units::WINDOW)
-    return p;
-
-  double x, y;
-  displayRange_.pixelToWindow(p.x.value, p.y.value, &x, &y);
-
-  return Point::makeWindow(x, y);
 }
 #endif
 
@@ -3227,246 +3224,6 @@ draw(QPainter *painter)
       painter->drawEllipse(prect);
     }
   }
-}
-
-//---
-
-bool
-ArrowObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  if (args.size() != 2) return false;
-
-  auto *tcl = canvas->app()->tcl();
-
-  auto p1 = Util::stringToPoint(tcl, args[0]);
-  auto p2 = Util::stringToPoint(tcl, args[1]);
-
-  auto *obj = new ArrowObj(canvas, p1, p2);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-ArrowObj::
-ArrowObj(Canvas *canvas, const Point &p1, const Point &p2) :
- Object(canvas), p1_(p1), p2_(p2)
-{
-  arrow_ = new CQArrow;
-}
-
-bool
-ArrowObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if      (name == "p1")
-    value = Util::pointToString(p1_);
-  else if (name == "p2")
-    value = Util::pointToString(p2_);
-  else
-    return Object::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-ArrowObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *tcl = canvas()->app()->tcl();
-
-  if      (name == "p1")
-    p1_ = Util::stringToPoint(tcl, value);
-  else if (name == "p2")
-    p2_ = Util::stringToPoint(tcl, value);
-  else if (name == "lineWidth")
-    arrow_->setLineWidth(Util::stringToReal(value));
-  else if (name == "front.visible")
-    arrow_->setFHead(Util::stringToBool(value));
-  else if (name == "front.angle")
-    arrow_->setFrontAngle(Util::stringToReal(value));
-  else if (name == "front.backAngle")
-    arrow_->setFrontBackAngle(Util::stringToReal(value));
-  else if (name == "front.length")
-    arrow_->setFrontLength(Util::stringToReal(value));
-  else if (name == "front.lineEnds")
-    arrow_->setFrontLineEnds(Util::stringToBool(value));
-  else if (name == "tail.visible")
-    arrow_->setTHead(Util::stringToBool(value));
-  else if (name == "tail.angle")
-    arrow_->setTailAngle(Util::stringToReal(value));
-  else if (name == "tail.backAngle")
-    arrow_->setTailBackAngle(Util::stringToReal(value));
-  else if (name == "tail.length")
-    arrow_->setTailLength(Util::stringToReal(value));
-  else if (name == "tail.lineEnds")
-    arrow_->setTailLineEnds(Util::stringToBool(value));
-  else if (name == "filled")
-    arrow_->setFilled(Util::stringToBool(value));
-  else if (name == "stroked")
-    arrow_->setStroked(Util::stringToBool(value));
-  else
-    return Object::setValue(name, value, args);
-
-  return true;
-}
-
-Rect
-ArrowObj::
-calcRect() const
-{
-  return Rect(p1_, p2_);
-}
-
-void
-ArrowObj::
-draw(QPainter *painter)
-{
-  painter->setPen(pen_);
-  painter->setBrush(brush_.value());
-
-  class Device : public CQArrowDevice {
-   public:
-    Device(Canvas *canvas) :
-     canvas_(canvas) {
-    }
-
-    QPointF windowToPixel(const QPointF &w) override {
-      return canvas_->pointToPixel(Point::makeWindow(w)).qpoint();
-    }
-
-    QPointF pixelToWindow(const QPointF &p) override {
-      return canvas_->pointToWindow(Point::makePixel(p)).qpoint();
-    }
-
-   private:
-    Canvas *canvas_ { nullptr };
-  };
-
-  Device device(canvas());
-
-  auto p1 = pointToWindow(p1_).qpoint();
-  auto p2 = pointToWindow(p2_).qpoint();
-
-  arrow_->setFrom(p1);
-  arrow_->setTo  (p2);
-
-  arrow_->draw(painter, &device);
-}
-
-//---
-
-bool
-AxisObj::
-create(Canvas *canvas, const QStringList &args)
-{
-  if (args.size() != 2) return false;
-
-  auto *tcl = canvas->app()->tcl();
-
-  auto pos = Util::stringToPoint(tcl, args[0]);
-  auto len = Util::stringToCoord(args[1]);
-
-  auto *obj = new AxisObj(canvas, pos, len);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-AxisObj::
-AxisObj(Canvas *canvas, const Point &pos, const Coord &len) :
- Object(canvas), pos_(pos), len_(len)
-{
-  axis_ = new CQAxis;
-}
-
-bool
-AxisObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if      (name == "pos")
-    value = Util::pointToString(pos_);
-  else if (name == "p2")
-    value = Util::coordToString(len_);
-  else
-    return Object::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-AxisObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *tcl = canvas()->app()->tcl();
-
-  if      (name == "pos")
-    pos_ = Util::stringToPoint(tcl, value);
-  else if (name == "p2")
-    len_ = Util::stringToCoord(value);
-  else if (name == "direction") {
-    auto lstr = value.toLower();
-
-    if      (lstr == "horizontal")
-      axis_->setDirection(CQAxis::DIR_HORIZONTAL);
-    else if (lstr == "vertical")
-      axis_->setDirection(CQAxis::DIR_VERTICAL);
-  }
-  else
-    return Object::setValue(name, value, args);
-
-  return true;
-}
-
-Rect
-AxisObj::
-calcRect() const
-{
-  Point pos1 = pointToWindow(pos_);
-  Point pos2;
-
-  if (len_.units == Units::PIXEL) {
-    auto ppos1 = pointToPixel(pos_).qpoint();
-
-    QPointF ppos2;
-
-    if (axis_->getDirection() == CQAxis::DIR_HORIZONTAL)
-      ppos2 = QPointF(ppos1.x() + len_.value, ppos1.y());
-    else
-      ppos2 = QPointF(ppos1.x(), ppos1.y() + len_.value);
-
-    pos2 = pointToWindow(Point::makePixel(ppos2));
-  }
-  else {
-    if (axis_->getDirection() == CQAxis::DIR_HORIZONTAL)
-      pos2 = Point::makeWindow(pos1.x.value + len_.value, pos1.y.value);
-    else
-      pos2 = Point::makeWindow(pos1.x.value, pos1.y.value + len_.value);
-  }
-
-  return Rect(pos1, pos2);
-}
-
-void
-AxisObj::
-draw(QPainter *painter)
-{
-  painter->setPen(pen_);
-  painter->setBrush(brush_.value());
-
-  auto rect  = calcRect();
-  auto prect = canvas()->rectToPixel(rect).qrect();
-
-  if (axis_->getDirection() == CQAxis::DIR_HORIZONTAL)
-    axis_->draw(painter, prect.left(), prect.bottom(), prect.width());
-  else
-    axis_->draw(painter, prect.left(), prect.bottom(), -prect.height());
 }
 
 //---

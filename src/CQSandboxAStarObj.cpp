@@ -1,5 +1,5 @@
-#include <CQSandboxAStar3DObj.h>
-#include <CQSandboxCanvas3D.h>
+#include <CQSandboxAStarObj.h>
+#include <CQSandboxCanvas.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -7,9 +7,9 @@
 
 namespace CQSandbox {
 
-Object3D *
-AStar3DObj::
-create(Canvas3D *canvas, const QStringList &args)
+Object *
+AStarObj::
+create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 2)
     return nullptr;
@@ -19,20 +19,18 @@ create(Canvas3D *canvas, const QStringList &args)
   auto nx = Util::stringToInt(args[0]);
   auto ny = Util::stringToInt(args[1]);
 
-  auto *obj = new AStar3DObj(canvas, nx, ny);
+  auto *obj = new AStarObj(canvas, nx, ny);
 
   auto name = canvas->addNewObject(obj);
-
-  obj->init();
 
   tcl->setResult(name);
 
   return obj;
 }
 
-AStar3DObj::
-AStar3DObj(Canvas3D *canvas, uint nx, uint ny) :
- Object3D(canvas, Type::ARRAY), nx_(nx), ny_(ny), searchData_(this)
+AStarObj::
+AStarObj(Canvas *canvas, uint nx, uint ny) :
+ Object(canvas), nx_(nx), ny_(ny), searchData_(this)
 {
   nodesArray_.resize(nx_);
 
@@ -44,15 +42,8 @@ AStar3DObj(Canvas3D *canvas, uint nx, uint ny) :
   }
 }
 
-void
-AStar3DObj::
-init()
-{
-  Object3D::init();
-}
-
 bool
-AStar3DObj::
+AStarObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas_->app();
@@ -136,13 +127,13 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = Util::point2DToString(CPoint2D(node->loc.col, node->loc.row));
   }
   else
-    return Object3D::getValue(name, args, value);
+    return Object::getValue(name, args, value);
 
   return true;
 }
 
 bool
-AStar3DObj::
+AStarObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas()->app();
@@ -203,21 +194,21 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     node->setEmpty(b);
   }
   else
-    return Object3D::setValue(name, value, args);
+    return Object::setValue(name, value, args);
 
   return true;
 }
 
 //---
 
-AStar3DObj::SearchData::
-SearchData(AStar3DObj *obj) :
+AStarObj::SearchData::
+SearchData(AStarObj *obj) :
  obj_(obj)
 {
 }
 
 double
-AStar3DObj::SearchData::
+AStarObj::SearchData::
 pathCostEstimate(const CellPos &startLoc, const CellPos &endLoc)
 {
   double dx = abs(endLoc.col - startLoc.col);
@@ -227,7 +218,7 @@ pathCostEstimate(const CellPos &startLoc, const CellPos &endLoc)
 }
 
 double
-AStar3DObj::SearchData::
+AStarObj::SearchData::
 traverseCost(const CellPos &loc, const CellPos &newLoc)
 {
   double dx = abs(loc.col - newLoc.col);
@@ -236,8 +227,8 @@ traverseCost(const CellPos &loc, const CellPos &newLoc)
   return dx + dy;
 }
 
-AStar3DObj::SearchData::NodeList
-AStar3DObj::SearchData::
+AStarObj::SearchData::NodeList
+AStarObj::SearchData::
 getNextNodes(Node *node) const
 {
   NodeList nodes;
@@ -268,8 +259,8 @@ getNextNodes(Node *node) const
   return nodes;
 }
 
-AStar3DObj::SearchData::Node *
-AStar3DObj::SearchData::
+AStarObj::SearchData::Node *
+AStarObj::SearchData::
 lookupNode(const CellPos &pos) const
 {
   return obj_->getNode(pos.row, pos.col);

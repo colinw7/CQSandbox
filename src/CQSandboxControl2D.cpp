@@ -12,14 +12,14 @@
 
 namespace CQSandbox {
 
-class Xml : public CQXml {
+class Xml2D : public CQXml {
  public:
-  Xml(Control2D *control) :
+  Xml2D(Control2D *control) :
    CQXml(), control_(control) {
   }
 
-  void execSlot(const QString &str) override {
-    control_->canvas()->app()->runTclCmd(str);
+  void execSlot(const QString &value, const QString &) override {
+    control_->canvas()->app()->runTclCmd(value);
   }
 
  private:
@@ -156,12 +156,14 @@ getCurrentObject() const
   return nullptr;
 }
 
+//---
+
 bool
 Control2D::
 setUi(const QString &ui)
 {
   if (! xml_)
-    xml_ = new Xml(this);
+    xml_ = new Xml2D(this);
 
   return xml_->createWidgetsFromString(uiFrame_, ui.toStdString());
 }

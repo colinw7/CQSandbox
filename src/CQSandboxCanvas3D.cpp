@@ -1,31 +1,35 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxToolbar3D.h>
 #include <CQSandboxLight3D.h>
-#include <CQSandboxModel3DObj.h>
-#include <CQSandboxSkybox3DObj.h>
-#include <CQSandboxVector3DObj.h>
+
 #include <CQSandboxArray3DObj.h>
-#include <CQSandboxCsv3DObj.h>
 #include <CQSandboxAStar3DObj.h>
-#include <CQSandboxShape3DObj.h>
-#include <CQSandboxShaderShape3DObj.h>
+#include <CQSandboxAxis3DObj.h>
+#include <CQSandboxBBox3DObj.h>
+#include <CQSandboxCsv3DObj.h>
 #include <CQSandboxCube3DObj.h>
-#include <CQSandboxPlane3DObj.h>
-#include <CQSandboxShader3DObj.h>
+#include <CQSandboxDungeon3DObj.h>
 #include <CQSandboxGraph3DObj.h>
+#include <CQSandboxGroup3DObj.h>
+#include <CQSandboxModel3DObj.h>
+#include <CQSandboxOthello3DObj.h>
+#include <CQSandboxParticleList3DObj.h>
+#include <CQSandboxPath3DObj.h>
+#include <CQSandboxPlane3DObj.h>
+#include <CQSandboxQuadTree3DObj.h>
+#include <CQSandboxShader3DObj.h>
+#include <CQSandboxShaderShape3DObj.h>
+#include <CQSandboxShape3DObj.h>
+#include <CQSandboxSkybox3DObj.h>
+#include <CQSandboxSprite3DObj.h>
 #include <CQSandboxSurface3DObj.h>
 #include <CQSandboxText3DObj.h>
-#include <CQSandboxAxis3DObj.h>
-#include <CQSandboxSprite3DObj.h>
-#include <CQSandboxOthello3DObj.h>
-#include <CQSandboxDungeon3DObj.h>
-#include <CQSandboxPath3DObj.h>
-#include <CQSandboxParticleList3DObj.h>
-#include <CQSandboxGroup3DObj.h>
-#include <CQSandboxBBox3DObj.h>
+#include <CQSandboxVector3DObj.h>
+
 #include <CQSandboxApp.h>
 #include <CQSandboxCamera.h>
 #include <CQSandboxOverview3D.h>
+#include <CQSandboxControl3D.h>
 #include <CQSandboxGeomObject.h>
 #include <CQSandboxTexture.h>
 #include <CQSandboxUtil.h>
@@ -332,6 +336,24 @@ addCommands()
 
   //---
 
+  // ui
+  tcl->createObjCommand("sb3d::ui",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::uiProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::custom_form",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::customFormProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  //---
+
+  // layout
+  tcl->createObjCommand("sb3d::quad_tree",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<QuadTree3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  //---
+
   // objects
   tcl->createObjCommand("sb3d::group",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Group3DObj>),
@@ -414,10 +436,6 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Dungeon3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 #endif
-
-  tcl->createObjCommand("sb3d::custom_form",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::customFormProc),
-    static_cast<CQTcl::ObjCmdData>(this));
 }
 
 void
@@ -688,6 +706,72 @@ lightProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   return TCL_OK;
 }
 
+//---
+
+int
+Canvas3D::
+uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas3D *>(clientData);
+  assert(th);
+
+  auto *app = th->app();
+
+  auto args = app->getArgs(objc, objv);
+  if (args.size() < 1) return TCL_ERROR;
+
+  auto *tcl = app->tcl();
+
+  if      (args[0] == "create") {
+    if (args.size() < 2) return TCL_ERROR;
+
+    if (! app->control3D()->createUi(args[1]))
+      return TCL_ERROR;
+  }
+  else if (args[0] == "get") {
+    if (args.size() < 2) return TCL_ERROR;
+
+    QVariant value;
+    if (! app->control3D()->getUiValue(args[1], value))
+      return TCL_ERROR;
+
+    tcl->setResult(value);
+  }
+  else if (args[0] == "set") {
+    if (args.size() < 3) return TCL_ERROR;
+
+    QVariant value;
+    if (! app->control3D()->setUiValue(args[1], args[2]))
+      return TCL_ERROR;
+
+    tcl->setResult(value);
+  }
+  else if (args[0] == "widget.get") {
+    if (args.size() < 3) return TCL_ERROR;
+
+    QVariant value;
+    if (! app->control3D()->getUiWidgetValue(args[1], args[2], value))
+      return TCL_ERROR;
+
+    tcl->setResult(value);
+  }
+  else if (args[0] == "widget.set") {
+    if (args.size() < 4) return TCL_ERROR;
+
+    QVariant value;
+    if (! app->control3D()->setUiWidgetValue(args[1], args[2], args[3]))
+      return TCL_ERROR;
+
+    tcl->setResult(value);
+  }
+  else {
+    (void) th->app()->errorMsg("Invalid ui command '" + args[0] + "'");
+    return TCL_ERROR;
+  }
+
+  return TCL_OK;
+}
+
 int
 Canvas3D::
 customFormProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
@@ -731,6 +815,8 @@ customFormProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   return TCL_OK;
 }
+
+//---
 
 bool
 Canvas3D::
@@ -2307,19 +2393,9 @@ keyPressEvent(QKeyEvent *e)
   //---
 
   if (type == Type::GAME) {
-    QString text;
+    auto text = getKeyString(e);;
 
-    if      (k == Qt::Key_Left ) text = "left";
-    else if (k == Qt::Key_Right) text = "right";
-    else if (k == Qt::Key_Up   ) text = "up";
-    else if (k == Qt::Key_Down ) text = "down";
-    else if (k == Qt::Key_Space) text = "space";
-    else                                text = e->text();
-
-    if (text == "")
-      text = QString("key.%1").arg(k);
-
-    app_->runTclCmd(QString("keyPress {%1}").arg(text));
+    app_->runTclCmd(QString("keyPress {%1}").arg(QString::fromStdString(text)));
 
     update();
 
@@ -2439,12 +2515,17 @@ getKeyString(QKeyEvent *e) const
 {
   std::string keyStr;
 
-  if      (e->key() == Qt::Key_Left ) keyStr = "left";
-  else if (e->key() == Qt::Key_Right) keyStr = "right";
-  else if (e->key() == Qt::Key_Up   ) keyStr = "up";
-  else if (e->key() == Qt::Key_Down ) keyStr = "down";
-  else if (e->key() == Qt::Key_Space) keyStr = "space";
-  else                                keyStr = e->text().toStdString();
+  if      (e->key() == Qt::Key_Left     ) keyStr = "left";
+  else if (e->key() == Qt::Key_Right    ) keyStr = "right";
+  else if (e->key() == Qt::Key_Up       ) keyStr = "up";
+  else if (e->key() == Qt::Key_Down     ) keyStr = "down";
+  else if (e->key() == Qt::Key_Space    ) keyStr = "space";
+  else if (e->key() == Qt::Key_Tab      ) keyStr = "tab";
+  else if (e->key() == Qt::Key_Backspace) keyStr = "backspace";
+  else                                    keyStr = e->text().toStdString();
+
+  if (keyStr == "\\")
+    keyStr = "\\\\";
 
   if (keyStr == "")
     keyStr = "key." + std::to_string(e->key());

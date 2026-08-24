@@ -49,8 +49,8 @@ class Control2D : public QFrame {
   QListWidget* list_         { nullptr };
   QCheckBox*   visibleCheck_ { nullptr };
   QFrame*      uiFrame_      { nullptr };
-  bool         active_       { true };
   CQXml*       xml_          { nullptr };
+  bool         active_       { true };
 };
 
 }

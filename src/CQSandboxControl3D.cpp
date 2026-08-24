@@ -11,6 +11,7 @@
 #include <CQRealSpin.h>
 #include <CQPropertyViewTree.h>
 #include <CQUtil.h>
+#include <CQXml.h>
 
 #include <QTabWidget>
 #include <QGroupBox>
@@ -47,6 +48,39 @@ CVector3D colorToVector(const QColor &c) {
   return CVector3D(c.redF(), c.greenF(), c.blueF());
 }
 
+}
+
+//---
+
+namespace CQSandbox {
+
+class Xml3D : public CQXml {
+ public:
+  Xml3D(Control3D *control) :
+   CQXml(), control_(control) {
+  }
+
+  void execSlot(const QString &value, const QString &data) override {
+    auto *app = control_->canvas()->app();
+
+    app->tcl()->createVar("execData", data);
+
+    auto text = getExecData("text").toString();
+    app->tcl()->createVar("execText", text);
+
+    app->runTclCmd(value);
+  }
+
+ private:
+  Control3D* control_ { nullptr };
+};
+
+}
+
+//---
+
+namespace CQSandbox {
+
 Control3D::
 Control3D(CQSandbox::Canvas3D *canvas) :
  QFrame(nullptr), canvas_(canvas)
@@ -67,11 +101,14 @@ Control3D(CQSandbox::Canvas3D *canvas) :
   auto *objectsFrame  = addObjectsFrame();
   auto *overviewFrame = addOverviewFrame();
 
+  uiFrame_ = new QFrame;
+
   tab_->addTab(controlFrame , "Control");
   tab_->addTab(cameraFrame  , "Camera");
   tab_->addTab(lightFrame   , "Lights");
   tab_->addTab(objectsFrame , "Objects");
   tab_->addTab(overviewFrame, "Overview");
+  tab_->addTab(uiFrame_     , "UI");
 
   //---
 
@@ -1389,6 +1426,71 @@ overviewPointSizeSlot(double s)
   auto *overview = canvas_->app()->overview3D();
 
   overview->setPointSize(s);
+}
+
+//---
+
+bool
+Control3D::
+createUi(const QString &ui)
+{
+  if (! xml_)
+    xml_ = new Xml3D(this);
+
+  return xml_->createWidgetsFromString(uiFrame_, ui.toStdString());
+}
+
+bool
+Control3D::
+getUiValue(const QString &name, QVariant &value) const
+{
+  if (! xml_) return false;
+
+  value = xml_->getExecData(name);
+
+  return true;
+}
+
+bool
+Control3D::
+setUiValue(const QString &name, const QVariant &value)
+{
+  if (! xml_) return false;
+
+  xml_->setExecData(name, value);
+
+  return true;
+}
+
+
+bool
+Control3D::
+getUiWidgetValue(const QString &widget, const QString &name, QVariant &value) const
+{
+  if (! xml_) return false;
+
+  auto *w = xml_->getWidget(widget);
+  if (! w) return false;
+
+  if (! xml_->getWidgetData(w, name, value))
+    return false;
+
+  return true;
+}
+
+bool
+Control3D::
+setUiWidgetValue(const QString &widget, const QString &name, const QVariant &value)
+{
+  if (! xml_) return false;
+
+  auto *w = xml_->getWidget(widget);
+  if (! w) return false;
+
+  if (! xml_->setWidgetData(w, name, value))
+    return false;
+
+  return true;
 }
 
 }

@@ -174,7 +174,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
     setStroked(Util::stringToBool(value));
   else if (name == "filled")
     setFilled(Util::stringToBool(value));
-  else if (name == "brush.color") {
+  else if (name == "brush.color" || name == "fill.color") {
     auto b = brush_.value();
 
     b.setColor(Util::stringToColor(tcl, value));

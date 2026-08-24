@@ -12,6 +12,17 @@ proc init { } {
 # set ::nc [$::csv get num_cols]
 
   createObjs
+
+  sb3d::ui create "\
+<qxml>\n\
+<QHBoxLayout>
+<QLabel text=\"Point Size\"/>\n\
+<QLineEdit onReturnPressed=\"setPointSize\" onData=\"Hello\" name=\"pointSize\"/>\n\
+</QHBoxLayout>
+<QLayoutItem stretch=\"1\"/>\n\
+</qxml>"
+
+  sb3d::ui widget.set pointSize text [$::particles get particleSize]
 }
 
 proc createObjs { } {
@@ -51,4 +62,13 @@ proc createObjs { } {
   set range [$::particles get range]
 
   puts $range
+}
+
+proc setPointSize { } {
+  set text [sb3d::ui get text]
+
+  # echo "setPointSize $::execData $::execText"
+  echo "Text: $text"
+
+  $::particles set particleSize $text
 }

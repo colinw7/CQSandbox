@@ -17,9 +17,6 @@
 
 #include <optional>
 
-class CQArrow;
-class CQAxis;
-
 class QTimer;
 
 namespace CQSandbox {
@@ -55,6 +52,7 @@ class RendererObj : public Object {
 
 //---
 
+#ifdef CQSANDBOX_CIRCLES
 class CirclesMgr;
 
 class CirclesGroupObj : public GroupObj {
@@ -71,6 +69,7 @@ class CirclesGroupObj : public GroupObj {
  protected:
   CirclesMgr *mgr_ { nullptr };
 };
+#endif
 
 //---
 
@@ -252,58 +251,6 @@ class PointListObj : public Object {
   Point        center_     { 0, 0 };
   Point        offset_     { 0, 0 };
   QPainterPath path_;
-};
-
-//---
-
-class ArrowObj : public Object {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  ArrowObj(Canvas *canvas, const Point &p1, const Point &p2);
-
-  const char *typeName() const override { return "arrow"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect calcRect() const override;
-
-  void draw(QPainter *) override;
-
- protected:
-  Point p1_;
-  Point p2_;
-
-  CQArrow *arrow_ { nullptr };
-};
-
-//---
-
-class AxisObj : public Object {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas *canvas, const QStringList &args);
-
-  AxisObj(Canvas *canvas, const Point &pos, const Coord &len);
-
-  const char *typeName() const override { return "axis"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect calcRect() const override;
-
-  void draw(QPainter *) override;
-
- protected:
-  Point pos_;
-  Coord len_;
-
-  CQAxis *axis_ { nullptr };
 };
 
 //---

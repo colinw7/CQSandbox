@@ -14,7 +14,7 @@ class Group3DObj : public Object3D {
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
-  Group3DObj(Canvas3D *canvas);
+  Group3DObj(Canvas3D *canvas, const Type &type=Type::GROUP);
 
   const char *typeName() const override { return "group"; }
 

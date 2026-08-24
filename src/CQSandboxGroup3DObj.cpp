@@ -27,8 +27,8 @@ create(Canvas3D *canvas, const QStringList &)
 }
 
 Group3DObj::
-Group3DObj(Canvas3D *canvas) :
- Object3D(canvas, Type::GROUP)
+Group3DObj(Canvas3D *canvas, const Type &type) :
+ Object3D(canvas, type)
 {
 }
 

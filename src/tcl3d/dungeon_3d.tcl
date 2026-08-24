@@ -202,10 +202,11 @@ proc init { } {
 
   setModelDir "tcl3d/Character_Animations/gltf/Rig_Medium"
 
-  set ::enemyAnimObj [loadModel "$::model_dir/Rig_Medium_MovementBasic.glb" "enemy_anim"]
-# set ::enemyAnimObj [loadModel "$::model_dir/Rig_Medium_General.glb" "enemy_anim"]
+  set ::enemyAnim1Obj [loadModel "$::model_dir/Rig_Medium_General.glb" "enemy_anim"]
+  set ::enemyAnim2Obj [loadModel "$::model_dir/Rig_Medium_MovementBasic.glb" "enemy_anim"]
 
-  $::enemyRefObj exec add_anim $::enemyAnimObj
+  $::enemyRefObj exec add_anim $::enemyAnim1Obj
+  $::enemyRefObj exec add_anim $::enemyAnim2Obj
 
   #---
 
@@ -253,8 +254,7 @@ proc init { } {
 
   set ::enemyObj [addObject $::enemyRefObj]
 
-# $::enemyObj set anim.name "Idle"
-  $::enemyObj set anim.name "Walking_A"
+  $::enemyObj set anim.name "Idle_A"
   $::enemyObj set anim.step 0.1
 
   # setViewportValue "" bbox [list -10 -10 -10 10 10 10]
@@ -303,6 +303,12 @@ proc init { } {
 
   set ::enemy_moved 1
 
+  set ::enemy_chase 0
+
+  #---
+
+  set ::current_model "player"
+
   #---
 
   set ::camera_x 0
@@ -326,6 +332,75 @@ proc tick { args } {
   }
 }
 
+proc rotatePlayer { } {
+  # echo "Rotate Player"
+
+  set yaw [sb3d::camera get yaw]
+
+  set d [expr {$::player_rot/$::player_nrot}]
+
+  sb3d::camera set yaw [expr {$yaw + $d}]
+# sb3d::camera set pitch -15
+
+  incr ::player_irot -1
+
+  updatePlayerPos
+
+  updateCamera
+}
+
+proc movePlayer { } {
+  incr ::player_imove -1
+
+  set d [expr {$::player_move/$::player_nmove}]
+
+  set ::player_x [expr {$::player_x + $::player_dx*$d}]
+  set ::player_y [expr {$::player_y + $::player_dy*$d}]
+
+  updatePlayerPos
+
+  updateCamera
+
+  if {$::player_imove < 0} {
+    set ::player_x [expr {int($::player_x + 0.5)}]
+    set ::player_y [expr {int($::player_y + 0.5)}]
+
+    $::playerObj set anim.name "Idle"
+  }
+}
+
+proc rotateEnemy { } {
+  # echo "Rotate Enemy"
+
+  set d [expr {$::enemy_rot/$::enemy_nrot}]
+
+  set ::enemy_angle [expr {$::enemy_angle + $d}]
+
+  $::enemyObj exec rotate [list 0 1 0] [expr {90 - $::enemy_angle}]
+
+  incr ::enemy_irot -1
+
+  updateEnemyPos
+}
+
+proc moveEnemy { } {
+  set d [expr {$::enemy_move/$::enemy_nmove}]
+  
+  set ::enemy_x [expr {$::enemy_x + $::enemy_dx*$d}]
+  set ::enemy_y [expr {$::enemy_y + $::enemy_dy*$d}]
+
+  incr ::enemy_imove -1
+
+  updateEnemyPos
+
+  if {$::enemy_imove < 0} {
+    set ::enemy_x [expr {int($::enemy_x + 0.5)}]
+    set ::enemy_y [expr {int($::enemy_y + 0.5)}]
+
+    $::enemyObj set anim.name "Idle_A"
+  }
+}
+
 proc updatePlayer { } {
   if {$::player_moved} {
     # echo "Move Player"
@@ -338,7 +413,7 @@ proc updatePlayer { } {
   }
 
   if {$::enemy_moved} {
-    echo "Move Enemy"
+    # echo "Move Enemy"
 
     updateEnemyPos
 
@@ -346,38 +421,9 @@ proc updatePlayer { } {
   }
 
   if       {$::player_irot >= 0} {
-    # echo "Rotate Player"
-
-    set yaw [sb3d::camera get yaw]
-
-    set d [expr {$::player_rot/$::player_nrot}]
-
-    sb3d::camera set yaw [expr {$yaw + $d}]
-#   sb3d::camera set pitch -15
-
-    incr ::player_irot -1
-
-    updatePlayerPos
-
-    updateCamera
+    rotatePlayer
   } elseif {$::player_imove >= 0} {
-    incr ::player_imove -1
-
-    set d [expr {$::player_move/$::player_nmove}]
-
-    set ::player_x [expr {$::player_x + $::player_dx*$d}]
-    set ::player_y [expr {$::player_y + $::player_dy*$d}]
-
-    updatePlayerPos
-
-    updateCamera
-
-    if {$::player_imove < 0} {
-      set ::player_x [expr {int($::player_x + 0.5)}]
-      set ::player_y [expr {int($::player_y + 0.5)}]
-
-      $::playerObj set anim.name "Idle"
-    }
+    movePlayer
   }
 
   if {$::player_ianim >= 0} {
@@ -389,51 +435,15 @@ proc updatePlayer { } {
   }
 
   if       {$::enemy_irot >= 0} {
-    # echo "Rotate Enemy"
-
-    set d [expr {$::enemy_rot/$::enemy_nrot}]
-
-    set ::enemy_angle [expr {$::enemy_angle + $d}]
-
-    $::enemyObj exec rotate [list 0 1 0] $::enemy_angle
-
-    incr ::enemy_irot -1
-  
-    updateEnemyPos
+    rotateEnemy
   } elseif {$::enemy_imove >= 0} {
-    set d [expr {$::enemy_move/$::enemy_nmove}]
-
-    set ::enemy_x [expr {$::enemy_x + $::enemy_dx*$d}]
-    set ::enemy_y [expr {$::enemy_y + $::enemy_dy*$d}]
-
-    incr ::enemy_imove -1
-
-    updateEnemyPos
-
-    if {$::enemy_imove < 0} {
-      set ::enemy_x [expr {int($::enemy_x + 0.5)}]
-      set ::enemy_y [expr {int($::enemy_y + 0.5)}]
-    }
+    moveEnemy
   }
 
   updateLight
 }
 
-proc updateEnemyPos { } {
-  set pos [mapPos [list $::enemy_x 0 $::enemy_y]]
-
-  $::enemyObj exec translate $pos
-
-  if {$::enemy_irot < 0} {
-    set a [dirToAngle $::enemy_dir]
-
-    $::enemyObj exec rotate [list 0 1 0] [expr {90 - $a}]
-  }
-
-  if {$::enemy_imove >= 0 || $::enemy_irot >= 0} {
-    return
-  }
-
+proc chasePlayer { } {
 if {0} {
   set target [mapPos [list $::player_x 0 $::player_y]]
 
@@ -451,7 +461,7 @@ if {0} {
 
   if {[lindex $from 0] != [lindex $to 0] || [lindex $from 1] != [lindex $to 1]} {
     set to1 [$::search get next $from $to]
-    echo "$from -> $to : $to1"
+    # echo "$from -> $to : $to1"
   } else {
     set to1 $to
   }
@@ -526,12 +536,34 @@ if {0} {
       }
 
       set ::enemy_imove $::enemy_nmove
+
+      $::enemyObj set anim.name "Walking_A"
     }
 
     set ::enemy_moved 1
   } else {
     set ::enemy_dx 0
     set ::enemy_dy 0
+  }
+}
+
+proc updateEnemyPos { } {
+  set pos [mapPos [list $::enemy_x 0 $::enemy_y]]
+
+  $::enemyObj exec translate $pos
+
+  if {$::enemy_irot < 0} {
+    set a [dirToAngle $::enemy_dir]
+
+    $::enemyObj exec rotate [list 0 1 0] [expr {90 - $a}]
+  }
+
+  if {$::enemy_imove < 0 && $::enemy_irot < 0} {
+    if {$::current_model == "player"} {
+      if {$::enemy_chase} {
+        chasePlayer
+      }
+    }
   }
 }
 
@@ -783,21 +815,214 @@ proc playerCanMove { } {
   return 1
 }
 
+proc enemyRotateLeft { } {
+  # echo "turn left"
+
+  if {$::enemy_irot <= 0} {
+    set ::enemy_rot  -90.0
+    set ::enemy_irot $::enemy_nrot
+    set ::enemy_angle [dirToAngle $::enemy_dir]
+
+    if       {$::enemy_dir == "N"} {
+      set ::enemy_dir "W"
+    } elseif {$::enemy_dir == "W"} {
+      set ::enemy_dir "S"
+    } elseif {$::enemy_dir == "S"} {
+      set ::enemy_dir "E"
+    } elseif {$::enemy_dir == "E"} {
+      set ::enemy_dir "N"
+    }
+
+    echo "Dir: $::enemy_dir"
+  }
+}
+
+proc enemyRotateRight { } {
+  # echo "turn right"
+
+  if {$::enemy_irot <= 0} {
+    set ::enemy_rot 90.0
+    set ::enemy_irot $::enemy_nrot
+    set ::enemy_angle [dirToAngle $::enemy_dir]
+
+    if       {$::enemy_dir == "N"} {
+      set ::enemy_dir "E"
+    } elseif {$::enemy_dir == "E"} {
+      set ::enemy_dir "S"
+    } elseif {$::enemy_dir == "S"} {
+      set ::enemy_dir "W"
+    } elseif {$::enemy_dir == "W"} {
+      set ::enemy_dir "N"
+    }
+
+    echo "Dir: $::enemy_dir"
+  }
+}
+
+proc enemyMoveForward { } {
+  # echo "move forward"
+
+  if {$::enemy_imove <= 0} {
+    $::enemyObj set anim.name "Walking_A"
+
+    if       {$::enemy_dir == "N"} {
+      set ::enemy_dx 0
+      set ::enemy_dy -1
+    } elseif {$::enemy_dir == "E"} {
+      set ::enemy_dx 1
+      set ::enemy_dy 0
+    } elseif {$::enemy_dir == "S"} {
+      set ::enemy_dx 0
+      set ::enemy_dy 1
+    } elseif {$::enemy_dir == "W"} {
+      set ::enemy_dx -1
+      set ::enemy_dy 0
+    }
+
+    if {! [enemyCanMove]} {
+      return
+    }
+
+    set ::enemy_imove $::enemy_nmove
+  }
+}
+
+proc enemyMoveBack { } {
+  # echo "move back"
+
+  if {$::enemy_imove <= 0} {
+    $::enemyObj set anim.name "Walking_A"
+
+    if       {$::enemy_dir == "N"} {
+      set ::enemy_dx 0
+      set ::enemy_dy 1
+    } elseif {$::enemy_dir == "E"} {
+      set ::enemy_dx -1
+      set ::enemy_dy 0
+    } elseif {$::enemy_dir == "S"} {
+      set ::enemy_dx 0
+      set ::enemy_dy -1
+    } elseif {$::enemy_dir == "W"} {
+      set ::enemy_dx 1
+      set ::enemy_dy 0
+    }
+
+    if {! [enemyCanMove]} {
+      return
+    }
+
+    set ::enemy_imove $::enemy_nmove
+  }
+}
+
+proc enemyStrafeLeft { } {
+  # echo "strafe left"
+
+  if {$::enemy_imove <= 0} {
+    $::enemyObj set anim.name "Walking_A"
+
+    if       {$::enemy_dir == "N"} {
+      set ::enemy_dx -1
+      set ::enemy_dy 0
+    } elseif {$::enemy_dir == "E"} {
+      set ::enemy_dx 0
+      set ::enemy_dy -1
+    } elseif {$::enemy_dir == "S"} {
+      set ::enemy_dx 1
+      set ::enemy_dy 0
+    } elseif {$::enemy_dir == "W"} {
+      set ::enemy_dx 0
+      set ::enemy_dy 1
+    }
+
+    if {! [enemyCanMove]} {
+      return
+    }
+
+    set ::enemy_imove $::enemy_nmove
+  }
+}
+
+proc enemyStrafeRight { } {
+  # echo "strafe right"
+
+  if {$::enemy_imove <= 0} {
+    $::enemyObj set anim.name "Walking_A"
+
+    if       {$::enemy_dir == "N"} {
+      set ::enemy_dx 1
+      set ::enemy_dy 0
+    } elseif {$::enemy_dir == "E"} {
+      set ::enemy_dx 0
+      set ::enemy_dy 1
+    } elseif {$::enemy_dir == "S"} {
+      set ::enemy_dx -1
+      set ::enemy_dy 0
+    } elseif {$::enemy_dir == "W"} {
+      set ::enemy_dx 0
+      set ::enemy_dy -1
+    }
+
+    if {! [enemyCanMove]} {
+      return
+    }
+
+    set ::enemy_imove $::enemy_nmove
+  }
+}
+proc enemyCanMove { } {
+  set x [expr {int($::enemy_x + $::enemy_dx)}]
+  set y [expr {int($::enemy_y + $::enemy_dy)}]
+
+  if {[info exists ::item_map($x,$y)] && $::item_map($x,$y) != ""} {
+    # echo "$::item_map($x,$y) $::enemy_x $::enemy_y $::enemy_dx $::enemy_dy $x $y"
+    set ::enemy_dx 0
+    set ::enemy_dy 0
+    return 0
+  }
+
+  return 1
+}
+
 proc keyPress { k } {
-  #puts "keyPress $k"
+  # puts "keyPress $k"
 
   if       {$k == "q" || $k == "Q" || $k == "left"} {
-    playerRotateLeft
+    if {$::current_model == "player"} {
+      playerRotateLeft
+    } else {
+      enemyRotateLeft
+    }
   } elseif {$k == "e" || $k == "E" || $k == "right"} {
-    playerRotateRight
+    if {$::current_model == "player"} {
+      playerRotateRight
+    } else {
+      enemyRotateRight
+    }
   } elseif {$k == "w" || $k == "W" || $k == "up"} {
-    playerMoveForward
+    if {$::current_model == "player"} {
+      playerMoveForward
+    } else {
+      enemyMoveForward
+    }
   } elseif {$k == "s" || $k == "S" || $k == "down"} {
-    playerMoveBack
+    if {$::current_model == "player"} {
+      playerMoveBack
+    } else {
+      enemyMoveBack
+    }
   } elseif {$k == "a" || $k == "A"} {
-    playerStrafeLeft
+    if {$::current_model == "player"} {
+      playerStrafeLeft
+    } else {
+      enemyStrafeLeft
+    }
   } elseif {$k == "d" || $k == "D"} {
-    playerStrafeRight
+    if {$::current_model == "player"} {
+      playerStrafeRight
+    } else {
+      enemyStrafeRight
+    }
   } elseif {$k == "<"} {
     set ::player_h [expr {$::player_h - 1}]
 
@@ -827,5 +1052,16 @@ proc keyPress { k } {
   } elseif {$k == "space"} {
     $::playerObj set anim.name "1H_Melee_Attack_Chop"
     set ::player_ianim $::player_nanim
+  } elseif {$k == "c" || $k == "C"} {
+    set ::enemy_chase [expr {1 - $::enemy_chase}]
+    set ::enemy_moved 1
+  } elseif {$k == "backspace"} {
+    if {$::current_model == "player"} {
+      set ::current_model "enemy"
+    } else {
+      set ::current_model "player"
+    }
+
+    echo "Current: $::current_model"
   }
 }

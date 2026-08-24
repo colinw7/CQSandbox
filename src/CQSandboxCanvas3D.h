@@ -2,6 +2,7 @@
 #define CQSandboxCanvas3D_H
 
 #include <CQSandboxObject3D.h>
+#include <CQSandboxGeom.h>
 
 #include <CTclUtil.h>
 #include <CGLMatrix3D.h>
@@ -390,6 +391,7 @@ class Canvas3D : public OpenGLWindow {
   static int cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
   static int lightProc (void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
+  static int uiProc        (void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
   static int customFormProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
 #if 0

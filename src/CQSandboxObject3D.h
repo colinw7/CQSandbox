@@ -1,6 +1,8 @@
 #ifndef CQSandboxObject3D_H
 #define CQSandboxObject3D_H
 
+#include <CQSandboxGeom.h>
+
 #include <CVector3D.h>
 #include <CMatrix3DH.h>
 #include <CBBox3D.h>
@@ -52,6 +54,7 @@ class Object3D : public QObject {
     PARTICLE_LIST,
     PATH,
     PLANE,
+    QUAD_TREE,
     SHADER,
     SHADER_SHAPE,
     SHAPE,
@@ -190,6 +193,8 @@ class Object3D : public QObject {
   const CBBox3D &bbox() { return bbox_; }
 
   virtual CBBox3D calcBBox() { return bbox_; }
+
+  virtual Rect getBBox() const { return Rect(); } // TODO: for Quad Tree
 
   //---
 

@@ -7,6 +7,7 @@ class CQPoint3DEdit;
 class CQColorEdit;
 class CQRealSpin;
 class CQPropertyViewTree;
+class CQXml;
 
 class QListWidget;
 class QListWidgetItem;
@@ -24,7 +25,17 @@ class Control3D : public QFrame {
  public:
   Control3D(Canvas3D *canvas);
 
+  Canvas3D *canvas() const { return canvas_; }
+
+  QFrame *uiFrame() const { return uiFrame_; }
+
   void init();
+
+  bool createUi(const QString &ui);
+  bool getUiValue(const QString &name, QVariant &value) const;
+  bool setUiValue(const QString &name, const QVariant &value);
+  bool getUiWidgetValue(const QString &widget, const QString &name, QVariant &value) const;
+  bool setUiWidgetValue(const QString &widget, const QString &name, const QVariant &value);
 
   void updateWidgets();
 
@@ -190,6 +201,9 @@ class Control3D : public QFrame {
   };
 
   OverviewData overviewData_;
+
+  QFrame* uiFrame_ { nullptr };
+  CQXml*  xml_     { nullptr };
 
   bool shown_         { false };
   bool needsUpdate_   { false };
