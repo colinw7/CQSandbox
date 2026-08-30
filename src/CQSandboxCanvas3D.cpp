@@ -11,6 +11,7 @@
 #include <CQSandboxDungeon3DObj.h>
 #include <CQSandboxGraph3DObj.h>
 #include <CQSandboxGroup3DObj.h>
+#include <CQSandboxJson3DObj.h>
 #include <CQSandboxModel3DObj.h>
 #include <CQSandboxOthello3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
@@ -25,9 +26,11 @@
 #include <CQSandboxSurface3DObj.h>
 #include <CQSandboxText3DObj.h>
 #include <CQSandboxVector3DObj.h>
+#include <CQSandboxXML3DObj.h>
 
 #include <CQSandboxApp.h>
 #include <CQSandboxCamera.h>
+#include <CQSandboxFPCamera.h>
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxControl3D.h>
 #include <CQSandboxGeomObject.h>
@@ -226,9 +229,22 @@ Canvas3D(App *app) :
 
   //---
 
+  tcl_ = new CQTcl;
+
+  tcl_->init();
+
+  //---
+
   CGeometry3DInst->setFactory(new GeomFactory(this));
 
   scene_ = CGeometry3DInst->createScene3D();
+}
+
+CQTcl *
+Canvas3D::
+tcl() const
+{
+  return tcl_;
 }
 
 void
@@ -239,12 +255,12 @@ init()
 
   //---
 
-  app_->runTclCmd("proc init { args } { }");
-  app_->runTclCmd("proc update { args } { }");
-  app_->runTclCmd("proc click { args } { }");
-  app_->runTclCmd("proc keyPress { args } { }");
-  app_->runTclCmd("proc tick { args } { }");
-  app_->runTclCmd("proc setMode { args } { }");
+  runTclCmd("proc init { args } { }");
+  runTclCmd("proc update { args } { }");
+  runTclCmd("proc click { args } { }");
+  runTclCmd("proc keyPress { args } { }");
+  runTclCmd("proc tick { args } { }");
+  runTclCmd("proc setMode { args } { }");
 
   //---
 
@@ -269,7 +285,8 @@ void
 Canvas3D::
 initCamera()
 {
-  camera_ = new Camera(app_);
+  camera_   = new Camera(app_);
+  fpCamera_ = new FPCamera(app_);
 }
 
 void
@@ -288,7 +305,7 @@ setType(const Type &type)
       case Type::GAME  : mode = "game"  ; break;
     }
 
-    app_->runTclCmd(QString("setMode {%1}").arg(mode));
+    runTclCmd(QString("setMode {%1}").arg(mode));
 
     Q_EMIT typeChanged();
   }
@@ -298,7 +315,7 @@ void
 Canvas3D::
 addCommands()
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   tcl->createAlias("echo", "puts");
 
@@ -328,6 +345,14 @@ addCommands()
 
   tcl->createObjCommand("sb3d::csv",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Csv3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::xml",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Xml3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::json",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Json3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::astar",
@@ -442,13 +467,22 @@ void
 Canvas3D::
 createObjCommand(Object3D *obj)
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   auto name = obj->getCommandName();
 
   tcl->createObjCommand(name,
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::objectCommandProc),
     static_cast<CQTcl::ObjCmdData>(obj));
+}
+
+//---
+
+void
+Canvas3D::
+addObjectMgr(ObjectMgr3D *mgr)
+{
+  mgrs_[mgr->typeName()] = mgr;
 }
 
 QString
@@ -524,7 +558,7 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto args = th->app()->getArgs(objc, objv);
   if (args.size() < 1) return TCL_ERROR;
 
-  auto *tcl = th->app_->tcl();
+  auto *tcl = th->tcl();
 
   if      (args[0] == "get") {
     if (args.size() >= 2) {
@@ -586,7 +620,7 @@ cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto args = th->app()->getArgs(objc, objv);
   if (args.size() < 1) return TCL_ERROR;
 
-  auto *tcl = th->app_->tcl();
+  auto *tcl = th->tcl();
 
   if      (args[0] == "get") {
     if (args.size() >= 2) {
@@ -651,7 +685,7 @@ lightProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto args = th->app()->getArgs(objc, objv);
   if (args.size() < 1) return TCL_ERROR;
 
-  auto *tcl = th->app_->tcl();
+  auto *tcl = th->tcl();
 
   if      (args[0] == "get") {
     if (args.size() >= 2) {
@@ -720,7 +754,7 @@ uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto args = app->getArgs(objc, objv);
   if (args.size() < 1) return TCL_ERROR;
 
-  auto *tcl = app->tcl();
+  auto *tcl = th->tcl();
 
   if      (args[0] == "create") {
     if (args.size() < 2) return TCL_ERROR;
@@ -784,7 +818,7 @@ customFormProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   if (nargs < 1) return TCL_ERROR;
 
-//auto *tcl = th->app_->tcl();
+//auto *tcl = th->tcl();
 
   if      (args[0] == "string") {
     QString label, proc;
@@ -822,7 +856,7 @@ bool
 Canvas3D::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-//auto *tcl = app_->tcl();
+//auto *tcl = this->tcl();
 
   if      (name == "bg")
     value = Util::colorToString(bgColor());
@@ -893,6 +927,14 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "smooth_shade") {
     value = QVariant(isSmoothShade());
   }
+  else if (name == "objects") {
+    QStringList names;
+
+    for (auto *object : objects_)
+      names.push_back(object->getCommandName());
+
+    value = names;
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
@@ -903,7 +945,7 @@ bool
 Canvas3D::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   if      (name == "bg") {
     setBgColor(Util::stringToColor(tcl, value));
@@ -963,6 +1005,14 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "lights.simple") {
     setSimpleLights(true);
   }
+  else if (name == "camera.type") {
+    auto lvalue = value.toLower();
+
+    if (lvalue == "first_person")
+      cameraType_ = CameraType::FIRST_PERSON;
+    else
+      cameraType_ = CameraType::MODEL;
+  }
   else if (name == "depth_test") {
     setDepthTest(Util::stringToBool(value));
   }
@@ -991,26 +1041,34 @@ bool
 Canvas3D::
 getCameraValue(const QString &name, const QStringList &, QVariant &res)
 {
-//auto *tcl = app_->tcl();
+//auto *tcl = this->tcl();
+
+  auto *camera = currentCamera();
 
   if      (name == "near")
-    res = Util::realToString(camera()->near());
+    res = Util::realToString(camera->near());
   else if (name == "far")
-    res = Util::realToString(camera()->far());
+    res = Util::realToString(camera->far());
   else if (name == "yaw")
-    res = Util::realToString(CMathGen::RadToDeg(camera()->yaw()));
+    res = Util::realToString(CMathGen::RadToDeg(camera->yaw()));
   else if (name == "pitch")
-    res = Util::realToString(CMathGen::RadToDeg(camera()->pitch()));
+    res = Util::realToString(CMathGen::RadToDeg(camera->pitch()));
   else if (name == "roll")
-    res = Util::realToString(CMathGen::RadToDeg(camera()->roll()));
+    res = Util::realToString(CMathGen::RadToDeg(camera->roll()));
   else if (name == "position")
-    res = Util::vector3DToString(camera()->position());
+    res = Util::vector3DToString(camera->position());
 #if 0
   else if (name == "zoom")
-    res = Util::realToString(camera()->zoom());
+    res = Util::realToString(camera->zoom());
 #endif
-  else if (name == "disable_roll")
-    res = QVariant(camera()->isDisableRoll());
+  else if (name == "disable_roll") {
+    auto *camera1 = dynamic_cast<Camera *>(camera);
+
+    if (camera1)
+      res = QVariant(camera1->isDisableRoll());
+    else
+      return false;
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
@@ -1021,39 +1079,45 @@ bool
 Canvas3D::
 setCameraValue(const QString &name, const QString &value, const QStringList &)
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
+
+  auto *camera = currentCamera();
 
   if      (name == "near")
-    camera()->setNear(Util::stringToReal(value));
+    camera->setNear(Util::stringToReal(value));
   else if (name == "far")
-    camera()->setFar(Util::stringToReal(value));
+    camera->setFar(Util::stringToReal(value));
   else if (name == "yaw")
-    camera()->setYaw(CMathGen::DegToRad(Util::stringToReal(value)));
+    camera->setYaw(CMathGen::DegToRad(Util::stringToReal(value)));
   else if (name == "pitch")
-    camera()->setPitch(CMathGen::DegToRad(Util::stringToReal(value)));
+    camera->setPitch(CMathGen::DegToRad(Util::stringToReal(value)));
   else if (name == "roll")
-    camera()->setRoll(CMathGen::DegToRad(Util::stringToReal(value)));
+    camera->setRoll(CMathGen::DegToRad(Util::stringToReal(value)));
   else if (name == "position")
-    camera()->setPosition(Util::stringToVector3D(tcl, value));
+    camera->setPosition(Util::stringToVector3D(tcl, value));
 #if 0
   else if (name == "zoom")
-    camera()->setZoom(Util::stringToReal(value));
+    camera->setZoom(Util::stringToReal(value));
 #endif
   else if (name == "look_at") {
     auto pos = Util::stringToVector3D(tcl, value);
 
-    auto v = CVector3D(camera()->position(), pos);
+    auto v = CVector3D(camera->position(), pos);
 
-    auto q = CQuaternion::rotationArc(camera()->front(), v);
+    auto q = CQuaternion::rotationArc(camera->front(), v);
 
     double pitch, yaw, roll;
     q.toEuler(pitch, yaw, roll);
 
-    camera()->setPitch(pitch);
-    camera()->setYaw  (yaw);
+    camera->setPitch(pitch);
+    camera->setYaw  (yaw);
   }
-  else if (name == "disable_roll")
-    camera()->setDisableRoll(Util::stringToBool(value));
+  else if (name == "disable_roll") {
+    auto *camera1 = dynamic_cast<Camera *>(camera);
+
+    if (camera1)
+      camera1->setDisableRoll(Util::stringToBool(value));
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
@@ -1079,6 +1143,8 @@ void
 Canvas3D::
 resetCamera()
 {
+  auto *camera = currentCamera();
+
   auto bbox = this->bbox();
 
   auto center  = bbox.getCenter();
@@ -1086,21 +1152,21 @@ resetCamera()
 
   auto s2 = std::sqrt(2.0);
 
-  auto maxSize1 = s2*maxSize + camera_->near();
+  auto maxSize1 = s2*maxSize + camera->near();
 
   auto origin = CVector3D(center.x, center.y, center.z);
   auto pos    = CVector3D(center.x, center.y + maxSize1/2.0, center.z + maxSize1);
 
-  camera_->setPosition(pos);
+  camera->setPosition(pos);
 
-  camera_->setPitch(-M_PI/6.0);
-  camera_->setYaw(0.0);
-  camera_->setRoll(0.0);
+  camera->setPitch(-M_PI/6.0);
+  camera->setYaw(0.0);
+  camera->setRoll(0.0);
 
-  camera_->setOrigin(origin);
+  camera->setOrigin(origin);
 
-  camera_->moveAroundX(0.1);
-  camera_->moveAroundY(0.1);
+  camera->moveAroundX(0.1);
+  camera->moveAroundY(0.1);
 }
 
 bool
@@ -1131,7 +1197,7 @@ bool
 Canvas3D::
 setLightValue(const QString &name, const QString &value, const QStringList &)
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   auto *light = currentLight();
 
@@ -1198,7 +1264,7 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
   auto *canvas = obj->canvas();
   auto *app    = canvas->app();
 
-  auto *tcl = app->tcl();
+  auto *tcl = canvas->tcl();
 
   auto args = app->getArgs(objc, objv);
 
@@ -1270,9 +1336,8 @@ Canvas3D::
 initialize()
 {
   // camera
-//camera_->setLastPos(this->width()/2.0, this->height()/2.0);
-
-  connect(camera_, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
+  connect(camera_  , SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
+  connect(fpCamera_, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
 
   //---
 
@@ -1298,7 +1363,7 @@ initialize()
 
   ignoreChange_ = true;
 
-  app_->runTclCmd("init");
+  runTclCmd("init");
 
   ignoreChange_ = false;
 }
@@ -1330,6 +1395,20 @@ setRedrawTimeOut(int t)
     setLooping(true);
   }
 }
+
+//---
+
+CGLCameraIFace *
+Canvas3D::
+currentCamera() const
+{
+  if (cameraType_ == CameraType::FIRST_PERSON)
+    return fpCamera_;
+  else
+    return camera_;
+}
+
+//---
 
 Light3D *
 Canvas3D::
@@ -1409,7 +1488,9 @@ updateLights()
   ++il;
 
   // spot (1)
-  auto cpos = camera()->position().point();
+  auto *camera = currentCamera();
+
+  auto cpos = camera->position().point();
 
   lights_[il]->setType           (Light3D::Type::SPOT);
   lights_[il]->setEnabled        (false);
@@ -1601,7 +1682,7 @@ timerSlot()
   for (auto *obj : objects)
     obj->tick();
 
-  app_->runTclCmd("update");
+  runTclCmd("update");
 
   //---
 
@@ -1668,6 +1749,8 @@ render()
 
   glPopAttrib();
 
+  //---
+
   currentBuffer_  = nullptr;
   currentProgram_ = nullptr;
 
@@ -1697,19 +1780,26 @@ render()
 
   //---
 
-//projectionMatrix_ = camera_->perspectiveMatrix(aspect_);
-  projectionMatrix_ = camera_->perspectiveMatrix();
-  viewMatrix_       = camera_->viewMatrix();
+  auto *camera = currentCamera();
+
+//projectionMatrix_ = camera->perspectiveMatrix(aspect_);
+  projectionMatrix_ = camera->perspectiveMatrix();
+  viewMatrix_       = camera->viewMatrix();
 
   //---
 
-  viewPos_ = camera_->position();
+  viewPos_ = camera->position();
 
   //---
 
   bbox_ = CBBox3D();
 
+  //---
+
   glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+  for (auto &pm : mgrs_)
+    pm.second->initRender(this);
 
   for (auto *obj : objects_) {
     if (! obj || ! obj->isVisible())
@@ -1723,12 +1813,15 @@ render()
     bbox_ += obj->bbox();
   }
 
+  for (auto &pm : mgrs_)
+    pm.second->termRender(this);
+
   glPopAttrib();
 
   //---
 
-  for (auto *light : lights())
-    light->render();
+  if (isLightsVisible())
+    drawLights();
 
   //---
 
@@ -1738,6 +1831,18 @@ render()
 
   bindBuffer(nullptr);
   bindProgram(nullptr);
+}
+
+//---
+
+void
+Canvas3D::
+drawLights()
+{
+  for (auto *light : lights()) {
+    if (light->getEnabled())
+      light->render();
+  }
 }
 
 //---
@@ -2068,13 +2173,6 @@ mousePressEvent(QMouseEvent *e)
 
   setMousePos(mouseData_.press.x, mouseData_.press.y);
 
-#if 0
-  auto type = this->type();
-
-  if (type == Type::CAMERA)
-    camera_->setLastPos(mouseData_.press.x, mouseData_.press.y);
-#endif
-
   update();
 }
 
@@ -2095,29 +2193,21 @@ mouseMoveEvent(QMouseEvent *e)
     auto type = this->type();
 
     if (type == Type::CAMERA) {
-#if 0
-      double xoffset, yoffset;
+      auto *camera = currentCamera();
 
-      camera_->deltaPos(mouseData_.move2.x, mouseData_.move2.y, xoffset, yoffset);
-
-      camera_->setLastPos(mouseData_.move2.x, mouseData_.move2.y);
-
-      camera_->processMouseMovement(xoffset, yoffset);
-#else
       auto dx = CMathUtil::sign(mouseData_.move2.x - mouseData_.move1.x);
       auto dy = CMathUtil::sign(mouseData_.move2.y - mouseData_.move1.y);
 
       if      (mouseData_.button == Qt::MiddleButton) {
         auto da = M_PI/180.0;
 
-        camera_->rotateY(-dx*da);
-        camera_->rotateX(-dy*da);
+        camera->rotateY(-dx*da);
+        camera->rotateX(-dy*da);
       }
       else if (mouseData_.button == Qt::RightButton) {
-        camera_->moveRight(-dx/100.0);
-        camera_->moveUp   ( dy/100.0);
+        camera->moveRight(-dx/100.0);
+        camera->moveUp   ( dy/100.0);
       }
-#endif
     }
 
     update();
@@ -2162,7 +2252,7 @@ mouseReleaseEvent(QMouseEvent *e)
     for (auto *obj : objects())
       obj->setSelected(obj == clickObj);
 
-    app_->runTclCmd(QString("click {%1}").arg(clickObj->id()));
+    runTclCmd(QString("click {%1}").arg(clickObj->id()));
   }
 
   //---
@@ -2260,7 +2350,9 @@ setMousePos(double xpos, double ypos)
   double xp2, yp2, zp2;
   imatrix1.multiplyPoint(x2, y2, z2, &xp2, &yp2, &zp2);
 
-  const auto &viewMatrix = camera_->viewMatrix();
+  auto *camera = currentCamera();
+
+  const auto &viewMatrix = camera->viewMatrix();
   auto imatrix2 = viewMatrix.inverse();
 
   double xv1, yv1, zv1;
@@ -2339,18 +2431,16 @@ void
 Canvas3D::
 wheelEvent(QWheelEvent *e)
 {
+  auto *camera = currentCamera();
+
   auto dw = e->angleDelta().y()/250.0;
 
-#if 0
-  auto type = this->type();
-
-  if (type == Type::CAMERA)
-    camera_->processMouseScroll(dw);
-#else
   auto d = bbox_.getMaxSize()/100.0;
 
-  camera_->setDistance(camera_->distance() - dw*d);
-#endif
+  auto *camera1 = dynamic_cast<Camera *>(camera);
+
+  if (camera1)
+    camera1->setDistance(camera1->distance() - dw*d);
 
   update();
 }
@@ -2395,7 +2485,7 @@ keyPressEvent(QKeyEvent *e)
   if (type == Type::GAME) {
     auto text = getKeyString(e);;
 
-    app_->runTclCmd(QString("keyPress {%1}").arg(QString::fromStdString(text)));
+    runTclCmd(QString("keyPress {%1}").arg(QString::fromStdString(text)));
 
     update();
 
@@ -2403,44 +2493,49 @@ keyPressEvent(QKeyEvent *e)
   }
 
   if (type == Type::CAMERA) {
+    auto *camera = currentCamera();
+
     if      (k == Qt::Key_Left) {
-      camera_->moveRight(-d);
+      camera->moveRight(-d);
     }
     else if (k == Qt::Key_Right) {
-      camera_->moveRight(d);
+      camera->moveRight(d);
     }
     else if (k == Qt::Key_Up) {
-      camera_->moveUp(d);
+      camera->moveUp(d);
     }
     else if (k == Qt::Key_Down) {
-      camera_->moveUp(-d);
+      camera->moveUp(-d);
     }
     else if (k == Qt::Key_Plus) {
-      camera_->moveFront(d);
+      camera->moveFront(d);
     }
     else if (k == Qt::Key_Minus) {
-      camera_->moveFront(-d);
+      camera->moveFront(-d);
     }
     else if (k == Qt::Key_W) {
-      camera_->rotateX(da);
+      camera->rotateX(da);
     }
     else if (k == Qt::Key_S) {
-      camera_->rotateX(-da);
+      camera->rotateX(-da);
     }
     else if (k == Qt::Key_A) {
-      camera_->rotateY(da);
+      camera->rotateY(da);
     }
     else if (k == Qt::Key_D) {
-      camera_->rotateY(-da);
+      camera->rotateY(-da);
     }
     else if (k == Qt::Key_Q) {
-      camera_->rotateZ(-da);
+      camera->rotateZ(-da);
     }
     else if (k == Qt::Key_E) {
-      camera_->rotateZ(da);
+      camera->rotateZ(da);
     }
     else if (k == Qt::Key_Space) {
-      camera_->printMatrices();
+      auto *camera1 = dynamic_cast<Camera *>(camera);
+
+      if (camera1)
+        camera1->printMatrices();
     }
   }
 
@@ -2531,6 +2626,31 @@ getKeyString(QKeyEvent *e) const
     keyStr = "key." + std::to_string(e->key());
 
   return keyStr;
+}
+
+//---
+
+void
+Canvas3D::
+addClip(const CPlane3D &clip)
+{
+  assert(clips_.size() < 4);
+
+  clips_.push_back(clip);
+}
+
+//---
+
+bool
+Canvas3D::
+runTclCmd(const QString &cmd)
+{
+  auto rc = tcl_->eval(cmd, /*showError*/true, /*showResult*/false);
+
+  if (! rc)
+    (void) app_->errorMsg(QString("Command '%1' failed").arg(cmd));
+
+  return rc;
 }
 
 //---

@@ -14,7 +14,7 @@ Object3D *
 Path3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Path3DObj(canvas);
 
@@ -117,8 +117,7 @@ bool
 Path3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *app = canvas_->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if (name == "path") {
     path_.clear();

@@ -90,7 +90,22 @@ Canvas(App *app) :
 
   setMouseTracking(true);
 
+  //---
+
+  tcl_ = new CQTcl;
+
+  tcl_->init();
+
+  //---
+
   psys_ = new ParticleSystem;
+}
+
+CQTcl *
+Canvas::
+tcl() const
+{
+  return tcl_;
 }
 
 void
@@ -104,15 +119,15 @@ init()
 
   addCommands();
 
-  app_->runTclCmd("proc init { args } { }");
-  app_->runTclCmd("proc resize { args } { }");
-  app_->runTclCmd("proc update { args } { }");
-  app_->runTclCmd("proc drawBg { args } { }");
-  app_->runTclCmd("proc drawFg { args } { }");
-  app_->runTclCmd("proc keyPress { args } { }");
-  app_->runTclCmd("proc mousePress { args } { }");
-  app_->runTclCmd("proc mouseMove { args } { }");
-  app_->runTclCmd("proc mouseRelease { args } { }");
+  runTclCmd("proc init { args } { }");
+  runTclCmd("proc resize { args } { }");
+  runTclCmd("proc update { args } { }");
+  runTclCmd("proc drawBg { args } { }");
+  runTclCmd("proc drawFg { args } { }");
+  runTclCmd("proc keyPress { args } { }");
+  runTclCmd("proc mousePress { args } { }");
+  runTclCmd("proc mouseMove { args } { }");
+  runTclCmd("proc mouseRelease { args } { }");
 
   //---
 
@@ -140,7 +155,7 @@ void
 Canvas::
 addCommands()
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   tcl->createAlias("echo", "puts");
 
@@ -287,7 +302,7 @@ void
 Canvas::
 createObjCommand(Object *obj)
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   auto name = obj->getCommandName();
 
@@ -407,7 +422,7 @@ step()
     }
   }
 
-  app_->runTclCmd("update");
+  runTclCmd("update");
 
   //---
 
@@ -430,7 +445,7 @@ stepInit(bool &buffered)
 
     inited_ = true;
 
-    app_->runTclCmd("init");
+    runTclCmd("init");
 
     initRun_ = true;
 
@@ -559,7 +574,7 @@ resizeEvent(QResizeEvent *)
   updatePixelRanges();
 
   if (initRun_)
-    app_->runTclCmd(QString("resize %1 %2").arg(pixelWidth_).arg(pixelHeight_));
+    runTclCmd(QString("resize %1 %2").arg(pixelWidth_).arg(pixelHeight_));
 
   if (buffered_ && initRun_)
     drawBufferedNeeded_ = true;
@@ -637,7 +652,7 @@ drawStep()
 
     painter_->fillRect(rect, viewport->brush.value().color());
 
-    app_->runTclCmd("drawBg");
+    runTclCmd("drawBg");
 
     for (auto *obj : viewport->objects) {
       if (obj->isVisible())
@@ -658,7 +673,7 @@ drawStep()
       drawParticle(painter_, particle1);
     }
 
-    app_->runTclCmd("drawFg");
+    runTclCmd("drawFg");
 
     currentViewport_ = nullptr;
   }
@@ -738,7 +753,7 @@ mousePressEvent(QMouseEvent *e)
 
   auto p = pointToWindow(Point::makePixel(e->x(), e->y())).qpoint();
 
-  app_->runTclCmd(QString("mousePress %1 %2").arg(p.x()).arg(p.y()));
+  runTclCmd(QString("mousePress %1 %2").arg(p.x()).arg(p.y()));
 
   update();
 }
@@ -781,7 +796,7 @@ mouseMoveEvent(QMouseEvent *e)
   }
 
   if (pressed_)
-    app_->runTclCmd(QString("mouseMove %1 %2").arg(p.x()).arg(p.y()));
+    runTclCmd(QString("mouseMove %1 %2").arg(p.x()).arg(p.y()));
 
   update();
 }
@@ -803,7 +818,7 @@ mouseReleaseEvent(QMouseEvent *e)
 
   auto p = pointToWindow(Point::makePixel(e->x(), e->y())).qpoint();
 
-  app_->runTclCmd(QString("mouseRelease %1 %2").arg(p.x()).arg(p.y()));
+  runTclCmd(QString("mouseRelease %1 %2").arg(p.x()).arg(p.y()));
 
   update();
 }
@@ -821,7 +836,7 @@ keyPressEvent(QKeyEvent *e)
 
   //---
 
-  app_->runTclCmd(QString("keyPress {%1}").arg(keyStr));
+  runTclCmd(QString("keyPress {%1}").arg(keyStr));
 
   update();
 
@@ -959,7 +974,7 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto args = th->app()->getArgs(objc, objv);
   if (args.size() < 1) return TCL_ERROR;
 
-  auto *tcl = th->app_->tcl();
+  auto *tcl = th->tcl();
 
   if      (args[0] == "get") {
     if (args.size() < 2) {
@@ -1040,7 +1055,7 @@ paletteProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto args = th->app()->getArgs(objc, objv);
   if (args.size() < 1) return TCL_ERROR;
 
-  auto *tcl = th->app_->tcl();
+  auto *tcl = th->tcl();
 
   if      (args[0] == "hsv") {
     if (args.size() >= 2) {
@@ -1083,7 +1098,7 @@ viewportProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto args = th->app()->getArgs(objc, objv);
   if (args.size() < 1) return TCL_ERROR;
 
-  auto *tcl = th->app_->tcl();
+  auto *tcl = th->tcl();
 
   auto rect = Util::stringToRect(tcl, args[0]);
 
@@ -1106,7 +1121,7 @@ styleProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto args = th->app()->getArgs(objc, objv);
   if (args.size() < 1) return TCL_ERROR;
 
-  auto *tcl = th->app_->tcl();
+  auto *tcl = th->tcl();
 
   if (args[0] == "get") {
     if (args.size() >= 2)
@@ -1126,7 +1141,7 @@ bool
 Canvas::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   auto *viewport = currentViewport();
 
@@ -1224,7 +1239,7 @@ bool
 Canvas::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   auto *viewport = currentViewport();
 
@@ -1386,7 +1401,7 @@ addViewport()
 
   updatePixelRanges();
 
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   tcl->createObjCommand(viewport->name,
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::viewportCommandProc),
@@ -1430,7 +1445,7 @@ void
 Canvas::
 setStyleValue(const QString &name, const QString &value)
 {
-  auto *tcl = app_->tcl();
+  auto *tcl = this->tcl();
 
   if      (name == "brush.color")
     styleBrush_.setColor(Util::stringToColor(tcl, value));
@@ -1475,7 +1490,7 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
   auto *canvas = obj->canvas();
   auto *app    = canvas->app();
 
-  auto *tcl = app->tcl();
+  auto *tcl = canvas->tcl();
 
   auto args = app->getArgs(objc, objv);
 
@@ -1558,7 +1573,7 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
   auto *canvas = viewport->canvas;
   auto *app    = canvas->app();
 
-  auto *tcl = app->tcl();
+  auto *tcl = canvas->tcl();
 
   auto args = app->getArgs(objc, objv);
 
@@ -1703,13 +1718,27 @@ uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 //---
 
 bool
+Canvas::
+runTclCmd(const QString &cmd)
+{
+  auto rc = tcl_->eval(cmd, /*showError*/true, /*showResult*/false);
+
+  if (! rc)
+    (void) app_->errorMsg(QString("Command '%1' failed").arg(cmd));
+
+  return rc;
+}
+
+//---
+
+bool
 RendererObj::
 create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 0)
     return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new RendererObj(canvas);
 
@@ -1731,7 +1760,7 @@ bool
 RendererObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  //auto *tcl = canvas()->app()->tcl();
+  //auto *tcl = canvas()->tcl();
 
   if      (name == "brush.color") {
     value = Util::colorToString(brush_.color());
@@ -1754,8 +1783,7 @@ bool
 RendererObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "brush.color")
     brush_.setColor(Util::stringToColor(tcl, value));
@@ -1790,8 +1818,7 @@ bool
 RendererObj::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
-  auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (op == "draw.point") {
     if (args.size() != 1)
@@ -1944,7 +1971,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto rect = Util::stringToRect(tcl, args[0]);
 
@@ -2002,7 +2029,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto center = Util::stringToPoint(tcl, args[0]);
   auto r      = Util::stringToCoord(args[1]);
@@ -2050,7 +2077,7 @@ bool
 CircleObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "center") {
     center_.setValue(Util::stringToPoint(tcl, value));
@@ -2131,7 +2158,7 @@ bool
 RectObj::
 create(Canvas *canvas, const QStringList &args)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto rect = Rect(Point(0, 0), Point(1, 1));
 
@@ -2169,7 +2196,7 @@ bool
 RectObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if (name == "rect") {
     rect_ = Util::stringToRect(tcl, value);
@@ -2208,7 +2235,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto p1 = Util::stringToPoint(tcl, args[0]);
   auto p2 = Util::stringToPoint(tcl, args[1]);
@@ -2246,7 +2273,7 @@ bool
 LineObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "p1")
     p1_ = Util::stringToPoint(tcl, value);
@@ -2326,7 +2353,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto pos = Util::stringToPoint(tcl, args[0]);
 
@@ -2366,7 +2393,7 @@ RealEdit::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if      (name == "position") {
-    auto *tcl = canvas()->app()->tcl();
+    auto *tcl = canvas()->tcl();
 
     p_ = Util::stringToPoint(tcl, value);
   }
@@ -2410,7 +2437,7 @@ draw(QPainter *painter)
 
   painter->fillRect(prect, QBrush(Qt::white));
 
-  auto var  = canvas()->app()->tcl()->getVar(name_);
+  auto var  = canvas()->tcl()->getVar(name_);
   auto rstr = var.toString();
   auto r    = Util::stringToReal(rstr);
 
@@ -2425,8 +2452,7 @@ void
 RealEdit::
 move(int dx, int)
 {
-  auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   double d1 = double(dx)/double(canvas()->width());
   double d = d1*(maxValue_ - minValue_);
@@ -2444,7 +2470,7 @@ move(int dx, int)
   canvas()->step();
 
   if (proc_ != "")
-    app->runTclCmd(proc_);
+    canvas()->runTclCmd(proc_);
 }
 
 //---
@@ -2455,7 +2481,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto pos = Util::stringToPoint(tcl, args[0]);
 
@@ -2495,7 +2521,7 @@ IntegerEdit::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if      (name == "position") {
-    auto *tcl = canvas()->app()->tcl();
+    auto *tcl = canvas()->tcl();
 
     p_ = Util::stringToPoint(tcl, value);
   }
@@ -2539,7 +2565,7 @@ draw(QPainter *painter)
 
   painter->fillRect(prect, QBrush(Qt::white));
 
-  auto var  = canvas()->app()->tcl()->getVar(name_);
+  auto var  = canvas()->tcl()->getVar(name_);
   auto istr = var.toString();
   auto i    = Util::stringToInt(istr);
 
@@ -2605,7 +2631,7 @@ int
 IntegerEdit::
 getIValue() const
 {
-  auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->tcl();
 
   auto var  = tcl->getVar(name_);
   auto istr = var.toString();
@@ -2619,13 +2645,12 @@ setIValue(int i)
 {
   int i1 = std::min(std::max(i, minValue_), maxValue_);
 
-  auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   tcl->setVar(name_, i1);
 
   if (proc_ != "")
-    app->runTclCmd(proc_);
+    canvas()->runTclCmd(proc_);
 }
 
 //---
@@ -2634,7 +2659,7 @@ bool
 ButtonObj::
 create(Canvas *canvas, const QStringList &args)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   Point   pos;
   QString text;
@@ -2683,7 +2708,7 @@ ButtonObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if      (name == "position") {
-    auto *tcl = canvas()->app()->tcl();
+    auto *tcl = canvas()->tcl();
 
     p_ = Util::stringToPoint(tcl, value);
   }
@@ -2736,10 +2761,8 @@ void
 ButtonObj::
 click(int, int)
 {
-  auto *app = canvas()->app();
-
   if (proc_ != "")
-    app->runTclCmd(proc_);
+    canvas()->runTclCmd(proc_);
 }
 
 //---
@@ -2748,7 +2771,7 @@ bool
 ImageObj::
 create(Canvas *canvas, const QStringList &args)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   Point  pos;
   QImage image;
@@ -2807,7 +2830,7 @@ ImageObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "position") {
     pos_     = Util::stringToPoint(tcl, value);
@@ -2911,7 +2934,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto r = Util::stringToCoord(args[0]);
 
@@ -2935,7 +2958,7 @@ PointListObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "radius")
     value = Util::coordToString(radius_.value());
@@ -3009,7 +3032,7 @@ PointListObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "radius")
     radius_.setValue(Util::stringToCoord(value));
@@ -3234,7 +3257,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto pos = Util::stringToPoint(tcl, args[0]);
 
@@ -3302,7 +3325,7 @@ ParticleObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "position") {
     auto p = Util::stringToPoint(tcl, value);

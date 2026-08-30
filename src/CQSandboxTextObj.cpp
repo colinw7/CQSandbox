@@ -15,7 +15,7 @@ bool
 TextObj::
 create(Canvas *canvas, const QStringList &args)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   Point   pos;
   QString text;
@@ -66,7 +66,7 @@ bool
 TextObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "position")
     pos_ = Util::stringToPoint(tcl, value);

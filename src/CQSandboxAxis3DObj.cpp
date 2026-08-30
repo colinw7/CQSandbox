@@ -13,7 +13,7 @@ Object3D *
 Axis3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Axis3DObj(canvas);
 
@@ -55,8 +55,7 @@ bool
 Axis3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *app = canvas_->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "start") {
     start_ = Util::stringToVector3D(tcl, value);

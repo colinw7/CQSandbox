@@ -23,7 +23,7 @@ Object3D *
 Skybox3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Skybox3DObj(canvas);
 
@@ -142,8 +142,7 @@ bool
 Skybox3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "images") {
     QStringList strs;

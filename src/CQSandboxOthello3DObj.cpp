@@ -14,7 +14,7 @@ Object3D *
 Othello3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Othello3DObj(canvas);
 
@@ -46,7 +46,7 @@ Othello3DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   struct Index {
     int ix { -1 };

@@ -119,12 +119,15 @@ Overview3D::
 init()
 {
   auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
+
+  auto *camera   = canvas->camera();
+  auto *fpCamera = canvas->camera();
 
 //connect(canvas_, SIGNAL(animStateChanged()), this, SLOT(invalidate()));
 //connect(canvas_, SIGNAL(animTimeChanged()), this, SLOT(invalidate()));
 
-  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
+  connect(camera  , SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
+  connect(fpCamera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
 
   for (auto *light : canvas->lights())
     connect(light, SIGNAL(changedSignal()), this, SLOT(lightChangeSlot()));
@@ -232,7 +235,7 @@ paintEvent(QPaintEvent *)
   //---
 
   auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
+  auto *camera = canvas->currentCamera();
 
   drawData_.projectionMatrix = camera->perspectiveMatrix();
   drawData_.viewMatrix       = camera->viewMatrix();
@@ -861,7 +864,7 @@ drawCameras()
     return;
 
   auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
+  auto *camera = canvas->currentCamera();
 
   drawCamera(camera);
 
@@ -873,7 +876,7 @@ drawCameras()
 
 void
 Overview3D::
-drawCamera(Camera *camera)
+drawCamera(CGLCameraIFace *camera)
 {
 #if 0
   Camera::Shape shape;
@@ -1689,7 +1692,7 @@ mouseMoveEvent(QMouseEvent *e)
       }
       else if (pview_.pressRange(mouseData_.movePos2, p2)) {
         auto *canvas = app_->canvas3D();
-        auto *camera = canvas->camera();
+        auto *camera = canvas->currentCamera();
 
         auto dx = CMathUtil::sign(mouseData_.movePos2.x - mouseData_.movePos1.x);
         auto dy = CMathUtil::sign(mouseData_.movePos2.y - mouseData_.movePos1.y);
@@ -1789,7 +1792,7 @@ Overview3D::
 keyPressEvent(QKeyEvent *e)
 {
   auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
+  auto *camera = canvas->currentCamera();
 
   auto k = e->key();
 
@@ -1947,7 +1950,7 @@ Overview3D::
 selectObjectAt(const CPoint2D &p, bool clear)
 {
   auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
+  auto *camera = canvas->currentCamera();
 
   auto pos = camera->position();
 
@@ -2480,7 +2483,7 @@ Overview3D::
 setCameraPosition(const CPoint2D &pressPos)
 {
   auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
+  auto *camera = canvas->currentCamera();
 
   auto position = camera->position();
 
@@ -2498,7 +2501,7 @@ Overview3D::
 setCameraOrigin(const CPoint2D &pressPos)
 {
   auto *canvas = app_->canvas3D();
-  auto *camera = canvas->camera();
+  auto *camera = canvas->currentCamera();
 
   auto origin = camera->origin();
 

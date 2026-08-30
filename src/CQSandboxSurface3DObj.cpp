@@ -23,7 +23,7 @@ Object3D *
 Surface3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Surface3DObj(canvas);
 
@@ -54,7 +54,7 @@ Surface3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas_->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "size") {
     QStringList strs;

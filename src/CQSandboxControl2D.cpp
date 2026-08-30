@@ -19,7 +19,7 @@ class Xml2D : public CQXml {
   }
 
   void execSlot(const QString &value, const QString &) override {
-    control_->canvas()->app()->runTclCmd(value);
+    control_->canvas()->runTclCmd(value);
   }
 
  private:

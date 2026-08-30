@@ -58,9 +58,9 @@ App::
 App(QWidget *parent) :
  QFrame(parent)
 {
-  tcl_ = new CQTcl;
+  //tcl_ = new CQTcl;
 
-  tcl_->init();
+  //tcl_->init();
 }
 
 void
@@ -75,94 +75,132 @@ init()
   auto *layout = new QVBoxLayout(this);
   layout->setMargin(0); layout->setSpacing(0);
 
-  auto *clayout = new QHBoxLayout;
-  clayout->setMargin(0); clayout->setSpacing(0);
-
   //---
 
   if (is3D()) {
-    layout->addLayout(clayout);
+    auto *frame = add3DFrame(frame3D_);
 
-    //---
-
-    canvas3D_        = new Canvas3D(this);
-    canvasToolbar3D_ = new CanvasToolbar3D(canvas3D_);
-
-    auto *canvasFrame = new QFrame;
-
-    auto *canvasLayout = new QVBoxLayout(canvasFrame);
-    canvasLayout->setMargin(0); canvasLayout->setSpacing(0);
-
-    canvasLayout->addWidget(canvasToolbar3D_);
-    canvasLayout->addWidget(canvas3D_);
-
-    if (isOverview()) {
-      overview3D_        = new Overview3D(this);
-      overviewToolbar3D_ = new OverviewToolbar3D(overview3D_);
-
-      auto *overviewFrame = new QFrame;
-
-      auto *overviewLayout = new QVBoxLayout(overviewFrame);
-      overviewLayout->setMargin(0); overviewLayout->setSpacing(0);
-
-      overviewLayout->addWidget(overviewToolbar3D_);
-      overviewLayout->addWidget(overview3D_);
-
-      //---
-
-      tab_ = new CQTabSplit;
-
-      tab_->setState(CQTabSplit::State::TAB);
-
-      tab_->addWidget(canvasFrame  , "3D");
-      tab_->addWidget(overviewFrame, "2D");
-
-      clayout->addWidget(tab_);
-    }
-    else {
-      clayout->addWidget(canvasFrame);
-    }
-
-    //---
-
-    control3D_ = new Control3D(canvas3D_);
-
-    clayout->addWidget(control3D_);
-
-    control3D_->hide();
-
-    //---
-
-    canvas3D_->init();
-
-    if (overview3D_)
-      overview3D_->init();
-
-    control3D_->init();
+    layout->addWidget(frame);
   }
   else {
-    canvas_    = new Canvas(this);
-    toolbar2D_ = new Toolbar2D(canvas_);
+    auto *frame = add2DFrame(frame2D_);
 
-    canvas_->init();
-
-    layout->addWidget(toolbar2D_);
-    layout->addLayout(clayout);
-
-    clayout->addWidget(canvas_);
-
-    //---
-
-    control2D_ = new Control2D(canvas_);
-
-    clayout->addWidget(control2D_);
-
-    control2D_->hide();
+    layout->addWidget(frame);
   }
 
   status_ = new Status(this);
 
   layout->addWidget(status_);
+}
+
+QFrame *
+App::
+add3DFrame(Frame3D &frame3D)
+{
+  auto *frame  = new QFrame;
+  auto *layout = new QHBoxLayout(frame);
+
+  //---
+
+  auto *canvasFrame = new QFrame;
+
+  auto *clayout = new QVBoxLayout(canvasFrame);
+  clayout->setMargin(0); clayout->setSpacing(0);
+
+  //---
+
+  frame3D.canvas  = new Canvas3D(this);
+  frame3D.toolbar = new CanvasToolbar3D(frame3D.canvas);
+
+  clayout->addWidget(frame3D.toolbar);
+  clayout->addWidget(frame3D.canvas);
+
+  //---
+
+  if (isOverview()) {
+    auto *overviewFrame = new QFrame;
+
+    auto *overviewLayout = new QVBoxLayout(overviewFrame);
+    overviewLayout->setMargin(0); overviewLayout->setSpacing(0);
+
+    frame3D.overview        = new Overview3D(this);
+    frame3D.overviewToolbar = new OverviewToolbar3D(frame3D.overview);
+
+    overviewLayout->addWidget(frame3D.overviewToolbar);
+    overviewLayout->addWidget(frame3D.overview);
+
+    //---
+
+    frame3D.tab = new CQTabSplit;
+
+    frame3D.tab->setState(CQTabSplit::State::TAB);
+
+    frame3D.tab->addWidget(canvasFrame  , "3D");
+    frame3D.tab->addWidget(overviewFrame, "2D");
+
+    layout->addWidget(frame3D.tab);
+  }
+  else {
+    layout->addWidget(canvasFrame);
+  }
+
+  //---
+
+  frame3D.control = new Control3D(frame3D.canvas);
+
+  layout->addWidget(frame3D.control);
+
+  frame3D.control->hide();
+
+  //---
+
+  frame3D.canvas->init();
+
+  if (frame3D.overview)
+    frame3D.overview->init();
+
+  frame3D.control->init();
+
+  //---
+
+  return frame;
+}
+
+QFrame *
+App::
+add2DFrame(Frame2D &frame2D)
+{
+  auto *frame  = new QFrame;
+  auto *layout = new QHBoxLayout(frame);
+
+  //---
+
+  auto *clayout = new QVBoxLayout;
+  clayout->setMargin(0); clayout->setSpacing(0);
+
+  layout->addLayout(clayout);
+
+  //---
+
+  frame2D.canvas  = new Canvas(this);
+  frame2D.toolbar = new Toolbar2D(frame2D.canvas);
+
+  frame2D.canvas->init();
+
+  clayout->addWidget(frame2D.toolbar);
+  clayout->addWidget(frame2D.canvas);
+
+  //---
+
+  frame2D.control = new Control2D(frame2D.canvas);
+
+  layout->addWidget(frame2D.control);
+
+  frame2D.control->hide();
+
+  //---
+
+  return frame;
 }
 
 void
@@ -179,13 +217,13 @@ void
 App::
 setInfo(const QString &label)
 {
-  if (toolbar2D_)
-    toolbar2D_->setInfo(label);
+  if (toolbar2D())
+    toolbar2D()->setInfo(label);
 }
 
 bool
 App::
-load(const QString &fileName)
+load(CQTcl *tcl, const QString &fileName)
 {
   auto fileToLines = [&](const QString &fileName, QStringList &lines) {
     QFile file(fileName);
@@ -208,6 +246,15 @@ load(const QString &fileName)
     }
 
     return true;
+  };
+
+  auto runTclCmd = [&](const QString &cmd) {
+    auto rc = tcl->eval(cmd, /*showError*/true, /*showResult*/false);
+
+    if (! rc)
+      (void) errorMsg(QString("Command '%1' failed").arg(cmd));
+
+    return rc;
   };
 
   QStringList lines;
@@ -239,6 +286,7 @@ load(const QString &fileName)
   return true;
 }
 
+#if 0
 bool
 App::
 runTclCmd(const QString &cmd)
@@ -250,6 +298,7 @@ runTclCmd(const QString &cmd)
 
   return rc;
 }
+#endif
 
 QStringList
 App::

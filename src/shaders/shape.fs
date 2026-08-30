@@ -10,14 +10,18 @@ out vec4 FragColor;
 uniform vec3 viewPos;
 uniform vec3 lightPos;
 uniform vec3 lightColor;
+
 uniform float ambientStrength;
 uniform float diffuseStrength;
 uniform float specularStrength;
 uniform float shininess;
+
 uniform sampler2D textureId;
 uniform sampler2D normTex;
-uniform bool useDiffuseTexture;
-uniform bool useNormalTexture;
+uniform bool      useDiffuseTexture;
+uniform bool      useNormalTexture;
+
+uniform bool isWireframe;
 
 void main() {
   vec3 norm;
@@ -48,5 +52,8 @@ void main() {
 
   vec3 result = ambient + diffuse + specular;
 
-  FragColor = vec4(result, diffuseColor.a);
+  if (! isWireframe)
+    FragColor = vec4(result, diffuseColor.a);
+  else
+    FragColor = vec4(1, 1, 1, 1);
 }

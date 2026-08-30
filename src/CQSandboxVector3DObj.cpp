@@ -14,7 +14,7 @@ create(Canvas3D *canvas, const QStringList &args)
   if (args.size() > 1)
     return nullptr;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Vector3DObj(canvas);
 

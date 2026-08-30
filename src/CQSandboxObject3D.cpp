@@ -201,6 +201,8 @@ getValue(const QString &name, const QStringList &, QVariant &value)
 
   if      (name == "id")
     value = id();
+  else if (name == "type_name")
+    value = typeName();
   else if (name == "visible")
     value = QString(isVisible() ? "1" : "0");
   else if (name == "position")
@@ -224,7 +226,7 @@ Object3D::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
   auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "id")
     setId(value);
@@ -310,13 +312,11 @@ void
 Object3D::
 tick()
 {
-  auto *app = canvas()->app();
-
   ticks_ += dt_;
 
   elapsed_ += canvas_->redrawTimeOut()/1000.0;
 
-  app->runTclCmd("tick");
+  canvas()->runTclCmd("tick");
 }
 
 void

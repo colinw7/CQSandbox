@@ -164,7 +164,7 @@ Object::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
   auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "id")
     setId(value);

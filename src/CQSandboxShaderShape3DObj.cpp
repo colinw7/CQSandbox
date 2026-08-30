@@ -20,7 +20,7 @@ Object3D *
 ShaderShape3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new ShaderShape3DObj(canvas);
 
@@ -81,7 +81,7 @@ ShaderShape3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas_->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "points") {
     shapeData_.setPoints(Util::stringToVectors3D(tcl, value));

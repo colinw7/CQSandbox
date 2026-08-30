@@ -16,7 +16,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto p1 = Util::stringToPoint(tcl, args[0]);
   auto p2 = Util::stringToPoint(tcl, args[1]);
@@ -55,7 +55,7 @@ bool
 ArrowObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "p1")
     p1_ = Util::stringToPoint(tcl, value);

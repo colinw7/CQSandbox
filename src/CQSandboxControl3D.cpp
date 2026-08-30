@@ -61,14 +61,14 @@ class Xml3D : public CQXml {
   }
 
   void execSlot(const QString &value, const QString &data) override {
-    auto *app = control_->canvas()->app();
+    auto *canvas = control_->canvas();
 
-    app->tcl()->createVar("execData", data);
+    canvas->tcl()->createVar("execData", data);
 
     auto text = getExecData("text").toString();
-    app->tcl()->createVar("execText", text);
+    canvas->tcl()->createVar("execText", text);
 
-    app->runTclCmd(value);
+    canvas->runTclCmd(value);
   }
 
  private:

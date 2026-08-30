@@ -7,7 +7,7 @@ layout (location = 3) in vec2 aTexCoord;
 layout (location = 4) in vec4 BoneIds;
 layout (location = 5) in vec4 BoneWeights;
 
-out vec3 FragPos;
+out vec4 FragPos;
 out vec3 Normal;
 out vec3 Color;
 out vec2 TexCoords;
@@ -20,6 +20,13 @@ uniform mat4 projection;
 uniform bool useBonePoints;
 uniform mat4 globalBoneTransform[128];
       
+#define NUM_CLIPS 4
+
+uniform int  numClipPlanes;
+uniform vec4 clipPlane[NUM_CLIPS];
+
+out float gl_ClipDistance[NUM_CLIPS];
+
 vec3 applyBonePointTransform(vec4 p) {
   vec3 result = vec3(0.0);
   for (int i = 0; i < 4; ++i) {
@@ -29,8 +36,7 @@ vec3 applyBonePointTransform(vec4 p) {
   return result;
 }
 
-void main()
-{
+void main() {
   vec3 position = aPos;
   vec3 norm     = normalize(aNormal);
 
@@ -41,11 +47,18 @@ void main()
 
   position = vec3(meshMatrix*vec4(position, 1.0));
 
-  FragPos = vec3(model*vec4(position, 1.0));
+  FragPos = model*vec4(position, 1.0);
   Normal  = mat3(transpose(inverse(model)))*norm;
 
   Color     = aColor;
   TexCoords = aTexCoord;
 
-  gl_Position = projection*view*vec4(FragPos, 1.0);
+  gl_Position = projection*view*FragPos;
+
+  for (int i = 0; i < NUM_CLIPS; ++i) {
+    if (i < numClipPlanes)
+      gl_ClipDistance[i] = dot(FragPos, clipPlane[i]);
+    else
+      gl_ClipDistance[i] = 0;
+  }
 }

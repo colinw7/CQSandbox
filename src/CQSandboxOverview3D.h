@@ -16,7 +16,7 @@
 class CGeomObject3D;
 class CGeomFace3D;
 class CQRubberBand;
-class CGLCamera;
+class CGLCameraIFace;
 
 namespace CQSandbox {
 
@@ -186,7 +186,7 @@ class Overview3D : public QFrame {
   void drawText(Text3DObj *obj);
 
   void drawCameras();
-  void drawCamera(Camera *camera);
+  void drawCamera(CGLCameraIFace *camera);
 
   void drawLights();
 

@@ -17,6 +17,7 @@
 
 #include <optional>
 
+class CQTcl;
 class QTimer;
 
 namespace CQSandbox {
@@ -396,6 +397,8 @@ class Canvas : public QFrame {
 
   App* app() const { return app_; }
 
+  CQTcl *tcl() const;
+
   void resizeEvent(QResizeEvent *) override;
 
   void paintEvent(QPaintEvent *) override;
@@ -468,6 +471,10 @@ class Canvas : public QFrame {
 
   ParticleSystem *psys() const { return psys_; }
 
+  //---
+
+  bool runTclCmd(const QString &cmd);
+
  protected:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
@@ -506,6 +513,8 @@ class Canvas : public QFrame {
   using Objects = std::vector<Object *>;
 
   App* app_ { nullptr };
+
+  CQTcl* tcl_ { nullptr };
 
   ParticleSystem *psys_ { nullptr };
 

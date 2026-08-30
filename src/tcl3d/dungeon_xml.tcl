@@ -41,10 +41,23 @@ proc mapPos { pos } {
 proc addFloorTiles { } {
   # echo "addTiles $model"
 
+  if {! [info exists ::floorRefObj(0)]} {
+    setModelDir "tcl3d/Dungeon_Assets/obj"
+
+    set ::floorRefObj(0) [loadRefModel "floor_wood_large"             ]
+    set ::floorRefObj(1) [loadRefModel "floor_wood_large_dark"        ]
+    set ::floorRefObj(2) [loadRefModel "floor_dirt_large"             ]
+    set ::floorRefObj(3) [loadRefModel "floor_dirt_large_rocky"       ]
+  }
+
   set ::tile_group [sb3d::group "tile_group"]
 
   for {set iy 0} {$iy < $::ny} {incr iy} {
     for {set ix 0} {$ix < $::nx} {incr ix} {
+      if {$::tile_map($ix,$iy) == ""} {
+        continue
+      }
+
       set im [irandIn 0 3]
 
       set tile($ix,$iy) [$::floorRefObj($im) get ref_object]
@@ -63,38 +76,46 @@ proc addFloorTiles { } {
 }
 
 proc adjustedWallPos { ix iy } {
-  set ix1 [expr {$::nx - 1}]
-  set iy1 [expr {$::ny - 1}]
+  set map_type $::tile_map($ix,$iy)
 
   set ixx $ix
-  if       {$ix == 0} {
+  if       {$map_type == "W" || $map_type == "NW" || $map_type == "SW" || $map_type == "DW"} {
     set ixx [expr {$ixx - 0.5}]
-  } elseif {$ix == $ix1} {
+  } elseif {$map_type == "E" || $map_type == "NE" || $map_type == "SE" || $map_type == "DE"} {
     set ixx [expr {$ixx + 0.5}]
   }
 
   set iyy $iy
-  if       {$iy == 0} {
+  if       {$map_type == "N" || $map_type == "NW" || $map_type == "NE" || $map_type == "DN"} {
     set iyy [expr {$iyy - 0.5}]
-  } elseif {$iy == $iy1} {
+  } elseif {$map_type == "S" || $map_type == "SW" || $map_type == "SE" || $map_type == "DS"} {
     set iyy [expr {$iyy + 0.5}]
   }
 
   return [list $ixx 0 $iyy]
 }
 
-proc addWalls { wallObj cornerObj wallHalfObj } {
-  # echo "addWalls $wallObj $cornerObj"
+proc addWalls { } {
+  # echo "addWalls"
 
-  set ix1 [expr {$::nx - 1}]
-  set iy1 [expr {$::ny - 1}]
+  if {! [info exists ::wallRefObj]} {
+    setModelDir "tcl3d/Dungeon_Assets/obj"
+
+    set ::wallRefObj       [loadRefModel "wall"                         ]
+    set ::wallHalfRefObj   [loadRefModel "wall_half"                    ]
+    set ::wallCornerRefObj [loadRefModel "wall_corner"                  ]
+    set ::doorWallRefObj   [loadRefModel "wall_doorway"                 ]
+  # set ::doorRefObj       [loadRefModel "wall_doorway_door"            ]
+  # set ::wallPillarObj    [loadRefModel "wall_pillar"                  ]
+  }
 
   for {set iy 0} {$iy < $::ny} {incr iy} {
-    set tb [expr {$iy == 0 || $iy == $iy1}]
-
     for {set ix 0} {$ix < $::nx} {incr ix} {
-      set lr [expr {$ix == 0 || $ix == $ix1}]
-      if {! $lr && ! $tb} { continue }
+      set map_type $::tile_map($ix,$iy)
+
+      if {$map_type == "" || $map_type == "F" || $map_type == "C"} {
+        continue
+      }
 
       if {$::wall_map($ix,$iy) != ""} {
         #set ::item_map($ix,$iy) $::wall_map($ix,$iy)
@@ -106,39 +127,36 @@ proc addWalls { wallObj cornerObj wallHalfObj } {
 
       set pos [mapPos $apos]
 
-      if {$lr && $tb} {
-        set tile($ix,$iy) [$cornerObj get ref_object]
+      if {$map_type == "NW" || $map_type == "NE" || $map_type == "SW" || $map_type == "SE"} {
+        # corner
 
-        set tl [expr {$ix == 0    && $iy == 0   }]
-        set tr [expr {$ix == $ix1 && $iy == 0   }]
-        set bl [expr {$ix == 0    && $iy == $iy1}]
-        set br [expr {$ix == $ix1 && $iy == $iy1}]
+        set tile($ix,$iy) [$::wallCornerRefObj get ref_object]
 
-        if       {$tl} {
+        if       {$map_type == "NW"} {
           $tile($ix,$iy) exec rotate [list 0 1 0] 90
-        } elseif {$bl} {
+        } elseif {$map_type == "SW"} {
           $tile($ix,$iy) exec rotate [list 0 1 0] 180
-        } elseif {$tr} {
+        } elseif {$map_type == "NE"} {
           $tile($ix,$iy) exec rotate [list 0 1 0] 0
-        } elseif {$br} {
+        } elseif {$map_type == "SE"} {
           $tile($ix,$iy) exec rotate [list 0 1 0] 270
         }
 
-        set obj1 [$wallHalfObj get ref_object]
-        set obj2 [$wallHalfObj get ref_object]
+        set obj1 [$::wallHalfRefObj get ref_object]
+        set obj2 [$::wallHalfRefObj get ref_object]
 
         $obj2 exec rotate [list 0 1 0] 90
 
         set x [lindex $pos 0]
         set y [lindex $pos 2]
 
-        if {$ix == 0} {
+        if {$map_type == "NW" || $map_type == "SW"} {
           set pos1 [list [expr {$x + $::tileDx/2}] 0 $y]
         } else {
           set pos1 [list [expr {$x - $::tileDx}] 0 $y]
         }
 
-        if {$iy == 0} {
+        if {$map_type == "NW" || $map_type == "NE"} {
           set pos2 [list $x 0 [expr {$y + $::tileDz}]]
         } else {
           set pos2 [list $x 0 [expr {$y - $::tileDz/2}]]
@@ -146,12 +164,26 @@ proc addWalls { wallObj cornerObj wallHalfObj } {
 
         $obj1 exec translate $pos1
         $obj2 exec translate $pos2
-      } else {
-        set tile($ix,$iy) [$wallObj get ref_object]
+      } elseif {$map_type == "N" || $map_type == "S" ||
+                $map_type == "W" || $map_type == "E"} {
+        # wall
 
-        if {$lr} {
+        set tile($ix,$iy) [$::wallRefObj get ref_object]
+
+        if {$map_type == "W" || $map_type == "E"} {
           $tile($ix,$iy) exec rotate [list 0 1 0] 90
         }
+      } elseif {$map_type == "DN" || $map_type == "DS" ||
+                $map_type == "DW" || $map_type == "DE"} {
+        # door
+
+        set tile($ix,$iy) [$::doorWallRefObj get ref_object]
+
+        if {$map_type == "DW" || $map_type == "DE"} {
+          $tile($ix,$iy) exec rotate [list 0 1 0] 90
+        }
+      } else {
+        echo "Invalid map type $map_type"
       }
 
       $tile($ix,$iy) exec translate $pos
@@ -213,55 +245,30 @@ proc setModelDir { dir } {
 }
 
 proc init { } {
+  loadXml
+
   set ::cameraSet 0
 
   set ::tileDx 4.1
   set ::tileDy 0
   set ::tileDz 4.1
 
+if {0} {
   setModelDir "tcl3d/Dungeon_Assets/obj"
 
-  set ::floorRefObj(0) [loadRefModel "floor_wood_large"             ]
-  set ::floorRefObj(1) [loadRefModel "floor_wood_large_dark"        ]
-  set ::floorRefObj(2) [loadRefModel "floor_dirt_large"             ]
-  set ::floorRefObj(3) [loadRefModel "floor_dirt_large_rocky"       ]
-  set ::barrelRefObj   [loadRefModel "barrel_large_decorated"       ]
-  set ::chest1RefObj   [loadRefModel "chest_mimic"                  ]
-  set ::chest2RefObj   [loadRefModel "chest_mimic_lid"              ]
-  set ::wallObj        [loadRefModel "wall"                         ]
-  set ::wallHalfObj    [loadRefModel "wall_half"                    ]
-# set ::wallPillarObj  [loadRefModel "wall_pillar"                  ]
-  set ::wallCornerObj  [loadRefModel "wall_corner"                  ]
-  set ::doorWallRefObj [loadRefModel "wall_doorway"                 ]
-  set ::doorRefObj     [loadRefModel "wall_doorway_door"            ]
-  set ::windowRefObj   [loadRefModel "wall_window_open"             ]
-  set ::shelvesRefObj  [loadRefModel "wall_inset_shelves_decoratedA"]
+  set ::barrelRefObj [loadRefModel "barrel_large_decorated"       ]
+  set ::chest1RefObj [loadRefModel "chest_mimic"                  ]
+  set ::chest2RefObj [loadRefModel "chest_mimic_lid"              ]
+}
 
-  setModelDir "tcl3d/Dungeon_Characters/gltf"
+if {0} {
+  setModelDir "tcl3d/Dungeon_Assets/obj"
 
-  set ::playerRefObj [loadModel "$::model_dir/Barbarian.glb" "player_ref"]
-
-  $::playerRefObj set child.visible "Barbarian_Hat"  0
-  $::playerRefObj set child.visible "Mug"            0
-  $::playerRefObj set child.visible "1H_Axe"         0
-  $::playerRefObj set child.visible "1H_Axe_Offhand" 0
-
-  setModelDir "tcl3d/Dungeon_Skeletons/gltf"
-
-  set ::enemyRefObj [loadModel "$::model_dir/Skeleton_Warrior.glb" "enemy_ref"]
-
-  setModelDir "tcl3d/Character_Animations/gltf/Rig_Medium"
-
-  set ::enemyAnim1Obj [loadModel "$::model_dir/Rig_Medium_General.glb" "enemy_anim"]
-  set ::enemyAnim2Obj [loadModel "$::model_dir/Rig_Medium_MovementBasic.glb" "enemy_anim"]
-
-  $::enemyRefObj exec add_anim $::enemyAnim1Obj
-  $::enemyRefObj exec add_anim $::enemyAnim2Obj
+  set ::windowRefObj  [loadRefModel "wall_window_open"             ]
+  set ::shelvesRefObj [loadRefModel "wall_inset_shelves_decoratedA"]
+}
 
   #---
-
-  set ::nx 10
-  set ::ny 10
 
   set ::search [sb3d::astar $::nx $::ny]
 
@@ -275,48 +282,57 @@ proc init { } {
   set ::mapDy 0
   set ::mapDz [expr {$::ny*$::tileDz/2.0}]
 
+  #---
+
   addFloorTiles
 
-  set ::doorWallObj     [addWall $::doorWallRefObj 4 9 180]
-  set ::windowWallObj   [addWall $::windowRefObj   3 9 180]
-  set ::shelvesWall1Obj [addWall $::shelvesRefObj  6 0   0]
-  set ::shelvesWall2Obj [addWall $::shelvesRefObj  6 9 180]
+  #---
 
-  set ::doorObj [addObject $::doorRefObj [list 4 0 9.5]]
+if {0} {
+  set ::windowWallObj   [addWall $::windowRefObj  3 9 180]
+  set ::shelvesWall1Obj [addWall $::shelvesRefObj 6 0   0]
+  set ::shelvesWall2Obj [addWall $::shelvesRefObj 6 9 180]
+}
 
-  addWalls $::wallObj $::wallCornerObj $::wallHalfObj
+  addWalls
 
+  #---
+
+if {0} {
   addItem $::barrelRefObj 4 4
   addItem $::chest1RefObj 5 5
 
   addObject $::chest2RefObj [list 5 1 5]
+}
 
-  set ::playerObj [addObject $::playerRefObj]
-  #echo "$::playerObj [$::playerObj get transformed_model_bbox]"
+  #---
 
-  $::playerObj set anim.name "Idle"
-  $::playerObj set anim.step 0.1
+  set ::playerObj [createPlayerObj]
 
-  $::playerObj set child.visible "Barbarian_Hat"  0
-  $::playerObj set child.visible "Mug"            0
-  $::playerObj set child.visible "1H_Axe"         0
-  $::playerObj set child.visible "1H_Axe_Offhand" 0
+  set ::enemyObj [createEnemyObj]
 
-  set ::enemyObj [addObject $::enemyRefObj]
-
-  $::enemyObj set anim.name "Idle_A"
-  $::enemyObj set anim.step 0.1
-
-  # setViewportValue "" bbox [list -10 -10 -10 10 10 10]
+  #---
 
   sb3d::canvas set mode game
 
   #---
 
-  set ::player_x   2
-  set ::player_y   2
+  set ::player_x   0
+  set ::player_y   0
   set ::player_h   3
   set ::player_dir "N"
+
+  while {1} {
+    set ix [irandIn 0 [expr {$::nx - 1}]]
+    set iy [irandIn 0 [expr {$::ny - 1}]]
+
+    if {$::tile_map($ix,$iy) == "F"} {
+      set ::player_x $ix
+      set ::player_y $iy
+
+      break
+    }
+  }
 
   set ::player_move  1.0
   set ::player_imove 0
@@ -336,8 +352,8 @@ proc init { } {
   #---
 
   set ::enemy_x   1
-  set ::enemy_y   1 
-  set ::enemy_h   3 
+  set ::enemy_y   1
+  set ::enemy_h   3
   set ::enemy_dir "N"
 
   set ::enemy_move  1.0
@@ -374,6 +390,202 @@ proc init { } {
   sb3d::camera set disable_roll 1
 
   #sb3d::canvas set camera.type first_person
+}
+
+proc createPlayerObj { } {
+  if {! [info exists ::playerRefObj]} {
+    setModelDir "tcl3d/Dungeon_Characters/gltf"
+
+    set ::playerRefObj [loadModel "$::model_dir/Barbarian.glb" "player_ref"]
+
+    $::playerRefObj set child.visible "Barbarian_Hat"  0
+    $::playerRefObj set child.visible "Mug"            0
+    $::playerRefObj set child.visible "1H_Axe"         0
+    $::playerRefObj set child.visible "1H_Axe_Offhand" 0
+  }
+
+  set obj [addObject $::playerRefObj]
+  #echo "$obj [$obj get transformed_model_bbox]"
+
+  $obj set anim.name "Idle"
+  $obj set anim.step 0.1
+
+  $obj set child.visible "Barbarian_Hat"  0
+  $obj set child.visible "Mug"            0
+  $obj set child.visible "1H_Axe"         0
+  $obj set child.visible "1H_Axe_Offhand" 0
+
+  return $obj
+}
+
+proc createEnemyObj { } {
+  if {! [info exists ::enemyRefObj]} {
+    setModelDir "tcl3d/Dungeon_Skeletons/gltf"
+
+    set ::enemyRefObj [loadModel "$::model_dir/Skeleton_Warrior.glb" "enemy_ref"]
+
+    setModelDir "tcl3d/Character_Animations/gltf/Rig_Medium"
+
+    set ::enemyAnim1Obj [loadModel "$::model_dir/Rig_Medium_General.glb" "enemy_anim"]
+    set ::enemyAnim2Obj [loadModel "$::model_dir/Rig_Medium_MovementBasic.glb" "enemy_anim"]
+
+    $::enemyRefObj exec add_anim $::enemyAnim1Obj
+    $::enemyRefObj exec add_anim $::enemyAnim2Obj
+  }
+
+  set obj [addObject $::enemyRefObj]
+
+  $obj set anim.name "Idle_A"
+  $obj set anim.step 0.1
+
+  return $obj
+}
+
+proc loadXml { } {
+  set ::xml [sb3d::xml "tcl3d/dungeon.xml"]
+
+  if {! [$::xml exec load]} {
+    echo "Xml load failed"
+    exit 1
+  }
+
+  set options [$::xml get tag_options]
+
+  foreach option $options {
+    set name  [lindex $option 0]
+    set value [lindex $option 1]
+
+    if {$name == "size"} {
+      set ::nx [lindex $value 0]
+      set ::ny [lindex $value 1]
+    } else {
+      echo " Invalid name $name"
+      exit 1
+    }
+  }
+
+  for {set iy 0} {$iy < $::ny} {incr iy} {
+    for {set ix 0} {$ix < $::nx} {incr ix} {
+      set ::tile_map($ix,$iy) ""
+    }
+  }
+
+  set tags [$::xml get tag_inds]
+
+  foreach tag $tags {
+    set name [$::xml get name $tag]
+
+    if {$name == "room"} {
+      set options [$::xml get tag_options $tag]
+
+      set x 0
+      set y 0
+      set w 1
+      set h 1
+
+      foreach option $options {
+        set name  [lindex $option 0]
+        set value [lindex $option 1]
+
+        if       {$name == "pos"} {
+          set x [lindex $value 0]
+          set y [lindex $value 1]
+        } elseif {$name == "size"} {
+          set w [lindex $value 0]
+          set h [lindex $value 1]
+        } elseif {$name == "ind"} {
+        } else {
+          echo " Invalid room name $name"
+          exit 1
+        }
+      }
+
+      set w1 [expr {$w/2}]
+      set h1 [expr {$h/2}]
+
+      set ix1 [expr {int($x - $w1)}]
+      set iy1 [expr {int($y - $h1)}]
+      set ix2 [expr {int($x + $w1)}]
+      set iy2 [expr {int($y + $h1)}]
+
+      echo "$x $y $w $h : $ix1 $iy1 $ix2 $iy2"
+
+      for {set iy $iy1} {$iy <= $iy2} {incr iy} {
+        for {set ix $ix1} {$ix <= $ix2} {incr ix} {
+          if     {$iy == $iy1} {
+            if       {$ix == $ix1} {
+              set ::tile_map($ix,$iy) "NW"
+            } elseif {$ix == $ix2} {
+              set ::tile_map($ix,$iy) "NE"
+            } else {
+              set ::tile_map($ix,$iy) "N"
+            }
+          } elseif {$iy == $iy2} {
+            if       {$ix == $ix1} {
+              set ::tile_map($ix,$iy) "SW"
+            } elseif {$ix == $ix2} {
+              set ::tile_map($ix,$iy) "SE"
+            } else {
+              set ::tile_map($ix,$iy) "S"
+            }
+          } else {
+            if       {$ix == $ix1} {
+              set ::tile_map($ix,$iy) "W"
+            } elseif {$ix == $ix2} {
+              set ::tile_map($ix,$iy) "E"
+            } else {
+              set ::tile_map($ix,$iy) "F"
+            }
+          }
+        }
+      }
+    } elseif {$name == "cell"} {
+      set options [$::xml get tag_options $tag]
+
+      set x 0
+      set y 0
+
+      foreach option $options {
+        set name  [lindex $option 0]
+        set value [lindex $option 1]
+
+        if       {$name == "pos"} {
+          set x [lindex $value 0]
+          set y [lindex $value 1]
+        } elseif {$name == "type"} {
+        } else {
+          echo " Invalid room name $name"
+          exit 1
+        }
+      }
+
+      set ::tile_map($x,$y) "C"
+    } else {
+      echo " Invalid tag $name"
+      exit 1
+    }
+  }
+
+  for {set iy 0} {$iy < $::ny} {incr iy} {
+    for {set ix 0} {$ix < $::nx} {incr ix} {
+      if {$::tile_map($ix,$iy) == "N" ||
+          $::tile_map($ix,$iy) == "S" ||
+          $::tile_map($ix,$iy) == "W" ||
+          $::tile_map($ix,$iy) == "E"} {
+        set ix1 [expr {$ix - 1}]
+        set ix2 [expr {$ix + 1}]
+        set iy1 [expr {$iy - 1}]
+        set iy2 [expr {$iy + 1}]
+
+        if {$::tile_map($ix1,$iy) == "C" ||
+            $::tile_map($ix2,$iy) == "C" ||
+            $::tile_map($ix,$iy1) == "C" ||
+            $::tile_map($ix,$iy2) == "C"} {
+          set ::tile_map($ix,$iy) "D$::tile_map($ix,$iy)"
+        }
+      }
+    }
+  }
 }
 
 proc tick { args } {
@@ -437,7 +649,7 @@ proc rotateEnemy { } {
 
 proc moveEnemy { } {
   set d [expr {$::enemy_move/$::enemy_nmove}]
-  
+
   set ::enemy_x [expr {$::enemy_x + $::enemy_dx*$d}]
   set ::enemy_y [expr {$::enemy_y + $::enemy_dy*$d}]
 
@@ -536,8 +748,8 @@ if {0} {
         set ::enemy_dir "S"
       } else {
         set ::enemy_dir "N"
-      } 
-    } 
+      }
+    }
 
     if {$dir != $::enemy_dir} {
       set ::enemy_irot  $::enemy_nrot
@@ -549,7 +761,7 @@ if {0} {
         } else {
           set ::enemy_rot  90.0
         }
-      } elseif {$dir == "S"} { 
+      } elseif {$dir == "S"} {
         if {$::enemy_dir == "E" || $::enemy_dir == "N"} {
           set ::enemy_rot  -90.0
         } else {
@@ -864,6 +1076,11 @@ proc playerCanMove { } {
     return 0
   }
 
+  set map_type $::tile_map($x,$y)
+  if {$map_type == ""} {
+    return 0
+  }
+
   return 1
 }
 
@@ -1030,6 +1247,11 @@ proc enemyCanMove { } {
     # echo "$::item_map($x,$y) $::enemy_x $::enemy_y $::enemy_dx $::enemy_dy $x $y"
     set ::enemy_dx 0
     set ::enemy_dy 0
+    return 0
+  }
+
+  set map_type $::tile_map($x,$y)
+  if {$map_type == ""} {
     return 0
   }
 

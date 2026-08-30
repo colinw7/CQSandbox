@@ -16,19 +16,46 @@ namespace CQSandbox {
 class Texture;
 class ShaderProgram;
 
+//---
+
+class Model3DObjMgr : public ObjectMgr3D {
+ public:
+  Model3DObjMgr() { }
+
+  const char *typeName() const override { return "model"; }
+
+  void initRender(Canvas3D *canvas) override;
+  void termRender(Canvas3D *canvas) override;
+
+ private:
+  double t_ { 0.0 };
+};
+
+//---
+
 class Model3DObj : public Object3D {
   Q_OBJECT
 
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
-  static ShaderProgram* shaderProgram() { return s_program; }
+  static ShaderProgram* shaderProgram() { return s_shaderData.program; }
+
+  static void initShader(Canvas3D *canvas);
+
+  static void initDraw(Canvas3D *canvas, double t);
 
   //---
 
   Model3DObj(Canvas3D *canvas);
 
+  //---
+
   const char *typeName() const override { return "model"; }
+
+  virtual ObjectMgr3D *mgr() override { return s_objectMgr; }
+
+  //---
 
   bool isAutoScale() const { return autoScale_; }
   void setAutoScale(bool b) { autoScale_ = b; }
@@ -46,8 +73,6 @@ class Model3DObj : public Object3D {
 
   void render() override;
 
-  void initShader();
-
   void calcTangents();
 
   void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
@@ -55,9 +80,7 @@ class Model3DObj : public Object3D {
  private:
   void updateObject(CGeomObject3D *object);
 
-  void initDraw(double t);
-
-  void drawObject(CGeomObject3D *object, double t);
+  void drawObject(CGeomObject3D *object);
 
   void updateObjectData();
 
@@ -87,10 +110,14 @@ class Model3DObj : public Object3D {
 
   //---
 
-  static ShaderProgram* s_program;
+  struct ShaderData {
+    ShaderProgram* program { nullptr };
+    QString        vertShaderFile;
+    QString        fragShaderFile;
+  };
 
-  QString vertShaderFile_;
-  QString fragShaderFile_;
+  static ShaderData     s_shaderData;
+  static Model3DObjMgr* s_objectMgr;
 
   QString filename_;
 

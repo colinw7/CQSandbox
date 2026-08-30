@@ -13,13 +13,31 @@
 
 namespace CQSandbox {
 
-ShaderProgram *Shape3DObj::s_program = nullptr;
+ShaderProgram* Shape3DObj::s_program = nullptr;
+Shape3DObjMgr* Shape3DObj::s_objectMgr;
+
+//---
+
+void
+Shape3DObjMgr::
+initRender(Canvas3D *canvas)
+{
+  Shape3DObj::initDraw(canvas);
+}
+
+void
+Shape3DObjMgr::
+termRender(Canvas3D *)
+{
+}
+
+//---
 
 Object3D *
 Shape3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Shape3DObj(canvas);
 
@@ -36,6 +54,13 @@ Shape3DObj::
 Shape3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::SHAPE)
 {
+  if (! s_objectMgr) {
+    s_objectMgr = new Shape3DObjMgr;
+
+    canvas->addObjectMgr(s_objectMgr);
+  }
+
+  s_objectMgr->addObject(this);
 }
 
 void
@@ -46,107 +71,26 @@ init()
 
   //---
 
-  initShader();
+  initShader(canvas_);
 
-  //---
-
-#if 0
-  canvas_->glGenVertexArrays(1, &vertexArrayId_);
-
-  canvas_->glGenBuffers(1, &pointsBufferId_);
-  canvas_->glGenBuffers(1, &normalsBufferId_);
-  canvas_->glGenBuffers(1, &colorsBufferId_);
-  canvas_->glGenBuffers(1, &texCoordBufferId_);
-  canvas_->glGenBuffers(1, &indBufferId_);
-#else
   buffer_ = s_program->createBuffer();
-#endif
 }
 
 void
 Shape3DObj::
-initShader()
+initShader(Canvas3D *canvas)
 {
-  if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "layout (location = 1) in vec3 aNormal;\n"
-      "layout (location = 2) in vec4 aColor;\n"
-      "layout (location = 3) in vec2 aTexCoord;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "out vec3 FragPos;\n"
-      "out vec3 Normal;\n"
-      "out vec4 Color;\n"
-      "out vec2 TexCoord;\n"
-      "void main() {\n"
-      "  FragPos  = vec3(model * vec4(aPos, 1.0));\n"
-      "  Normal   = mat3(transpose(inverse(model)))*aNormal;\n"
-      "  Color    = aColor;\n"
-      "  TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n"
-      "  gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
-      "}";
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "in vec3 FragPos;\n"
-      "in vec3 Normal;\n"
-      "in vec4 Color;\n"
-      "in vec2 TexCoord;\n"
-      "out vec4 FragColor;\n"
-      "uniform vec3 viewPos;\n"
-      "uniform vec3 lightPos;\n"
-      "uniform vec3 lightColor;\n"
-      "uniform float ambientStrength;\n"
-      "uniform float diffuseStrength;\n"
-      "uniform float specularStrength;\n"
-      "uniform float shininess;\n"
-      "uniform sampler2D textureId;\n"
-      "uniform sampler2D normTex;\n"
-      "uniform bool useDiffuseTexture;\n"
-      "uniform bool useNormalTexture;\n"
-      "void main() {\n"
-      "  vec3 norm;\n"
-      "  if (useNormalTexture) {\n"
-      "    norm = texture(normTex, TexCoord).rgb;\n"
-      "    norm = normalize(norm*2.0 - 1.0).rgb;\n"
-      "  } else {\n"
-      "    norm = normalize(Normal);\n"
-      "  }\n"
-      "  vec3 lightDir = normalize(lightPos - FragPos);\n"
-      "  float diff = max(dot(norm, lightDir), 0.0);\n"
-      "  vec4 diffuseColor = Color;\n"
-      "  if (useDiffuseTexture) {\n"
-      "    diffuseColor = texture(textureId, TexCoord);\n"
-      "  }\n"
-      "  vec3 diffuse = diffuseStrength*diff*vec3(diffuseColor);\n"
-      "  vec3 ambient = ambientStrength*vec3(diffuseColor);\n"
-      "  vec3 viewDir = normalize(viewPos - FragPos);\n"
-      "  vec3 reflectDir = reflect(-lightDir, norm);\n"
-      "  float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
-      "  vec3 specColor = lightColor;\n"
-      "  vec3 specular = specularStrength*spec*specColor;\n"
-      "  vec3 result = ambient + diffuse + specular;\n"
-      "  FragColor = vec4(result, diffuseColor.a);\n"
-      "}\n";
-#endif
+  if (s_program)
+    return;
 
-    auto *app = canvas_->app();
+  auto *app = canvas->app();
 
-    s_program = new ShaderProgram(this);
+  s_program = new ShaderProgram(canvas);
 
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
-    s_program->addVertexFile  (app->buildDir() + "/shaders/shape.vs");
-    s_program->addFragmentFile(app->buildDir() + "/shaders/shape.fs");
-#endif
+  s_program->addVertexFile  (app->buildDir() + "/shaders/shape.vs");
+  s_program->addFragmentFile(app->buildDir() + "/shaders/shape.fs");
 
-    s_program->link();
-  }
+  s_program->link();
 }
 
 bool
@@ -161,7 +105,7 @@ Shape3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas_->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "points") {
     shapeData_.setPoints(Util::stringToVectors3D(tcl, value));
@@ -411,83 +355,6 @@ updateGL()
 
   //---
 
-#if 0
-  // bind the Vertex Array Object
-  canvas_->glBindVertexArray(vertexArrayId_);
-
-  //---
-
-  // store point data in array buffer (vec3, location 0)
-  uint aPos = 0;
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &points[0], GL_STATIC_DRAW);
-
-  // set points attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
-  canvas_->glEnableVertexAttribArray(aPos);
-
-  // store normal data in array buffer (vec3, location 1)
-  uint aNormal = 1;
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, normalsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &normals[0], GL_STATIC_DRAW);
-
-  // set normals attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(aNormal, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
-  canvas_->glEnableVertexAttribArray(aNormal);
-
-  //---
-
-  // store color data in array buffer
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
-  if (nc > 0)
-    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &colors_[0], GL_STATIC_DRAW);
-  else
-    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &s_colors[0], GL_STATIC_DRAW);
-
-  // set colors attrib data and format (for current buffer) (vec4, location 2)
-  uint aColor = 2;
-  canvas_->glVertexAttribPointer(aColor, 4, GL_FLOAT, GL_FALSE, sizeof(CGLColor), nullptr);
-  canvas_->glEnableVertexAttribArray(aColor);
-
-  //---
-
-  useDiffuseTexture_ = (diffuseTexture_ && nt > 0);
-  useNormalTexture_  = (normalTexture_  && nt > 0);
-
-  if (isInside()) {
-    useDiffuseTexture_ = false;
-    useNormalTexture_  = false;
-  }
-
-  // store texture point data in array buffer
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferId_);
-  if (useDiffuseTexture_)
-    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector2D), &texCoords[0], GL_STATIC_DRAW);
-  else
-    canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector2D),
-                          &s_texCoords[0], GL_STATIC_DRAW);
-
-  // set texture points attrib data and format (for current buffer) (vec2, location 3)
-  uint aTexCoord = 3;
-  canvas_->glVertexAttribPointer(aTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(CGLVector2D), nullptr);
-  canvas_->glEnableVertexAttribArray(aTexCoord);
-
-  //---
-
-  // store index data in element buffer
-  if (ni > 0) {
-    canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufferId_);
-    canvas_->glBufferData(GL_ELEMENT_ARRAY_BUFFER, ni*sizeof(unsigned int),
-                          &indices[0], GL_STATIC_DRAW);
-  }
-
-  //---
-
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
-//canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  0);
-
-  canvas_->glBindVertexArray(0);
-#else
   buffer_->clearBuffers();
 
   for (uint i = 0; i < np; ++i) {
@@ -519,7 +386,6 @@ updateGL()
   }
 
   buffer_->load();
-#endif
 }
 
 CBBox3D
@@ -584,51 +450,26 @@ render()
 
   updateGL();
 
-  if (wireframe_ || canvas_->isWireframe())
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-  else
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
   //---
-
-  auto *light = canvas_->currentLight();
-
-  auto lightPos   = light->getPosition();
-  auto lightColor = light->getDiffuse();
-
-  //s_program->bind();
-  canvas_->bindProgram(s_program);
-
-  s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
-
-  s_program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
-  s_program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
-
-  s_program->setUniformValue("ambientStrength" , float(canvas_->ambientStrength()));
-  s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuseStrength()));
-  s_program->setUniformValue("specularStrength", float(canvas_->specularStrength()));
-  s_program->setUniformValue("shininess"       , float(canvas_->shininess()));
-
-  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
 
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
-#if 0
-  canvas_->glBindVertexArray(vertexArrayId_);
-#else
   //buffer_->bind();
   canvas_->bindBuffer(buffer_);
-#endif
 
   //---
 
+  useDiffuseTexture_ = (diffuseTexture_ && buffer_->hasTexturePart());
+  useNormalTexture_  = (normalTexture_  && buffer_->hasTexturePart());
+
   s_program->setUniformValue("useDiffuseTexture", useDiffuseTexture_);
-  s_program->setUniformValue("useNormalTexture", useNormalTexture_);
   s_program->setUniformValue("textureId", 0);
+
+  s_program->setUniformValue("useNormalTexture", useNormalTexture_);
+  s_program->setUniformValue("normTex", 1);
 
   if (useDiffuseTexture_ || useNormalTexture_)
     glEnable(GL_TEXTURE_2D);
@@ -644,6 +485,17 @@ render()
     glActiveTexture(GL_TEXTURE1);
 
     normalTexture_->bind();
+  }
+
+  if (wireframe_ || canvas_->isWireframe()) {
+    s_program->setUniformValue("isWireframe", 1);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  }
+  else {
+    s_program->setUniformValue("isWireframe", 0);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   }
 
   auto np = shapeData_.points ().size();
@@ -665,11 +517,46 @@ render()
 
   //---
 
-#if 0
-  //canvas_->glBindVertexArray(0);
-#else
   //buffer_->unbind();
-#endif
+}
+
+void
+Shape3DObj::
+initDraw(Canvas3D *canvas)
+{
+  //s_program->bind();
+  canvas->bindProgram(s_program);
+
+  //---
+
+  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas->projectionMatrix()));
+
+  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas->viewMatrix()));
+
+  s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas->viewPos()));
+
+  //---
+
+  auto *light = canvas->currentLight();
+
+  auto lightPos   = light->getPosition();
+  auto lightColor = light->getDiffuse();
+
+  s_program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
+  s_program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
+
+  //---
+
+  s_program->setUniformValue("ambientStrength" , float(canvas->ambientStrength()));
+  s_program->setUniformValue("diffuseStrength" , float(canvas->diffuseStrength()));
+  s_program->setUniformValue("specularStrength", float(canvas->specularStrength()));
+  s_program->setUniformValue("shininess"       , float(canvas->shininess()));
+}
+
+void
+Shape3DObj::
+termDraw(Canvas3D *)
+{
 }
 
 }

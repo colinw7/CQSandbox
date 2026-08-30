@@ -15,7 +15,7 @@ Object3D *
 Sprite3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Sprite3DObj(canvas);
 
@@ -155,8 +155,7 @@ bool
 Sprite3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *app = canvas_->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "add_image") {
     auto *texture = new CQGLTexture;

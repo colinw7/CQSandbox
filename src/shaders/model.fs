@@ -1,6 +1,6 @@
 #version 330 core
 
-in vec3 FragPos;
+in vec4 FragPos;
 in vec3 Normal;
 in vec3 Color;
 in vec2 TexCoords;
@@ -137,7 +137,7 @@ void main() {
   // specular color
   vec3 specColor = calcSpecularColor();
 
-  vec3 viewDir = normalize(viewPos - FragPos);
+  vec3 viewDir = normalize(viewPos - vec3(FragPos));
 
   //vec3 reflectDir = reflect(-viewDir, norm);
 
@@ -150,7 +150,7 @@ void main() {
     DirectionalLight directionalLight = directionalLights[i];
 
     if (directionalLight.enabled) {
-      //vec3 lightDir = normalize(directionalLight.position - FragPos);
+      //vec3 lightDir = normalize(directionalLight.position - vec3(FragPos));
 
       float diffAmt = calcDiffuseFactor(directionalLight.direction, norm);
       float specAmt = calcSpecularFactor(directionalLight.direction, viewDir, norm, shininess);
@@ -167,7 +167,7 @@ void main() {
     PointLight pointLight = pointLights[i];
 
     if (pointLight.enabled) {
-      vec3 toLight = pointLight.position - FragPos;
+      vec3 toLight = pointLight.position - vec3(FragPos);
       vec3 lightDir = normalize(toLight);
       float distToLight = length(toLight);
       float falloff = max(0.0, 1.0 - (distToLight/pointLight.radius));
@@ -186,7 +186,7 @@ void main() {
     SpotLight spotLight = spotLights[i];
 
     if (spotLight.enabled) {
-      vec3 toLight = spotLight.position - FragPos;
+      vec3 toLight = spotLight.position - vec3(FragPos);
       vec3 lightDir = normalize(toLight);
       float angle = dot(spotLight.direction, -lightDir);
       float falloff = (angle > spotLight.cutoff ? 1.0 : 0.0);

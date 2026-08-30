@@ -5,7 +5,7 @@ proc mapV { v v1 v2 } {
 proc init { } {
   # sb3d::canvas set lights.simple 1
 
-  set nc 100
+  set nc 1
 
   for {set i 0} {$i < $nc} {incr i} {
     set ::cube($i) [sb3d::cube]
@@ -18,7 +18,7 @@ proc init { } {
     set ya [mapV [expr {rand()}] 0 360]
     set za [mapV [expr {rand()}] 0 360]
 
-    $::cube($i) set scale    0.1
+    $::cube($i) set scale 0.1
     $::cube($i) set position [list $x $y $z]
     $::cube($i) set angle    [list $xa $ya $za]
     $::cube($i) set texture "textures/container.jpg"

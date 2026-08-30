@@ -1,5 +1,6 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxCanvas.h>
+#include <CQSandboxCanvas3D.h>
 #include <CQApp.h>
 
 int
@@ -47,8 +48,14 @@ main(int argc, char **argv)
   app->init();
 
   if (filename != "") {
-    if (! app->load(filename))
-      std::cerr << "Failed to load '" << filename.toStdString() << "'\n";
+    if      (app->canvas()) {
+      if (! app->load(app->canvas()->tcl(), filename))
+        std::cerr << "Failed to load '" << filename.toStdString() << "'\n";
+    }
+    else if (app->canvas3D()) {
+      if (! app->load(app->canvas3D()->tcl(), filename))
+        std::cerr << "Failed to load '" << filename.toStdString() << "'\n";
+    }
   }
 
   app->show();

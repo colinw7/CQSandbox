@@ -19,7 +19,7 @@ Object3D *
 Dungeon3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Dungeon3DObj(canvas);
 

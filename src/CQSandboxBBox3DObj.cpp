@@ -13,7 +13,7 @@ Object3D *
 BBox3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new BBox3DObj(canvas);
 

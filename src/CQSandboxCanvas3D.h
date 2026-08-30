@@ -13,6 +13,7 @@
 #include <CBBox3D.h>
 #include <CMinMax.h>
 #include <CRGBA.h>
+#include <CPlane3D.h>
 
 #include <QFrame>
 #include <QOpenGLWidget>
@@ -23,6 +24,8 @@ class CGeomObject3D;
 class CGeomFace3D;
 class CGeomVertex3D;
 class CQGLBuffer;
+class CQTcl;
+class CGLCameraIFace;
 
 class QTimer;
 
@@ -38,6 +41,7 @@ class Light3D;
 class Path3DObj;
 class ParticleList3DObj;
 class Camera;
+class FPCamera;
 
 //---
 
@@ -124,6 +128,12 @@ class Canvas3D : public OpenGLWindow {
     GAME   = 3
   };
 
+  enum class CameraType {
+    MODEL,
+    FIRST_PERSON
+  };
+
+  using Mgrs    = std::map<QString, ObjectMgr3D *>;
   using Objects = std::vector<Object3D *>;
 
   //---
@@ -148,6 +158,8 @@ class Canvas3D : public OpenGLWindow {
   Canvas3D(App *app);
 
   App *app() const { return app_; }
+
+  CQTcl *tcl() const;
 
   int ind() const { return 0; }
 
@@ -208,13 +220,19 @@ class Canvas3D : public OpenGLWindow {
   bool isAnimEnabled() const { return animEnabled_; }
   void setAnimEnabled(bool b) { animEnabled_ = b; }
 
+  bool isLightsVisible() const { return lightsVisible_; }
+  void setLightsVisible(bool b) { lightsVisible_ = b; }
+
   //---
 
   CGeomScene3D *scene() const { return scene_; }
 
   //---
 
-  Camera *camera() const { return camera_; }
+  Camera   *camera  () const { return camera_  ; }
+  FPCamera *fpCamera() const { return fpCamera_; }
+
+  CGLCameraIFace *currentCamera() const;
 
   double modelXAngle() const { return modelXAngle_; }
   double modelYAngle() const { return modelYAngle_; }
@@ -250,6 +268,9 @@ class Canvas3D : public OpenGLWindow {
 
   const Type &type() const { return type_; }
   void setType(const Type &type);
+
+  const CameraType &cameraType() const { return cameraType_; }
+  void setCameraType(const CameraType &cameraType);
 
   //---
 
@@ -296,11 +317,17 @@ class Canvas3D : public OpenGLWindow {
 
   void createObjCommand(Object3D *obj);
 
+  //--
+
+  void addObjectMgr(ObjectMgr3D *mgr);
+
   QString addNewObject(Object3D *obj);
 
   void addObject(Object3D *obj);
 
   void removeObject(Object3D *obj);
+
+  //---
 
   Object3D *getObjectByName(const QString &name) const;
 
@@ -312,6 +339,8 @@ class Canvas3D : public OpenGLWindow {
 
   void bindBuffer (CQGLBuffer *buffer);
   void bindProgram(ShaderProgram *program);
+
+  void drawLights();
 
   //---
 
@@ -383,6 +412,16 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   std::vector<CGeomObject3D *> getAnimObjects() const;
+
+  //---
+
+  void addClip(const CPlane3D &clip);
+
+  const std::vector<CPlane3D> &clips() const { return clips_; }
+
+  //---
+
+  bool runTclCmd(const QString &cmd);
 
  private:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
@@ -459,6 +498,8 @@ class Canvas3D : public OpenGLWindow {
 
   App* app_ { nullptr };
 
+  CQTcl* tcl_ { nullptr };
+
   bool    looping_       { false };
   QTimer *timer_         { nullptr };
   QTimer *uiTimer_       { nullptr };
@@ -483,8 +524,10 @@ class Canvas3D : public OpenGLWindow {
   bool showBBox_       { false };
   bool eyeLineVisible_ { false };
   bool animEnabled_    { true };
+  bool lightsVisible_  { false };
 
-  Type type_ { Type::CAMERA };
+  Type       type_       { Type::CAMERA };
+  CameraType cameraType_ { CameraType::MODEL };
 
   bool depthTest_   { true };
   bool cullFace_    { true };
@@ -513,7 +556,8 @@ class Canvas3D : public OpenGLWindow {
 
   CGeomScene3D* scene_ { nullptr };
 
-  Camera* camera_ { nullptr };
+  Camera*   camera_   { nullptr };
+  FPCamera* fpCamera_ { nullptr };
 
   Path3DObj* eyeLine_ { nullptr };
 
@@ -530,6 +574,8 @@ class Canvas3D : public OpenGLWindow {
   double modelXAngle_ { 0.0 };
   double modelYAngle_ { 0.0 };
   double modelZAngle_ { 0.0 };
+
+  Mgrs mgrs_;
 
   Objects objects_;
   Objects allObjects_;
@@ -555,6 +601,10 @@ class Canvas3D : public OpenGLWindow {
   using KeyPressed = std::map<std::string, bool>;
 
   KeyPressed keyPressed_;
+
+  //---
+
+  std::vector<CPlane3D> clips_;
 };
 
 }

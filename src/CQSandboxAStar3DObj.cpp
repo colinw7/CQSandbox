@@ -14,7 +14,7 @@ create(Canvas3D *canvas, const QStringList &args)
   if (args.size() != 2)
     return nullptr;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto nx = Util::stringToInt(args[0]);
   auto ny = Util::stringToInt(args[1]);
@@ -55,8 +55,7 @@ bool
 AStar3DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  auto *app = canvas_->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "value") {
     uint ix, iy;
@@ -145,8 +144,7 @@ bool
 AStar3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *app = canvas()->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "value") {
     uint ix, iy;

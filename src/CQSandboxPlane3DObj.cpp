@@ -15,7 +15,7 @@ Object3D *
 Plane3DObj::
 create(Canvas3D *canvas, const QStringList &)
 {
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new Plane3DObj(canvas);
 
@@ -82,8 +82,7 @@ bool
 Plane3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *app = canvas_->app();
-  auto *tcl = app->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "color")
     setColor(Util::stringToQColor(tcl, value));

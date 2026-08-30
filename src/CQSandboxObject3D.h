@@ -16,9 +16,33 @@
 
 namespace CQSandbox {
 
+class Object3D;
 class Canvas3D;
 class Group3DObj;
 class BBox3DObj;
+
+//---
+
+class ObjectMgr3D {
+ public:
+  ObjectMgr3D() { }
+
+  virtual ~ObjectMgr3D() { }
+
+  virtual const char *typeName() const = 0;
+
+  virtual void initRender(Canvas3D *) { }
+  virtual void termRender(Canvas3D *) { }
+
+  void addObject(Object3D *object) {
+    objects_.push_back(object);
+  }
+
+ private:
+  std::vector<Object3D *> objects_;
+};
+
+//---
 
 class Object3D : public QObject {
   Q_OBJECT
@@ -84,6 +108,8 @@ class Object3D : public QObject {
   //---
 
   virtual const char *typeName() const = 0;
+
+  virtual ObjectMgr3D *mgr() { return nullptr; }
 
   //---
 
@@ -190,7 +216,17 @@ class Object3D : public QObject {
 
   virtual void updateModelMatrix();
 
-  const CBBox3D &bbox() { return bbox_; }
+  const CBBox3D &bbox() {
+    if (! bboxValid_) {
+      auto *th = const_cast<Object3D *>(this);
+
+      th->bbox_ = th->calcBBox();
+
+      th->bboxValid_ = true;
+    }
+
+    return bbox_;
+  }
 
   virtual CBBox3D calcBBox() { return bbox_; }
 

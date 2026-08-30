@@ -14,7 +14,7 @@ create(Canvas *canvas, const QStringList &args)
   if (args.size() != 0)
     return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto *obj = new QuadTreeObj(canvas);
 
@@ -35,7 +35,7 @@ bool
 QuadTreeObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "object.in_rect") {
     if (args.size() < 1)

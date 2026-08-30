@@ -16,7 +16,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto pos = Util::stringToPoint(tcl, args[0]);
   auto len = Util::stringToCoord(args[1]);
@@ -55,7 +55,7 @@ bool
 AxisObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *tcl = canvas()->app()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "pos")
     pos_ = Util::stringToPoint(tcl, value);

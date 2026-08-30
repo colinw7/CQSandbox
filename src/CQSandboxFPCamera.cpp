@@ -1,4 +1,4 @@
-#include <CQSandboxCamera.h>
+#include <CQSandboxFPCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxCanvas3D.h>
 
@@ -10,8 +10,8 @@ static CVector3D CAMERA_WORLD_FORWARD = CVector3D(0.0, 0.0, -1.0);
 static CVector3D CAMERA_WORLD_UP      = CVector3D(0.0, 1.0,  0.0);
 static CVector3D CAMERA_WORLD_RIGHT   = CVector3D(1.0, 0.0,  0.0);
 
-Camera::
-Camera(App *app) :
+FPCamera::
+FPCamera(App *app) :
  app_(app)
 {
   updateOrientation();
@@ -20,7 +20,7 @@ Camera(App *app) :
 //---
 
 const CVector3D &
-Camera::
+FPCamera::
 origin() const
 {
   updateOrientation();
@@ -29,14 +29,17 @@ origin() const
 }
 
 void
-Camera::
+FPCamera::
 setOrigin(const CVector3D &p)
 {
-  CGLCameraIFace::setOrigin(p);
+  updateOrientation();
+
+  origin_   = p;
+  position_ = origin_ - front_*distance_;
 }
 
 const CVector3D &
-Camera::
+FPCamera::
 position() const
 {
   updateOrientation();
@@ -45,18 +48,19 @@ position() const
 }
 
 void
-Camera::
+FPCamera::
 setPosition(const CVector3D &p)
 {
   updateOrientation();
 
-  setOrigin(p + front_*distance_);
+  position_ = p;
+  origin_   = position_ + front_*distance_;
 }
 
 //---
 
 double
-Camera::
+FPCamera::
 pitch() const
 {
   updateOrientation();
@@ -65,14 +69,14 @@ pitch() const
 }
 
 void
-Camera::
+FPCamera::
 setPitch(double r)
 {
   rotateX(r - pitch());
 }
 
 double
-Camera::
+FPCamera::
 yaw() const
 {
   updateOrientation();
@@ -81,32 +85,16 @@ yaw() const
 }
 
 void
-Camera::
+FPCamera::
 setYaw(double r)
 {
   rotateY(r - yaw());
 }
 
-double
-Camera::
-roll() const
-{
-  updateOrientation();
-
-  return CGLCameraIFace::roll();
-}
-
-void
-Camera::
-setRoll(double r)
-{
-  rotateZ(r - roll());
-}
-
 //---
 
 CVector3D
-Camera::
+FPCamera::
 front() const
 {
   updateOrientation();
@@ -115,16 +103,17 @@ front() const
 }
 
 CVector3D
-Camera::
+FPCamera::
 up() const
 {
-  updateOrientation();
+  auto up = right_.crossProduct(front_).normalized();
+  return up;
 
-  return up_;
+  //return CAMERA_WORLD_UP;
 }
 
 CVector3D
-Camera::
+FPCamera::
 right() const
 {
   updateOrientation();
@@ -133,71 +122,67 @@ right() const
 }
 
 void
-Camera::
+FPCamera::
 moveRight(double d)
 {
   originDelta_.setX(originDelta_.x() + d);
+  originChanged_ = true;
 
   stateChanged();
 }
 
 void
-Camera::
+FPCamera::
 moveUp(double d)
 {
   originDelta_.setY(originDelta_.y() + d);
+  originChanged_ = true;
 
   stateChanged();
 }
 
 void
-Camera::
+FPCamera::
 moveFront(double d)
 {
   originDelta_.setZ(originDelta_.z() + d);
+  originChanged_ = true;
 
   stateChanged();
 }
 
 void
-Camera::
+FPCamera::
 rotateX(double da)
 {
   angleDelta_.setX(angleDelta_.x() + da);
+  angleChanged_ = true;
 
   stateChanged();
 }
 
 void
-Camera::
+FPCamera::
 rotateY(double da)
 {
   angleDelta_.setY(angleDelta_.y() + da);
+  angleChanged_ = true;
 
   stateChanged();
 }
 
 void
-Camera::
-rotateZ(double da)
-{
-  angleDelta_.setZ(angleDelta_.z() + da);
-
-  stateChanged();
-}
-
-void
-Camera::
+FPCamera::
 updateOrientation() const
 {
   if (orientationValid_)
     return;
 
-  const_cast<Camera *>(this)->updateOrientationI();
+  const_cast<FPCamera *>(this)->updateOrientationI();
 }
 
 void
-Camera::
+FPCamera::
 updateOrientationI()
 {
   orientationValid_ = true;
@@ -208,65 +193,67 @@ updateOrientationI()
 
   pitch_ = angles.x();
   yaw_   = angles.y();
-  roll_  = angles.z();
 
-  if (isClampPitch() || isClampYaw() || isClampRoll()) {
-    if (isClampPitch()) {
-      angleDelta_.setX(std::max(minPitch_ - pitch_, angleDelta_.x()));
-      angleDelta_.setX(std::min(maxPitch_ - pitch_, angleDelta_.x()));
+  //---
+
+  if (angleChanged_) {
+    if (isClampPitch() || isClampYaw()) {
+      if (isClampPitch()) {
+        angleDelta_.setX(std::max(minPitch_ - pitch_, angleDelta_.x()));
+        angleDelta_.setX(std::min(maxPitch_ - pitch_, angleDelta_.x()));
+      }
+
+      if (isClampYaw()) {
+        angleDelta_.setY(std::max(minYaw_ - yaw_, angleDelta_.y()));
+        angleDelta_.setY(std::min(maxYaw_ - yaw_, angleDelta_.y()));
+      }
+
+      pitch_ += angleDelta_.x();
+      yaw_   += angleDelta_.y();
     }
-
-    if (isClampYaw()) {
-      angleDelta_.setY(std::max(minYaw_ - yaw_, angleDelta_.y()));
-      angleDelta_.setY(std::min(maxYaw_ - yaw_, angleDelta_.y()));
-    }
-
-    if (isClampRoll()) {
-      angleDelta_.setZ(std::max(minRoll_ - roll_, angleDelta_.z()));
-      angleDelta_.setZ(std::min(maxRoll_ - roll_, angleDelta_.z()));
-    }
-
-    pitch_ += angleDelta_.x();
-    yaw_   += angleDelta_.y();
-    roll_  += angleDelta_.z();
   }
 
   //---
 
-  auto qp = CQuaternion::angleAxis(angleDelta_.x(), CAMERA_WORLD_RIGHT); // pitch
-  auto qy = CQuaternion::angleAxis(angleDelta_.y(), CAMERA_WORLD_UP   ); // yaw
+  if (angleChanged_) {
+    auto qp = CQuaternion::angleAxis(angleDelta_.x(), CAMERA_WORLD_RIGHT); // pitch
+    auto qy = CQuaternion::angleAxis(angleDelta_.y(), CAMERA_WORLD_UP   ); // yaw
 
-  if (isDisableRoll()) {
+#if 0
     orientation_ = orientation_*qp;
     orientation_ = qy*orientation_;
-  }
-  else {
-    auto qr = CQuaternion::angleAxis(angleDelta_.z(), CAMERA_WORLD_FORWARD); // roll
-
-    orientation_ = orientation_*qp;
+#else
     orientation_ = orientation_*qy;
-    orientation_ = orientation_*qr;
+    orientation_ = qp*orientation_;
+#endif
+
+    orientation_.normalize();
+
+    angleDelta_   = CVector3D();
+    angleChanged_ = false;
   }
-
-  orientation_.normalize();
-
-  angleDelta_ = CVector3D();
 
   //---
 
   auto iorientation = orientation_.conjugated();
 
   front_ = CAMERA_WORLD_FORWARD*iorientation;
-  up_    = CAMERA_WORLD_UP     *iorientation;
   right_ = CAMERA_WORLD_RIGHT  *iorientation;
 
-  origin_ += right()*originDelta_.x();
-  origin_ += up   ()*originDelta_.y();
-  origin_ += front()*originDelta_.z();
+  if (originChanged_) {
+    origin_ += right()*originDelta_.x();
+    origin_ += up   ()*originDelta_.y();
+    origin_ += front()*originDelta_.z();
 
-  originDelta_ = CVector3D();
+    originDelta_   = CVector3D();
+    originChanged_ = false;
 
-  position_ = origin_ - front_*distance_;
+    position_ = origin_ - front_*distance_;
+  }
+  else {
+    position_ = origin_ - front_*distance_;
+    //origin_ = position_ + front_*distance_;
+  }
 
   calcOrthoMatrix();
   calcPerspectiveMatrix();
@@ -275,7 +262,7 @@ updateOrientationI()
 }
 
 CMatrix3DH
-Camera::
+FPCamera::
 perspectiveMatrix() const
 {
   updateOrientation();
@@ -284,14 +271,14 @@ perspectiveMatrix() const
 }
 
 void
-Camera::
+FPCamera::
 calcPerspectiveMatrix()
 {
   perspectiveMatrix_ = CMatrix3DH::perspective(fov(), aspect(), near(), far());
 }
 
 CMatrix3DH
-Camera::
+FPCamera::
 orthoMatrix() const
 {
   updateOrientation();
@@ -300,7 +287,7 @@ orthoMatrix() const
 }
 
 void
-Camera::
+FPCamera::
 calcOrthoMatrix()
 {
 #if 0
@@ -320,7 +307,7 @@ calcOrthoMatrix()
 }
 
 CMatrix3DH
-Camera::
+FPCamera::
 viewMatrix() const
 {
   updateOrientation();
@@ -329,7 +316,7 @@ viewMatrix() const
 }
 
 void
-Camera::
+FPCamera::
 calcViewMatrix()
 {
   auto position = origin_ - front_*distance_;
@@ -397,7 +384,7 @@ calcViewMatrix()
 }
 
 void
-Camera::
+FPCamera::
 printMatrices() const
 {
   auto position = origin_ - front_*distance_;
@@ -479,7 +466,7 @@ printMatrices() const
 }
 
 CVector3D
-Camera::
+FPCamera::
 toEuler(const CQuaternion &q) const
 {
   auto xx = q.getX();
@@ -497,14 +484,14 @@ toEuler(const CQuaternion &q) const
 }
 
 void
-Camera::
+FPCamera::
 lookAt(const CVector3D &forward, const CVector3D &up)
 {
   orientation_ = calcLookAt(forward, up);
 }
 
 CQuaternion
-Camera::
+FPCamera::
 calcLookAt(const CVector3D &forward, const CVector3D &up) const
 {
   // Based on typical vector to matrix to quaternion approach
@@ -562,7 +549,7 @@ calcLookAt(const CVector3D &forward, const CVector3D &up) const
 //---
 
 void
-Camera::
+FPCamera::
 getPixelRay(double x, double y, CPoint3D &rp1, CPoint3D &rp2) const
 {
   updateOrientation();

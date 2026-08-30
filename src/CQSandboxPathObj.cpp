@@ -15,7 +15,7 @@ create(Canvas *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
 
-  auto *tcl = canvas->app()->tcl();
+  auto *tcl = canvas->tcl();
 
   auto path = Util::stringToPath(args[0]);
 
