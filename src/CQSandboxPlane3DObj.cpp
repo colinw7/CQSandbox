@@ -130,49 +130,12 @@ Plane3DObj::
 initShader()
 {
   if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "layout (location = 1) in vec4 aColor;\n"
-      "layout (location = 2) in vec4 aTexCoord;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "out vec4 Color;\n"
-      "out vec2 TexCoord;\n"
-      "void main() {\n"
-      "  Color    = aColor;\n"
-      "  TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n"
-      "  gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
-      "}";
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "in vec4 Color;\n"
-      "in vec2 TexCoord;\n"
-      "out vec4 FragColor;\n"
-      "uniform sampler2D textureId;\n"
-      "uniform bool useTexture;\n"
-      "void main() {\n"
-      "  if (useTexture) {\n"
-      "    FragColor = texture(textureId, TexCoord);\n"
-      "  } else {\n"
-      "    FragColor = Color;\n"
-      "  }\n"
-      "}";
-#endif
-
     auto *app = canvas_->app();
 
     s_program = new ShaderProgram(this);
 
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
     s_program->addVertexFile  (app->buildDir() + "/shaders/plane.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/plane.fs");
-#endif
 
     s_program->link();
   }
@@ -258,8 +221,7 @@ render()
   //s_program->bind();
   canvas_->bindProgram(s_program);
 
-  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  canvas_->setProgramMatrices(s_program);
 
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));

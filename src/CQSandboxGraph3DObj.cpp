@@ -101,91 +101,22 @@ init()
   //---
 
   if (! s_program1) {
-#if 0
-    static const char *vertexShader1 =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 point;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "void main()\n"
-      "{\n"
-      "  gl_Position = projection * view * model * vec4(point.x, point.y, point.z, 1.0);\n"
-      "}";
-    static const char *geometryShader1 =
-      "#version 330 core\n"
-      "layout (points) in;\n"
-      "layout (line_strip, max_vertices = 5) out;\n"
-      "\n"
-      "void main() {\n"
-      "  gl_Position = gl_in[0].gl_Position + vec4(-0.01, -0.01, 0.0, 0.0);\n"
-      "  EmitVertex();\n"
-      "  gl_Position = gl_in[0].gl_Position + vec4( 0.01, -0.01, 0.0, 0.0);\n"
-      "  EmitVertex();\n"
-      "  gl_Position = gl_in[0].gl_Position + vec4( 0.01,  0.01, 0.0, 0.0);\n"
-      "  EmitVertex();\n"
-      "  gl_Position = gl_in[0].gl_Position + vec4(-0.01,  0.01, 0.0, 0.0);\n"
-      "  EmitVertex();\n"
-      "  gl_Position = gl_in[0].gl_Position + vec4(-0.01, -0.01, 0.0, 0.0);\n"
-      "  EmitVertex();\n"
-      "  EndPrimitive();\n"
-      "}\n";
-    static const char *fragmentShader1 =
-      "#version 330 core\n"
-      "uniform vec3 lineColor;\n"
-      "void main()\n"
-      "{\n"
-      "  gl_FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
-      "}\n";
-#endif
-
     auto *app = canvas_->app();
 
     s_program1 = new ShaderProgram(this);
 
-#if 0
-    s_program1->addVertexCode  (vertexShader1);
-    s_program1->addGeometryCode(geometryShader1);
-    s_program1->addFragmentCode(fragmentShader1);
-#else
     s_program1->addVertexFile  (app->buildDir() + "/shaders/graph1.vs");
     s_program1->addGeometryFile(app->buildDir() + "/shaders/graph1.gs");
     s_program1->addFragmentFile(app->buildDir() + "/shaders/graph1.fs");
-#endif
 
     s_program1->link();
 
     //---
 
-#if 0
-    static const char *vertexShader2 =
-      "#version 330 core\n"
-      "layout (location = 1) in vec3 line;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "void main()\n"
-      "{\n"
-      "  gl_Position = projection * view * model * vec4(line.x, line.y, line.z, 1.0);\n"
-      "}";
-    static const char *fragmentShader2 =
-      "#version 330 core\n"
-      "uniform vec3 lineColor;\n"
-      "void main()\n"
-      "{\n"
-      "  gl_FragColor = vec4(lineColor.x, lineColor.y, lineColor.z, 1.0f);\n"
-      "}\n";
-#endif
-
     s_program2 = new ShaderProgram(this);
 
-#if 0
-    s_program2->addVertexCode  (vertexShader2);
-    s_program2->addFragmentCode(fragmentShader2);
-#else
     s_program2->addVertexFile  (app->buildDir() + "/shaders/graph2.vs");
     s_program2->addFragmentFile(app->buildDir() + "/shaders/graph2.fs");
-#endif
 
     s_program2->link();
   }
@@ -419,8 +350,7 @@ render()
   //s_program1->bind();
   canvas_->bindProgram(s_program1);
 
-  s_program1->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program1->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  canvas_->setProgramMatrices(s_program1);
 
   s_program1->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
@@ -440,8 +370,7 @@ render()
 
   s_program2->setUniformValue("lineColor", Util::toVector(lineColor_));
 
-  s_program2->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program2->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  canvas_->setProgramMatrices(s_program2);
 
   s_program2->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 

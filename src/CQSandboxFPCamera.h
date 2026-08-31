@@ -1,43 +1,17 @@
 #ifndef FPCamera_H
 #define FPCamera_H
 
-#include <CGLCameraIFace.h>
-#include <CQuaternion.h>
-#include <CVector3D.h>
-
-#include <QObject>
+#include <CQSandboxCamera.h>
 
 namespace CQSandbox {
 
 class App;
 
-class FPCamera : public QObject, public CGLCameraIFace {
+class FPCamera : public CameraIFace {
   Q_OBJECT
 
  public:
   FPCamera(App *app);
-
-  //---
-
-  bool isClampPitch() const { return clampPitch_; }
-  void setClampPitch(bool b) { clampPitch_ = b; stateChanged(); }
-
-  double minPitch() const { return minPitch_; }
-  void setMinPitch(double r) { minPitch_ = r; stateChanged(); }
-
-  double maxPitch() const { return maxPitch_; }
-  void setMaxPitch(double r) { maxPitch_ = r; stateChanged(); }
-
-  //---
-
-  bool isClampYaw() const { return clampYaw_; }
-  void setClampYaw(bool b) { clampYaw_ = b; stateChanged(); }
-
-  double minYaw() const { return minYaw_; }
-  void setMinYaw(double r) { minYaw_ = r; stateChanged(); }
-
-  double maxYaw() const { return maxYaw_; }
-  void setMaxYaw(double r) { maxYaw_ = r; stateChanged(); }
 
   //---
 
@@ -70,6 +44,10 @@ class FPCamera : public QObject, public CGLCameraIFace {
 
   //---
 
+  void reset(const CBBox3D &bbox) override;
+
+  //---
+
   void moveFront(double d) override;
   void moveUp   (double d) override;
   void moveRight(double d) override;
@@ -81,8 +59,8 @@ class FPCamera : public QObject, public CGLCameraIFace {
   CMatrix3DH orthoMatrix() const override;
   CMatrix3DH viewMatrix() const override;
 
-  double distance() const { return distance_; }
-  void setDistance(double r) { if (distance_ != r) { distance_ = r; stateChanged(); } }
+  double distance() const override { return distance_; }
+  void setDistance(double r) override { if (distance_ != r) { distance_ = r; stateChanged(); } }
 
   //---
 
@@ -95,9 +73,6 @@ class FPCamera : public QObject, public CGLCameraIFace {
   //---
 
   void printMatrices() const;
-
- Q_SIGNALS:
-  void stateChangedSignal();
 
  private:
   void updateOrientation() const;
@@ -115,16 +90,6 @@ class FPCamera : public QObject, public CGLCameraIFace {
   CQuaternion calcLookAt(const CVector3D &forward, const CVector3D &up) const;
 
  private:
-  App* app_ { nullptr };
-
-  bool   clampPitch_ { false };
-  double minPitch_   { -M_PI/2.0 };
-  double maxPitch_   {  M_PI/2.0 };
-
-  bool   clampYaw_ { false };
-  double minYaw_   { -M_PI/2.0 };
-  double maxYaw_   {  M_PI/2.0 };
-
   CQuaternion orientation_;
   bool        orientationValid_ { false };
 

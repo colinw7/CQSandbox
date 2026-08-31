@@ -12,7 +12,7 @@ static CVector3D CAMERA_WORLD_RIGHT   = CVector3D(1.0, 0.0,  0.0);
 
 Camera::
 Camera(App *app) :
- app_(app)
+ CameraIFace(app)
 {
   updateOrientation();
 }
@@ -101,6 +101,34 @@ Camera::
 setRoll(double r)
 {
   rotateZ(r - roll());
+}
+
+//---
+
+void
+Camera::
+reset(const CBBox3D &bbox)
+{
+  auto center  = bbox.getCenter();
+  auto maxSize = bbox.getMaxSize();
+
+  auto s2 = std::sqrt(2.0);
+
+  auto maxSize1 = s2*maxSize + near();
+
+  auto origin = CVector3D(center);
+  auto pos    = CVector3D(center + CPoint3D(0, maxSize1/2.0, maxSize1));
+
+  setPosition(pos);
+
+  setPitch(-M_PI/6.0);
+  setYaw(0.0);
+  setRoll(0.0);
+
+  setOrigin(origin);
+
+  moveAroundX(0.1);
+  moveAroundY(0.1);
 }
 
 //---
@@ -212,18 +240,18 @@ updateOrientationI()
 
   if (isClampPitch() || isClampYaw() || isClampRoll()) {
     if (isClampPitch()) {
-      angleDelta_.setX(std::max(minPitch_ - pitch_, angleDelta_.x()));
-      angleDelta_.setX(std::min(maxPitch_ - pitch_, angleDelta_.x()));
+      angleDelta_.setX(std::max(minPitch() - pitch_, angleDelta_.x()));
+      angleDelta_.setX(std::min(maxPitch() - pitch_, angleDelta_.x()));
     }
 
     if (isClampYaw()) {
-      angleDelta_.setY(std::max(minYaw_ - yaw_, angleDelta_.y()));
-      angleDelta_.setY(std::min(maxYaw_ - yaw_, angleDelta_.y()));
+      angleDelta_.setY(std::max(minYaw() - yaw_, angleDelta_.y()));
+      angleDelta_.setY(std::min(maxYaw() - yaw_, angleDelta_.y()));
     }
 
     if (isClampRoll()) {
-      angleDelta_.setZ(std::max(minRoll_ - roll_, angleDelta_.z()));
-      angleDelta_.setZ(std::min(maxRoll_ - roll_, angleDelta_.z()));
+      angleDelta_.setZ(std::max(minRoll() - roll_, angleDelta_.z()));
+      angleDelta_.setZ(std::min(maxRoll() - roll_, angleDelta_.z()));
     }
 
     pitch_ += angleDelta_.x();

@@ -264,65 +264,12 @@ init()
   //---
 
   if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "layout (location = 1) in vec3 aNormal;\n"
-      "layout (location = 2) in vec3 aColor;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "out vec3 FragPos;\n"
-      "out vec3 Normal;\n"
-      "out vec3 Color;\n"
-      "void main() {\n"
-      "  FragPos = vec3(model * vec4(aPos, 1.0));\n"
-      "  Normal  = mat3(transpose(inverse(model)))*aNormal;\n"
-      "  Color   = aColor;\n"
-      "  gl_Position = projection * view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-      "}";
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "in vec3 FragPos;\n"
-      "in vec3 Normal;\n"
-      "in vec3 Color;\n"
-      "out vec4 FragColor;\n"
-      "uniform vec3 viewPos;\n"
-      "uniform vec3 lightPos;\n"
-      "uniform vec3 lightColor;\n"
-      "uniform float ambientStrength;\n"
-      "uniform float diffuseStrength;\n"
-      "uniform float specularStrength;\n"
-      "uniform float shininess;\n"
-      "void main() {\n"
-      "  vec3 norm = normalize(Normal);\n"
-      "  vec3 lightDir = normalize(lightPos - FragPos);\n"
-      "  float diff = max(dot(norm, lightDir), 0.0);\n"
-      "  vec3 diffuseColor = Color;\n"
-      "  vec3 diffuse = diffuseStrength*diff*diffuseColor;\n"
-      "  vec3 ambient = ambientStrength*diffuseColor;\n"
-      "  vec3 viewDir = normalize(viewPos - FragPos);\n"
-      "  vec3 reflectDir = reflect(-lightDir, norm);\n"
-      "  float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
-      "  vec3 specColor = lightColor;\n"
-      "  vec3 specular = specularStrength*spec*specColor;\n"
-      "  vec3 result = ambient + diffuse + specular;\n"
-      "  FragColor = vec4(result, 1.0f);\n"
-      "}\n";
-#endif
-
     auto *app = canvas_->app();
 
     s_program = new ShaderProgram(this);
 
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
     s_program->addVertexFile  (app->buildDir() + "/shaders/surface.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/surface.fs");
-#endif
 
     s_program->link();
   }
@@ -510,26 +457,14 @@ render()
 
   //---
 
-  auto *light = canvas_->currentLight();
-
-  auto lightPos   = light->getPosition();
-  auto lightColor = light->getDiffuse();
-
   //s_program->bind();
   canvas_->bindProgram(s_program);
 
-  s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas_->viewPos()));
+  canvas_->setProgramMatrices(s_program);
 
-  s_program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
-  s_program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
+  canvas_->setProgramLightGlobals(s_program);
 
-  s_program->setUniformValue("ambientStrength" , float(canvas_->ambientStrength()));
-  s_program->setUniformValue("diffuseStrength" , float(canvas_->diffuseStrength()));
-  s_program->setUniformValue("specularStrength", float(canvas_->specularStrength()));
-  s_program->setUniformValue("shininess"       , float(canvas_->shininess()));
-
-  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  canvas_->setProgramSimpleLight(s_program);
 
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));

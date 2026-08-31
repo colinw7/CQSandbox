@@ -52,44 +52,12 @@ Sprite3DObj::
 initShader()
 {
   if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "layout (location = 1) in vec2 aTexCoord;\n"
-      "out vec2 TexCoord;\n"
-      "uniform mat4 model;\n"
-      "uniform mat4 view;\n"
-      "void main() {\n"
-      "  TexCoord = aTexCoord;\n"
-      "  //gl_Position = vec4(aPos, 1.0);\n"
-      "  gl_Position = view * model * vec4(aPos, 1.0);\n"
-      "}\n";
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "out vec4 FragColor;\n"
-      "in vec2 TexCoord;\n"
-      "uniform sampler2D textureId;\n"
-      "void main() {\n"
-      "  vec4 texColor = texture(textureId, TexCoord);\n"
-      "  if (texColor.a < 0.1) {\n"
-      "    discard;\n"
-      "  }\n"
-      " FragColor = texColor;\n"
-      "}\n";
-#endif
-
     auto *app = canvas_->app();
 
     s_program = new ShaderProgram(this);
 
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
     s_program->addVertexFile  (app->buildDir() + "/shaders/sprite.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/sprite.fs");
-#endif
 
     s_program->link();
   }

@@ -12,7 +12,7 @@ static CVector3D CAMERA_WORLD_RIGHT   = CVector3D(1.0, 0.0,  0.0);
 
 FPCamera::
 FPCamera(App *app) :
- app_(app)
+ CameraIFace(app)
 {
   updateOrientation();
 }
@@ -121,6 +121,36 @@ right() const
   return right_;
 }
 
+//---
+
+void
+FPCamera::
+reset(const CBBox3D &bbox)
+{
+  auto center  = bbox.getCenter();
+  auto maxSize = bbox.getMaxSize();
+
+  auto s2 = std::sqrt(2.0);
+
+  auto maxSize1 = s2*maxSize + near();
+
+  auto origin = CVector3D(center);
+  auto pos    = CVector3D(center + CPoint3D(0, maxSize1/2.0, maxSize1));
+
+  setPosition(pos);
+
+  setPitch(-M_PI/6.0);
+  setYaw(0.0);
+  setRoll(0.0);
+
+  setOrigin(origin);
+
+  moveAroundX(0.1);
+  moveAroundY(0.1);
+}
+
+//---
+
 void
 FPCamera::
 moveRight(double d)
@@ -199,13 +229,13 @@ updateOrientationI()
   if (angleChanged_) {
     if (isClampPitch() || isClampYaw()) {
       if (isClampPitch()) {
-        angleDelta_.setX(std::max(minPitch_ - pitch_, angleDelta_.x()));
-        angleDelta_.setX(std::min(maxPitch_ - pitch_, angleDelta_.x()));
+        angleDelta_.setX(std::max(minPitch() - pitch_, angleDelta_.x()));
+        angleDelta_.setX(std::min(maxPitch() - pitch_, angleDelta_.x()));
       }
 
       if (isClampYaw()) {
-        angleDelta_.setY(std::max(minYaw_ - yaw_, angleDelta_.y()));
-        angleDelta_.setY(std::min(maxYaw_ - yaw_, angleDelta_.y()));
+        angleDelta_.setY(std::max(minYaw() - yaw_, angleDelta_.y()));
+        angleDelta_.setY(std::min(maxYaw() - yaw_, angleDelta_.y()));
       }
 
       pitch_ += angleDelta_.x();

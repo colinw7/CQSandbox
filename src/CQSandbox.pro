@@ -18,10 +18,25 @@ SOURCES += \
 CQSandboxMain.cpp \
 CQSandboxApp.cpp \
 CQSandboxCanvas.cpp \
+CQSandboxObject.cpp \
 CQSandboxCanvas3D.cpp \
-CQSandboxLight3D.cpp \
 CQSandboxObject3D.cpp \
+CQSandboxParticleSystem.cpp \
+CQSandboxLight3D.cpp \
 \
+CQSandboxArrayObj.cpp \
+CQSandboxArrowObj.cpp \
+CQSandboxAStarObj.cpp \
+CQSandboxAxisObj.cpp \
+CQSandboxCsvObj.cpp \
+CQSandboxGroupObj.cpp \
+CQSandboxPathObj.cpp \
+CQSandboxQuadTreeObj.cpp \
+CQSandboxTextObj.cpp \
+CQSandboxVectorObj.cpp \
+\
+CQSandboxArray3DObj.cpp \
+CQSandboxAStar3DObj.cpp \
 CQSandboxAxis3DObj.cpp \
 CQSandboxBBox3DObj.cpp \
 CQSandboxCsv3DObj.cpp \
@@ -30,11 +45,13 @@ CQSandboxDungeon3DObj.cpp \
 CQSandboxFieldRunners3DObj.cpp \
 CQSandboxGraph3DObj.cpp \
 CQSandboxGroup3DObj.cpp \
+CQSandboxJson3DObj.cpp \
 CQSandboxModel3DObj.cpp \
 CQSandboxOthello3DObj.cpp \
 CQSandboxParticleList3DObj.cpp \
 CQSandboxPath3DObj.cpp \
 CQSandboxPlane3DObj.cpp \
+CQSandboxQuadTree3DObj.cpp \
 CQSandboxShader3DObj.cpp \
 CQSandboxShaderShape3DObj.cpp \
 CQSandboxShape3DObj.cpp \
@@ -42,6 +59,9 @@ CQSandboxSkybox3DObj.cpp \
 CQSandboxSprite3DObj.cpp \
 CQSandboxSurface3DObj.cpp \
 CQSandboxText3DObj.cpp \
+CQSandboxVector3DObj.cpp \
+CQSandboxXML3DObj.cpp \
+\
 CQSandboxGeomObject.cpp \
 \
 CQSandboxControl2D.cpp \
@@ -51,20 +71,24 @@ CQSandboxShaderToyProgram.cpp \
 CQSandboxShape3DData.cpp \
 CQSandboxToolbar2D.cpp \
 CQSandboxToolbar3D.cpp \
-CQSandboxOverview3D.cpp \
 CQSandboxStatus.cpp \
-CQSandboxCamera.cpp \
+CQSandboxOverview3D.cpp \
 \
-CCircleFactor.cpp \
+CQSandboxCamera.cpp \
+CQSandboxFPCamera.cpp \
+CQSandboxOrthoCamera.cpp \
+\
 CQGLTexture.cpp \
 CQGLCubemap.cpp \
 CQSVGUtil.cpp \
+CGLCamera.cpp \
+\
+CCircleFactor.cpp \
 CSVGUtil.cpp \
 CQAxis.cpp \
 CLorenzCalc.cpp \
 CQGLUtil.cpp \
 CGLTexture.cpp \
-CGLCamera.cpp \
 CQArrow.cpp \
 CQPoint3DEdit.cpp \
 CQTclUtil.cpp \
@@ -92,10 +116,25 @@ CPSysSystem.cpp \
 HEADERS += \
 CQSandboxApp.h \
 CQSandboxCanvas.h \
+CQSandboxObject.h \
 CQSandboxCanvas3D.h \
-CQSandboxLight3D.h \
 CQSandboxObject3D.h \
+CQSandboxParticleSystem.h \
+CQSandboxLight3D.h \
 \
+CQSandboxArrayObj.h \
+CQSandboxArrowObj.h \
+CQSandboxAStarObj.h \
+CQSandboxAxisObj.h \
+CQSandboxCsvObj.h \
+CQSandboxGroupObj.h \
+CQSandboxPathObj.h \
+CQSandboxQuadTreeObj.h \
+CQSandboxTextObj.h \
+CQSandboxVectorObj.h \
+\
+CQSandboxArray3DObj.h \
+CQSandboxAStar3DObj.h \
 CQSandboxAxis3DObj.h \
 CQSandboxBBox3DObj.h \
 CQSandboxCsv3DObj.h \
@@ -104,11 +143,13 @@ CQSandboxDungeon3DObj.h \
 CQSandboxFieldRunners3DObj.h \
 CQSandboxGraph3DObj.h \
 CQSandboxGroup3DObj.h \
+CQSandboxJson3DObj.h \
 CQSandboxModel3DObj.h \
 CQSandboxOthello3DObj.h \
 CQSandboxParticleList3DObj.h \
 CQSandboxPath3DObj.h \
 CQSandboxPlane3DObj.h \
+CQSandboxQuadTree3DObj.h \
 CQSandboxShader3DObj.h \
 CQSandboxShaderShape3DObj.h \
 CQSandboxShape3DObj.h \
@@ -116,6 +157,9 @@ CQSandboxSkybox3DObj.h \
 CQSandboxSprite3DObj.h \
 CQSandboxSurface3DObj.h \
 CQSandboxText3DObj.h \
+CQSandboxVector3DObj.h \
+CQSandboxXML3DObj.h \
+\
 CQSandboxGeomObject.h \
 \
 CQSandboxControl2D.h \
@@ -125,19 +169,23 @@ CQSandboxShaderToyProgram.h \
 CQSandboxShape3DData.h \
 CQSandboxToolbar2D.h \
 CQSandboxToolbar3D.h \
-CQSandboxOverview3D.h \
 CQSandboxStatus.h \
-CQSandboxCamera.h \
+CQSandboxOverview3D.h \
 CQSandboxUtil.h \
+\
+CQSandboxCamera.h \
+CQSandboxFPCamera.h \
+CQSandboxOrthoCamera.h \
+\
+CQGLTexture.h \
+CQGLCubemap.h \
+CQSVGUtil.h \
+CGLCamera.h \
 \
 CQTclUtil.h \
 CQArrow.h \
 CQPoint3DEdit.h \
-CQGLTexture.h \
-CQGLCubemap.h \
-CGLCamera.h \
 CQSVGUtil.h \
-CSVGUtil.h \
 CQGLBuffer.h \
 CQAxis.h \
 CQRubberBand.h \
@@ -153,6 +201,7 @@ INCLUDEPATH += \
 ../../CQUtil/include \
 ../../CQXml/include \
 ../../CXML/include \
+../../CJson/include \
 ../../CGeometry3D/include \
 ../../CImportModel/include \
 ../../CQBaseModel/include \
@@ -179,6 +228,7 @@ unix:LIBS += \
 -L../../CQUtil/lib \
 -L../../CImportModel/lib \
 -L../../CXML/lib \
+-L../../CJson/lib \
 -L../../CVoxel/lib \
 -L../../CGeometry3D/lib \
 -L../../CImageLib/lib \
@@ -203,6 +253,7 @@ unix:LIBS += \
 -lCQUtil \
 -lCImportModel \
 -lCXML \
+-lCJson \
 -lCVoxel \
 -lCGeometry3D \
 -lCImageLib \

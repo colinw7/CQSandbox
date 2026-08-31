@@ -2,6 +2,7 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxLight3D.h>
 #include <CQSandboxCamera.h>
+#include <CQSandboxOrthoCamera.h>
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -138,9 +139,8 @@ void
 Control3D::
 init()
 {
-  auto *camera = canvas_->camera();
-
-  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+  for (auto *camera : canvas_->cameras())
+    connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
 
   for (auto *light : canvas_->lights())
     connect(light, SIGNAL(changedSignal()), this, SLOT(updateSlot()));
@@ -246,7 +246,7 @@ Control3D::
 addCameraFrame()
 {
   auto *frame  = new QFrame;
-  auto *layout = new QHBoxLayout(frame);
+  auto *layout = new QVBoxLayout(frame);
 
   auto *controlFrame  = new QFrame;
   auto *controlLayout = new QGridLayout(controlFrame);
@@ -275,12 +275,35 @@ addCameraFrame()
     return edit;
   };
 
+#if 0
+  auto addCheck = [&](const QString &label, const char *slotName) {
+    auto *check = new QCheckBox;
+    connect(check , SIGNAL(stateChanged(int)), this, slotName);
+    addLabelEdit(label, check);
+    return check;
+  };
+#endif
+
+  auto addCombo = [&](const QString &label, const QStringList &names, const char *slotName) {
+    auto *combo = new QComboBox;
+    for (const auto &name : names)
+      combo->addItem(name);
+    connect(combo , SIGNAL(currentIndexChanged(int)), this, slotName);
+    addLabelEdit(label, combo);
+    return combo;
+  };
+
   //---
 
+  cameraData_.typeCombo = addCombo("Type", QStringList() <<
+    "Free" << "First Person" << "Ortho", SLOT(cameraTypeSlot(int)));
+
+  cameraData_.orthoTypeCombo = addCombo("Ortho Type", QStringList() <<
+    "Top" << "Bottom" << "Left" << "Right" << "Front" << "Back",
+    SLOT(cameraOrthoTypeSlot(int)));
+
 #if 0
-  cameraData_.rotateCheck = new QCheckBox;
-  connect(cameraData_.rotateCheck , &QCheckBox::stateChanged, this, &Control3D::cameraRotateSlot);
-  addLabelEdit("Rotate", cameraData_.rotateCheck );
+  cameraData_.rotateCheck = addCheck("Rotate", SLOT(cameraRotateSlot(int)));
 
   cameraData_.zoomEdit = addRealEdit("Zoom", SLOT(cameraZoomSlot(double)));
 #endif
@@ -293,8 +316,9 @@ addCameraFrame()
   cameraData_.farEdit  = addRealEdit("Far" , SLOT(cameraFarSlot(double)));
   cameraData_.fovEdit  = addRealEdit("FOV" , SLOT(cameraFovSlot(double)));
 
-  cameraData_.originEdit = addPoint3DEdit("Origin"  , SLOT(cameraOriginSlot()));
-  cameraData_.posEdit    = addPoint3DEdit("Position", SLOT(cameraPosSlot()));
+  cameraData_.originEdit   = addPoint3DEdit("Origin"  , SLOT(cameraOriginSlot()));
+  cameraData_.posEdit      = addPoint3DEdit("Position", SLOT(cameraPosSlot()));
+  cameraData_.distanceEdit = addRealEdit   ("Distance", SLOT(cameraDistanceSlot(double)));
 
   //---
 
@@ -351,6 +375,26 @@ addLightFrame()
     return edit;
   };
 
+  auto addCombo = [&](const QString &label, const QStringList &names) {
+    auto *combo = new QComboBox;
+    for (const auto &name : names)
+      combo->addItem(name);
+    addLabelEdit(label, combo);
+    return combo;
+  };
+
+  auto addCheck = [&](const QString &label) {
+    auto *check = new QCheckBox;
+    addLabelEdit(label, check);
+    return check;
+  };
+
+  auto addPoint3DEdit = [&](const QString &label) {
+    auto *edit = new CQPoint3DEdit;
+    addLabelEdit(label, edit);
+    return edit;
+  };
+
   //---
 
   lightData_.list = new QListWidget;
@@ -361,29 +405,20 @@ addLightFrame()
 
   //--
 
-  lightData_.typeCombo = new QComboBox;
+  lightData_.typeCombo = addCombo("Type",
+    QStringList() << "Directional" << "Point" << "Spot");
 
-  lightData_.typeCombo->addItem("Directional");
-  lightData_.typeCombo->addItem("Point");
-  lightData_.typeCombo->addItem("Spot");
-
-  addLabelEdit("Type", lightData_.typeCombo);
-
-  lightData_.enabledCheck = new QCheckBox;
-
-  addLabelEdit("Enabled", lightData_.enabledCheck);
+  lightData_.enabledCheck = addCheck("Enabled");
 
   lightData_.colorEdit = addColorEdit("Color"); // diffuse
 
   //---
 
-  lightData_.posEdit = new CQPoint3DEdit;
-  addLabelEdit("Position", lightData_.posEdit);
+  lightData_.posEdit = addPoint3DEdit("Position");
 
   //---
 
-  lightData_.dirEdit = new CQPoint3DEdit;
-  addLabelEdit("Direction", lightData_.dirEdit);
+  lightData_.dirEdit = addPoint3DEdit("Direction");
 
   //---
 
@@ -676,6 +711,12 @@ void
 Control3D::
 updateCamera()
 {
+  disconnect(cameraData_.typeCombo,
+             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+             this, &Control3D::cameraTypeSlot);
+  disconnect(cameraData_.orthoTypeCombo,
+             static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+             this, &Control3D::cameraOrthoTypeSlot);
 #if 0
   disconnect(cameraData_.rotateCheck , &QCheckBox::stateChanged,
              this, &Control3D::cameraRotateSlot);
@@ -701,10 +742,12 @@ updateCamera()
              this, &Control3D::cameraOriginSlot);
   disconnect(cameraData_.posEdit, &CQPoint3DEdit::editingFinished,
              this, &Control3D::cameraPosSlot);
+  disconnect(cameraData_.distanceEdit, &CQRealSpin::realValueChanged,
+             this, &Control3D::cameraDistanceSlot);
 
   //---
 
-  auto *camera = canvas_->camera();
+  auto *camera = canvas_->currentCamera();
 
   if (camera) {
 #if 0
@@ -720,11 +763,19 @@ updateCamera()
     cameraData_.farEdit ->setValue(camera->far());
     cameraData_.fovEdit ->setValue(camera->fov());
 
-    cameraData_.originEdit ->setValue(vectorToPoint(camera->origin()));
-    cameraData_.posEdit    ->setValue(vectorToPoint(camera->position()));
+    cameraData_.originEdit  ->setValue(vectorToPoint(camera->origin()));
+    cameraData_.posEdit     ->setValue(vectorToPoint(camera->position()));
+    cameraData_.distanceEdit->setValue(camera->distance());
   }
 
   //---
+
+  connect(cameraData_.typeCombo,
+          static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+          this, &Control3D::cameraTypeSlot);
+  connect(cameraData_.orthoTypeCombo,
+          static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+          this, &Control3D::cameraOrthoTypeSlot);
 
 #if 0
   connect(cameraData_.rotateCheck , &QCheckBox::stateChanged,
@@ -751,6 +802,8 @@ updateCamera()
           this, &Control3D::cameraOriginSlot);
   connect(cameraData_.posEdit, &CQPoint3DEdit::editingFinished,
           this, &Control3D::cameraPosSlot);
+  connect(cameraData_.distanceEdit, &CQRealSpin::realValueChanged,
+          this, &Control3D::cameraDistanceSlot);
 }
 
 void
@@ -1059,27 +1112,44 @@ shininessSlot()
   canvas_->update();
 }
 
-#if 0
 void
 Control3D::
-cameraZoomSlot(double r)
+cameraTypeSlot(int i)
 {
-  auto *camera = canvas_->camera();
-
-  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
-
-  camera->setZoom(r);
-
-  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+  if      (i == 0)
+    canvas_->setCameraType(Canvas3D::CameraType::MODEL);
+  else if (i == 1)
+    canvas_->setCameraType(Canvas3D::CameraType::FIRST_PERSON);
+  else if (i == 2)
+    canvas_->setCameraType(Canvas3D::CameraType::ORTHO);
 }
-#endif
+
+void
+Control3D::
+cameraOrthoTypeSlot(int i)
+{
+  auto *camera = canvas_->orthoCamera();
+
+  if      (i == 0)
+    camera->setOrthoType(OrthoCamera::OthroType::TOP);
+  else if (i == 1)
+    camera->setOrthoType(OrthoCamera::OthroType::BOTTOM);
+  else if (i == 2)
+    camera->setOrthoType(OrthoCamera::OthroType::LEFT);
+  else if (i == 3)
+    camera->setOrthoType(OrthoCamera::OthroType::RIGHT);
+  else if (i == 4)
+    camera->setOrthoType(OrthoCamera::OthroType::FRONT);
+  else if (i == 5)
+    camera->setOrthoType(OrthoCamera::OthroType::BACK);
+}
 
 #if 0
 void
 Control3D::
 cameraRotateSlot(int b)
 {
-  auto *camera = canvas_->camera();
+  auto *camera = canvas_->currentCamera();
 
   disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
 
@@ -1089,11 +1159,65 @@ cameraRotateSlot(int b)
 }
 #endif
 
+#if 0
+void
+Control3D::
+cameraZoomSlot(double r)
+{
+  auto *camera = canvas_->currentCamera();
+
+  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+
+  camera->setZoom(r);
+
+  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+}
+#endif
+
+void
+Control3D::
+cameraPitchSlot(double r)
+{
+  auto *camera = canvas_->currentCamera();
+
+  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+
+  camera->setPitch(CMathGen::DegToRad(r));
+
+  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+}
+
+void
+Control3D::
+cameraYawSlot(double r)
+{
+  auto *camera = canvas_->currentCamera();
+
+  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+
+  camera->setYaw(CMathGen::DegToRad(r));
+
+  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+}
+
+void
+Control3D::
+cameraRollSlot(double r)
+{
+  auto *camera = canvas_->currentCamera();
+
+  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+
+  camera->setRoll(CMathGen::DegToRad(r));
+
+  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+}
+
 void
 Control3D::
 cameraNearSlot(double r)
 {
-  auto *camera = canvas_->camera();
+  auto *camera = canvas_->currentCamera();
 
   disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
 
@@ -1106,7 +1230,7 @@ void
 Control3D::
 cameraFarSlot(double r)
 {
-  auto *camera = canvas_->camera();
+  auto *camera = canvas_->currentCamera();
 
   disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
 
@@ -1119,7 +1243,7 @@ void
 Control3D::
 cameraFovSlot(double r)
 {
-  auto *camera = canvas_->camera();
+  auto *camera = canvas_->currentCamera();
 
   disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
 
@@ -1130,48 +1254,9 @@ cameraFovSlot(double r)
 
 void
 Control3D::
-cameraYawSlot(double r)
-{
-  auto *camera = canvas_->camera();
-
-  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
-
-  camera->setYaw(CMathGen::DegToRad(r));
-
-  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
-}
-
-void
-Control3D::
-cameraPitchSlot(double r)
-{
-  auto *camera = canvas_->camera();
-
-  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
-
-  camera->setPitch(CMathGen::DegToRad(r));
-
-  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
-}
-
-void
-Control3D::
-cameraRollSlot(double r)
-{
-  auto *camera = canvas_->camera();
-
-  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
-
-  camera->setRoll(CMathGen::DegToRad(r));
-
-  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
-}
-
-void
-Control3D::
 cameraPosSlot()
 {
-  auto *camera = canvas_->camera();
+  auto *camera = canvas_->currentCamera();
 
   disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
 
@@ -1186,13 +1271,26 @@ void
 Control3D::
 cameraOriginSlot()
 {
-  auto *camera = canvas_->camera();
+  auto *camera = canvas_->currentCamera();
 
   disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
 
   auto p = cameraData_.originEdit->getValue();
 
   camera->setOrigin(CVector3D(p.x, p.y, p.z));
+
+  connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+}
+
+void
+Control3D::
+cameraDistanceSlot(double r)
+{
+  auto *camera = canvas_->currentCamera();
+
+  disconnect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
+
+  camera->setDistance(r);
 
   connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
 }

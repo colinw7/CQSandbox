@@ -4,6 +4,7 @@
 #include <CGLCameraIFace.h>
 #include <CQuaternion.h>
 #include <CVector3D.h>
+#include <CBBox3D.h>
 
 #include <QObject>
 
@@ -11,7 +12,96 @@ namespace CQSandbox {
 
 class App;
 
-class Camera : public QObject, public CGLCameraIFace {
+class CameraIFace : public QObject, public CGLCameraIFace {
+  Q_OBJECT
+
+ public:
+  CameraIFace(App *app) :
+   app_(app) {
+  }
+
+  //---
+
+  bool isClampPitch() const { return clampPitch_.enabled; }
+  void setClampPitch(bool b) { clampPitch_.enabled = b; stateChanged(); }
+
+  double minPitch() const { return clampPitch_.min; }
+  void setMinPitch(double r) { clampPitch_.min = r; stateChanged(); }
+
+  double maxPitch() const { return clampPitch_.max; }
+  void setMaxPitch(double r) { clampPitch_.max = r; stateChanged(); }
+
+  //---
+
+  bool isClampYaw() const { return clampYaw_.enabled; }
+  void setClampYaw(bool b) { clampYaw_.enabled = b; stateChanged(); }
+
+  double minYaw() const { return clampYaw_.min; }
+  void setMinYaw(double r) { clampYaw_.min = r; stateChanged(); }
+
+  double maxYaw() const { return clampYaw_.max; }
+  void setMaxYaw(double r) { clampYaw_.max = r; stateChanged(); }
+
+  //---
+
+  bool isClampRoll() const { return clampRoll_.enabled; }
+  void setClampRoll(bool b) { clampRoll_.enabled = b; stateChanged(); }
+
+  double minRoll() const { return clampRoll_.min; }
+  void setMinRoll(double r) { clampRoll_.min = r; stateChanged(); }
+
+  double maxRoll() const { return clampRoll_.max; }
+  void setMaxRoll(double r) { clampRoll_.max = r; stateChanged(); }
+
+  //---
+
+  virtual double distance() const = 0;
+  virtual void setDistance(double r) = 0;
+
+  //---
+
+  virtual void reset(const CBBox3D &bbox) = 0;
+
+  virtual void zoomIn(const CBBox3D &bbox) {
+    auto d = bbox.getMaxSize()/100.0;
+    moveUp(d);
+  }
+
+  virtual void zoomOut(const CBBox3D &bbox) {
+    auto d = bbox.getMaxSize()/100.0;
+    moveUp(-d);
+  }
+
+ Q_SIGNALS:
+  void stateChangedSignal();
+
+ protected:
+  App* app_ { nullptr };
+
+  struct ClampData {
+    bool   enabled { false };
+    double min     { -M_PI/2.0 };
+    double max     { -M_PI/2.0 };
+
+    double clamp(double r) const {
+      if (r < min) return min;
+      if (r > max) return max;
+      return r;
+    }
+  };
+
+  ClampData clampPitch_;
+  ClampData clampYaw_;
+  ClampData clampRoll_;
+};
+
+}
+
+//---
+
+namespace CQSandbox {
+
+class Camera : public CameraIFace {
   Q_OBJECT
 
  public:
@@ -21,39 +111,6 @@ class Camera : public QObject, public CGLCameraIFace {
 
   bool isDisableRoll() const { return disableRoll_; }
   void setDisableRoll(bool b) { disableRoll_ = b; stateChanged(); }
-
-  //---
-
-  bool isClampPitch() const { return clampPitch_; }
-  void setClampPitch(bool b) { clampPitch_ = b; stateChanged(); }
-
-  double minPitch() const { return minPitch_; }
-  void setMinPitch(double r) { minPitch_ = r; stateChanged(); }
-
-  double maxPitch() const { return maxPitch_; }
-  void setMaxPitch(double r) { maxPitch_ = r; stateChanged(); }
-
-  //---
-
-  bool isClampYaw() const { return clampYaw_; }
-  void setClampYaw(bool b) { clampYaw_ = b; stateChanged(); }
-
-  double minYaw() const { return minYaw_; }
-  void setMinYaw(double r) { minYaw_ = r; stateChanged(); }
-
-  double maxYaw() const { return maxYaw_; }
-  void setMaxYaw(double r) { maxYaw_ = r; stateChanged(); }
-
-  //---
-
-  bool isClampRoll() const { return clampRoll_; }
-  void setClampRoll(bool b) { clampRoll_ = b; stateChanged(); }
-
-  double minRoll() const { return minRoll_; }
-  void setMinRoll(double r) { minRoll_ = r; stateChanged(); }
-
-  double maxRoll() const { return maxRoll_; }
-  void setMaxRoll(double r) { maxRoll_ = r; stateChanged(); }
 
   //---
 
@@ -73,13 +130,17 @@ class Camera : public QObject, public CGLCameraIFace {
   double pitch() const override;
   void setPitch(double r) override;
 
-  // rotation x angle
+  // rotation y angle
   double yaw() const override;
   void setYaw(double r) override;
 
   // rotation z angle
   double roll() const override;
   void setRoll(double r) override;
+
+  //---
+
+  void reset(const CBBox3D &bbox) override;
 
   //---
 
@@ -102,8 +163,8 @@ class Camera : public QObject, public CGLCameraIFace {
   CMatrix3DH orthoMatrix() const override;
   CMatrix3DH viewMatrix() const override;
 
-  double distance() const { return distance_; }
-  void setDistance(double r) { if (distance_ != r) { distance_ = r; stateChanged(); } }
+  double distance() const override { return distance_; }
+  void setDistance(double r) override { if (distance_ != r) { distance_ = r; stateChanged(); } }
 
   //---
 
@@ -116,9 +177,6 @@ class Camera : public QObject, public CGLCameraIFace {
   //---
 
   void printMatrices() const;
-
- Q_SIGNALS:
-  void stateChangedSignal();
 
  private:
   void updateOrientation() const;
@@ -136,21 +194,7 @@ class Camera : public QObject, public CGLCameraIFace {
   CQuaternion calcLookAt(const CVector3D &forward, const CVector3D &up) const;
 
  private:
-  App* app_ { nullptr };
-
   bool disableRoll_ { false };
-
-  bool   clampPitch_ { false };
-  double minPitch_   { -M_PI/2.0 };
-  double maxPitch_   {  M_PI/2.0 };
-
-  bool   clampYaw_ { false };
-  double minYaw_   { -M_PI/2.0 };
-  double maxYaw_   {  M_PI/2.0 };
-
-  bool   clampRoll_ { false };
-  double minRoll_   { -M_PI/2.0 };
-  double maxRoll_   {  M_PI/2.0 };
 
   CQuaternion orientation_;
   bool        orientationValid_ { false };

@@ -597,50 +597,18 @@ initDraw(Canvas3D *canvas, double t)
 
   program->setUniformValue("ticks", float(t));
 
-  // camera projection
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas->projectionMatrix()));
+  //---
 
-  // camera/view transformation
-  program->setUniformValue("view", CQGLUtil::toQMatrix(canvas->viewMatrix()));
-
-  // view pos
-  program->setUniformValue("viewPos", CQGLUtil::toVector(canvas->viewPos()));
+  canvas->setProgramMatrices(program);
 
   //---
 
-#if USE_CLIP
-  program->setUniformValue("numClipPlanes", int(canvas->getClips().size()));
-
-  int clip_i = 0;
-
-  for (const auto &clip : canvas->getClips()) {
-    const auto &n = clip.getNormal();
-
-    auto cv = QVector4D(n.getX(), n.getY(), n.getZ(), clip.getConstant());
-
-    auto clipName = "clipPlane[" + std::to_string(clip_i) + "]";
-
-    program->setUniformValue(clipName.c_str(), cv);
-
-    ++clip_i;
-  }
-#endif
+  canvas->setProgramClips(program);
 
   //---
 
   // light data
-  program->setUniformValue("ambientColor"    , CQGLUtil::toVector(canvas->ambientColor()));
-  program->setUniformValue("ambientStrength" , float(canvas->ambientStrength()));
-
-  program->setUniformValue("diffuseStrength" , float(canvas->diffuseStrength()));
-
-  program->setUniformValue("specularColor"   , CQGLUtil::toVector(canvas->specularColor()));
-  program->setUniformValue("specularStrength", float(canvas->specularStrength()));
-
-  program->setUniformValue("emissionColor"   , CQGLUtil::toVector(canvas->emissiveColor()));
-  program->setUniformValue("emissiveStrength", float(canvas->emissiveStrength()));
-
-  program->setUniformValue("shininess", float(canvas->shininess())); // per face ?
+  canvas->setProgramLightGlobals(program);
 
   canvas->setProgramLights(program);
 }

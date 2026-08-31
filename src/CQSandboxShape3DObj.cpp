@@ -529,28 +529,15 @@ initDraw(Canvas3D *canvas)
 
   //---
 
-  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas->projectionMatrix()));
-
-  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas->viewMatrix()));
-
-  s_program->setUniformValue("viewPos", CQGLUtil::toVector(canvas->viewPos()));
+  canvas->setProgramMatrices(s_program);
 
   //---
 
-  auto *light = canvas->currentLight();
-
-  auto lightPos   = light->getPosition();
-  auto lightColor = light->getDiffuse();
-
-  s_program->setUniformValue("lightPos"  , CQGLUtil::toVector(lightPos));
-  s_program->setUniformValue("lightColor", CQGLUtil::toVector(lightColor));
+  canvas->setProgramSimpleLight(s_program);
 
   //---
 
-  s_program->setUniformValue("ambientStrength" , float(canvas->ambientStrength()));
-  s_program->setUniformValue("diffuseStrength" , float(canvas->diffuseStrength()));
-  s_program->setUniformValue("specularStrength", float(canvas->specularStrength()));
-  s_program->setUniformValue("shininess"       , float(canvas->shininess()));
+  canvas->setProgramLightGlobals(s_program);
 }
 
 void

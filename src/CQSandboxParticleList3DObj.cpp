@@ -347,56 +347,15 @@ init()
   //---
 
   if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "attribute highp vec4 position;\n"
-      "attribute highp vec4 center;\n"
-      "attribute lowp vec4 color;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "varying lowp vec4 col;\n"
-      "varying highp vec2 texPos;\n"
-      "void main() {\n"
-      "  col = color;\n"
-      "  texPos = position.xy + 0.5;\n"
-      "  gl_Position = (projection*view*model*center) + 0.05*position;\n"
-      "}\n";
-
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "varying lowp vec4 col;\n"
-      "varying highp vec2 texPos;\n"
-      "uniform bool useTexture;\n"
-      "uniform sampler2D textureId;\n"
-      "void main() {\n"
-      "  if (useTexture) {\n"
-      "    vec4 tc = texture(textureId, texPos);\n"
-      "    if (tc.a < 0.1) {\n"
-      "      discard;\n"
-      "    }\n"
-      "    gl_FragColor = col*tc;\n"
-      "  } else {\n"
-      "    gl_FragColor = col;\n"
-      "  }\n"
-      "}\n";
-#endif
-
     auto *app = canvas_->app();
 
     s_program = new ParticleListShaderProgram(this);
 
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
     //s_program->addVertexFile  (app->buildDir() + "/shaders/particle_list.vs");
     //s_program->addFragmentFile(app->buildDir() + "/shaders/particle_list.fs");
 
     s_program->addVertexFile  (app->buildDir() + "/shaders/particle_list_billboard.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/particle_list_billboard.fs");
-#endif
 
     s_program->link();
 
@@ -553,8 +512,7 @@ render()
 
   s_program->bind();
 
-  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  canvas_->setProgramMatrices(s_program);
 
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));

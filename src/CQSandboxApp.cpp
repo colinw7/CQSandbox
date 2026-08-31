@@ -11,7 +11,9 @@
 #include <CQTclUtil.h>
 #include <CQTabSplit.h>
 
+#ifdef CQSANDBOX_META_EDIT
 #include <CQMetaEdit.h>
+#endif
 #include <CQAppOptions.h>
 
 #ifdef CQ_PERF_GRAPH
@@ -325,6 +327,7 @@ errorMsg(const QString &msg) const
 
 //---
 
+#ifdef CQSANDBOX_META_EDIT
 void
 App::
 showMetaEdit()
@@ -338,6 +341,7 @@ showMetaEdit()
 
   metaEdit->raise();
 }
+#endif
 
 void
 App::

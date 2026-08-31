@@ -75,6 +75,9 @@ class Control3D : public QFrame {
   void shininessSlot();
 
   // camera
+  void cameraTypeSlot(int i);
+  void cameraOrthoTypeSlot(int i);
+
 //void cameraRotateSlot(int b);
 //void cameraZoomSlot(double r);
 
@@ -88,6 +91,7 @@ class Control3D : public QFrame {
 
   void cameraOriginSlot();
   void cameraPosSlot();
+  void cameraDistanceSlot(double r);
 
   void resetCameraSlot();
 
@@ -153,16 +157,19 @@ class Control3D : public QFrame {
   ControlData controlData_;
 
   struct CameraData {
-//  QCheckBox*     rotateCheck { nullptr };
-//  CQRealSpin*    zoomEdit    { nullptr };
-    CQRealSpin*    pitchEdit   { nullptr };
-    CQRealSpin*    yawEdit     { nullptr };
-    CQRealSpin*    rollEdit    { nullptr };
-    CQRealSpin*    nearEdit    { nullptr };
-    CQRealSpin*    farEdit     { nullptr };
-    CQRealSpin*    fovEdit     { nullptr };
-    CQPoint3DEdit* originEdit  { nullptr };
-    CQPoint3DEdit* posEdit     { nullptr };
+    QComboBox*     typeCombo      { nullptr };
+    QComboBox*     orthoTypeCombo { nullptr };
+//  QCheckBox*     rotateCheck    { nullptr };
+//  CQRealSpin*    zoomEdit       { nullptr };
+    CQRealSpin*    pitchEdit      { nullptr };
+    CQRealSpin*    yawEdit        { nullptr };
+    CQRealSpin*    rollEdit       { nullptr };
+    CQRealSpin*    nearEdit       { nullptr };
+    CQRealSpin*    farEdit        { nullptr };
+    CQRealSpin*    fovEdit        { nullptr };
+    CQPoint3DEdit* originEdit     { nullptr };
+    CQPoint3DEdit* posEdit        { nullptr };
+    CQRealSpin*    distanceEdit   { nullptr };
   };
 
   CameraData cameraData_;

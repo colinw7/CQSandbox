@@ -120,14 +120,13 @@ init()
 {
   auto *canvas = app_->canvas3D();
 
-  auto *camera   = canvas->camera();
-  auto *fpCamera = canvas->camera();
+  connect(canvas, SIGNAL(cameraChangedSignal()), this, SLOT(cameraChangeSlot()));
 
 //connect(canvas_, SIGNAL(animStateChanged()), this, SLOT(invalidate()));
 //connect(canvas_, SIGNAL(animTimeChanged()), this, SLOT(invalidate()));
 
-  connect(camera  , SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
-  connect(fpCamera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
+  for (auto *camera : canvas->cameras())
+    connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
 
   for (auto *light : canvas->lights())
     connect(light, SIGNAL(changedSignal()), this, SLOT(lightChangeSlot()));

@@ -68,45 +68,12 @@ Text3DObj::
 initShader()
 {
   if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "attribute highp vec4 position;\n"
-      "attribute highp vec2 texCoord0;\n"
-      "attribute lowp  vec3 color;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "varying highp vec2 uv0;\n"
-      "varying lowp vec3 col;\n"
-      "void main() {\n"
-      "  gl_Position = projection * view * model * position;\n"
-      "  uv0 = texCoord0;\n"
-      "  col = color;\n"
-      "}\n";
-
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "varying lowp vec3 col;\n"
-      "varying highp vec2 uv0;\n"
-      "uniform sampler2D textureId;\n"
-      "void main() {\n"
-       " vec4 tc = texture(textureId, uv0);\n"
-      "  gl_FragColor = vec4(col.r, col.g, col.b, tc.r);\n"
-      "}\n";
-#endif
-
     auto *app = canvas_->app();
 
     s_program = new TextShaderProgram(this);
 
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
     s_program->addVertexFile  (app->buildDir() + "/shaders/text.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/text.fs");
-#endif
 
     s_program->link();
 
@@ -361,8 +328,7 @@ render()
   //s_program->bind();
   canvas_->bindProgram(s_program);
 
-  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  canvas_->setProgramMatrices(s_program);
 
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 

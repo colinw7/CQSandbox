@@ -599,12 +599,14 @@ proc tick { args } {
 proc rotatePlayer { } {
   # echo "Rotate Player"
 
-  set yaw [sb3d::camera get yaw]
+  if {[sb3d::canvas get camera.type] != "ortho"} {
+    set yaw [sb3d::camera get yaw]
 
-  set d [expr {$::player_rot/$::player_nrot}]
+    set d [expr {$::player_rot/$::player_nrot}]
 
-  sb3d::camera set yaw [expr {$yaw + $d}]
-# sb3d::camera set pitch -15
+    sb3d::camera set yaw [expr {$yaw + $d}]
+  # sb3d::camera set pitch -15
+  }
 
   incr ::player_irot -1
 
@@ -845,9 +847,11 @@ proc updatePlayerPos { } {
 
 proc updateCamera { } {
 if {0} {
-  sb3d::camera set yaw $angle
+  if {[sb3d::canvas get camera.type] != "ortho"} {
+    sb3d::camera set yaw $angle
 
-  sb3d::camera set pitch 0
+    sb3d::camera set pitch 0
+  }
 }
 
   set v [dirToVector $::player_dir]
@@ -859,9 +863,11 @@ if {0} {
   set ::camera_x [expr {[lindex $pos 0] - 4*$vx}]
   set ::camera_y [expr {[lindex $pos 2] - 4*$vz}]
 
-  sb3d::camera set position [list $::camera_x $::player_h $::camera_y]
+  if {[sb3d::canvas get camera.type] != "ortho"} {
+    sb3d::camera set position [list $::camera_x $::player_h $::camera_y]
 
-# sb3d::camera set look_at [list 0 0 0]
+  # sb3d::camera set look_at [list 0 0 0]
+  }
 }
 
 proc updateLight { } {
@@ -873,8 +879,8 @@ proc updateLight { } {
 
   set pos [mapPos [list $::player_x 0 $::player_y]]
 
-  set ::light_x [expr {[lindex $pos 0] - 4*$vx}]
-  set ::light_y [expr {[lindex $pos 2] - 4*$vz}]
+  set ::light_x [expr {[lindex $pos 0] + 4*$vx}]
+  set ::light_y [expr {[lindex $pos 2] + 4*$vz}]
 
   sb3d::light set position [list $::light_x $::player_h $::light_y]
 

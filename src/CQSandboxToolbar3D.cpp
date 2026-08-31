@@ -151,12 +151,15 @@ addDebugButton()
 
   auto *menu = new QMenu;
 
+#ifdef CQSANDBOX_META_EDIT
   auto *action1 = menu->addAction("Meta Edit");
-  auto *action2 = menu->addAction("Performance");
-  auto *action3 = menu->addAction("Options");
-
   connect(action1, SIGNAL(triggered()), this, SLOT(metaEditSlot()));
+#endif
+
+  auto *action2 = menu->addAction("Performance");
   connect(action2, SIGNAL(triggered()), this, SLOT(performanceSlot()));
+
+  auto *action3 = menu->addAction("Options");
   connect(action3, SIGNAL(triggered()), this, SLOT(optionsSlot()));
 
   button->setMenu(menu);
@@ -285,6 +288,7 @@ settingsSlot()
   control->toggleShown();
 }
 
+#ifdef CQSANDBOX_META_EDIT
 void
 CanvasToolbar3D::
 metaEditSlot()
@@ -293,6 +297,7 @@ metaEditSlot()
 
   app->showMetaEdit();
 }
+#endif
 
 void
 CanvasToolbar3D::

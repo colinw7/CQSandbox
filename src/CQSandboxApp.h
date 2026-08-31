@@ -73,7 +73,9 @@ class App : public QFrame {
 
   //---
 
+#ifdef CQSANDBOX_META_EDIT
   void showMetaEdit();
+#endif
   void showPerfDialog();
   void showAppOptions();
 

@@ -41,7 +41,9 @@ class CanvasToolbar3D : public QFrame {
 
   void settingsSlot();
 
+#ifdef CQSANDBOX_META_EDIT
   void metaEditSlot();
+#endif
   void performanceSlot();
   void optionsSlot();
 

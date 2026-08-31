@@ -31,6 +31,7 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxCamera.h>
 #include <CQSandboxFPCamera.h>
+#include <CQSandboxOrthoCamera.h>
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxControl3D.h>
 #include <CQSandboxGeomObject.h>
@@ -285,8 +286,13 @@ void
 Canvas3D::
 initCamera()
 {
-  camera_   = new Camera(app_);
-  fpCamera_ = new FPCamera(app_);
+  camera_      = new Camera(app_);
+  fpCamera_    = new FPCamera(app_);
+  orthoCamera_ = new OrthoCamera(app_);
+
+  cameras_.push_back(camera_);
+  cameras_.push_back(fpCamera_);
+  cameras_.push_back(orthoCamera_);
 }
 
 void
@@ -927,6 +933,30 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "smooth_shade") {
     value = QVariant(isSmoothShade());
   }
+  else if (name == "camera.type") {
+    if      (cameraType_ == CameraType::FIRST_PERSON)
+      value = "first_person";
+    else if (cameraType_ == CameraType::ORTHO)
+      value = "ortho";
+    else
+      value = "model";
+  }
+  else if (name == "camera.ortho_type") {
+    auto type = orthoCamera_->orthoType();
+
+    if      (type == OrthoCamera::OthroType::TOP)
+      value = "top";
+    else if (type == OrthoCamera::OthroType::BOTTOM)
+      value = "bottom";
+    else if (type == OrthoCamera::OthroType::LEFT)
+      value = "left";
+    else if (type == OrthoCamera::OthroType::RIGHT)
+      value = "right";
+    else if (type == OrthoCamera::OthroType::FRONT)
+      value = "front";
+    else if (type == OrthoCamera::OthroType::BACK)
+      value = "back";
+  }
   else if (name == "objects") {
     QStringList names;
 
@@ -943,7 +973,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
 bool
 Canvas3D::
-setValue(const QString &name, const QString &value, const QStringList &)
+setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = this->tcl();
 
@@ -1008,10 +1038,28 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "camera.type") {
     auto lvalue = value.toLower();
 
-    if (lvalue == "first_person")
+    if      (lvalue == "first_person")
       cameraType_ = CameraType::FIRST_PERSON;
+    else if (lvalue == "ortho" || lvalue == "orthographic")
+      cameraType_ = CameraType::ORTHO;
     else
       cameraType_ = CameraType::MODEL;
+  }
+  else if (name == "camera.ortho_type") {
+    auto lvalue = value.toLower();
+
+    if      (lvalue == "top")
+      orthoCamera_->setOrthoType(OrthoCamera::OthroType::TOP);
+    else if (lvalue == "bottom")
+      orthoCamera_->setOrthoType(OrthoCamera::OthroType::BOTTOM);
+    else if (lvalue == "left")
+      orthoCamera_->setOrthoType(OrthoCamera::OthroType::LEFT);
+    else if (lvalue == "right")
+      orthoCamera_->setOrthoType(OrthoCamera::OthroType::RIGHT);
+    else if (lvalue == "front")
+      orthoCamera_->setOrthoType(OrthoCamera::OthroType::FRONT);
+    else if (lvalue == "back")
+      orthoCamera_->setOrthoType(OrthoCamera::OthroType::BACK);
   }
   else if (name == "depth_test") {
     setDepthTest(Util::stringToBool(value));
@@ -1030,6 +1078,20 @@ setValue(const QString &name, const QString &value, const QStringList &)
   }
   else if (name == "model_dir") {
     modelDirs_.push_back(value);
+  }
+  else if (name == "clip") {
+    if (args.size() < 1)
+      return app_->errorMsg("Invalid args");
+
+    CVector3D n;
+    if (! Util::stringToVector3D(tcl, value, n))
+      return app_->errorMsg("Invalid clip normal '" + value + "'");
+
+    double d;
+    if (! Util::stringToReal(args[0], d))
+      return app_->errorMsg("Invalid clip distance '" + args[0] + "'");
+
+    clips_.push_back(CPlane3D(n, d));
   }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
@@ -1147,26 +1209,7 @@ resetCamera()
 
   auto bbox = this->bbox();
 
-  auto center  = bbox.getCenter();
-  auto maxSize = bbox.getMaxSize();
-
-  auto s2 = std::sqrt(2.0);
-
-  auto maxSize1 = s2*maxSize + camera->near();
-
-  auto origin = CVector3D(center.x, center.y, center.z);
-  auto pos    = CVector3D(center.x, center.y + maxSize1/2.0, center.z + maxSize1);
-
-  camera->setPosition(pos);
-
-  camera->setPitch(-M_PI/6.0);
-  camera->setYaw(0.0);
-  camera->setRoll(0.0);
-
-  camera->setOrigin(origin);
-
-  camera->moveAroundX(0.1);
-  camera->moveAroundY(0.1);
+  camera->reset(bbox);
 }
 
 bool
@@ -1336,8 +1379,8 @@ Canvas3D::
 initialize()
 {
   // camera
-  connect(camera_  , SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
-  connect(fpCamera_, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
+  for (auto *camera : cameras_)
+    connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
 
   //---
 
@@ -1398,14 +1441,43 @@ setRedrawTimeOut(int t)
 
 //---
 
-CGLCameraIFace *
+void
+Canvas3D::
+setProgramMatrices(ShaderProgram *program)
+{
+  // camera projection
+  program->setUniformValue("projection", CQGLUtil::toQMatrix(projectionMatrix()));
+
+  // camera/view transformation
+  program->setUniformValue("view", CQGLUtil::toQMatrix(viewMatrix()));
+
+  // view pos
+  program->setUniformValue("viewPos", CQGLUtil::toVector(viewPos()));
+}
+
+//---
+
+CameraIFace *
 Canvas3D::
 currentCamera() const
 {
-  if (cameraType_ == CameraType::FIRST_PERSON)
+  if      (cameraType_ == CameraType::FIRST_PERSON)
     return fpCamera_;
+  else if (cameraType_ == CameraType::ORTHO)
+    return orthoCamera_;
   else
     return camera_;
+}
+
+void
+Canvas3D::
+setCameraType(const CameraType &t)
+{
+  cameraType_ = t;
+
+  update();
+
+  Q_EMIT cameraChangedSignal();
 }
 
 //---
@@ -1543,13 +1615,38 @@ resetLight(Light3D *light)
 
 void
 Canvas3D::
+setProgramLightGlobals(ShaderProgram *program)
+{
+  program->setUniformValue("ambientColor"    , CQGLUtil::toVector(ambientColor()));
+  program->setUniformValue("ambientStrength" , float(ambientStrength()));
+
+  program->setUniformValue("diffuseStrength" , float(diffuseStrength()));
+
+  program->setUniformValue("specularColor"   , CQGLUtil::toVector(specularColor()));
+  program->setUniformValue("specularStrength", float(specularStrength()));
+
+  program->setUniformValue("emissionColor"   , CQGLUtil::toVector(emissiveColor()));
+  program->setUniformValue("emissiveStrength", float(emissiveStrength()));
+
+  program->setUniformValue("shininess", float(shininess())); // per face ?
+}
+
+void
+Canvas3D::
+setProgramSimpleLight(ShaderProgram *program)
+{
+  auto *light = currentLight();
+
+  program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->getPosition()));
+  program->setUniformValue("lightColor", CQGLUtil::toVector(light->getDiffuse()));
+}
+
+void
+Canvas3D::
 setProgramLights(ShaderProgram *program)
 {
   if (isSimpleLights()) {
-    auto *light = lights_[0];
-
-    program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->getPosition()));
-    program->setUniformValue("lightColor", CQGLUtil::toVector(light->getDiffuse()));
+    setProgramSimpleLight(program);
 
     return;
   }
@@ -2505,10 +2602,10 @@ keyPressEvent(QKeyEvent *e)
       camera->moveUp(d);
     }
     else if (k == Qt::Key_Down) {
-      camera->moveUp(-d);
+      camera->zoomOut(bbox);
     }
     else if (k == Qt::Key_Plus) {
-      camera->moveFront(d);
+      camera->zoomIn(bbox);
     }
     else if (k == Qt::Key_Minus) {
       camera->moveFront(-d);
@@ -2637,6 +2734,41 @@ addClip(const CPlane3D &clip)
   assert(clips_.size() < 4);
 
   clips_.push_back(clip);
+}
+
+void
+Canvas3D::
+enableClips(bool b)
+{
+  if (b) {
+    for (uint ic = 0; ic < clips_.size(); ++ic)
+      glEnable(GL_CLIP_DISTANCE0 + ic);
+  }
+  else {
+    for (uint ic = 0; ic < clips_.size(); ++ic)
+      glDisable(GL_CLIP_DISTANCE0 + ic);
+  }
+}
+
+void
+Canvas3D::
+setProgramClips(ShaderProgram *program)
+{
+  program->setUniformValue("numClipPlanes", int(clips_.size()));
+
+  int clip_i = 0;
+
+  for (const auto &clip : clips_) {
+    const auto &n = clip.getNormal();
+
+    auto cv = QVector4D(n.getX(), n.getY(), n.getZ(), clip.getConstant());
+
+    auto clipName = "clipPlane[" + std::to_string(clip_i) + "]";
+
+    program->setUniformValue(clipName.c_str(), cv);
+
+    ++clip_i;
+  }
 }
 
 //---

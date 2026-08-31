@@ -55,49 +55,12 @@ Skybox3DObj::
 initShader()
 {
   if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 pos;\n"
-      "out vec3 fragPos;\n"
-      "uniform mat4 projection;\n"
-      "uniform mat4 view;\n"
-      "uniform mat4 model;\n"
-      "void main() {\n"
-      "  fragPos = pos;\n"
-      "  //gl_Position = projection * view * model * vec4(pos, 1.0);\n"
-      "  gl_Position = (projection * view * model * vec4(pos, 1.0)).xyww;\n"
-      "  //gl_Position = view * model * vec4(pos, 1.0);\n"
-      "}\n";
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "uniform samplerCube textureId;\n"
-      "//uniform sampler2D textureId;\n"
-      "uniform bool isWireframe;\n"
-      "in vec3 fragPos;\n"
-      "out vec4 outCol;\n"
-      "void main() {\n"
-      "  if (isWireframe) {\n"
-      "    outCol = vec4(fragPos, 1.0);\n"
-      "  } else {\n"
-      "    outCol = texture(textureId, fragPos);\n"
-      "    //outCol = texture(textureId, 0.5*(fragPos.xy + 1.0));\n"
-      "    //outCol = vec4(fragPos, 1.0);\n"
-      "  }\n"
-      "}\n";
-#endif
-
     auto *app = canvas_->app();
 
     s_program = new ShaderProgram(this);
 
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
     s_program->addVertexFile  (app->buildDir() + "/shaders/skybox.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/skybox.fs");
-#endif
 
     s_program->link();
   }
@@ -320,11 +283,7 @@ render()
 
     s_program->setUniformValue("textureId", 0);
 
-    // pass projection matrix to shader (note that in this case it could change every frame)
-    s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-
-    // camera/view transformation
-    s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+    canvas_->setProgramMatrices(s_program);
 
     // model rotation
     s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));

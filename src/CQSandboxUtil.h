@@ -340,21 +340,28 @@ inline CPoint3D stringToPoint3D(CQTcl *tcl, const QString &str) {
   return p;
 }
 
-inline CVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
+inline bool stringToVector3D(CQTcl *tcl, const QString &str, CVector3D &v) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
+  if (strs.size() < 3)
+    return false;
+
   CVector3D p;
 
-  if (strs.size() >= 3) {
-    auto x = stringToReal(strs[0]);
-    auto y = stringToReal(strs[1]);
-    auto z = stringToReal(strs[2]);
+  double x, y, z;
+  if (! stringToReal(strs[0], x) || ! stringToReal(strs[1], y) || ! stringToReal(strs[2], z))
+    return false;
 
-    p = CVector3D(x, y, z);
-  }
+  v = CVector3D(x, y, z);
 
-  return p;
+  return true;
+}
+
+inline CVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
+  CVector3D v;
+  (void) stringToVector3D(tcl, str, v);
+  return v;
 }
 
 inline CGLVector3D stringToGLVector3D(CQTcl *tcl, const QString &str) {

@@ -59,34 +59,12 @@ Path3DObj::
 initShader()
 {
   if (! s_program) {
-#if 0
-    static const char *vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "uniform highp mat4 projection;\n"
-      "uniform highp mat4 view;\n"
-      "uniform highp mat4 model;\n"
-      "void main() {\n"
-      "  gl_Position = projection * view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-      "}";
-    static const char *fragmentShaderSource =
-      "#version 330 core\n"
-      "void main() {\n"
-      "  gl_FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
-      "}\n";
-#endif
-
     auto *app = canvas_->app();
 
     s_program = new ShaderProgram(this);
 
-#if 0
-    s_program->addVertexCode  (vertexShaderSource);
-    s_program->addFragmentCode(fragmentShaderSource);
-#else
     s_program->addVertexFile  (app->buildDir() + "/shaders/path.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/path.fs");
-#endif
 
     s_program->link();
   }
@@ -219,8 +197,7 @@ render()
   //s_program->bind();
   canvas_->bindProgram(s_program);
 
-  s_program->setUniformValue("projection", CQGLUtil::toQMatrix(canvas_->projectionMatrix()));
-  s_program->setUniformValue("view", CQGLUtil::toQMatrix(canvas_->viewMatrix()));
+  canvas_->setProgramMatrices(s_program);
 
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));

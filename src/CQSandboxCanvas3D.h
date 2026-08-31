@@ -25,7 +25,6 @@ class CGeomFace3D;
 class CGeomVertex3D;
 class CQGLBuffer;
 class CQTcl;
-class CGLCameraIFace;
 
 class QTimer;
 
@@ -40,8 +39,11 @@ class ShaderToyProgram;
 class Light3D;
 class Path3DObj;
 class ParticleList3DObj;
+
 class Camera;
 class FPCamera;
+class OrthoCamera;
+class CameraIFace;
 
 //---
 
@@ -130,7 +132,8 @@ class Canvas3D : public OpenGLWindow {
 
   enum class CameraType {
     MODEL,
-    FIRST_PERSON
+    FIRST_PERSON,
+    ORTHO
   };
 
   using Mgrs    = std::map<QString, ObjectMgr3D *>;
@@ -153,6 +156,8 @@ class Canvas3D : public OpenGLWindow {
 
     FrameMatrix frameMatrix;
   };
+
+  using Cameras = std::vector<CameraIFace *>;
 
  public:
   Canvas3D(App *app);
@@ -229,10 +234,22 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  Camera   *camera  () const { return camera_  ; }
-  FPCamera *fpCamera() const { return fpCamera_; }
+  void setProgramMatrices(ShaderProgram *program);
 
-  CGLCameraIFace *currentCamera() const;
+  //---
+
+  Camera      *camera     () const { return camera_  ; }
+  FPCamera    *fpCamera   () const { return fpCamera_; }
+  OrthoCamera *orthoCamera() const { return orthoCamera_; }
+
+  const Cameras &cameras() const { return cameras_; }
+
+  CameraIFace *currentCamera() const;
+
+  const CameraType &cameraType() const { return cameraType_; }
+  void setCameraType(const CameraType &cameraType);
+
+  //---
 
   double modelXAngle() const { return modelXAngle_; }
   double modelYAngle() const { return modelYAngle_; }
@@ -246,6 +263,8 @@ class Canvas3D : public OpenGLWindow {
 
   void resetLight(Light3D *);
 
+  void setProgramLightGlobals(ShaderProgram *program);
+  void setProgramSimpleLight(ShaderProgram *program);
   void setProgramLights(ShaderProgram *program);
 
   const std::vector<Light3D *> lights() const { return lights_; }
@@ -268,9 +287,6 @@ class Canvas3D : public OpenGLWindow {
 
   const Type &type() const { return type_; }
   void setType(const Type &type);
-
-  const CameraType &cameraType() const { return cameraType_; }
-  void setCameraType(const CameraType &cameraType);
 
   //---
 
@@ -417,6 +433,10 @@ class Canvas3D : public OpenGLWindow {
 
   void addClip(const CPlane3D &clip);
 
+  void enableClips(bool b);
+
+  void setProgramClips(ShaderProgram *program);
+
   const std::vector<CPlane3D> &clips() const { return clips_; }
 
   //---
@@ -460,6 +480,8 @@ class Canvas3D : public OpenGLWindow {
 
   void uiUpdateSignal();
 
+  void cameraChangedSignal();
+
   void lightAdded();
 
  private:
@@ -492,9 +514,9 @@ class Canvas3D : public OpenGLWindow {
 
   using ObjectMeshDataMap = std::map<CGeomObject3D *, ObjectMeshData>;
 
-  //---
-
   using Points = std::vector<CVector3D>;
+
+  ///---
 
   App* app_ { nullptr };
 
@@ -526,8 +548,10 @@ class Canvas3D : public OpenGLWindow {
   bool animEnabled_    { true };
   bool lightsVisible_  { false };
 
-  Type       type_       { Type::CAMERA };
+  Type type_ { Type::CAMERA };
+
   CameraType cameraType_ { CameraType::MODEL };
+  Cameras    cameras_;
 
   bool depthTest_   { true };
   bool cullFace_    { true };
@@ -556,8 +580,9 @@ class Canvas3D : public OpenGLWindow {
 
   CGeomScene3D* scene_ { nullptr };
 
-  Camera*   camera_   { nullptr };
-  FPCamera* fpCamera_ { nullptr };
+  Camera*      camera_      { nullptr };
+  FPCamera*    fpCamera_    { nullptr };
+  OrthoCamera* orthoCamera_ { nullptr };
 
   Path3DObj* eyeLine_ { nullptr };
 
