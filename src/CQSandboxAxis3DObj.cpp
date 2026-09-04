@@ -58,12 +58,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "start") {
-    start_ = Util::stringToVector3D(tcl, value);
+    if (! Util::stringToVector3D(tcl, value, start_))
+      return false;
 
     setNeedsUpdate();
   }
   else if (name == "end") {
-    end_ = Util::stringToVector3D(tcl, value);
+    if (! Util::stringToVector3D(tcl, value, end_))
+      return false;
 
     setNeedsUpdate();
   }

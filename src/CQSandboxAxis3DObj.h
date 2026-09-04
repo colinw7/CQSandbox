@@ -23,6 +23,8 @@ class Axis3DObj : public Object3D {
 
   void init() override;
 
+  CBBox3D calcBBox() override { return bbox_; }
+
   void tick() override;
 
   void render() override;

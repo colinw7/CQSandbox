@@ -39,6 +39,8 @@ class Skybox3DObj : public Object3D {
 
   void updateObjectData();
 
+  CBBox3D calcBBox() override { return bbox_; }
+
   void render() override;
 
  private:

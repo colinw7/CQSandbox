@@ -12,6 +12,9 @@ class BBox3DObj : public Object3D {
   Q_OBJECT
 
  public:
+  using Points = std::vector<CGLVector3D>;
+
+ public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   BBox3DObj(Canvas3D *canvas);
@@ -22,19 +25,21 @@ class BBox3DObj : public Object3D {
 
   void initShader();
 
+  CBBox3D calcBBox() override { return bbox_; }
+
   void updateGL();
 
   void render() override;
 
- protected:
-  using Points = std::vector<CGLVector3D>;
+  const CBBox3D &parentBBox() const { return parentBBox_; }
+  void setParentBBox(const CBBox3D &v) { parentBBox_ = v; }
 
+ protected:
   static ShaderProgram* s_program;
 
   Points points_;
 
-  unsigned int pointsBufferId_ { 0 };
-  unsigned int vertexArrayId_  { 0 };
+  CBBox3D parentBBox_;
 };
 
 }

@@ -102,7 +102,7 @@ setModelMatrix(uint matrixFlags)
     modelMatrix_.translated(c.x, c.y, c.z);
 
   if (matrixFlags & ModelMatrixFlags::SCALE)
-    modelMatrix_.scaled(xscale(), yscale(), zscale());
+    modelMatrix_.scaled(xScale(), yScale(), zScale());
 
   if (matrixFlags & ModelMatrixFlags::ROTATE) {
     modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
@@ -159,8 +159,6 @@ render()
     calcBBox();
 
     createBBoxObj();
-
-    bboxObj_->render();
   }
 }
 

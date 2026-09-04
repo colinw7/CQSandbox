@@ -29,6 +29,8 @@ class Dungeon3DObj : public Object3D {
 
   void updateObjs();
 
+  CBBox3D calcBBox() override { return bbox_; }
+
   void render() override;
 
   void updatePlayerCamera(bool isGame);

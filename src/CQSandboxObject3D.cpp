@@ -5,6 +5,8 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
+#include <CQGLBuffer.h>
+
 namespace CQSandbox {
 
 Object3D::
@@ -190,12 +192,12 @@ setModelMatrix(uint matrixFlags)
     modelMatrix_.translated(float(pos.getX()), float(pos.getY()), float(pos.getZ()));
 
   if (matrixFlags & ModelMatrixFlags::SCALE)
-    modelMatrix_.scaled(xscale(), yscale(), zscale());
+    modelMatrix_.scaled(xScale(), yScale(), zScale());
 }
 
 bool
 Object3D::
-getValue(const QString &name, const QStringList &, QVariant &value)
+getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas()->app();
 
@@ -215,6 +217,40 @@ getValue(const QString &name, const QStringList &, QVariant &value)
     value = Util::realToString(Util::radToDeg(zAngle()));
   else if (name == "group")
     value = (group() ? group()->calcId() : "");
+  else if (name == "faces") {
+    const auto &faces = getFaceDatas();
+
+    QStringList faceIds;
+
+    for (uint i = 0; i < faces.size(); ++i)
+      faceIds.push_back(QString::number(i));
+
+    value = faceIds;
+  }
+  else if (name == "face.center") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(args[0], ind))
+      return false;
+
+    auto center = getFaceCenter(ind);
+
+    value = Util::point3DToString(center);
+  }
+  else if (name == "face.normal") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(args[0], ind))
+      return false;
+
+    auto normal = getFaceNormal(ind);
+
+    value = Util::vector3DToString(normal);
+  }
   else
     return app->errorMsg(QString("Invalid get name '%1'").arg(name));
 
@@ -325,6 +361,80 @@ render()
 {
 }
 
+CPoint3D
+Object3D::
+getFaceCenter(int i) const
+{
+  CPoint3D c;
+
+  const auto &faceDatas = this->getFaceDatas();
+
+  if (i < 0 || i >= int(faceDatas.size()))
+    return c;
+
+  const auto &modelMatrix = this->modelMatrix();
+  const auto &meshMatrix  = this->meshMatrix();
+
+  auto matrix = modelMatrix*meshMatrix;
+
+  auto *buffer = this->getBuffer();
+  if (! buffer) return c;
+
+  const auto &faceData = faceDatas[i];
+
+  std::vector<CPoint3D> points;
+
+  for (int i = 0; i < faceData.len; ++i) {
+    CQGLBuffer::PointData pointData;
+    buffer->getPointData(faceData.pos + i, pointData);
+
+    auto pp = matrix*pointData.point->point();
+
+    points.push_back(pp);
+  }
+
+  c = Util::pointsCenter(points);
+
+  return  c;
+}
+
+CVector3D
+Object3D::
+getFaceNormal(int i) const
+{
+  CVector3D n;
+
+  const auto &faceDatas = this->getFaceDatas();
+
+  if (i < 0 || i >= int(faceDatas.size()))
+    return n;
+
+  const auto &modelMatrix = this->modelMatrix();
+  const auto &meshMatrix  = this->meshMatrix();
+
+  auto matrix = modelMatrix*meshMatrix;
+
+  auto *buffer = this->getBuffer();
+  if (! buffer) return n;
+
+  const auto &faceData = faceDatas[i];
+
+  std::vector<CPoint3D> points;
+
+  for (int i = 0; i < faceData.len; ++i) {
+    CQGLBuffer::PointData pointData;
+    buffer->getPointData(faceData.pos + i, pointData);
+
+    auto pp = matrix*pointData.point->point();
+
+    points.push_back(pp);
+  }
+
+  n = Util::pointsNormal(points);
+
+  return n;
+}
+
 void
 Object3D::
 createBBoxObj()
@@ -335,9 +445,41 @@ createBBoxObj()
     bboxObj_->init();
   }
 
-  bboxObj_->setPosition(bbox_.getCenter());
+  if (bbox_ != bboxObj_->parentBBox()) {
+    bboxObj_->setParentBBox(bbox_);
 
-  bboxObj_->setScales(bbox_.getXSize(), bbox_.getYSize(), bbox_.getZSize());
+    bboxObj_->setPosition(bbox_.getCenter());
+
+    auto s = 1.01;
+
+    bboxObj_->setScales(s*bbox_.getXSize(), s*bbox_.getYSize(), s*bbox_.getZSize());
+
+    bboxObj_->setNeedsUpdate();
+  }
+}
+
+//---
+
+void
+Object3D::
+clearSelection()
+{
+  selectedPoints_.clear();
+  selectedFaces_ .clear();
+}
+
+void
+Object3D::
+selectPoint(int i)
+{
+  selectedPoints_.insert(i);
+}
+
+void
+Object3D::
+selectFace(int i)
+{
+  selectedFaces_.insert(i);
 }
 
 }

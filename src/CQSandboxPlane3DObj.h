@@ -44,6 +44,8 @@ class Plane3DObj : public Object3D {
 
   void updateGL();
 
+  CBBox3D calcBBox() override;
+
   void render() override;
 
  protected:
@@ -53,7 +55,7 @@ class Plane3DObj : public Object3D {
 
   static ShaderProgram* s_program;
 
-  QColor color_;
+  QColor color_ { Qt::white };
 
   QString      textureFile_;
   CQGLTexture *texture_    { nullptr };
@@ -62,11 +64,6 @@ class Plane3DObj : public Object3D {
   Points    points_;
   Colors    colors_;
   TexCoords texCoords_;
-
-  unsigned int pointsBufferId_   { 0 };
-  unsigned int colorsBufferId_   { 0 };
-  unsigned int texCoordBufferId_ { 0 };
-  unsigned int vertexArrayId_    { 0 };
 };
 
 }

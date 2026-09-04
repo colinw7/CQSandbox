@@ -45,13 +45,7 @@ init()
 
   //---
 
-#if 0
-  canvas_->glGenVertexArrays(1, &vertexArrayId_);
-
-  canvas_->glGenBuffers(1, &pointsBufferId_);
-#else
   buffer_ = s_program->createBuffer();
-#endif
 }
 
 void
@@ -110,12 +104,16 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       if (strs1.size() < 2) continue;
 
       if      (strs1[0] == "M") {
-        auto p = Util::stringToVector3D(tcl, strs1[1]);
+        CVector3D p;
+        if (! Util::stringToVector3D(tcl, strs1[1], p))
+          return false;
 
         path_.moveTo(p);
       }
       else if (strs1[0] == "L") {
-        auto p = Util::stringToVector3D(tcl, strs1[1]);
+        CVector3D p;
+        if (! Util::stringToVector3D(tcl, strs1[1], p))
+          return false;
 
         path_.lineTo(p);
       }
@@ -127,6 +125,62 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   }
   else
     return Object3D::setValue(name, value, args);
+
+  return true;
+}
+
+bool
+Path3DObj::
+exec(const QString &op, const QStringList &args, QVariant &res)
+{
+  auto *tcl = canvas()->tcl();
+
+  if      (op == "moveTo") {
+    if (args.size() < 1)
+      return false;
+
+    CVector3D p;
+    if (! Util::stringToVector3D(tcl, args[0], p))
+      return false;
+
+    path_.moveTo(p);
+  }
+  else if (op == "lineTo") {
+    if (args.size() < 1)
+      return false;
+
+    CVector3D p;
+    if (! Util::stringToVector3D(tcl, args[0], p))
+      return false;
+
+    path_.lineTo(p);
+  }
+#if 0
+  else if (op == "curveTo") {
+    if (args.size() < 2)
+      return false;
+
+    CPoint3D p1;
+    if (! Util::stringToPoint3D(tcl, args[0], p1))
+      return false;
+
+    CPoint3D p2;
+    if (! Util::stringToPoint3D(tcl, args[1], p2))
+      return false;
+
+    if (args.size() > 2) {
+      CPoint3D p3;
+      if (! Util::stringToPoint3D(tcl, args[2], p3))
+        return false;
+
+      path_.cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+    }
+    else
+      path_.quadTo(p1.x, p1.y, p2.x, p2.y);
+  }
+#endif
+  else
+    return Object3D::exec(op, args, res);
 
   return true;
 }
@@ -155,35 +209,12 @@ updateGL()
 
   auto np = points_.size();
 
-#if 0
-  // bind the Vertex Array Object
-  canvas_->glBindVertexArray(vertexArrayId_);
-
-  //---
-
-  // store point data in array buffer
-  uint aPos = 0;
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CVector3D), &points_[0], GL_STATIC_DRAW);
-
-  // set points attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CVector3D), nullptr);
-  canvas_->glEnableVertexAttribArray(aPos);
-
-  //---
-
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
-//canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  0);
-
-  canvas_->glBindVertexArray(0);
-#else
   buffer_->clearBuffers();
 
   for (uint i = 0; i < np; ++i)
-    buffer_->addPoint(points_[i].x(), points_[i].y(), points_[i].z());
+    buffer_->addPoint(points_[i]);
 
   buffer_->load();
-#endif
 }
 
 void
@@ -204,12 +235,8 @@ render()
 
   //---
 
-#if 0
-  canvas_->glBindVertexArray(vertexArrayId_);
-#else
   //buffer_->bind();
   canvas_->bindBuffer(buffer_);
-#endif
 
   //---
 

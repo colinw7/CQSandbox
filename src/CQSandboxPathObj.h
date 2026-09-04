@@ -20,6 +20,8 @@ class PathObj : public Object {
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
+  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
+
   Rect calcRect() const override;
 
   void draw(QPainter *) override;
@@ -29,5 +31,4 @@ class PathObj : public Object {
 };
 
 }
-
 #endif

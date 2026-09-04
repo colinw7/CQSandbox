@@ -54,21 +54,6 @@ double polygonArea(const QPolygonF &poly) {
   return area;
 }
 
-CPoint3D pointsCenter(const std::vector<CPoint3D> &points) {
-  CPoint3D c(0, 0, 0);
-
-  if (! points.empty()) {
-    for (const auto &p : points)
-      c += p;
-
-    c /= points.size();
-  }
-
-  return c;
-}
-
-QPoint toQPoint(const CPoint2D &p) { return QPoint(p.x, p.y); }
-
 }
 
 namespace CQSandbox {
@@ -597,7 +582,7 @@ updateGeomObject(CGeomObject3D *object)
 
   faces.clear();
 
-  auto *buffer = geomObject1->buffer();
+  auto *buffer = geomObject1->getBuffer();
 
   for (const auto &faceData : geomObject1->faceDatas()) {
     Face face;
@@ -1141,7 +1126,7 @@ drawSprite(Sprite3DObj *obj)
   auto w = image.width ();
   auto h = image.height();
 
-  auto image1 = image.scaled(w*obj->xscale(), h*obj->yscale());
+  auto image1 = image.scaled(w*obj->xScale(), h*obj->yScale());
 
   drawImage(pos, image1);
 }
@@ -1244,7 +1229,7 @@ drawModelPolygon(const std::vector<CPoint3D> &points, bool selected) const
     ppoints.push_back(CPoint2D(p2.getX(), p2.getY()));
   }
 
-  auto c = pointsCenter(points);
+  auto c = Util::pointsCenter(points);
 
   drawPolygon2D(xview_, c.x, xpoints);
   drawPolygon2D(yview_, c.y, ypoints);
@@ -1609,7 +1594,8 @@ mousePressEvent(QMouseEvent *e)
 
   if      (mouseData_.button == Qt::LeftButton) {
     if      (editType() == EditType::SELECT) {
-      rubberBand_->setBounds(toQPoint(mouseData_.pressPos), toQPoint(mouseData_.movePos1));
+      rubberBand_->setBounds(Util::toQPoint(mouseData_.pressPos),
+                             Util::toQPoint(mouseData_.movePos1));
       rubberBand_->show();
     }
     else if (editType() == EditType::CAMERA) {
@@ -1642,7 +1628,8 @@ mouseMoveEvent(QMouseEvent *e)
   if (mouseData_.pressed) {
     if      (mouseData_.button == Qt::LeftButton) {
       if      (editType() == EditType::SELECT) {
-        rubberBand_->setBounds(toQPoint(mouseData_.pressPos), toQPoint(mouseData_.movePos2));
+        rubberBand_->setBounds(Util::toQPoint(mouseData_.pressPos),
+                               Util::toQPoint(mouseData_.movePos2));
       }
       else if (editType() == EditType::CAMERA) {
         if      (mouseData_.isShift)

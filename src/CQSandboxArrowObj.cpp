@@ -18,8 +18,10 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  auto p1 = Util::stringToPoint(tcl, args[0]);
-  auto p2 = Util::stringToPoint(tcl, args[1]);
+  Point p1, p2;
+  if (! Util::stringToPoint(tcl, args[0], p1) ||
+      ! Util::stringToPoint(tcl, args[1], p2))
+    return false;
 
   auto *obj = new ArrowObj(canvas, p1, p2);
 
@@ -57,10 +59,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
 
-  if      (name == "p1")
-    p1_ = Util::stringToPoint(tcl, value);
-  else if (name == "p2")
-    p2_ = Util::stringToPoint(tcl, value);
+  if      (name == "p1") {
+    if (! Util::stringToPoint(tcl, value, p1_))
+      return false;
+  }
+  else if (name == "p2") {
+    if (! Util::stringToPoint(tcl, value, p2_))
+      return false;
+  }
   else if (name == "lineWidth")
     arrow_->setLineWidth(Util::stringToReal(value));
   else if (name == "front.visible")

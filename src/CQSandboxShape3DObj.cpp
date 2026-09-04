@@ -108,7 +108,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "points") {
-    shapeData_.setPoints(Util::stringToVectors3D(tcl, value));
+    std::vector<CVector3D> points;
+    if (! Util::stringToVectors3D(tcl, value, points))
+      return false;
+
+    shapeData_.setPoints(points);
 
     setNeedsUpdate();
   }
@@ -158,46 +162,36 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     setNeedsUpdate();
   }
+
   // cone <r> <h>
   else if (name == "cone") {
+    shapeType_ = ShapeType::CONE;
+
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
-    if (strs.size() != 2)
-      return app->errorMsg("Invalid dimensions for cone");
+    double r = 1.0;
+    double h = 1.0;
 
-    double r = Util::stringToReal(strs[0]);
-    double h = Util::stringToReal(strs[1]);
+    if      (strs.size() == 1) {
+      r = Util::stringToReal(value);
+      h = r;
+    }
+    else if (strs.size() == 2) {
+      r = Util::stringToReal(strs[0]);
+      h = Util::stringToReal(strs[1]);
+    }
+    else if (! strs.empty())
+      return app->errorMsg("Invalid dimensions for cone");
 
     shapeData_.addCone(r, h);
 
     setNeedsUpdate();
   }
-  // cylinder <r> <h>
-  else if (name == "cylinder") {
-    QStringList strs;
-    (void) tcl->splitList(value, strs);
-
-    if (strs.size() != 2)
-      return app->errorMsg("Invalid dimensions for cylinder");
-
-    double r = Util::stringToReal(strs[0]);
-    double h = Util::stringToReal(strs[1]);
-
-    shapeData_.addCylinder(r, h);
-
-    setNeedsUpdate();
-  }
-  // sphere <r>
-  else if (name == "sphere") {
-    double r = Util::stringToReal(value);
-
-    shapeData_.addSphere(r);
-
-    setNeedsUpdate();
-  }
   // cube <sx> <sy> >sz>
   else if (name == "cube") {
+    shapeType_ = ShapeType::CUBE;
+
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
@@ -213,10 +207,48 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       sy = Util::stringToReal(strs[1]);
       sz = Util::stringToReal(strs[2]);
     }
-    else
+    else if (! strs.empty())
       return app->errorMsg("bad sizes for cube");
 
     shapeData_.addCube(sx, sy, sz);
+
+    setNeedsUpdate();
+  }
+  // cylinder <r> <h>
+  else if (name == "cylinder") {
+    shapeType_ = ShapeType::CYLINDER;
+
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    double r = 1.0;
+    double h = 1.0;
+
+    if      (strs.size() == 1) {
+      r = Util::stringToReal(value);
+      h = r;
+    }
+    else if (strs.size() == 2) {
+      r = Util::stringToReal(strs[0]);
+      h = Util::stringToReal(strs[1]);
+    }
+    else if (! strs.empty())
+      return app->errorMsg("Invalid dimensions for cylinder");
+
+    shapeData_.addCylinder(r, h);
+
+    setNeedsUpdate();
+  }
+  // sphere <r>
+  else if (name == "sphere") {
+    shapeType_ = ShapeType::SPHERE;
+
+    double r = 1.0;
+
+    if (value != "")
+      r = Util::stringToReal(value);
+
+    shapeData_.addSphere(r);
 
     setNeedsUpdate();
   }
@@ -358,17 +390,17 @@ updateGL()
   buffer_->clearBuffers();
 
   for (uint i = 0; i < np; ++i) {
-    buffer_->addPoint (points [i].x(), points [i].y(), points [i].z());
-    buffer_->addNormal(normals[i].x(), normals[i].y(), normals[i].z());
+    buffer_->addPoint (points [i]);
+    buffer_->addNormal(normals[i]);
   }
 
   if (nt == np) {
     for (uint i = 0; i < np; ++i)
-      buffer_->addTexturePoint(texCoords[i].x(), texCoords[i].y());
+      buffer_->addTexturePoint(texCoords[i]);
   }
   else {
     for (uint i = 0; i < np; ++i)
-      buffer_->addTexturePoint(s_texCoords[i].x(), s_texCoords[i].y());
+      buffer_->addTexturePoint(s_texCoords[i]);
   }
 
   if (nc == np) {
@@ -434,6 +466,13 @@ calcNormals()
   }
 }
 
+const Shape3DObj::FaceDatas &
+Shape3DObj::
+getFaceDatas() const
+{
+  return shapeData_.faceDatas();
+}
+
 void
 Shape3DObj::
 render()
@@ -442,8 +481,6 @@ render()
     calcBBox();
 
     createBBoxObj();
-
-    bboxObj_->render();
   }
 
   //---

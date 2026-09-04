@@ -61,6 +61,8 @@ class Surface3DObj : public Object3D {
 
   void calcNormals();
 
+  CBBox3D calcBBox() override { return bbox_; }
+
   void render() override;
 
  private:

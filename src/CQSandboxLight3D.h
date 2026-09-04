@@ -32,6 +32,8 @@ class Light3D : public QObject, public CGeomLight3D {
 
   void render();
 
+  CQGLBuffer *getBuffer() const { return buffer_; }
+
  Q_SIGNALS:
   void changedSignal();
 

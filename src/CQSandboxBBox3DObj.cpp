@@ -3,6 +3,7 @@
 #include <CQSandboxApp.h>
 
 #include <CQTclUtil.h>
+#include <CQGLBuffer.h>
 #include <CQGLUtil.h>
 
 namespace CQSandbox {
@@ -44,9 +45,33 @@ init()
 
   //---
 
-  canvas_->glGenVertexArrays(1, &vertexArrayId_);
+  buffer_ = s_program->createBuffer();
+}
 
-  canvas_->glGenBuffers(1, &pointsBufferId_);
+void
+BBox3DObj::
+initShader()
+{
+  if (! s_program) {
+    auto *app = canvas_->app();
+
+    s_program = new ShaderProgram(this);
+
+    s_program->addVertexFile  (app->buildDir() + "/shaders/bbox.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/bbox.fs");
+
+    s_program->link();
+  }
+}
+
+void
+BBox3DObj::
+updateGL()
+{
+  if (! needsUpdate_)
+    return;
+
+  needsUpdate_ = false;
 
   //---
 
@@ -100,72 +125,25 @@ init()
     CGLVector3D(-0.5f,  0.5f, -0.5f)
   };
 
+  //---
+
   points_ = points;
 
-  Object3D::init();
-}
+  auto np = points_.size();
 
-void
-BBox3DObj::
-initShader()
-{
-  if (! s_program) {
-    auto *app = canvas_->app();
+  buffer_->clearBuffers();
 
-    s_program = new ShaderProgram(this);
+  for (uint i = 0; i < np; ++i)
+    buffer_->addPoint(points_[i]);
 
-    s_program->addVertexFile  (app->buildDir() + "/shaders/bbox.vs");
-    s_program->addFragmentFile(app->buildDir() + "/shaders/bbox.fs");
-
-    s_program->link();
-  }
-}
-
-void
-BBox3DObj::
-updateGL()
-{
-  if (! needsUpdate_)
-    return;
-
-  needsUpdate_ = false;
-
-  //---
-
-  // bind the Vertex Array Object
-  canvas_->glBindVertexArray(vertexArrayId_);
-
-  //---
-
-  int np = points_.size();
-
-  // store point data in array buffer (vec3, location 0)
-  uint aPos = 0;
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &points_[0], GL_STATIC_DRAW);
-
-  // set points attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
-  canvas_->glEnableVertexAttribArray(aPos);
-
-  //---
-
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  canvas_->glBindVertexArray(0);
+  buffer_->load();
 }
 
 void
 BBox3DObj::
 render()
 {
-  initShader();
-
   updateGL();
-
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-  glDisable(GL_CULL_FACE);
 
   //---
 
@@ -179,7 +157,14 @@ render()
 
   //---
 
-  canvas_->glBindVertexArray(vertexArrayId_);
+  //buffer_->bind();
+  canvas_->bindBuffer(buffer_);
+
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+  glDisable(GL_CULL_FACE);
+
+  //---
 
   int np = points_.size();
 

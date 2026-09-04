@@ -21,11 +21,14 @@ create(Canvas *canvas, const QStringList &args)
   QString text;
 
   if      (args.size() >= 2) {
-    pos  = Util::stringToPoint(tcl, args[0]);
+    if (! Util::stringToPoint(tcl, args[0], pos))
+      return false;
+
     text = args[1];
   }
   else if (args.size() >= 1) {
-    pos= Util::stringToPoint(tcl, args[0]);
+    if (! Util::stringToPoint(tcl, args[0], pos))
+      return false;
   }
 
   auto *obj = new TextObj(canvas, pos, text);
@@ -68,8 +71,10 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
 
-  if      (name == "position")
-    pos_ = Util::stringToPoint(tcl, value);
+  if      (name == "position") {
+    if (! Util::stringToPoint(tcl, value, pos_))
+      return false;
+  }
   else if (name == "text")
     text_ = value;
   else if (name == "align")

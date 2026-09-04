@@ -2,11 +2,9 @@
 #define CQSandboxModel3DObj_H
 
 #include <CQSandboxObject3D.h>
-#include <CQSandboxFaceData.h>
 
 #include <CImagePtr.h>
 
-class CQGLBuffer;
 class CQGLTexture;
 class CGeomObject3D;
 class CGeomTexture;
@@ -71,6 +69,10 @@ class Model3DObj : public Object3D {
 
   void tick() override;
 
+  CBBox3D calcBBox() override { return bbox_; }
+
+  const FaceDatas &getFaceDatas() const override;
+
   void render() override;
 
   void calcTangents();
@@ -97,10 +99,6 @@ class Model3DObj : public Object3D {
   void calcTangents1(CGeomObject3D *object);
 
  protected:
-  using FaceDatas = std::vector<FaceData>;
-
-  //---
-
   struct TextureBuffer {
     CQGLTexture*   texture       { nullptr };
     ShaderProgram* shaderProgram { nullptr };

@@ -13,9 +13,10 @@
 
 #include <map>
 
+class CQRubberBand;
+
 class CGeomObject3D;
 class CGeomFace3D;
-class CQRubberBand;
 class CGLCameraIFace;
 
 namespace CQSandbox {

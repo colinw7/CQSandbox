@@ -41,9 +41,8 @@ inline bool stringToInt(const QString &s, int &i) {
 }
 
 inline int stringToInt(const QString &s) {
-  int i;
-  if (! stringToInt(s, i))
-    i = 0;
+  int i = 0;
+  (void) stringToInt(s, i);
   return i;
 }
 
@@ -54,26 +53,37 @@ inline bool stringToReal(const QString &s, double &r) {
 }
 
 inline double stringToReal(const QString &s) {
-  double r;
-  if (! stringToReal(s, r))
-    r = 0.0;
+  double r = 0.0;
+  (void) stringToReal(s, r);
   return r;
 }
 
-inline bool stringToBool(const QString &s) {
+inline bool stringToBool(const QString &s, bool &b) {
   auto s1 = s.toLower();
-  if (s1 == "false" || s1 == "no" || s1 == "0")
+
+  if      (s1 == "false" || s1 == "no" || s1 == "0")
+    b = false;
+  else if (s1 == "true" || s1 == "yes" || s1 == "1")
+    b = true;
+  else
     return false;
-  if (s1 == "true" || s1 == "yes" || s1 == "1")
-    return true;
-  return /*default*/true;
+
+  return true;
+}
+
+inline bool stringToBool(const QString &s) {
+  bool b = false;
+  (void) stringToBool(s, b);
+  return b;
 }
 
 //---
 
-inline QColor stringToColor(CQTcl *tcl, const QString &str) {
-  if (str == "none")
-    return Qt::transparent;
+inline bool stringToColor(CQTcl *tcl, const QString &str, QColor &c) {
+  if (str == "none") {
+    c = Qt::transparent;
+    return true;
+  }
 
   QStringList strs;
   (void) tcl->splitList(str, strs);
@@ -85,10 +95,18 @@ inline QColor stringToColor(CQTcl *tcl, const QString &str) {
 
     auto a = (strs.size() == 4 ? stringToReal(strs[3]) : 1.0);
 
-    return QColor(r*255, g*255, b*255, a*255);
+    c = QColor(r*255, g*255, b*255, a*255);
   }
+  else
+    c = QColor(str);
 
-  return QColor(str);
+  return true;
+}
+
+inline QColor stringToColor(CQTcl *tcl, const QString &s) {
+  QColor c;
+  (void) stringToColor(tcl, s, c);
+  return c;
 }
 
 inline QString colorToString(const QColor &c) {
@@ -135,24 +153,30 @@ inline void stringToRange(CQTcl *tcl, CDisplayRange2D &range, const QString &str
   }
 }
 
-inline Rect stringToRect(CQTcl *tcl, const QString &str) {
+inline bool stringToRect(CQTcl *tcl, const QString &str, Rect &rect) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
   Point ll, ur;
 
-  if (strs.size() > 4 && strs[2] == "px") {
-    ll.x.units = Units::PIXEL;
-    ll.y.units = Units::PIXEL;
-    ur.x.units = Units::PIXEL;
-    ur.y.units = Units::PIXEL;
+  if (strs.size() > 4) {
+    if (strs[4] == "px") {
+      ll.x.units = Units::PIXEL;
+      ll.y.units = Units::PIXEL;
+      ur.x.units = Units::PIXEL;
+      ur.y.units = Units::PIXEL;
+    }
+    else
+      return false;
   }
 
   if (strs.size() >= 4) {
-    auto x1 = Util::stringToReal(strs[0]);
-    auto y1 = Util::stringToReal(strs[1]);
-    auto x2 = Util::stringToReal(strs[2]);
-    auto y2 = Util::stringToReal(strs[3]);
+    double x1, y1, x2, y2;
+    if (! Util::stringToReal(strs[0], x1) ||
+        ! Util::stringToReal(strs[1], y1) ||
+        ! Util::stringToReal(strs[2], x2) ||
+        ! Util::stringToReal(strs[3], y2))
+      return false;
 
     ll.x.value = std::min(x1, x2);
     ll.y.value = std::min(y1, y2);
@@ -160,12 +184,16 @@ inline Rect stringToRect(CQTcl *tcl, const QString &str) {
     ur.y.value = std::max(y1, y2);
   }
 
-  Rect rect;
-
   rect.ll = ll;
   rect.ur = ur;
 
-  return rect;
+  return true;
+}
+
+inline Rect stringToRect(CQTcl *tcl, const QString &str) {
+  Rect r;
+  (void) stringToRect(tcl, str, r);
+  return r;
 }
 
 inline QString rectToString(const Rect &r) {
@@ -191,9 +219,7 @@ inline QString coordToString(const Coord &coord) {
   return str;
 }
 
-inline Coord stringToCoord(const QString &str) {
-  Coord coord;
-
+inline bool stringToCoord(const QString &str, Coord &coord) {
   auto str1 = str;
 
   if (str1.right(2) == "px") {
@@ -202,32 +228,58 @@ inline Coord stringToCoord(const QString &str) {
     str1 = str1.mid(0, str1.length() - 2);
   }
 
-  coord.value = Util::stringToReal(str1);
+  double r;
+  if (! Util::stringToReal(str1, r))
+    return false;
 
-  return coord;
+  coord.value = r;
+
+  return true;
 }
 
-inline Point stringToPoint(CQTcl *tcl, const QString &str) {
+#if 0
+inline Coord stringToCoord(const QString &str) {
+  Coord coord;
+  (void) stringToCoord(str, coord);
+  return coord;
+}
+#endif
+
+inline bool stringToPoint(CQTcl *tcl, const QString &str, Point &p) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  Point p;
-
-  if (strs.size() > 2 && strs[2] == "px") {
-    p.x.units = Units::PIXEL;
-    p.y.units = Units::PIXEL;
+  if (strs.size() > 2) {
+    if (strs[2] == "px") {
+      p.x.units = Units::PIXEL;
+      p.y.units = Units::PIXEL;
+    }
+    else
+      return false;
   }
 
   if (strs.size() >= 2) {
-    auto x = Util::stringToReal(strs[0]);
-    auto y = Util::stringToReal(strs[1]);
+    double x, y;
+    if (! Util::stringToReal(strs[0], x) ||
+        ! Util::stringToReal(strs[1], y))
+      return false;
 
     p.x.value = x;
     p.y.value = y;
   }
+  else
+    return false;
 
+  return true;
+}
+
+#if 0
+inline Point stringToPoint(CQTcl *tcl, const QString &str) {
+  Point p;
+  (void) stringToPoint(tcl, str, p);
   return p;
 }
+#endif
 
 inline QString pointToString(const Point &p) {
   auto xstr = QString::number(p.x.value);
@@ -256,6 +308,31 @@ inline QString point3DToString(const CPoint3D &p) {
   return xstr + " " + ystr + " " + zstr;
 }
 
+inline bool stringToPoint2D(CQTcl *tcl, const QString &str, CPoint2D &p) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  if (strs.size() < 2)
+    return false;
+
+  double x, y;
+  if (! stringToReal(strs[0], x) || ! stringToReal(strs[1], y))
+    return false;
+
+  p.x = x;
+  p.y = y;
+
+  return true;
+}
+
+#if 0
+inline CPoint2D stringToPoint2D(CQTcl *tcl, const QString &str) {
+  CPoint2D p;
+  (void) stringToPoint2D(tcl, str, p);
+  return p;
+}
+#endif
+
 inline bool stringToPoint3D(CQTcl *tcl, const QString &str, CPoint3D &p) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
@@ -273,6 +350,14 @@ inline bool stringToPoint3D(CQTcl *tcl, const QString &str, CPoint3D &p) {
 
   return true;
 }
+
+#if 0
+inline CPoint3D stringToPoint3D(CQTcl *tcl, const QString &str) {
+  CPoint3D p;
+  (void) stringToPoint3D(tcl, str, p);
+  return p;
+}
+#endif
 
 //---
 
@@ -323,23 +408,6 @@ inline std::vector<CVector2D> stringToVectors2D(CQTcl *tcl, const QString &str) 
   return points;
 }
 
-inline CPoint3D stringToPoint3D(CQTcl *tcl, const QString &str) {
-  QStringList strs;
-  (void) tcl->splitList(str, strs);
-
-  CPoint3D p;
-
-  if (strs.size() >= 3) {
-    auto x = stringToReal(strs[0]);
-    auto y = stringToReal(strs[1]);
-    auto z = stringToReal(strs[2]);
-
-    p = CPoint3D(x, y, z);
-  }
-
-  return p;
-}
-
 inline bool stringToVector3D(CQTcl *tcl, const QString &str, CVector3D &v) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
@@ -358,11 +426,13 @@ inline bool stringToVector3D(CQTcl *tcl, const QString &str, CVector3D &v) {
   return true;
 }
 
+#if 0
 inline CVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
   CVector3D v;
   (void) stringToVector3D(tcl, str, v);
   return v;
 }
+#endif
 
 inline CGLVector3D stringToGLVector3D(CQTcl *tcl, const QString &str) {
   QStringList strs;
@@ -397,19 +467,19 @@ inline QString vector3DToString(const CGLVector3D &p) {
   return xstr + " " + ystr + " " + zstr;
 }
 
-inline std::vector<CVector3D> stringToVectors3D(CQTcl *tcl, const QString &str) {
+inline bool stringToVectors3D(CQTcl *tcl, const QString &str, std::vector<CVector3D> &points) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  std::vector<CVector3D> points;
-
   for (const auto &str : strs) {
-    auto p = stringToVector3D(tcl, str);
+    CVector3D p;
+    if (! stringToVector3D(tcl, str, p))
+      return false;
 
     points.push_back(p);
   }
 
-  return points;
+  return true;
 }
 
 //---
@@ -423,25 +493,6 @@ inline QString bbox3DToString(const CBBox3D &bbox) {
   auto z2str = QString::number(bbox.getZMax());
 
   return x1str + " " + y1str + " " + z1str + " " + x2str + " " + y2str + " " + z2str;
-}
-
-//---
-
-inline CPoint2D stringToPoint2D(CQTcl *tcl, const QString &str) {
-  QStringList strs;
-  (void) tcl->splitList(str, strs);
-
-  CPoint2D p;
-
-  if (strs.size() >= 2) {
-    auto x = stringToReal(strs[0]);
-    auto y = stringToReal(strs[1]);
-
-    p.x = x;
-    p.y = y;
-  }
-
-  return p;
 }
 
 //---
@@ -620,6 +671,42 @@ inline Qt::Alignment stringToAlign(const QString &str) {
   else                                 align |= Qt::AlignVCenter;
 
   return align;
+}
+
+//---
+
+inline QPoint  toQPoint (const CPoint2D &p) { return QPoint (p.x, p.y); }
+inline QPointF toQPointF(const CPoint2D &p) { return QPointF(p.x, p.y); }
+
+//---
+
+inline CPoint3D pointsCenter(const std::vector<CPoint3D> &points) {
+  CPoint3D c(0, 0, 0);
+
+  if (! points.empty()) {
+    for (const auto &p : points)
+      c += p;
+
+    c /= points.size();
+  }
+
+  return c;
+}
+
+inline CVector3D pointsNormal(const std::vector<CPoint3D> &points) {
+  CVector3D n(0, 1, 0);
+
+  if (points.size() < 3)
+    return n;
+
+  const auto &v1 = points[0];
+  const auto &v2 = points[1];
+  const auto &v3 = points[2];
+
+  CVector3D diff1(v1, v2);
+  CVector3D diff2(v2, v3);
+
+  return diff1.crossProduct(diff2).normalized();
 }
 
 //---

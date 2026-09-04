@@ -19,6 +19,8 @@
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
 
+class CQRubberBand;
+
 class CGeomScene3D;
 class CGeomObject3D;
 class CGeomFace3D;
@@ -130,6 +132,19 @@ class Canvas3D : public OpenGLWindow {
     GAME   = 3
   };
 
+  enum class EditMode {
+    MOVE,
+    SCALE,
+    ROTATE
+  };
+
+  enum class EditType {
+    POINT,
+    LINE,
+    FACE,
+    OBJECT
+  };
+
   enum class CameraType {
     MODEL,
     FIRST_PERSON,
@@ -228,6 +243,9 @@ class Canvas3D : public OpenGLWindow {
   bool isLightsVisible() const { return lightsVisible_; }
   void setLightsVisible(bool b) { lightsVisible_ = b; }
 
+  bool isSelectionSolid() const { return selectionSolid_; }
+  void setSelectionSolid(bool b) { selectionSolid_ = b; }
+
   //---
 
   CGeomScene3D *scene() const { return scene_; }
@@ -287,6 +305,12 @@ class Canvas3D : public OpenGLWindow {
 
   const Type &type() const { return type_; }
   void setType(const Type &type);
+
+  const EditMode &editMode() const { return editMode_; }
+  void setEditMode(const EditMode &mode);
+
+  const EditType &editType() const { return editType_; }
+  void setEditType(const EditType &type);
 
   //---
 
@@ -356,6 +380,8 @@ class Canvas3D : public OpenGLWindow {
   void bindBuffer (CQGLBuffer *buffer);
   void bindProgram(ShaderProgram *program);
 
+  void initSelectionProgram();
+
   void drawLights();
 
   //---
@@ -374,14 +400,35 @@ class Canvas3D : public OpenGLWindow {
 
   void wheelEvent(QWheelEvent *e) override;
 
+  bool event(QEvent *e) override;
+
   void keyPressEvent  (QKeyEvent *e) override;
   void keyReleaseEvent(QKeyEvent *e) override;
 
+  void mouseMoveCamera();
+
   //---
 
-  bool getKeyPressed(const std::string &key) const;
+  void selectNearestPoint(const CPoint2D &p);
+  void selectNearestLine (const CPoint2D &p);
+  void selectNearestFace (const CPoint2D &p);
 
-  std::string getKeyString(QKeyEvent *e) const;
+  void selectPointsInside(const CBBox2D &r);
+  void selectLinesInside (const CBBox2D &r);
+  void selectFacesInside (const CBBox2D &r);
+
+  //---
+
+  void gameKeyPress();
+  void cameraKeyPress();
+  void lightKeyPress();
+  void modelKeyPress();
+
+  //---
+
+  bool getKeyPressed(const QString &key) const;
+
+  QString getKeyString(QKeyEvent *e) const;
 
   //---
 
@@ -443,6 +490,10 @@ class Canvas3D : public OpenGLWindow {
 
   bool runTclCmd(const QString &cmd);
 
+ protected:
+  void addEyeLine();
+  void addIntersectParticles();
+
  private:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
@@ -476,6 +527,8 @@ class Canvas3D : public OpenGLWindow {
   void lightChangeSlot();
 
  Q_SIGNALS:
+  void bboxChanged();
+
   void objectsChanged();
 
   void uiUpdateSignal();
@@ -508,6 +561,8 @@ class Canvas3D : public OpenGLWindow {
     CPoint2D        press     { 0.0, 0.0 };
     CPoint2D        move1     { 0.0, 0.0 };
     CPoint2D        move2     { 0.0, 0.0 };
+    int             key       { 0 };
+    QString         keyStr;
   };
 
   //---
@@ -547,8 +602,11 @@ class Canvas3D : public OpenGLWindow {
   bool eyeLineVisible_ { false };
   bool animEnabled_    { true };
   bool lightsVisible_  { false };
+  bool selectionSolid_ { false };
 
-  Type type_ { Type::CAMERA };
+  Type     type_     { Type::CAMERA };
+  EditMode editMode_ { EditMode::MOVE };
+  EditType editType_ { EditType::POINT };
 
   CameraType cameraType_ { CameraType::MODEL };
   Cameras    cameras_;
@@ -591,7 +649,7 @@ class Canvas3D : public OpenGLWindow {
   uint numSpotLights_ { 2 };
 
   std::vector<Light3D *> lights_;
-  uint                   lightNum_ { 0 };
+  uint                   lightNum_ { 1 };
   bool                   simpleLights_ { false };
 
   ParticleList3DObj* intersectParticles_ { nullptr };
@@ -623,13 +681,20 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  using KeyPressed = std::map<std::string, bool>;
+  using KeyPressed = std::map<QString, bool>;
 
   KeyPressed keyPressed_;
 
   //---
 
   std::vector<CPlane3D> clips_;
+
+  //---
+
+  CQRubberBand* rubberBand_ { nullptr };
+
+  ShaderProgram* selectionProgram_ { nullptr };
+  CQGLBuffer*    selectionBuffer_  { nullptr };
 };
 
 }

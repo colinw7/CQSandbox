@@ -1,9 +1,9 @@
 proc init { } {
-  # set ::model [sb3d::model models/v3d/F15.V3D]
+  set ::model [sb3d::model models/v3d/F15.V3D]
   # set ::model [sb3d::model models/3ds/batwing.3ds]
   # set ::model [sb3d::model models/ply/shield.ply]
   # set ::model [sb3d::model models/gltf/Earth.gltf]
-  set ::model [sb3d::model models/gltf/DamagedHelmet.glb]
+  # set ::model [sb3d::model models/gltf/DamagedHelmet.glb]
 
   # cd /work/colinw/packages/glTF-Sample-Assets-main/Models/ABeautifulGame/glTF
   # set ::model [sb3d::model ABeautifulGame.gltf]
@@ -16,5 +16,20 @@ proc init { } {
 
   # sb3d::camera set position [list 5 5 19]
 
+  sb3d::ui create "\
+<qxml>\n\
+<QHBoxLayout>
+<QPushButton text=\"Reset\" onClicked=\"resetProc\"/>\n\
+</QHBoxLayout>
+<QLayoutItem stretch=\"1\"/>\n\
+</qxml>"
+}
+
+proc bboxChanged { } {
+  resetProc
+}
+
+proc resetProc { } {
   sb3d::camera exec reset
+  sb3d::light  exec reset
 }

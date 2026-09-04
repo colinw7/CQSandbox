@@ -2,6 +2,8 @@
 #define CQGLBuffer_H
 
 #include <CGLColor.h>
+#include <CGLVector2D.h>
+#include <CGLVector3D.h>
 
 #include <CBBox3D.h>
 #include <CPoint4D.h>
@@ -149,6 +151,8 @@ class CQGLBuffer {
   bool hasTexturePart() const { return (data_.types & static_cast<unsigned int>(Parts::TEXTURE)); }
   bool hasBonesPart  () const { return (data_.types & static_cast<unsigned int>(Parts::BONE   )); }
 
+  bool hasIndices() const { return data_.indicesSet; }
+
   void disableTexturePart() { data_.types &= ~static_cast<unsigned int>(Parts::TEXTURE); }
 
   //---
@@ -217,8 +221,22 @@ class CQGLBuffer {
     return -1;
   }
 
+  //---
+
   void addPoint(float x, float y, float z) {
     addPoint(Point(x, y, z));
+  }
+
+  void addPoint(const CPoint3D &p) {
+    addPoint(Point(p.x, p.y, p.z));
+  }
+
+  void addPoint(const CGLVector3D &p) {
+    addPoint(Point(p.x(), p.y(), p.z()));
+  }
+
+  void addPoint(const CVector3D &p) {
+    addPoint(Point(p.x(), p.y(), p.z()));
   }
 
   void addPoint(const Point &p) {
@@ -231,8 +249,14 @@ class CQGLBuffer {
 
   uint numPoints() const { return data_.points.size(); }
 
+  //---
+
   void addNormal(float x, float y, float z) {
     addNormal(Point(x, y, z));
+  }
+
+  void addNormal(const CVector3D &n) {
+    addNormal(Point(n.x(), n.y(), n.z()));
   }
 
   void addNormal(const Point &p) {
@@ -242,6 +266,8 @@ class CQGLBuffer {
 
     data_.dataValid = false;
   }
+
+  //---
 
   void addColor(const CRGBA &c) {
     addColor(Color(c.getRedF(), c.getGreenF(), c.getBlueF()));
@@ -267,8 +293,22 @@ class CQGLBuffer {
     data_.dataValid = false;
   }
 
+  //---
+
   void addTexturePoint(float x, float y) {
     addTexturePoint(TexturePoint(x, y));
+  }
+
+  void addTexturePoint(const CGLVector2D &v) {
+    addTexturePoint(TexturePoint(v.x(), v.y()));
+  }
+
+  void addTexturePoint(const CVector2D &v) {
+    addTexturePoint(TexturePoint(v.x(), v.y()));
+  }
+
+  void addTexturePoint(const CPoint2D &v) {
+    addTexturePoint(TexturePoint(v.x, v.y));
   }
 
   void addTexturePoint(const TexturePoint &p) {
@@ -278,6 +318,8 @@ class CQGLBuffer {
 
     data_.dataValid = false;
   }
+
+  //---
 
   void addBoneIds(int i1, int i2, int i3, int i4) {
     data_.types |= static_cast<unsigned int>(Parts::BONE);
@@ -295,6 +337,8 @@ class CQGLBuffer {
     data_.dataValid = false;
   }
 
+  //---
+
   void addIndex(int i) {
     data_.indices.push_back(i);
 
@@ -304,6 +348,7 @@ class CQGLBuffer {
   //---
 
   struct PointData {
+    int                         i { 0 };
     std::optional<int>          ind;
     std::optional<Point>        point;
     std::optional<Point>        normal;
@@ -314,17 +359,28 @@ class CQGLBuffer {
   };
 
   void getPointData(int i, PointData &data) const {
-    assert(i < int(data_.points.size()));
+    auto i1 = i;
 
-    if (hasIndPart    ()) data.ind          = data_.inds[i];
-    if (hasPointPart  ()) data.point        = data_.points[i];
-    if (hasNormalPart ()) data.normal       = data_.normals[i];
-    if (hasColorPart  ()) data.color        = data_.colors[i];
-    if (hasTexturePart()) data.texturePoint = data_.texturePoints[i];
+    if (hasIndices()) {
+      assert(i < int(data_.indices.size()));
+
+      i1 = data_.indices[i];
+    }
+    else {
+      assert(i < int(data_.points.size()));
+    }
+
+    data.i = i;
+
+    if (hasIndPart    ()) data.ind          = data_.inds[i1];
+    if (hasPointPart  ()) data.point        = data_.points[i1];
+    if (hasNormalPart ()) data.normal       = data_.normals[i1];
+    if (hasColorPart  ()) data.color        = data_.colors[i1];
+    if (hasTexturePart()) data.texturePoint = data_.texturePoints[i1];
 
     if (hasBonesPart()) {
-      data.boneId     = data_.boneIds[i];
-      data.boneWeight = data_.boneWeights[i];
+      data.boneId     = data_.boneIds[i1];
+      data.boneWeight = data_.boneWeights[i1];
     }
   }
 
@@ -344,7 +400,7 @@ class CQGLBuffer {
     //data_.vertexBuffer->release();
 
     // send indices data to buffer
-    if (data_.indicesSet) {
+    if (hasIndices()) {
       data_.indBuffer->bind();
       data_.indBuffer->setUsagePattern(QOpenGLBuffer::StaticDraw);
       data_.indBuffer->allocate(data_.indData, int(data_.numIndData*sizeof(int)));
@@ -402,7 +458,8 @@ class CQGLBuffer {
     // note that this is allowed, the call to setAttributeBuffer registered VBO as the
     // vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     data_.vertexBuffer->release();
-    if (data_.indicesSet)
+
+    if (hasIndices())
       data_.indBuffer->release();
 
     // remember: do NOT unbind the EBO while a VAO is active as the bound element buffer object
@@ -424,12 +481,12 @@ class CQGLBuffer {
     // but we'll do so to keep things a bit more organized
     data_.vObj->bind();
 
-    if (data_.indicesSet)
+    if (hasIndices())
       data_.indBuffer->bind();
   }
 
   void unbind() {
-    if (data_.indicesSet)
+    if (hasIndices())
       data_.indBuffer->release();
 
     data_.vObj->release();

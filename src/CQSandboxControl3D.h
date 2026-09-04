@@ -128,6 +128,7 @@ class Control3D : public QFrame {
  private Q_SLOTS:
   void updateSlot();
 
+  void objectAddedSlot();
   void lightAddedSlot();
 
   void uiSlot();
@@ -187,8 +188,12 @@ class Control3D : public QFrame {
 
   LightData lightData_;
 
-  QListWidget*        objectsList_ { nullptr };
-  CQPropertyViewTree* objectTree_  { nullptr };
+  struct ObjectsData {
+    QListWidget*        list { nullptr };
+    CQPropertyViewTree* tree { nullptr };
+  };
+
+  ObjectsData objectsData_;
 
   struct OverviewData {
     QCheckBox* wireFrameCheck { nullptr };
@@ -212,9 +217,10 @@ class Control3D : public QFrame {
   QFrame* uiFrame_ { nullptr };
   CQXml*  xml_     { nullptr };
 
-  bool shown_         { false };
-  bool needsUpdate_   { false };
-  bool lightsChanged_ { true };
+  bool shown_          { false };
+  bool needsUpdate_    { false };
+  bool objectsChanged_ { true };
+  bool lightsChanged_  { true };
 };
 
 }

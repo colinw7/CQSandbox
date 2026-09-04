@@ -57,7 +57,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (args.size() < 1)
       return false;
 
-    auto p = Util::stringToPoint(tcl, args[0]);
+    Point p;
+    if (! Util::stringToPoint(tcl, args[0], p))
+      return false;
 
     QuadTree::DataList dataList;
     quadTree_.getDataAtPoint(p.x.value, p.y.value, dataList);

@@ -22,6 +22,8 @@ class Vector3DObj : public Object3D {
 
   void init() override;
 
+  CBBox3D calcBBox() override { return bbox_; }
+
  protected:
   CVector2D v_;
 };

@@ -5,6 +5,7 @@
 
 #include <CQTclUtil.h>
 #include <CQGLTexture.h>
+#include <CQGLBuffer.h>
 #include <CQGLUtil.h>
 
 namespace CQSandbox {
@@ -44,13 +45,7 @@ init()
 
   initShader();
 
-  //---
-
-  canvas_->glGenVertexArrays(1, &vertexArrayId_);
-
-  canvas_->glGenBuffers(1, &pointsBufferId_);
-  canvas_->glGenBuffers(1, &colorsBufferId_);
-  canvas_->glGenBuffers(1, &texCoordBufferId_);
+  buffer_ = s_program->createBuffer();
 
   //---
 
@@ -76,6 +71,17 @@ init()
 
   points_    = points;
   texCoords_ = texCoords;
+
+  FaceData faceData;
+
+  faceData.pos = 0;
+  faceData.len = 3;
+
+  faceDatas_.push_back(faceData);
+
+  faceData.pos += faceData.len;
+
+  faceDatas_.push_back(faceData);
 }
 
 bool
@@ -152,21 +158,18 @@ updateGL()
 
   //---
 
-  // bind the Vertex Array Object
-  canvas_->glBindVertexArray(vertexArrayId_);
+  calcBBox();
+
+  //---
+
+  buffer_->clearBuffers();
 
   //---
 
   auto np = points_.size();
 
-  // store point data in array buffer (vec3, location 0)
-  uint aPos = 0;
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &points_[0], GL_STATIC_DRAW);
-
-  // set points attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
-  canvas_->glEnableVertexAttribArray(aPos);
+  for (uint i = 0; i < np; ++i)
+    buffer_->addPoint(points_[i]);
 
   //---
 
@@ -183,29 +186,34 @@ updateGL()
   else
     colors1 = colors_;
 
-  uint aColor = 1;
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLColor), &colors1[0], GL_STATIC_DRAW);
-
-  canvas_->glVertexAttribPointer(aColor, 4, GL_FLOAT, GL_FALSE, sizeof(CGLColor), nullptr);
-  canvas_->glEnableVertexAttribArray(aColor);
+  for (uint i = 0; i < np; ++i) {
+    buffer_->addColor(colors1[i]);
+  }
 
   //---
 
   assert(texCoords_.size() == np);
 
-  uint aTexCoord = 2;
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector2D), &texCoords_[0], GL_STATIC_DRAW);
-
-  canvas_->glVertexAttribPointer(aTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(CGLVector2D), nullptr);
-  canvas_->glEnableVertexAttribArray(aTexCoord);
+  for (uint i = 0; i < np; ++i) {
+    buffer_->addTexturePoint(texCoords_[i]);
+  }
 
   //---
 
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
+  buffer_->load();
+}
 
-  canvas_->glBindVertexArray(0);
+CBBox3D
+Plane3DObj::
+calcBBox()
+{
+  bbox_ = CBBox3D();
+
+  for (const auto &p : points_) {
+    bbox_ += CPoint3D(p.x(), p.y(), p.z());
+  }
+
+  return bbox_;
 }
 
 void
@@ -221,14 +229,15 @@ render()
   //s_program->bind();
   canvas_->bindProgram(s_program);
 
-  canvas_->setProgramMatrices(s_program);
-
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
+  canvas_->setProgramMatrices(s_program);
+
   //---
 
-  canvas_->glBindVertexArray(vertexArrayId_);
+  //buffer_->bind();
+  canvas_->bindBuffer(buffer_);
 
   //---
 
@@ -264,6 +273,10 @@ render()
 
   if (useTexture_)
     glDisable(GL_TEXTURE_2D);
+
+  //---
+
+  //buffer_->unbind();
 }
 
 }

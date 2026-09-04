@@ -18,7 +18,7 @@ class Xml2D : public CQXml {
    CQXml(), control_(control) {
   }
 
-  void execSlot(const QString &value, const QString &) override {
+  void execSlot(const QString &value, const QStringList &) override {
     control_->canvas()->runTclCmd(value);
   }
 

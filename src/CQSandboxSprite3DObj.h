@@ -3,7 +3,6 @@
 
 #include <CQSandboxObject3D.h>
 
-class CQGLBuffer;
 class CQGLTexture;
 
 namespace CQSandbox {
@@ -34,6 +33,8 @@ class Sprite3DObj : public Object3D {
 
   void tick() override;
 
+  CBBox3D calcBBox() override { return bbox_; }
+
   void render() override;
 
  private:
@@ -46,7 +47,6 @@ class Sprite3DObj : public Object3D {
  private:
   static ShaderProgram* s_program;
 
-  CQGLBuffer*                buffer_ { nullptr };
   std::vector<CQGLTexture *> textures_;
   int                        textureNum_ { 0 };
   int                        textureStart_ { 0 };

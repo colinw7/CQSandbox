@@ -26,6 +26,8 @@ class Shader3DObj : public Object3D {
 
   void tick() override;
 
+  CBBox3D calcBBox() override { return bbox_; }
+
   void render() override;
 
  private:

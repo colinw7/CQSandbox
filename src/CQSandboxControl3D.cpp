@@ -61,13 +61,13 @@ class Xml3D : public CQXml {
    CQXml(), control_(control) {
   }
 
-  void execSlot(const QString &value, const QString &data) override {
+  void execSlot(const QString &value, const QStringList &args) override {
     auto *canvas = control_->canvas();
-
-    canvas->tcl()->createVar("execData", data);
 
     auto text = getExecData("text").toString();
     canvas->tcl()->createVar("execText", text);
+
+    canvas->tcl()->createVar("execArgs", args);
 
     canvas->runTclCmd(value);
   }
@@ -144,6 +144,8 @@ init()
 
   for (auto *light : canvas_->lights())
     connect(light, SIGNAL(changedSignal()), this, SLOT(updateSlot()));
+
+  connect(canvas_, SIGNAL(objectsChanged()), this, SLOT(objectAddedSlot()));
 
   connect(canvas_, SIGNAL(lightAdded()), this, SLOT(lightAddedSlot()));
 
@@ -466,18 +468,18 @@ addObjectsFrame()
 
   layout->addWidget(controlFrame);
 
-  objectsList_ = new QListWidget;
+  objectsData_.list = new QListWidget;
 
-  objectsList_->setSelectionMode(QListWidget::SingleSelection);
+  objectsData_.list->setSelectionMode(QListWidget::SingleSelection);
 
-  connect(objectsList_, &QListWidget::currentItemChanged,
+  connect(objectsData_.list, &QListWidget::currentItemChanged,
           this, &Control3D::objectSelectedSlot);
 
-  controlLayout->addWidget(objectsList_);
+  controlLayout->addWidget(objectsData_.list);
 
-  objectTree_ = new CQPropertyViewTree(this);
+  objectsData_.tree = new CQPropertyViewTree(this);
 
-  layout->addWidget(objectTree_);
+  layout->addWidget(objectsData_.tree);
 
   //---
 
@@ -600,8 +602,19 @@ updateSlot()
 
 void
 Control3D::
+objectAddedSlot()
+{
+  needsUpdate_    = true;
+  objectsChanged_ = true;
+
+  uiSlot();
+}
+
+void
+Control3D::
 lightAddedSlot()
 {
+  needsUpdate_   = true;
   lightsChanged_ = true;
 
   uiSlot();
@@ -841,7 +854,7 @@ updateLights()
     QListWidgetItem *currentItem = nullptr;
 
     for (auto *light : canvas_->lights()) {
-      auto lightName = QString("light%1").arg(light->id());
+      auto lightName = QString("light.%1").arg(light->id());
 
       auto *item = new QListWidgetItem(lightName);
 
@@ -904,27 +917,49 @@ void
 Control3D::
 updateObjects()
 {
-  disconnect(objectsList_, &QListWidget::currentItemChanged,
+  if (objectsChanged_) {
+    disconnect(objectsData_.list, &QListWidget::currentItemChanged,
              this, &Control3D::objectSelectedSlot);
 
-  //---
+    //---
 
-  objectsList_->clear();
+    objectsChanged_ = false;
 
-  for (auto *object : canvas_->objects()) {
-    auto objectName = QString("%1.%2").arg(object->typeName()).arg(object->ind());
+    QListWidgetItem *currentItem = nullptr;
 
-    auto *item = new QListWidgetItem(objectName);
+    objectsData_.list->clear();
 
-    objectsList_->addItem(item);
+    for (auto *object : canvas_->objects()) {
+      auto objectName = QString("%1.%2").arg(object->typeName()).arg(object->ind());
 
-    item->setData(Qt::UserRole, int(object->ind()));
+      auto *item = new QListWidgetItem(objectName);
+
+      objectsData_.list->addItem(item);
+
+      item->setData(Qt::UserRole, int(object->ind()));
+
+      if (! currentItem)
+        currentItem = item;
+    }
+
+    if (currentItem)
+      objectsData_.list->setCurrentItem(currentItem, QItemSelectionModel::Select);
+
+    //---
+
+    auto items = objectsData_.list->selectedItems();
+
+    if (items.size() > 0)
+      currentItem = items[0];
+
+    if (currentItem)
+      objectSelectedSlot(currentItem, nullptr);
+
+    //---
+
+    connect(objectsData_.list, &QListWidget::currentItemChanged,
+            this, &Control3D::objectSelectedSlot);
   }
-
-  //---
-
-  connect(objectsList_, &QListWidget::currentItemChanged,
-          this, &Control3D::objectSelectedSlot);
 }
 
 void
@@ -1395,16 +1430,18 @@ objectSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
 
   auto *indObj = canvas_->objectFromInd(ind);
 
+#if 0
   for (auto *obj : canvas_->objects())
     obj->setSelected(obj == indObj);
+#endif
 
-  objectTree_->clear();
+  objectsData_.tree->clear();
 
   if (indObj) {
     auto properties = CQUtil::getPropertyList(indObj);
 
     for (auto &prop : properties) {
-      objectTree_->addProperty("", indObj, prop);
+      objectsData_.tree->addProperty("", indObj, prop);
     }
   }
 }

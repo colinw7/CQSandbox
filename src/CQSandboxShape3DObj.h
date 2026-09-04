@@ -8,7 +8,6 @@
 #include <CGLColor.h>
 
 class CQGLTexture;
-class CQGLBuffer;
 class CShape3D;
 
 namespace CQSandbox {
@@ -32,9 +31,22 @@ class Shape3DObjMgr : public ObjectMgr3D {
 class Shape3DObj : public Object3D {
   Q_OBJECT
 
-  Q_PROPERTY(QString texture READ textureFile WRITE setTextureFile)
+  Q_PROPERTY(ShapeType shapeType READ shapeType)
+  Q_PROPERTY(QString   texture   READ textureFile WRITE setTextureFile)
+
+  Q_ENUMS(ShapeType)
 
  public:
+  enum class ShapeType {
+    NONE,
+    CONE,
+    CUBE,
+    CYLINDER,
+    SPHERE
+  };
+
+  //---
+
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   static ShaderProgram* shaderProgram() { return s_program; }
@@ -56,7 +68,11 @@ class Shape3DObj : public Object3D {
 
   //---
 
+  const ShapeType &shapeType() const { return shapeType_; }
+
   const Shape3DData &shapeData() const { return shapeData_; }
+
+  //---
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -83,6 +99,8 @@ class Shape3DObj : public Object3D {
 
   void calcNormals();
 
+  const FaceDatas &getFaceDatas() const override;
+
   void render() override;
 
   void addCube(double sx, double sy, double sz);
@@ -95,6 +113,7 @@ class Shape3DObj : public Object3D {
 
   CGLColor color_ { 1.0, 1.0, 1.0, 1.0 };
 
+  ShapeType   shapeType_ { ShapeType::NONE };
   Shape3DData shapeData_;
 
   Colors colors_;
@@ -106,8 +125,6 @@ class Shape3DObj : public Object3D {
 
   bool useDiffuseTexture_ { false };
   bool useNormalTexture_  { false };
-
-  CQGLBuffer* buffer_ { nullptr };
 };
 
 }

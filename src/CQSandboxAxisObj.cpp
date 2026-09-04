@@ -18,8 +18,13 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  auto pos = Util::stringToPoint(tcl, args[0]);
-  auto len = Util::stringToCoord(args[1]);
+  Point pos;
+  if (! Util::stringToPoint(tcl, args[0], pos))
+    return false;
+
+  Coord len;
+  if (! Util::stringToCoord(args[1], len))
+    return false;
 
   auto *obj = new AxisObj(canvas, pos, len);
 
@@ -57,10 +62,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
 
-  if      (name == "pos")
-    pos_ = Util::stringToPoint(tcl, value);
-  else if (name == "p2")
-    len_ = Util::stringToCoord(value);
+  if      (name == "pos") {
+    if (! Util::stringToPoint(tcl, value, pos_))
+      return false;
+  }
+  else if (name == "p2") {
+    if (! Util::stringToCoord(value, len_))
+      return false;
+  }
   else if (name == "direction") {
     auto lstr = value.toLower();
 

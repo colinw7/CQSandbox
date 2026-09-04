@@ -88,8 +88,6 @@ CanvasToolbar3D(Canvas3D *canvas) :
   texturedButton_ =
     addCheckButton("textured", "TEXTURE_FILL", "Shade: Textured" , SLOT(texturedSlot()));
 
-  //---
-
   layout->addWidget(wireButton_);
   layout->addWidget(solidButton_);
   layout->addWidget(texturedButton_);
@@ -98,7 +96,25 @@ CanvasToolbar3D(Canvas3D *canvas) :
 
   //---
 
-  bboxButton_ = addCheckButton("bbox", "BBOX", "Show: Model", SLOT(bboxSlot()));
+  pointSelectButton_ =
+    addCheckButton("pointSelect" , "POINT_SELECT" , "Point Select" , SLOT(pointSelectSlot()));
+  edgeSelectButton_  =
+    addCheckButton("edgeSelect"  , "EDGE_SELECT"  , "Edge Select"  , SLOT(edgeSelectSlot()));
+  faceSelectButton_  =
+    addCheckButton("faceSelect"  , "FACE_SELECT"  , "Face Select"  , SLOT(faceSelectSlot()));
+  objectSelectButton_  =
+    addCheckButton("objectSelect", "OBJECT_SELECT", "Object Select", SLOT(objectSelectSlot()));
+
+  layout->addWidget(pointSelectButton_);
+  layout->addWidget(edgeSelectButton_);
+  layout->addWidget(faceSelectButton_);
+  layout->addWidget(objectSelectButton_);
+
+  layout->addWidget(addSeparator());
+
+  //---
+
+  bboxButton_ = addCheckButton("bbox", "BBOX", "Show: BBox", SLOT(bboxSlot()));
 
   layout->addWidget(bboxButton_);
 
@@ -185,7 +201,37 @@ void
 CanvasToolbar3D::
 updateInfo()
 {
+  disconnect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
+  disconnect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
+  disconnect(lightButton_ , SIGNAL(clicked()), this, SLOT(lightSlot()));
+  disconnect(gameButton_  , SIGNAL(clicked()), this, SLOT(gameSlot()));
+
+  disconnect(wireButton_    , SIGNAL(clicked()), this, SLOT(wireSlot()));
+  disconnect(solidButton_   , SIGNAL(clicked()), this, SLOT(solidSlot()));
+  disconnect(texturedButton_, SIGNAL(clicked()), this, SLOT(texturedSlot()));
+
+  disconnect(pointSelectButton_ , SIGNAL(clicked()), this, SLOT(pointSelectSlot()));
+  disconnect(edgeSelectButton_  , SIGNAL(clicked()), this, SLOT(edgeSelectSlot()));
+  disconnect(faceSelectButton_  , SIGNAL(clicked()), this, SLOT(faceSelectSlot()));
+  disconnect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
+
+  //---
+
   auto type = canvas_->type();
+
+  cameraButton_->setChecked(type == Canvas3D::Type::CAMERA);
+  modelButton_ ->setChecked(type == Canvas3D::Type::MODEL);
+  lightButton_ ->setChecked(type == Canvas3D::Type::LIGHT);
+  gameButton_  ->setChecked(type == Canvas3D::Type::GAME);
+
+  wireButton_    ->setChecked(canvas_->isWireframe());
+  solidButton_   ->setChecked(canvas_->isSolid());
+  texturedButton_->setChecked(canvas_->isTextured());
+
+  objectSelectButton_->setVisible(type == Canvas3D::Type::MODEL);
+  faceSelectButton_  ->setVisible(type == Canvas3D::Type::MODEL);
+  edgeSelectButton_  ->setVisible(type == Canvas3D::Type::MODEL);
+  pointSelectButton_ ->setVisible(type == Canvas3D::Type::MODEL);
 
   QString text;
 
@@ -198,12 +244,50 @@ updateInfo()
   }
   else if (type == Canvas3D::Type::MODEL) {
     text += "Mode: Model";
+
+    auto editMode = canvas_->editMode();
+    auto editType = canvas_->editType();
+
+    if      (editMode == Canvas3D::EditMode::MOVE)
+      text += " (Move)";
+    else if (editMode == Canvas3D::EditMode::SCALE)
+      text += " (Scale)";
+    else if (editMode == Canvas3D::EditMode::ROTATE)
+      text += " (Rotate)";
+
+    if      (editType == Canvas3D::EditType::POINT)
+      text += " (Point)";
+    else if (editType == Canvas3D::EditType::LINE)
+      text += " (Line)";
+    else if (editType == Canvas3D::EditType::FACE)
+      text += " (Face)";
+
+    objectSelectButton_->setChecked(editType == Canvas3D::EditType::OBJECT);
+    faceSelectButton_  ->setChecked(editType == Canvas3D::EditType::FACE);
+    edgeSelectButton_  ->setChecked(editType == Canvas3D::EditType::LINE);
+    pointSelectButton_ ->setChecked(editType == Canvas3D::EditType::POINT);
   }
   else if (type == Canvas3D::Type::GAME) {
     text += "Mode: Game";
   }
 
   infoLabel_->setText(text);
+
+  //---
+
+  connect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
+  connect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
+  connect(lightButton_ , SIGNAL(clicked()), this, SLOT(lightSlot()));
+  connect(gameButton_  , SIGNAL(clicked()), this, SLOT(gameSlot()));
+
+  connect(wireButton_    , SIGNAL(clicked()), this, SLOT(wireSlot()));
+  connect(solidButton_   , SIGNAL(clicked()), this, SLOT(solidSlot()));
+  connect(texturedButton_, SIGNAL(clicked()), this, SLOT(texturedSlot()));
+
+  connect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
+  connect(faceSelectButton_  , SIGNAL(clicked()), this, SLOT(faceSelectSlot()));
+  connect(edgeSelectButton_  , SIGNAL(clicked()), this, SLOT(edgeSelectSlot()));
+  connect(pointSelectButton_ , SIGNAL(clicked()), this, SLOT(pointSelectSlot()));
 }
 
 void
@@ -265,6 +349,34 @@ texturedSlot()
   canvas_->setTextured(button->isChecked());
 
   canvas_->update();
+}
+
+void
+CanvasToolbar3D::
+objectSelectSlot()
+{
+  canvas_->setEditType(Canvas3D::EditType::OBJECT);
+}
+
+void
+CanvasToolbar3D::
+faceSelectSlot()
+{
+  canvas_->setEditType(Canvas3D::EditType::FACE);
+}
+
+void
+CanvasToolbar3D::
+edgeSelectSlot()
+{
+  canvas_->setEditType(Canvas3D::EditType::LINE);
+}
+
+void
+CanvasToolbar3D::
+pointSelectSlot()
+{
+  canvas_->setEditType(Canvas3D::EditType::POINT);
 }
 
 void
@@ -431,49 +543,49 @@ void
 OverviewToolbar3D::
 cameraSlot()
 {
-  overview_->setEditType(CQSandbox::Overview3D::EditType::CAMERA);
+  overview_->setEditType(Overview3D::EditType::CAMERA);
 }
 
 void
 OverviewToolbar3D::
 modelSlot()
 {
-  overview_->setEditType(CQSandbox::Overview3D::EditType::SELECT);
+  overview_->setEditType(Overview3D::EditType::SELECT);
 }
 
 void
 OverviewToolbar3D::
 lightSlot()
 {
-  overview_->setEditType(CQSandbox::Overview3D::EditType::LIGHT);
+  overview_->setEditType(Overview3D::EditType::LIGHT);
 }
 
 void
 OverviewToolbar3D::
 objectSelectSlot()
 {
-  overview_->setSelectType(CQSandbox::Overview3D::SelectType::OBJECT);
+  overview_->setSelectType(Overview3D::SelectType::OBJECT);
 }
 
 void
 OverviewToolbar3D::
 faceSelectSlot()
 {
-  overview_->setSelectType(CQSandbox::Overview3D::SelectType::FACE);
+  overview_->setSelectType(Overview3D::SelectType::FACE);
 }
 
 void
 OverviewToolbar3D::
 edgeSelectSlot()
 {
-  overview_->setSelectType(CQSandbox::Overview3D::SelectType::EDGE);
+  overview_->setSelectType(Overview3D::SelectType::EDGE);
 }
 
 void
 OverviewToolbar3D::
 pointSelectSlot()
 {
-  overview_->setSelectType(CQSandbox::Overview3D::SelectType::POINT);
+  overview_->setSelectType(Overview3D::SelectType::POINT);
 }
 
 void

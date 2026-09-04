@@ -538,6 +538,22 @@ tick()
   canvas_->update();
 }
 
+const Model3DObj::FaceDatas &
+Model3DObj::
+getFaceDatas() const
+{
+  auto *geomObject = dynamic_cast<GeomObject *>(object_);
+
+  auto *geomObject1 = geomObject;
+
+  if (geomObject->refObject()) {
+    geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+    assert(geomObject1);
+  }
+
+  return geomObject1->faceDatas();
+}
+
 void
 Model3DObj::
 setModelMatrix(uint /*matrixFlags*/)
@@ -577,8 +593,6 @@ render()
     calcBBox();
 
     createBBoxObj();
-
-    bboxObj_->render();
   }
 
   //---
@@ -645,23 +659,24 @@ drawObject(CGeomObject3D *object)
   //---
 
   // mesh matrix
-  CMatrix3DH meshMatrix;
-  bool       hasMeshMatrix { false };
+  bool hasMeshMatrix { false };
 
   if (isAnim)
-    hasMeshMatrix = canvas_->addObjectMeshData(geomObject1, meshMatrix);
+    hasMeshMatrix = canvas_->addObjectMeshData(geomObject1, meshMatrix_);
 
   if (! hasMeshMatrix)
-    meshMatrix = CMatrix3DH(object->getMeshGlobalTransform());
+    meshMatrix_ = CMatrix3DH(object->getMeshGlobalTransform());
+  else
+    meshMatrix_ = CMatrix3DH::identity();
 
-  program->setUniformValue("meshMatrix", CQGLUtil::toQMatrix(meshMatrix));
+  program->setUniformValue("meshMatrix", CQGLUtil::toQMatrix(meshMatrix_));
 
   //---
 
   // model matrix
-  auto modelMatrix = CMatrix3DH(object->getHierTransform());
+  modelMatrix_ = CMatrix3DH(object->getHierTransform());
 
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
 
   //---
 
@@ -678,10 +693,10 @@ drawObject(CGeomObject3D *object)
   //---
 
   // setup data buffer
-  auto *buffer = geomObject1->buffer();
+  buffer_ = geomObject1->getBuffer();
 
-  //buffer->bind();
-  canvas_->bindBuffer(buffer);
+  //buffer_->bind();
+  canvas_->bindBuffer(buffer_);
 
   //---
 
@@ -793,7 +808,7 @@ drawObject(CGeomObject3D *object)
     }
   }
 
-  //buffer->unbind();
+  //buffer_->unbind();
 
   //---
 
@@ -867,8 +882,8 @@ updateObject(CGeomObject3D *object)
 
   //---
 
-  auto modelMatrix = CMatrix3DH(object->getHierTransform());
-  auto meshMatrix  = CMatrix3DH(object->getMeshGlobalTransform());
+  modelMatrix_ = CMatrix3DH(object->getHierTransform());
+  meshMatrix_  = CMatrix3DH(object->getMeshGlobalTransform());
 
   //---
 
@@ -921,7 +936,7 @@ updateObject(CGeomObject3D *object)
 
   //---
 
-  auto *buffer = geomObject->initBuffer(canvas_);
+  buffer_ = geomObject->initBuffer(canvas_);
 
   //---
 
@@ -1025,8 +1040,8 @@ updateObject(CGeomObject3D *object)
       const auto &vertex = geomObject->getVertex(v);
       const auto &model  = vertex.getModel();
 
-      auto model1 = meshMatrix *model;
-      auto model2 = modelMatrix*model1;
+      auto model1 = meshMatrix_ *model;
+      auto model2 = modelMatrix_*model1;
 
       //---
 
@@ -1069,13 +1084,13 @@ updateObject(CGeomObject3D *object)
 
       //---
 
-      buffer->addInd(vertex.getInd());
+      buffer_->addInd(vertex.getInd());
 
-      buffer->addPoint(float(model.x), float(model.y), float(model.z));
+      buffer_->addPoint(model);
 
-      buffer->addNormal(float(normal1.getX()), float(normal1.getY()), float(normal1.getZ()));
+      buffer_->addNormal(normal1);
 
-      buffer->addColor(color1);
+      buffer_->addColor(color1);
 
       //---
 
@@ -1088,8 +1103,8 @@ updateObject(CGeomObject3D *object)
             boneWeights[i] = jointData.nodeDatas[i].weight;
           }
 
-          buffer->addBoneIds    (boneNodeIds[0], boneNodeIds[1], boneNodeIds[2], boneNodeIds[3]);
-          buffer->addBoneWeights(boneWeights[0], boneWeights[1], boneWeights[2], boneWeights[3]);
+          buffer_->addBoneIds    (boneNodeIds[0], boneNodeIds[1], boneNodeIds[2], boneNodeIds[3]);
+          buffer_->addBoneWeights(boneWeights[0], boneWeights[1], boneWeights[2], boneWeights[3]);
         }
       }
 
@@ -1098,10 +1113,10 @@ updateObject(CGeomObject3D *object)
       if (faceData.diffuseTexture) {
         const auto &tpoint = face->getTexturePoint(vertex, iv);
 
-        buffer->addTexturePoint(float(tpoint.x), float(tpoint.y));
+        buffer_->addTexturePoint(tpoint);
       }
       else
-        buffer->addTexturePoint(0.0f, 0.0f);
+        buffer_->addTexturePoint(0.0f, 0.0f);
 
       //---
 
@@ -1126,7 +1141,7 @@ updateObject(CGeomObject3D *object)
 
   //---
 
-  buffer->load();
+  buffer_->load();
 
   //---
 

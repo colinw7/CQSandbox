@@ -67,7 +67,7 @@ proc createObjs { } {
 proc setPointSize { } {
   set text [sb3d::ui get text]
 
-  # echo "setPointSize $::execData $::execText"
+  # echo "setPointSize $::execArgs $::execText"
   echo "Text: $text"
 
   $::particles set particleSize $text

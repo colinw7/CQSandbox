@@ -1,6 +1,8 @@
 #ifndef CQSandboxShape3DData_H
 #define CQSandboxShape3DData_H
 
+#include <CQSandboxFaceData.h>
+
 #include <CVector2D.h>
 #include <CVector3D.h>
 
@@ -15,6 +17,7 @@ class Shape3DData {
   using Points    = std::vector<CVector3D>;
   using Indices   = std::vector<unsigned int>;
   using TexCoords = std::vector<CVector2D>;
+  using FaceDatas = std::vector<FaceData>;
 
   struct VertexData {
     CVector3D position;
@@ -45,6 +48,9 @@ class Shape3DData {
   const TexCoords &texCoords() const { return texCoords_; }
   void setTexCoords(const TexCoords &texCoords) { texCoords_ = texCoords; }
 
+  const FaceDatas &faceDatas() const { return faceDatas_; }
+  void setFaceDatas(const FaceDatas &faceDatas) { faceDatas_ = faceDatas; }
+
   CShape3D *geom() const { return geom_; }
 
   bool isUseTriangleStrip() const { return useTriangleStrip_; }
@@ -70,6 +76,7 @@ class Shape3DData {
   Points    normals_;
   Indices   indices_;
   TexCoords texCoords_;
+  FaceDatas faceDatas_;
 
   CShape3D *geom_ { nullptr };
 

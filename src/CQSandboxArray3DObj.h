@@ -25,6 +25,8 @@ class Array3DObj : public Object3D {
 
   void init() override;
 
+  CBBox3D calcBBox() override { return bbox_; }
+
  protected:
   CArray2D<double> a_;
 };

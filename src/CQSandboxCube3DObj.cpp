@@ -54,7 +54,7 @@ init()
   v[6] = CVector3D(xc - r/2, yc + r/2, zc - r/2);
   v[7] = CVector3D(xc - r/2, yc + r/2, zc + r/2);
 
-  struct FaceData {
+  struct CubeFaceData {
     std::vector<CVector3D> points;
     CVector3D              normal { 0, 1, 0 };
 
@@ -67,7 +67,7 @@ init()
     }
   };
 
-  std::vector<FaceData> faceData;
+  std::vector<CubeFaceData> faceData;
   faceData.resize(6);
 
   faceData[0].setPoints(v[0], v[1], v[2], v[3]); // Right
@@ -102,10 +102,29 @@ init()
     normals  .push_back(n);
   };
 
-  auto addFaceData = [&](const FaceData &data) {
+  int       pos = 0;
+  FaceDatas faceDatas;
+
+  auto addFaceData = [&](const CubeFaceData &data) {
+    FaceData faceData;
+
+    faceData.pos = pos;
+    faceData.len = 3;
+
+    faceDatas.push_back(faceData);
+
+    pos += 3;
+
     addPoint(data.points[0], faceTexCoords[0], data.normal);
     addPoint(data.points[1], faceTexCoords[1], data.normal);
     addPoint(data.points[2], faceTexCoords[2], data.normal);
+
+    faceData.pos = pos;
+    faceData.len = 3;
+
+    faceDatas.push_back(faceData);
+
+    pos += 3;
 
     addPoint(data.points[2], faceTexCoords[2], data.normal);
     addPoint(data.points[3], faceTexCoords[3], data.normal);
@@ -118,6 +137,7 @@ init()
   shapeData_.setPoints   (points);
   shapeData_.setTexCoords(texCoords);
   shapeData_.setNormals  (normals);
+  shapeData_.setFaceDatas(faceDatas);
 
   Shape3DObj::init();
 }

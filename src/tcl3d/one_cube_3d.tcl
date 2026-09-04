@@ -1,3 +1,5 @@
+source "tcl3d/addNormals.tcl"
+
 proc mapV { v v1 v2 } {
   return [expr {$v*($v2 - $v1) + $v1}]
 }
@@ -23,4 +25,8 @@ proc init { } {
     $::cube($i) set angle    [list $xa $ya $za]
     $::cube($i) set texture "textures/container.jpg"
   }
+}
+
+proc bboxChanged { } {
+  addNormals
 }

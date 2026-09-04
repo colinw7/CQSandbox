@@ -2,6 +2,7 @@
 #define CQSandboxObject3D_H
 
 #include <CQSandboxGeom.h>
+#include <CQSandboxFaceData.h>
 
 #include <CVector3D.h>
 #include <CMatrix3DH.h>
@@ -13,6 +14,9 @@
 #include <QStringList>
 
 #include <optional>
+#include <set>
+
+class CQGLBuffer;
 
 namespace CQSandbox {
 
@@ -58,9 +62,9 @@ class Object3D : public QObject {
   Q_PROPERTY(double  xpos     READ xPos       WRITE setXPos)
   Q_PROPERTY(double  ypos     READ yPos       WRITE setYPos)
   Q_PROPERTY(double  zpos     READ zPos       WRITE setZPos)
-  Q_PROPERTY(double  xscale   READ xscale     WRITE setXScale)
-  Q_PROPERTY(double  yscale   READ yscale     WRITE setYScale)
-  Q_PROPERTY(double  zscale   READ zscale     WRITE setZScale)
+  Q_PROPERTY(double  xscale   READ xScale     WRITE setXScale)
+  Q_PROPERTY(double  yscale   READ yScale     WRITE setYScale)
+  Q_PROPERTY(double  zscale   READ zScale     WRITE setZScale)
 
  public:
   enum class Type {
@@ -96,6 +100,11 @@ class Object3D : public QObject {
     ROTATE    = (1<<2),
     ALL       = (TRANSLATE | SCALE | ROTATE)
   };
+
+  using SelectedPoints = std::set<int>;
+  using SelectedFaces  = std::set<int>;
+
+  using FaceDatas = std::vector<FaceData>;
 
  public:
   Object3D(Canvas3D *canvas, Type type);
@@ -173,13 +182,13 @@ class Object3D : public QObject {
 
   //---
 
-  double xscale() const { return xscale_; }
+  double xScale() const { return xscale_; }
   void setXScale(double s) { setScales(s, yscale_, zscale_); }
 
-  double yscale() const { return yscale_; }
+  double yScale() const { return yscale_; }
   void setYScale(double s) { setScales(xscale_, s, zscale_); }
 
-  double zscale() const { return zscale_; }
+  double zScale() const { return zscale_; }
   void setZScale(double s) { setScales(xscale_, yscale_, s); }
 
   void setScale(double s) { setScales(s, s, s); }
@@ -190,12 +199,16 @@ class Object3D : public QObject {
 
   const CMatrix3DH &modelMatrix() const { return modelMatrix_; }
 
+  const CMatrix3DH &meshMatrix() const { return meshMatrix_; }
+
   //---
 
   Group3DObj *group() const { return group_; }
   void setGroup(Group3DObj *group) { group_ = group; }
 
   //---
+
+  bool isNeedsUpdate() const { return needsUpdate_; }
 
   void setNeedsUpdate();
 
@@ -228,9 +241,13 @@ class Object3D : public QObject {
     return bbox_;
   }
 
-  virtual CBBox3D calcBBox() { return bbox_; }
+  virtual CBBox3D calcBBox() = 0;
 
   virtual Rect getBBox() const { return Rect(); } // TODO: for Quad Tree
+
+  virtual CQGLBuffer *getBuffer() const { return buffer_; }
+
+  virtual const FaceDatas &getFaceDatas() const { return faceDatas_; }
 
   //---
 
@@ -246,7 +263,26 @@ class Object3D : public QObject {
 
   QString getCommandName() const;
 
+  //---
+
   void createBBoxObj();
+
+  BBox3DObj *bboxObj() const { return bboxObj_; }
+
+  //---
+
+  void clearSelection();
+
+  void selectPoint(int i);
+  void selectFace (int i);
+
+  const SelectedPoints &selectedPoints() const { return selectedPoints_; }
+  const SelectedFaces  &selectedFaces () const { return selectedFaces_; }
+
+  //---
+
+  CPoint3D  getFaceCenter(int i) const;
+  CVector3D getFaceNormal(int i) const;
 
  protected:
   using OptPoint = std::optional<CPoint3D>;
@@ -270,7 +306,8 @@ class Object3D : public QObject {
   double   yscale_   { 1.0 };
   double   zscale_   { 1.0 };
 
-  CMatrix3DH modelMatrix_;
+  CMatrix3DH modelMatrix_ { CMatrix3DH::identity() };
+  CMatrix3DH meshMatrix_  { CMatrix3DH::identity() };
 
   int    ticks_   { 0 };
   int    dt_      { 1 };
@@ -283,6 +320,13 @@ class Object3D : public QObject {
   bool       bboxValid_ { false };
 
   bool needsUpdate_ { true };
+
+  CQGLBuffer* buffer_ { nullptr };
+
+  FaceDatas faceDatas_;
+
+  SelectedPoints selectedPoints_;
+  SelectedFaces  selectedFaces_;
 };
 
 }

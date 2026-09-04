@@ -84,7 +84,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "points") {
-    shapeData_.setPoints(Util::stringToVectors3D(tcl, value));
+    std::vector<CVector3D> points;
+    if (! Util::stringToVectors3D(tcl, value, points))
+      return false;
+
+    shapeData_.setPoints(points);
 
     setNeedsUpdate();
   }
@@ -480,8 +484,6 @@ render()
     calcBBox();
 
     createBBoxObj();
-
-    bboxObj_->render();
   }
 
   //---

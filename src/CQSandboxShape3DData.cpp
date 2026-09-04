@@ -31,8 +31,8 @@ addCone(double r, double h)
   x[0         ] = r; y[0         ] = 0;
   x[stacks - 1] = 0; y[stacks - 1] = h;
 
-  double dx = stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0;
-  double dy = stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0;
+  auto dx = (stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0.0);
+  auto dy = (stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0.0);
 
   for (uint i = 1; i < stacks - 1; ++i) {
     x[i] = x[i - 1] + dx;
@@ -60,8 +60,8 @@ addCylinder(double r, double h)
   x[0         ] = r; y[0         ] = 0;
   x[stacks - 1] = r; y[stacks - 1] = h;
 
-  double dx = stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0;
-  double dy = stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0;
+  auto dx = (stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0.0);
+  auto dy = (stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0.0);
 
   for (uint i = 1; i < stacks - 1; ++i) {
     x[i] = x[i - 1] + dx;
@@ -119,6 +119,8 @@ addCube(double sx, double sy, double sz)
   texCoords_.resize(36);
   normals_  .resize(36);
 
+  faceDatas_.clear();
+
   int k = 0;
 
   for (int i = 5; i >= 0; --i) {
@@ -131,13 +133,25 @@ addCube(double sx, double sy, double sz)
       ++k;
     };
 
+    FaceData faceData;
+
+    faceData.pos = k;
+    faceData.len = 3;
+
     addPoint(v[cube_faces[i][0]], CVector2D(0.0, 0.0));
     addPoint(v[cube_faces[i][1]], CVector2D(1.0, 0.0));
     addPoint(v[cube_faces[i][2]], CVector2D(1.0, 1.0));
 
+    faceDatas_.push_back(faceData);
+
+    faceData.pos = k;
+    faceData.len = 3;
+
     addPoint(v[cube_faces[i][2]], CVector2D(1.0, 1.0));
     addPoint(v[cube_faces[i][3]], CVector2D(0.0, 1.0));
     addPoint(v[cube_faces[i][0]], CVector2D(0.0, 0.0));
+
+    faceDatas_.push_back(faceData);
   }
 
   delete geom_;
@@ -189,6 +203,8 @@ addBodyRev(double *x, double *y, uint num_xy, uint num_patches)
   normals_.resize(np);
   indices_.resize(ni);
 
+  faceDatas_.clear();
+
   for (uint i = 0; i < np; ++i) {
     points_ [i] = vertices[i].position;
     normals_[i] = vertices[i].normal;
@@ -196,6 +212,15 @@ addBodyRev(double *x, double *y, uint num_xy, uint num_patches)
 
   for (uint i = 0; i < ni; ++i) {
     indices_[i] = indices[i];
+  }
+
+  for (uint i = 0; i < ni; i += 3) {
+    FaceData faceData;
+
+    faceData.pos = i;
+    faceData.len = 3;
+
+    faceDatas_.push_back(faceData);
   }
 }
 

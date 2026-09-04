@@ -33,13 +33,13 @@ class GeomObject : public CGeomObject3D {
 
   //---
 
-  CQGLBuffer *buffer() const { return buffer_; }
-
   ShaderProgram* program() const { return program_; }
 
   const FaceDatas &faceDatas() const { return faceDatas_; }
 
   CQGLBuffer *initBuffer(Canvas3D *canvas);
+
+  CQGLBuffer *getBuffer() const { return buffer_; }
 
   void addFaceData(const FaceData &faceData);
 

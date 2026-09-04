@@ -502,8 +502,6 @@ render()
     calcBBox();
 
     createBBoxObj();
-
-    bboxObj_->render();
   }
 
   //---

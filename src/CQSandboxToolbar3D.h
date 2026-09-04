@@ -37,6 +37,10 @@ class CanvasToolbar3D : public QFrame {
   void solidSlot();
   void texturedSlot();
 
+  void objectSelectSlot();
+  void faceSelectSlot();
+  void edgeSelectSlot();
+  void pointSelectSlot();
   void bboxSlot();
 
   void settingsSlot();
@@ -58,6 +62,11 @@ class CanvasToolbar3D : public QFrame {
   QToolButton* wireButton_     { nullptr };
   QToolButton* solidButton_    { nullptr };
   QToolButton* texturedButton_ { nullptr };
+
+  QToolButton* objectSelectButton_ { nullptr };
+  QToolButton* faceSelectButton_   { nullptr };
+  QToolButton* edgeSelectButton_   { nullptr };
+  QToolButton* pointSelectButton_  { nullptr };
 
   QToolButton* bboxButton_ { nullptr };
 

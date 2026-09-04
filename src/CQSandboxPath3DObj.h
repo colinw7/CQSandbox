@@ -5,7 +5,6 @@
 
 #include <CGLPath3D.h>
 
-class CQGLBuffer;
 class CGLPath3D;
 
 namespace CQSandbox {
@@ -33,10 +32,13 @@ class Path3DObj : public Object3D {
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
 
   void init() override;
 
   void initShader();
+
+  CBBox3D calcBBox() override { return bbox_; }
 
   void render() override;
 
@@ -51,13 +53,6 @@ class Path3DObj : public Object3D {
   CGLPath3D path_;
 
   Points points_;
-
-#if 0
-  unsigned int pointsBufferId_ { 0 };
-  unsigned int vertexArrayId_  { 0 };
-#else
-  CQGLBuffer* buffer_ { nullptr };
-#endif
 };
 
 }

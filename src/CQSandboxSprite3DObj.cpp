@@ -140,7 +140,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     textureEnd_ = Util::stringToInt(value);
   }
   else if (name == "velocity") {
-    auto v = Util::stringToPoint2D(tcl, value);
+    CPoint2D v;
+    if (! Util::stringToPoint2D(tcl, value, v))
+      return false;
 
     xv_ = v.x;
     yv_ = v.y;

@@ -380,6 +380,8 @@ if {0} {
   set ::camera_x 0
   set ::camera_y 0
 
+  set ::follow 1
+
   #---
 
   # updatePlayer
@@ -390,6 +392,36 @@ if {0} {
   sb3d::camera set disable_roll 1
 
   #sb3d::canvas set camera.type first_person
+
+  #---
+
+  #sb3d::canvas set clip [list 0 0 1] 2
+
+  sb3d::ui create "\
+<qxml>\n\
+<QHBoxLayout>
+<QCheckBox text=\"Follow\" onStateChanged=\"followProc\" checked=\"1\"/>\n\
+</QHBoxLayout>
+<QLayoutItem stretch=\"1\"/>\n\
+</qxml>"
+}
+
+proc followProc { } {
+  # echo "$::execArgs"
+
+  set ::follow [lindex $::execArgs 0]
+
+  if {$::follow} {
+    updateCamera
+
+    if {[sb3d::canvas get camera.type] != "ortho"} {
+      set a [dirToAngle $::player_dir]
+
+      set a1 [expr {90 - $a}]
+
+      sb3d::camera set yaw $a1
+    }
+  }
 }
 
 proc createPlayerObj { } {
@@ -508,7 +540,7 @@ proc loadXml { } {
       set ix2 [expr {int($x + $w1)}]
       set iy2 [expr {int($y + $h1)}]
 
-      echo "$x $y $w $h : $ix1 $iy1 $ix2 $iy2"
+      # echo "$x $y $w $h : $ix1 $iy1 $ix2 $iy2"
 
       for {set iy $iy1} {$iy <= $iy2} {incr iy} {
         for {set ix $ix1} {$ix <= $ix2} {incr ix} {
@@ -599,13 +631,15 @@ proc tick { args } {
 proc rotatePlayer { } {
   # echo "Rotate Player"
 
-  if {[sb3d::canvas get camera.type] != "ortho"} {
-    set yaw [sb3d::camera get yaw]
+  if {$::follow} {
+    if {[sb3d::canvas get camera.type] != "ortho"} {
+      set yaw [sb3d::camera get yaw]
 
-    set d [expr {$::player_rot/$::player_nrot}]
+      set d [expr {$::player_rot/$::player_nrot}]
 
-    sb3d::camera set yaw [expr {$yaw + $d}]
-  # sb3d::camera set pitch -15
+      sb3d::camera set yaw [expr {$yaw + $d}]
+    # sb3d::camera set pitch -15
+    }
   }
 
   incr ::player_irot -1
@@ -846,27 +880,23 @@ proc updatePlayerPos { } {
 }
 
 proc updateCamera { } {
-if {0} {
-  if {[sb3d::canvas get camera.type] != "ortho"} {
-    sb3d::camera set yaw $angle
-
-    sb3d::camera set pitch 0
+  if {! $::follow} {
+    return
   }
-}
-
-  set v [dirToVector $::player_dir]
-  set vx [lindex $v 0]
-  set vz [lindex $v 2]
 
   set pos [mapPos [list $::player_x 0 $::player_y]]
 
-  set ::camera_x [expr {[lindex $pos 0] - 4*$vx}]
-  set ::camera_y [expr {[lindex $pos 2] - 4*$vz}]
-
   if {[sb3d::canvas get camera.type] != "ortho"} {
-    sb3d::camera set position [list $::camera_x $::player_h $::camera_y]
+    set v [dirToVector $::player_dir]
+    set vx [lindex $v 0]
+    set vz [lindex $v 2]
 
-  # sb3d::camera set look_at [list 0 0 0]
+    set ::camera_x [expr {[lindex $pos 0] - 4*$vx}]
+    set ::camera_y [expr {[lindex $pos 2] - 4*$vz}]
+
+    sb3d::camera set position [list $::camera_x $::player_h $::camera_y]
+  } else {
+    sb3d::camera set origin $pos
   }
 }
 
@@ -879,8 +909,8 @@ proc updateLight { } {
 
   set pos [mapPos [list $::player_x 0 $::player_y]]
 
-  set ::light_x [expr {[lindex $pos 0] + 4*$vx}]
-  set ::light_y [expr {[lindex $pos 2] + 4*$vz}]
+  set ::light_x [expr {[lindex $pos 0] + 0.5*$vx}]
+  set ::light_y [expr {[lindex $pos 2] + 0.5*$vz}]
 
   sb3d::light set position [list $::light_x $::player_h $::light_y]
 
@@ -1108,7 +1138,7 @@ proc enemyRotateLeft { } {
       set ::enemy_dir "N"
     }
 
-    echo "Dir: $::enemy_dir"
+    # echo "Dir: $::enemy_dir"
   }
 }
 
@@ -1130,7 +1160,7 @@ proc enemyRotateRight { } {
       set ::enemy_dir "N"
     }
 
-    echo "Dir: $::enemy_dir"
+    # echo "Dir: $::enemy_dir"
   }
 }
 
@@ -1342,6 +1372,6 @@ proc keyPress { k } {
       set ::current_model "player"
     }
 
-    echo "Current: $::current_model"
+    # echo "Current: $::current_model"
   }
 }

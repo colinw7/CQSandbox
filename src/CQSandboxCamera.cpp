@@ -116,8 +116,9 @@ reset(const CBBox3D &bbox)
 
   auto maxSize1 = s2*maxSize + near();
 
-  auto origin = CVector3D(center);
-  auto pos    = CVector3D(center + CPoint3D(0, maxSize1/2.0, maxSize1));
+  auto origin    = CVector3D(center);
+  auto direction = CVector3D(0, maxSize1/2.0, maxSize1);
+  auto pos       = CVector3D(center + direction);
 
   setPosition(pos);
 
@@ -127,8 +128,8 @@ reset(const CBBox3D &bbox)
 
   setOrigin(origin);
 
-  moveAroundX(0.1);
-  moveAroundY(0.1);
+  //moveAroundX(0.1);
+  //moveAroundY(0.1);
 }
 
 //---

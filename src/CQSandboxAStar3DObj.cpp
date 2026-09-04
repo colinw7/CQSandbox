@@ -117,8 +117,10 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (args.size() < 2)
       return false;
 
-    auto from = Util::stringToPoint2D(tcl, args[0]);
-    auto to   = Util::stringToPoint2D(tcl, args[1]);
+    CPoint2D from, to;
+    if (! Util::stringToPoint2D(tcl, args[0], from) ||
+        ! Util::stringToPoint2D(tcl, args[1], to  ))
+      return false;
 
     SearchData::NodeList pathNodes;
     searchData_.search(CellPos(from.y, from.x), CellPos(to.y, to.x), pathNodes);

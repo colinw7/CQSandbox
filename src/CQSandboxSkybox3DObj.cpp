@@ -211,9 +211,9 @@ updateObjectData()
           const auto &model = vertex.getModel();
 
           if (! flipYZ_)
-            buffer->addPoint(float(model.x), float(model.y), float(model.z));
+            buffer->addPoint(model);
           else
-            buffer->addPoint(float(model.x), float(model.z), float(model.y));
+            buffer->addPoint(CQGLBuffer::Point(model.x, model.z, model.y));
         }
 
         pos += faceData.len;
