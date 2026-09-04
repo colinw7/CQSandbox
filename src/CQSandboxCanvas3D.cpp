@@ -996,6 +996,21 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = names;
   }
+  else if (name == "bbox.center") {
+    auto center = bbox_.getCenter();
+
+    value = Util::point3DToString(center);
+  }
+  else if (name == "bbox.size") {
+    auto size = bbox_.getSize();
+
+    value = Util::vector3DToString(size);
+  }
+  else if (name == "bbox.max_size") {
+    auto maxSize = bbox_.getMaxSize();
+
+    value = Util::realToString(maxSize);
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
