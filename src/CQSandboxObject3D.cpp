@@ -217,6 +217,8 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = Util::realToString(Util::radToDeg(zAngle()));
   else if (name == "group")
     value = (group() ? group()->calcId() : "");
+  else if (name == "bbox.center")
+    value = Util::point3DToString(bbox_.getCenter());
   else if (name == "faces") {
     const auto &faces = getFaceDatas();
 
@@ -250,6 +252,18 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     auto normal = getFaceNormal(ind);
 
     value = Util::vector3DToString(normal);
+  }
+  else if (name == "face.orient") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(args[0], ind))
+      return false;
+
+    auto orient = getFaceOrient(ind);
+
+    value = (orient == CPolygonOrientation::CLOCKWISE ? "clockwise" : "antoclockwise");
   }
   else
     return app->errorMsg(QString("Invalid get name '%1'").arg(name));
@@ -367,31 +381,9 @@ getFaceCenter(int i) const
 {
   CPoint3D c;
 
-  const auto &faceDatas = this->getFaceDatas();
-
-  if (i < 0 || i >= int(faceDatas.size()))
-    return c;
-
-  const auto &modelMatrix = this->modelMatrix();
-  const auto &meshMatrix  = this->meshMatrix();
-
-  auto matrix = modelMatrix*meshMatrix;
-
-  auto *buffer = this->getBuffer();
-  if (! buffer) return c;
-
-  const auto &faceData = faceDatas[i];
-
   std::vector<CPoint3D> points;
-
-  for (int i = 0; i < faceData.len; ++i) {
-    CQGLBuffer::PointData pointData;
-    buffer->getPointData(faceData.pos + i, pointData);
-
-    auto pp = matrix*pointData.point->point();
-
-    points.push_back(pp);
-  }
+  if (! getFacePoints(i, points))
+    return c;
 
   c = Util::pointsCenter(points);
 
@@ -404,10 +396,34 @@ getFaceNormal(int i) const
 {
   CVector3D n;
 
+  std::vector<CPoint3D> points;
+  if (! getFacePoints(i, points))
+    return n;
+
+  n = Util::pointsNormal(points);
+
+  return n;
+}
+
+CPolygonOrientation
+Object3D::
+getFaceOrient(int i) const
+{
+  std::vector<CPoint3D> points;
+  if (! getFacePoints(i, points))
+    return CPolygonOrientation::UNKNOWN;
+
+  return Util::pointsOrientation(points);
+}
+
+bool
+Object3D::
+getFacePoints(int i, std::vector<CPoint3D> &points) const
+{
   const auto &faceDatas = this->getFaceDatas();
 
   if (i < 0 || i >= int(faceDatas.size()))
-    return n;
+    return false;
 
   const auto &modelMatrix = this->modelMatrix();
   const auto &meshMatrix  = this->meshMatrix();
@@ -415,11 +431,9 @@ getFaceNormal(int i) const
   auto matrix = modelMatrix*meshMatrix;
 
   auto *buffer = this->getBuffer();
-  if (! buffer) return n;
+  if (! buffer) return false;
 
   const auto &faceData = faceDatas[i];
-
-  std::vector<CPoint3D> points;
 
   for (int i = 0; i < faceData.len; ++i) {
     CQGLBuffer::PointData pointData;
@@ -430,9 +444,7 @@ getFaceNormal(int i) const
     points.push_back(pp);
   }
 
-  n = Util::pointsNormal(points);
-
-  return n;
+  return true;
 }
 
 void

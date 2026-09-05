@@ -345,6 +345,8 @@ class CQGLBuffer {
     data_.indicesSet = true;
   }
 
+  uint numIndices() const { return data_.indices.size(); }
+
   //---
 
   struct PointData {
@@ -496,6 +498,18 @@ class CQGLBuffer {
 
   void drawTriangles() {
     glDrawArrays(GL_TRIANGLES, 0, int(numPoints()));
+  }
+
+  void drawTriangleStrip() {
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, int(numPoints()));
+  }
+
+  void drawTriangleFan() {
+    glDrawArrays(GL_TRIANGLE_FAN, 0, int(numPoints()));
+  }
+
+  void drawTriangleIndices() {
+    glDrawElements(GL_TRIANGLES, int(numIndices()), GL_UNSIGNED_INT, nullptr);
   }
 
   //---

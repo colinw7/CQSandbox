@@ -10,7 +10,9 @@
 #include <CBBox3D.h>
 #include <CGLColor.h>
 #include <CWindowRange2D.h>
+#include <CMathGeom2D.h>
 #include <CPoint3D.h>
+#include <CPolygonOrientation.h>
 
 #include <QPainterPath>
 #include <QString>
@@ -707,6 +709,15 @@ inline CVector3D pointsNormal(const std::vector<CPoint3D> &points) {
   CVector3D diff2(v2, v3);
 
   return diff1.crossProduct(diff2).normalized();
+}
+
+inline CPolygonOrientation pointsOrientation(const std::vector<CPoint3D> &points) {
+  if (points.size() < 3)
+    return CPolygonOrientation::UNKNOWN;
+
+  return CMathGeom2D::PolygonOrientation(points[0].x, points[0].y,
+                                         points[1].x, points[1].y,
+                                         points[2].x, points[2].y);
 }
 
 //---

@@ -5,8 +5,6 @@ proc addNormals { } {
   set objects [sb3d::canvas get objects]
 
   foreach object $objects {
-    set type [$object get type_name]
-
     set faces [$object get faces]
     # echo $faces
 

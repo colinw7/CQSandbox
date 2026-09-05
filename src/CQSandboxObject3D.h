@@ -8,6 +8,7 @@
 #include <CMatrix3DH.h>
 #include <CBBox3D.h>
 #include <CPoint3D.h>
+#include <CPolygonOrientation.h>
 
 #include <QObject>
 #include <QVariant>
@@ -281,8 +282,11 @@ class Object3D : public QObject {
 
   //---
 
-  CPoint3D  getFaceCenter(int i) const;
-  CVector3D getFaceNormal(int i) const;
+  CPoint3D            getFaceCenter(int i) const;
+  CVector3D           getFaceNormal(int i) const;
+  CPolygonOrientation getFaceOrient(int i) const;
+
+  bool getFacePoints(int i, std::vector<CPoint3D> &points) const;
 
  protected:
   using OptPoint = std::optional<CPoint3D>;

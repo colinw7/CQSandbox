@@ -16,6 +16,7 @@
 #include <CQSandboxOthello3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxPath3DObj.h>
+#include <CQSandboxPoint3DObj.h>
 #include <CQSandboxPlane3DObj.h>
 #include <CQSandboxQuadTree3DObj.h>
 #include <CQSandboxShader3DObj.h>
@@ -453,6 +454,10 @@ addCommands()
 
   tcl->createObjCommand("sb3d::particle_list",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ParticleList3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::point",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Point3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::shader",
@@ -2850,22 +2855,40 @@ selectNearestFace(const CPoint2D &p)
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
-      QPolygonF poly;
-      CPoint2D  c;
+      std::vector<CPoint3D> points;
 
       for (int i = 0; i < faceData.len; ++i) {
         CQGLBuffer::PointData pointData;
         buffer->getPointData(faceData.pos + i, pointData);
 
-        auto pp = (matrix*pointData.point->point()).toPoint2D();
+        auto pp = matrix*pointData.point->point();
+
+        points.push_back(pp);
+      }
+
+      auto orient = Util::pointsOrientation(points);
+
+      if (isCullFace()) {
+        if (isFrontFace()) {
+          if (orient == CPolygonOrientation::ANTICLOCKWISE)
+            continue;
+        }
+        else {
+          if (orient == CPolygonOrientation::CLOCKWISE)
+            continue;
+        }
+      }
+
+      QPolygonF poly;
+
+      for (const auto &p : points) {
+        auto pp = p.toPoint2D();
 
         poly << QPointF(pp.x, pp.y);
-
-        c += pp;
       }
 
       if (poly.containsPoint(p2, Qt::WindingFill)) {
-        c /= faceData.len;
+        auto c = Util::pointsCenter(points).toPoint2D();
 
         auto d = c.distanceTo(p1);
 

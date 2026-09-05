@@ -514,8 +514,7 @@ render()
   if (useDiffuseTexture_) {
     glActiveTexture(GL_TEXTURE0);
 
-    if (useDiffuseTexture_)
-      diffuseTexture_->bind();
+    diffuseTexture_->bind();
   }
 
   if (useNormalTexture_) {
@@ -535,18 +534,15 @@ render()
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   }
 
-  auto np = shapeData_.points ().size();
-  auto ni = shapeData_.indices().size();
-
-  if (ni > 0)
-    glDrawElements(GL_TRIANGLES, ni, GL_UNSIGNED_INT, nullptr);
+  if (buffer_->hasIndices())
+    buffer_->drawTriangleIndices();
   else {
     if      (shapeData_.isUseTriangleStrip())
-      glDrawArrays(GL_TRIANGLE_STRIP, 0, np);
+      buffer_->drawTriangleStrip();
     else if (shapeData_.isUseTriangleFan())
-      glDrawArrays(GL_TRIANGLE_FAN, 0, np);
+      buffer_->drawTriangleFan();
     else
-      glDrawArrays(GL_TRIANGLES, 0, np);
+      buffer_->drawTriangles();
   }
 
   if (useDiffuseTexture_ || useNormalTexture_)
