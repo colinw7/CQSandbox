@@ -1,23 +1,37 @@
 proc showOrient { } {
   set objects [sb3d::canvas get objects]
 
+  set i 0
+
   foreach object $objects {
+    set type [$object get type_name]
+
+    if {$type == "point"} {
+      continue
+    }
+
     set faces [$object get faces]
 
     foreach face $faces {
-      set orient [$object get face.orient $face]
+      if {! [info exists ::orient_point($i,$face)]} {
+        set ::orient_point($i,$face) [sb3d::point]
+
+        $::orient_point($i,$face) set size     24
+      }
+
       set center [$object get face.center $face]
 
-      set point [sb3d::point]
+      $::orient_point($i,$face) set position $center
 
-      $point set position $center
-      $point set size     8
+      set orient [$object get face.orient $face]
 
       if {$orient == "clockwise"} {
-        $point set color red
+        $::orient_point($i,$face) set color red
       } else {
-        $point set color green
+        $::orient_point($i,$face) set color green
       }
     }
+
+    incr i
   }
 }

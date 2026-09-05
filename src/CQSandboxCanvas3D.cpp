@@ -270,6 +270,7 @@ init()
   runTclCmd("proc tick { args } { }");
   runTclCmd("proc setMode { args } { }");
   runTclCmd("proc bboxChanged { args } { }");
+  runTclCmd("proc cameraChanged { args } { }");
 
   //---
 
@@ -1324,7 +1325,9 @@ setLightValue(const QString &name, const QString &value, const QStringList &)
       return app_->errorMsg(QString("Invalid type '%1'").arg(value));
   }
   else if (name == "current") {
-    auto n = Util::stringToInt(value);
+    int n;
+    if (! Util::stringToInt(value, n))
+      return false;
 
     setLightNum(n);
   }
@@ -1361,11 +1364,20 @@ setLightValue(const QString &name, const QString &value, const QStringList &)
 
 bool
 Canvas3D::
-execLight(const QString &op, const QStringList &, QVariant &)
+execLight(const QString &op, const QStringList &args, QVariant &)
 {
   auto *light = currentLight();
 
   if (op == "reset") {
+    if (args.size() > 0) {
+      int n;
+      if (! Util::stringToInt(args[0], n))
+        return false;
+
+      light = getLight(n);
+      if (! light) return false;
+    }
+
     resetLight(light);
   }
   else
@@ -1567,6 +1579,8 @@ setCameraType(const CameraType &t)
   update();
 
   Q_EMIT cameraChangedSignal();
+
+  runTclCmd("cameraChanged");
 }
 
 //---
@@ -1591,6 +1605,16 @@ currentLight() const
     th->lightNum_ -= int(lights_.size());
 
   return lights_[lightNum_];
+}
+
+Light3D *
+Canvas3D::
+getLight(uint i) const
+{
+  if (i >= lights_.size())
+    return nullptr;
+
+  return lights_[i];
 }
 
 void
@@ -1896,6 +1920,10 @@ cameraChangeSlot()
     return;
 
   update();
+
+  Q_EMIT cameraChangedSignal();
+
+  runTclCmd("cameraChanged");
 }
 
 void
@@ -1984,52 +2012,70 @@ render()
 
   //---
 
-  glPushAttrib(GL_ALL_ATTRIB_BITS);
-
-  //---
-
-  for (auto &pm : mgrs_)
-    pm.second->initRender(this);
-
-  //---
-
   using ObjectSelectedPoints = std::map<Object3D *, Object3D::SelectedPoints>;
   using ObjectSelectedFaces  = std::map<Object3D *, Object3D::SelectedFaces>;
 
   ObjectSelectedPoints objectSelectedPoints;
   ObjectSelectedFaces  objectSelectedFaces;
 
+  //---
+
+  glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+  //---
+
+  using MgrObjects = std::map<ObjectMgr3D *, Objects>;
+
+  MgrObjects mgrObjects;
+
   for (auto *obj : objects_) {
-    if (! obj || ! obj->isVisible())
-      continue;
+    auto *mgr = obj->mgr();
 
-    if (obj->group())
-      continue;
-
-    obj->render();
-
-    if      (editType() == EditType::POINT) {
-      auto &selectedPoints = obj->selectedPoints();
-
-      if (! selectedPoints.empty())
-        objectSelectedPoints[obj] = selectedPoints;
-    }
-    else if (editType() == EditType::LINE) {
-    }
-    else if (editType() == EditType::FACE) {
-      auto &selectedFaces = obj->selectedFaces();
-
-      if (! selectedFaces.empty())
-        objectSelectedFaces[obj] = selectedFaces;
-    }
-
-    bbox_ += obj->bbox();
+    mgrObjects[mgr].push_back(obj);
   }
 
   //---
 
-  for (auto &pm : mgrs_)
-    pm.second->termRender(this);
+  for (const auto &pm : mgrObjects) {
+    auto *mgr = pm.first;
+
+    if (mgr)
+      mgr->initRender(this);
+
+    const auto &objects = pm.second;
+
+    for (auto *obj : objects) {
+      if (! obj || ! obj->isVisible())
+        continue;
+
+      if (obj->group())
+        continue;
+
+      obj->render();
+
+      if      (editType() == EditType::POINT) {
+        auto &selectedPoints = obj->selectedPoints();
+
+        if (! selectedPoints.empty())
+          objectSelectedPoints[obj] = selectedPoints;
+      }
+      else if (editType() == EditType::LINE) {
+      }
+      else if (editType() == EditType::FACE) {
+        auto &selectedFaces = obj->selectedFaces();
+
+        if (! selectedFaces.empty())
+          objectSelectedFaces[obj] = selectedFaces;
+      }
+
+      bbox_ += obj->bbox();
+    }
+
+    //---
+
+    if (mgr)
+      mgr->termRender(this);
+  }
 
   //---
 

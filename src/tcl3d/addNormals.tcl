@@ -4,20 +4,31 @@ proc addNormals { } {
 
   set objects [sb3d::canvas get objects]
 
+  set i 0
+
   foreach object $objects {
+    set type [$object get type_name]
+
+    if {$type == "point" || $type == "path"} {
+      continue
+    }
+
     set faces [$object get faces]
-    # echo $faces
 
     foreach face $faces {
+      if {! [info exists ::normal_path($i,$face)]} {
+        set ::normal_path($i,$face) [sb3d::path]
+      }
+
       set center [$object get face.center $face]
       set normal [$object get face.normal $face]
 
       set p [addVectors $center $normal $size1]
 
-      set path [sb3d::path]
-
-      $path set path [list [list M $center] [list L $p]]
+      $::normal_path($i,$face) set path [list [list M $center] [list L $p]]
     }
+
+    incr i
   }
 }
 

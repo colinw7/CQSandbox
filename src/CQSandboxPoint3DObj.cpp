@@ -29,7 +29,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Point3DObj::
 Point3DObj(Canvas3D *canvas) :
- Shape3DObj(canvas)
+ Object3D(canvas, Type::POINT)
 {
 }
 

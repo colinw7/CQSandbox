@@ -2,6 +2,7 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxBBox3DObj.h>
+#include <CQSandboxCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -413,7 +414,18 @@ getFaceOrient(int i) const
   if (! getFacePoints(i, points))
     return CPolygonOrientation::UNKNOWN;
 
-  return Util::pointsOrientation(points);
+  auto *camera = canvas_->currentCamera();
+
+  const auto &projectionMatrix = camera->perspectiveMatrix();
+  const auto &viewMatrix       = camera->viewMatrix();
+
+  auto pvMatrix = projectionMatrix*viewMatrix;
+
+  std::vector<CPoint3D> ppoints;
+  for (const auto &p : points)
+    ppoints.push_back(pvMatrix*p);
+
+  return Util::pointsOrientation(ppoints);
 }
 
 bool

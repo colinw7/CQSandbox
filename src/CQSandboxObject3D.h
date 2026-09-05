@@ -83,6 +83,7 @@ class Object3D : public QObject {
     PARTICLE_LIST,
     PATH,
     PLANE,
+    POINT,
     QUAD_TREE,
     SHADER,
     SHADER_SHAPE,

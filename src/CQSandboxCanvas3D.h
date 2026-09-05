@@ -277,6 +277,8 @@ class Canvas3D : public OpenGLWindow {
 
   Light3D *currentLight() const;
 
+  Light3D *getLight(uint i) const;
+
   void updateLights();
 
   void resetLight(Light3D *);

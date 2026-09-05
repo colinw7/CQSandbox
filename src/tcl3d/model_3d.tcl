@@ -1,3 +1,6 @@
+source "tcl3d/addNormals.tcl"
+source "tcl3d/showOrient.tcl"
+
 proc init { } {
   set ::model [sb3d::model models/v3d/F15.V3D]
   # set ::model [sb3d::model models/3ds/batwing.3ds]
@@ -18,9 +21,11 @@ proc init { } {
 
   sb3d::ui create "\
 <qxml>\n\
-<QHBoxLayout>
+<QVBoxLayout>
 <QPushButton text=\"Reset\" onClicked=\"resetProc\"/>\n\
-</QHBoxLayout>
+<QPushButton text=\"Normals\" onClicked=\"normalsProc\"/>\n\
+<QPushButton text=\"Orientation\" onClicked=\"orientSlot\"/>\n\
+</QVBoxLayout>
 <QLayoutItem stretch=\"1\"/>\n\
 </qxml>"
 }
@@ -31,5 +36,13 @@ proc bboxChanged { } {
 
 proc resetProc { } {
   sb3d::camera exec reset
-  sb3d::light  exec reset
+  sb3d::light  exec reset 1
+}
+
+proc normalsProc { } {
+  addNormals
+}
+
+proc orientSlot { } {
+  showOrient
 }

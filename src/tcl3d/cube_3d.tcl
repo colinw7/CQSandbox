@@ -33,3 +33,7 @@ proc bboxChanged { } {
 
   showOrient
 }
+
+proc cameraChanged { } {
+  showOrient
+}

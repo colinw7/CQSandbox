@@ -1,11 +1,13 @@
 #ifndef CQSandboxPoint3DObj_H
 #define CQSandboxPoint3DObj_H
 
-#include <CQSandboxShape3DObj.h>
+#include <CQSandboxObject3D.h>
 
 namespace CQSandbox {
 
-class Point3DObj : public Shape3DObj {
+class ShaderProgram;
+
+class Point3DObj : public Object3D {
   Q_OBJECT
 
  public:
