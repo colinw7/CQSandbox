@@ -8,7 +8,27 @@
 
 namespace CQSandbox {
 
-ShaderProgram *Point3DObj::s_program = nullptr;
+ShaderProgram *Point3DObj::s_program   = nullptr;
+Point3DObjMgr *Point3DObj::s_objectMgr = nullptr;
+
+//---
+
+void
+Point3DObjMgr::
+initRender(Canvas3D *canvas)
+{
+  Point3DObj::initShader(canvas);
+
+  Point3DObj::initDraw(canvas);
+}
+
+void
+Point3DObjMgr::
+termRender(Canvas3D *)
+{
+}
+
+//---
 
 Object3D *
 Point3DObj::
@@ -31,6 +51,13 @@ Point3DObj::
 Point3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::POINT)
 {
+  if (! s_objectMgr) {
+    s_objectMgr = new Point3DObjMgr;
+
+    canvas->addObjectMgr(s_objectMgr);
+  }
+
+  s_objectMgr->addObject(this);
 }
 
 void
@@ -41,27 +68,26 @@ init()
 
   //---
 
-  initShader();
-
-  //---
+  initShader(canvas_);
 
   buffer_ = s_program->createBuffer();
 }
 
 void
 Point3DObj::
-initShader()
+initShader(Canvas3D *canvas)
 {
-  if (! s_program) {
-    auto *app = canvas_->app();
+  if (s_program)
+    return;
 
-    s_program = new ShaderProgram(this);
+  auto *app = canvas->app();
 
-    s_program->addVertexFile  (app->buildDir() + "/shaders/point.vs");
-    s_program->addFragmentFile(app->buildDir() + "/shaders/point.fs");
+  s_program = new ShaderProgram(canvas);
 
-    s_program->link();
-  }
+  s_program->addVertexFile  (app->buildDir() + "/shaders/point.vs");
+  s_program->addFragmentFile(app->buildDir() + "/shaders/point.fs");
+
+  s_program->link();
 }
 
 bool
@@ -102,12 +128,31 @@ updateGL()
 
   //---
 
+  calcBBox();
+
+  //---
+
   buffer_->clearBuffers();
 
   buffer_->addPoint(position_);
   buffer_->addColor(color_);
 
   buffer_->load();
+}
+
+CBBox3D
+Point3DObj::
+calcBBox()
+{
+  if (! bboxValid_) {
+    bbox_ = CBBox3D();
+
+    //bbox_ += position_;
+
+    bboxValid_ = true;
+  }
+
+  return bbox_;
 }
 
 void
@@ -118,14 +163,6 @@ render()
 
   //---
 
-  //s_program->bind();
-  canvas_->bindProgram(s_program);
-
-  canvas_->setProgramMatrices(s_program);
-
-  //---
-
-  //buffer_->bind();
   canvas_->bindBuffer(buffer_);
 
   //---
@@ -133,6 +170,23 @@ render()
   glPointSize(size_);
 
   glDrawArrays(GL_POINTS, 0, 1);
+}
+
+void
+Point3DObj::
+initDraw(Canvas3D *canvas)
+{
+  canvas->bindProgram(s_program);
+
+  //---
+
+  canvas->setProgramMatrices(s_program);
+}
+
+void
+Point3DObj::
+termDraw(Canvas3D *)
+{
 }
 
 }

@@ -74,9 +74,6 @@ class Shape3DObj : public Object3D {
 
   //---
 
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
   const CGLColor &color() const { return color_; }
   void setColor(const CGLColor &c) { color_ = c; }
 
@@ -87,6 +84,11 @@ class Shape3DObj : public Object3D {
 
   void setNormalTexture(const QString &filename);
   void setNormalTexture(CQGLTexture *texture) { normalTexture_ = texture; }
+
+  //---
+
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   void init() override;
 

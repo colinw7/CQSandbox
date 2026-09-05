@@ -13,8 +13,8 @@
 
 namespace CQSandbox {
 
-ShaderProgram* Shape3DObj::s_program = nullptr;
-Shape3DObjMgr* Shape3DObj::s_objectMgr;
+ShaderProgram* Shape3DObj::s_program   = nullptr;
+Shape3DObjMgr* Shape3DObj::s_objectMgr = nullptr;
 
 //---
 

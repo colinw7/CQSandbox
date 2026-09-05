@@ -15,9 +15,11 @@ proc addNormals { } {
 
     set faces [$object get faces]
 
+    set j 0
+
     foreach face $faces {
-      if {! [info exists ::normal_path($i,$face)]} {
-        set ::normal_path($i,$face) [sb3d::path]
+      if {! [info exists ::normal_path($i,$j)]} {
+        set ::normal_path($i,$j) [sb3d::path]
       }
 
       set center [$object get face.center $face]
@@ -25,7 +27,9 @@ proc addNormals { } {
 
       set p [addVectors $center $normal $size1]
 
-      $::normal_path($i,$face) set path [list [list M $center] [list L $p]]
+      $::normal_path($i,$j) set path [list [list M $center] [list L $p]]
+
+      incr j
     }
 
     incr i

@@ -1,4 +1,5 @@
 source "tcl3d/addNormals.tcl"
+source "tcl3d/showOrient.tcl"
 
 proc mapV { v v1 v2 } {
   return [expr {$v*($v2 - $v1) + $v1}]
@@ -25,8 +26,21 @@ proc init { } {
     $::cube($i) set angle    [list $xa $ya $za]
     $::cube($i) set texture "textures/container.jpg"
   }
+
+  sb3d::ui create "\
+<qxml>\n\
+<QVBoxLayout>
+<QPushButton text=\"Normals\" onClicked=\"normalsProc\"/>\n\
+<QPushButton text=\"Orientation\" onClicked=\"orientSlot\"/>\n\
+</QVBoxLayout>
+<QLayoutItem stretch=\"1\"/>\n\
+</qxml>"
 }
 
-proc bboxChanged { } {
+proc normalsProc { } {
   addNormals
+}
+
+proc orientSlot { } {
+  showOrient
 }

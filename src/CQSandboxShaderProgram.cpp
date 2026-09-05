@@ -24,6 +24,8 @@ addVertexFile(const QString &filename)
 {
   if (! program_->addShaderFromSourceFile(QOpenGLShader::Vertex, filename))
     std::cerr << program_->log().toStdString() << "\n";
+
+  vertexFile_ = filename;
 }
 
 void
@@ -32,6 +34,8 @@ addGeometryFile(const QString &filename)
 {
   if (! program_->addShaderFromSourceFile(QOpenGLShader::Geometry, filename))
     std::cerr << program_->log().toStdString() << "\n";
+
+  geometryFile_ = filename;
 }
 
 void
@@ -40,6 +44,8 @@ addFragmentFile(const QString &filename)
 {
   if (! program_->addShaderFromSourceFile(QOpenGLShader::Fragment, filename))
     std::cerr << program_->log().toStdString() << "\n";
+
+  fragmentFile_ = filename;
 }
 
 void

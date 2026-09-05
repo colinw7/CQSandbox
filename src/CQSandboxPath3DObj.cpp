@@ -8,7 +8,27 @@
 
 namespace CQSandbox {
 
-ShaderProgram *Path3DObj::s_program = nullptr;
+ShaderProgram *Path3DObj::s_program   = nullptr;
+Path3DObjMgr  *Path3DObj::s_objectMgr = nullptr;
+
+//---
+
+void
+Path3DObjMgr::
+initRender(Canvas3D *canvas)
+{
+  Path3DObj::initShader(canvas);
+
+  Path3DObj::initDraw(canvas);
+}
+
+void
+Path3DObjMgr::
+termRender(Canvas3D *)
+{
+}
+
+//---
 
 Object3D *
 Path3DObj::
@@ -31,6 +51,13 @@ Path3DObj::
 Path3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::PATH)
 {
+  if (! s_objectMgr) {
+    s_objectMgr = new Path3DObjMgr;
+
+    canvas->addObjectMgr(s_objectMgr);
+  }
+
+  s_objectMgr->addObject(this);
 }
 
 void
@@ -41,27 +68,26 @@ init()
 
   //---
 
-  initShader();
-
-  //---
+  initShader(canvas_);
 
   buffer_ = s_program->createBuffer();
 }
 
 void
 Path3DObj::
-initShader()
+initShader(Canvas3D *canvas)
 {
-  if (! s_program) {
-    auto *app = canvas_->app();
+  if (s_program)
+    return;
 
-    s_program = new ShaderProgram(this);
+  auto *app = canvas->app();
 
-    s_program->addVertexFile  (app->buildDir() + "/shaders/path.vs");
-    s_program->addFragmentFile(app->buildDir() + "/shaders/path.fs");
+  s_program = new ShaderProgram(canvas);
 
-    s_program->link();
-  }
+  s_program->addVertexFile  (app->buildDir() + "/shaders/path.vs");
+  s_program->addFragmentFile(app->buildDir() + "/shaders/path.fs");
+
+  s_program->link();
 }
 
 void
@@ -189,11 +215,12 @@ void
 Path3DObj::
 updatePoints()
 {
+  bbox_ = CBBox3D();
+
   points_.clear();
 
-  for (const auto &element : path_.elements()) {
+  for (const auto &element : path_.elements())
     points_.push_back(element.pos);
-  }
 }
 
 void
@@ -207,14 +234,36 @@ updateGL()
 
   //---
 
-  auto np = points_.size();
+  calcBBox();
+
+  //---
 
   buffer_->clearBuffers();
+
+  auto np = points_.size();
 
   for (uint i = 0; i < np; ++i)
     buffer_->addPoint(points_[i]);
 
   buffer_->load();
+}
+
+CBBox3D
+Path3DObj::
+calcBBox()
+{
+  if (! bboxValid_) {
+    bbox_ = CBBox3D();
+
+    auto np = points_.size();
+
+    for (uint i = 0; i < np; ++i)
+      bbox_ += points_[i];
+
+    bboxValid_ = true;
+  }
+
+  return bbox_;
 }
 
 void
@@ -224,11 +273,6 @@ render()
   updateGL();
 
   //---
-
-  //s_program->bind();
-  canvas_->bindProgram(s_program);
-
-  canvas_->setProgramMatrices(s_program);
 
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
@@ -243,6 +287,23 @@ render()
   auto np = points_.size();
 
   glDrawArrays(GL_LINES, 0, np);
+}
+
+void
+Path3DObj::
+initDraw(Canvas3D *canvas)
+{
+  canvas->bindProgram(s_program);
+
+  //---
+
+  canvas->setProgramMatrices(s_program);
+}
+
+void
+Path3DObj::
+termDraw(Canvas3D *)
+{
 }
 
 }

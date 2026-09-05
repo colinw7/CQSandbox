@@ -91,6 +91,10 @@ class ShaderProgram {
 
   GLint projectionUniform_ { 0 };
   GLint viewUniform_       { 0 };
+
+  QString vertexFile_;
+  QString geometryFile_;
+  QString fragmentFile_;
 };
 
 }

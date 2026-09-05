@@ -18,7 +18,7 @@ class Json3DObj : public Object3D {
   Json3DObj(Canvas3D *canvas, const QString &filename);
  ~Json3DObj();
 
-  const char *typeName() const override { return "csv"; }
+  const char *typeName() const override { return "json"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

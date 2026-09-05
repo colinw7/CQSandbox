@@ -5,6 +5,7 @@
 #include <CQSandboxModel3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxPath3DObj.h>
+#include <CQSandboxPoint3DObj.h>
 #include <CQSandboxShape3DObj.h>
 #include <CQSandboxSprite3DObj.h>
 #include <CQSandboxSurface3DObj.h>
@@ -341,6 +342,7 @@ updateObject(Object3D *object)
   auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
   auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
   auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
+  auto *pointObj        = dynamic_cast<Point3DObj        *>(object);
   auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
   auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
   auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
@@ -354,6 +356,8 @@ updateObject(Object3D *object)
     updateParticleList(particleListObj);
   else if (pathObj)
     updatePath(pathObj);
+  else if (pointObj)
+    updatePoint(pointObj);
   else if (shapeObj)
     updateShape(shapeObj);
   else if (spriteObj)
@@ -415,6 +419,17 @@ updatePath(Path3DObj *obj)
     drawData_.bbox += p1;
     drawData_.bbox += p2;
   }
+}
+
+void
+Overview3D::
+updatePoint(Point3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  auto p1 = mm*obj->position();
+
+  drawData_.bbox += p1;
 }
 
 void
@@ -743,6 +758,7 @@ drawObject(Object3D *object)
   auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
   auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
   auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
+  auto *pointObj        = dynamic_cast<Point3DObj        *>(object);
   auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
   auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
   auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
@@ -756,6 +772,8 @@ drawObject(Object3D *object)
     drawParticleList(particleListObj);
   else if (pathObj)
     drawPath(pathObj);
+  else if (pointObj)
+    drawPoint(pointObj);
   else if (shapeObj)
     drawShape(shapeObj);
   else if (spriteObj)
@@ -1057,6 +1075,17 @@ drawPath(Path3DObj *obj)
 
     drawModelLine(p1, p2);
   }
+}
+
+void
+Overview3D::
+drawPoint(Point3DObj *obj)
+{
+  drawData_.modelMatrix = obj->modelMatrix();
+
+  auto p1 = obj->position();
+
+  drawModelPoint(p1);
 }
 
 void

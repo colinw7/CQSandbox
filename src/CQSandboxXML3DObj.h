@@ -17,7 +17,7 @@ class Xml3DObj : public Object3D {
   Xml3DObj(Canvas3D *canvas, const QString &filename);
  ~Xml3DObj();
 
-  const char *typeName() const override { return "csv"; }
+  const char *typeName() const override { return "xml"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

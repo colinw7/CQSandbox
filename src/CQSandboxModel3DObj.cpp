@@ -23,7 +23,7 @@
 namespace CQSandbox {
 
 Model3DObj::ShaderData Model3DObj::s_shaderData;
-Model3DObjMgr*         Model3DObj::s_objectMgr;
+Model3DObjMgr*         Model3DObj::s_objectMgr = nullptr;
 
 //---
 
@@ -108,7 +108,7 @@ initShader(Canvas3D *canvas)
   s_shaderData.vertShaderFile = app->buildDir() + "/shaders/model.vs";
   s_shaderData.fragShaderFile = app->buildDir() + "/shaders/model.fs";
 
-  s_shaderData.program = new ShaderProgram;
+  s_shaderData.program = new ShaderProgram(canvas);
 
   s_shaderData.program->addVertexFile  (s_shaderData.vertShaderFile);
   s_shaderData.program->addFragmentFile(s_shaderData.fragShaderFile);

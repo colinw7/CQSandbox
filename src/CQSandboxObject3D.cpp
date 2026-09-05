@@ -432,6 +432,9 @@ bool
 Object3D::
 getFacePoints(int i, std::vector<CPoint3D> &points) const
 {
+  auto *buffer = this->getBuffer();
+  if (! buffer) return false;
+
   const auto &faceDatas = this->getFaceDatas();
 
   if (i < 0 || i >= int(faceDatas.size()))
@@ -441,9 +444,6 @@ getFacePoints(int i, std::vector<CPoint3D> &points) const
   const auto &meshMatrix  = this->meshMatrix();
 
   auto matrix = modelMatrix*meshMatrix;
-
-  auto *buffer = this->getBuffer();
-  if (! buffer) return false;
 
   const auto &faceData = faceDatas[i];
 
