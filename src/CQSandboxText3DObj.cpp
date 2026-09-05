@@ -325,7 +325,6 @@ render()
 
   //------
 
-  //s_program->bind();
   canvas_->bindProgram(s_program);
 
   canvas_->setProgramMatrices(s_program);
@@ -410,7 +409,7 @@ render()
 
   //---
 
-  //s_program->release();
+  canvas_->bindProgram(nullptr);
 
   glPopAttrib();
 }

@@ -436,7 +436,6 @@ preRender()
 
     auto *program = shaderToyData_.program->program();
 
-    //program->bind();
     canvas_->bindProgram(program);
 
     //---
@@ -468,7 +467,7 @@ preRender()
 
     //---
 
-    //program->release();
+    canvas_->bindProgram(nullptr);
 
     //---
 
@@ -497,7 +496,6 @@ render()
 
   //---
 
-  //s_program->bind();
   canvas_->bindProgram(s_program);
 
   canvas_->setProgramMatrices(s_program);
@@ -539,6 +537,10 @@ render()
   //canvas_->glBindVertexArray(0);
 
   glDisable(GL_TEXTURE_2D);
+
+  //---
+
+  canvas_->bindProgram(nullptr);
 }
 
 }

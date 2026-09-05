@@ -24,8 +24,9 @@ initRender(Canvas3D *canvas)
 
 void
 Path3DObjMgr::
-termRender(Canvas3D *)
+termRender(Canvas3D *canvas)
 {
+  Path3DObj::termDraw(canvas);
 }
 
 //---
@@ -279,7 +280,6 @@ render()
 
   //---
 
-  //buffer_->bind();
   canvas_->bindBuffer(buffer_);
 
   //---
@@ -287,6 +287,10 @@ render()
   auto np = points_.size();
 
   glDrawArrays(GL_LINES, 0, np);
+
+  //---
+
+  canvas_->bindBuffer(nullptr);
 }
 
 void
@@ -302,8 +306,9 @@ initDraw(Canvas3D *canvas)
 
 void
 Path3DObj::
-termDraw(Canvas3D *)
+termDraw(Canvas3D *canvas)
 {
+  canvas->bindProgram(nullptr);
 }
 
 }

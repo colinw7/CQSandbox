@@ -226,7 +226,6 @@ render()
 
   //---
 
-  //s_program->bind();
   canvas_->bindProgram(s_program);
 
   setModelMatrix();
@@ -236,7 +235,6 @@ render()
 
   //---
 
-  //buffer_->bind();
   canvas_->bindBuffer(buffer_);
 
   //---
@@ -276,7 +274,9 @@ render()
 
   //---
 
-  //buffer_->unbind();
+  canvas_->bindProgram(nullptr);
+
+  canvas_->bindBuffer(nullptr);
 }
 
 }

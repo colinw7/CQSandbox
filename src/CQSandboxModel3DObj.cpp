@@ -53,8 +53,9 @@ initRender(Canvas3D *canvas)
 
 void
 Model3DObjMgr::
-termRender(Canvas3D *)
+termRender(Canvas3D *canvas)
 {
+  Model3DObj::termDraw(canvas);
 }
 
 //---
@@ -606,7 +607,6 @@ initDraw(Canvas3D *canvas, double t)
 {
   auto *program = s_shaderData.program;
 
-  //program->bind();
   canvas->bindProgram(program);
 
   program->setUniformValue("ticks", float(t));
@@ -625,6 +625,13 @@ initDraw(Canvas3D *canvas, double t)
   canvas->setProgramLightGlobals(program);
 
   canvas->setProgramLights(program);
+}
+
+void
+Model3DObj::
+termDraw(Canvas3D *canvas)
+{
+  canvas->bindProgram(nullptr);
 }
 
 void
@@ -695,7 +702,6 @@ drawObject(CGeomObject3D *object)
   // setup data buffer
   buffer_ = geomObject1->getBuffer();
 
-  //buffer_->bind();
   canvas_->bindBuffer(buffer_);
 
   //---
@@ -808,7 +814,7 @@ drawObject(CGeomObject3D *object)
     }
   }
 
-  //buffer_->unbind();
+  canvas_->bindBuffer(nullptr);
 
   //---
 

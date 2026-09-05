@@ -347,7 +347,6 @@ void
 Graph3DObj::
 render()
 {
-  //s_program1->bind();
   canvas_->bindProgram(s_program1);
 
   canvas_->setProgramMatrices(s_program1);
@@ -361,11 +360,10 @@ render()
   glDrawArrays(GL_POINTS, 0, np);
 //glDrawArrays(GL_TRIANGLES, 0, np);
 
-  //s_program1->release();
+  canvas_->bindProgram(nullptr);
 
   //------
 
-  //s_program2->bind();
   canvas_->bindProgram(s_program2);
 
   s_program2->setUniformValue("lineColor", Util::toVector(lineColor_));
@@ -380,7 +378,7 @@ render()
 
   glDrawArrays(GL_LINES, 0, nl);
 
-  //s_program2->release();
+  canvas_->bindProgram(nullptr);
 }
 
 }

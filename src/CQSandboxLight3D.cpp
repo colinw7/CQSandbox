@@ -77,10 +77,8 @@ render()
   initBuffer();
 
   // setup light shader
-  //buffer_->bind();
   canvas_->bindBuffer(buffer_);
 
-  //s_program->bind();
   canvas_->bindProgram(s_program);
 
   canvas_->setProgramMatrices(s_program);
@@ -96,9 +94,9 @@ render()
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   //buffer_->drawTriangles();
 
-  //s_program->release();
+  canvas_->bindProgram(nullptr);
 
-  //buffer_->unbind();
+  canvas_->bindBuffer(nullptr);
 }
 
 void

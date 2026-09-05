@@ -457,7 +457,6 @@ render()
 
   //---
 
-  //s_program->bind();
   canvas_->bindProgram(s_program);
 
   canvas_->setProgramMatrices(s_program);
@@ -484,6 +483,10 @@ render()
     glDrawArrays(GL_TRIANGLES, 0, np);
 
   //canvas_->glBindVertexArray(0);
+
+  //---
+
+  canvas_->bindProgram(nullptr);
 }
 
 }

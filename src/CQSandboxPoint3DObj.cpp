@@ -24,8 +24,9 @@ initRender(Canvas3D *canvas)
 
 void
 Point3DObjMgr::
-termRender(Canvas3D *)
+termRender(Canvas3D *canvas)
 {
+  Point3DObj::termDraw(canvas);
 }
 
 //---
@@ -170,6 +171,10 @@ render()
   glPointSize(size_);
 
   glDrawArrays(GL_POINTS, 0, 1);
+
+  //---
+
+  canvas_->bindBuffer(nullptr);
 }
 
 void
@@ -185,8 +190,9 @@ initDraw(Canvas3D *canvas)
 
 void
 Point3DObj::
-termDraw(Canvas3D *)
+termDraw(Canvas3D *canvas)
 {
+  canvas->bindProgram(nullptr);
 }
 
 }

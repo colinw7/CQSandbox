@@ -42,6 +42,7 @@ class Model3DObj : public Object3D {
   static void initShader(Canvas3D *canvas);
 
   static void initDraw(Canvas3D *canvas, double t);
+  static void termDraw(Canvas3D *canvas);
 
   //---
 

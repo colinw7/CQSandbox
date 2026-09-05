@@ -2132,6 +2132,10 @@ render()
     glPointSize(8);
 
     glDrawArrays(GL_POINTS, 0, selectionBuffer_->numPoints());
+
+    bindBuffer(nullptr);
+
+    bindProgram(nullptr);
   }
 
   if (! objectSelectedFaces.empty()) {
@@ -2201,6 +2205,10 @@ render()
 
     for (const auto &faceData : selectedFaceDataList.faceDatas)
       glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
+
+    bindBuffer(nullptr);
+
+    bindProgram(nullptr);
   }
 
   //---
@@ -2215,11 +2223,6 @@ render()
   //---
 
   //std::cerr << "BBox: " << bbox_ << "\n";
-
-  //---
-
-  bindBuffer(nullptr);
-  bindProgram(nullptr);
 
   //---
 
@@ -2318,6 +2321,8 @@ Canvas3D::
 bindBuffer(CQGLBuffer *buffer)
 {
   if (buffer) {
+    assert(! currentBuffer_);
+
     if (buffer != currentBuffer_) {
       if (currentBuffer_)
         currentBuffer_->unbind();
@@ -2328,8 +2333,12 @@ bindBuffer(CQGLBuffer *buffer)
     }
   }
   else {
+    assert(currentBuffer_);
+
     if (currentBuffer_)
       currentBuffer_->unbind();
+
+    currentBuffer_ = nullptr;
   }
 }
 
@@ -2338,6 +2347,8 @@ Canvas3D::
 bindProgram(ShaderProgram *program)
 {
   if (program) {
+    assert(! currentProgram_);
+
     if (program != currentProgram_) {
       if (currentProgram_)
         currentProgram_->release();
@@ -2348,8 +2359,12 @@ bindProgram(ShaderProgram *program)
     }
   }
   else {
+    assert(currentProgram_);
+
     if (currentProgram_)
       currentProgram_->release();
+
+    currentProgram_ = nullptr;
   }
 }
 

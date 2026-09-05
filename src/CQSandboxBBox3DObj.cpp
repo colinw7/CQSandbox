@@ -147,7 +147,6 @@ render()
 
   //---
 
-  //s_program->bind();
   canvas_->bindProgram(s_program);
 
   canvas_->setProgramMatrices(s_program);
@@ -157,7 +156,6 @@ render()
 
   //---
 
-  //buffer_->bind();
   canvas_->bindBuffer(buffer_);
 
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -169,6 +167,11 @@ render()
   int np = points_.size();
 
   glDrawArrays(GL_TRIANGLES, 0, np);
+
+  //---
+
+  canvas_->bindBuffer(nullptr);
+  canvas_->bindProgram(nullptr);
 }
 
 }

@@ -254,10 +254,8 @@ render()
   for (auto &po : objectDatas_) {
     auto *objectData = po.second;
 
-    //objectData->buffer->bind();
     canvas_->bindBuffer(objectData->buffer);
 
-    //s_program->bind();
     canvas_->bindProgram(s_program);
 
     if (useCubemap_) {
@@ -334,7 +332,9 @@ render()
       }
     }
 
-    //objectData->buffer->unbind();
+    canvas_->bindBuffer(nullptr);
+
+    canvas_->bindProgram(nullptr);
   }
 
 //glDepthMask(GL_TRUE);

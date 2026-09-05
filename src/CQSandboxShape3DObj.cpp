@@ -27,8 +27,9 @@ initRender(Canvas3D *canvas)
 
 void
 Shape3DObjMgr::
-termRender(Canvas3D *)
+termRender(Canvas3D *canvas)
 {
+  Shape3DObj::termDraw(canvas);
 }
 
 //---
@@ -174,12 +175,15 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     double h = 1.0;
 
     if      (strs.size() == 1) {
-      r = Util::stringToReal(value);
+      if (! Util::stringToReal(value, r))
+        return false;
+
       h = r;
     }
     else if (strs.size() == 2) {
-      r = Util::stringToReal(strs[0]);
-      h = Util::stringToReal(strs[1]);
+      if (! Util::stringToReal(strs[0], r) ||
+          ! Util::stringToReal(strs[1], h))
+        return false;
     }
     else if (! strs.empty())
       return app->errorMsg("Invalid dimensions for cone");
@@ -198,14 +202,17 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     double sx = 1.0, sy = 1.0, sz = 1.0;
 
     if      (strs.size() == 1) {
-      sx = Util::stringToReal(value);
+      if (! Util::stringToReal(value, sx))
+        return false;
+
       sy = sx;
       sz = sx;
     }
     else if (strs.size() == 3) {
-      sx = Util::stringToReal(strs[0]);
-      sy = Util::stringToReal(strs[1]);
-      sz = Util::stringToReal(strs[2]);
+      if (! Util::stringToReal(strs[0], sx) ||
+          ! Util::stringToReal(strs[1], sy) ||
+          ! Util::stringToReal(strs[2], sz))
+        return false;
     }
     else if (! strs.empty())
       return app->errorMsg("bad sizes for cube");
@@ -225,12 +232,15 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     double h = 1.0;
 
     if      (strs.size() == 1) {
-      r = Util::stringToReal(value);
+      if (! Util::stringToReal(value, r))
+        return false;
+
       h = r;
     }
     else if (strs.size() == 2) {
-      r = Util::stringToReal(strs[0]);
-      h = Util::stringToReal(strs[1]);
+      if (! Util::stringToReal(strs[0], r) ||
+          ! Util::stringToReal(strs[1], h))
+        return false;
     }
     else if (! strs.empty())
       return app->errorMsg("Invalid dimensions for cylinder");
@@ -245,8 +255,10 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     double r = 1.0;
 
-    if (value != "")
-      r = Util::stringToReal(value);
+    if (value != "") {
+      if (! Util::stringToReal(value, r))
+        return false;
+    }
 
     shapeData_.addSphere(r);
 
@@ -494,7 +506,6 @@ render()
 
   //---
 
-  //buffer_->bind();
   canvas_->bindBuffer(buffer_);
 
   //---
@@ -550,14 +561,13 @@ render()
 
   //---
 
-  //buffer_->unbind();
+  canvas_->bindBuffer(nullptr);
 }
 
 void
 Shape3DObj::
 initDraw(Canvas3D *canvas)
 {
-  //s_program->bind();
   canvas->bindProgram(s_program);
 
   //---
@@ -575,8 +585,9 @@ initDraw(Canvas3D *canvas)
 
 void
 Shape3DObj::
-termDraw(Canvas3D *)
+termDraw(Canvas3D *canvas)
 {
+  canvas->bindProgram(nullptr);
 }
 
 }

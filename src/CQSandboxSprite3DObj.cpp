@@ -207,12 +207,10 @@ void
 Sprite3DObj::
 render()
 {
-  //buffer_->bind();
   canvas_->bindBuffer(buffer_);
 
   //---
 
-  //s_program->bind();
   canvas_->bindProgram(s_program);
 
   s_program->setUniformValue("textureId", 0);
@@ -232,9 +230,9 @@ render()
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-  //s_program->release();
+  canvas_->bindProgram(nullptr);
 
-  //buffer_->unbind();
+  canvas_->bindBuffer(nullptr);
 }
 
 }
