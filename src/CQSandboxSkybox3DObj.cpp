@@ -6,6 +6,7 @@
 #include <CQGLCubemap.h>
 #include <CQGLTexture.h>
 #include <CQGLBuffer.h>
+#include <CQGLState.h>
 #include <CQGLUtil.h>
 
 #include <CGeomScene3D.h>
@@ -247,7 +248,7 @@ render()
 
   //---
 
-//glDepthMask(GL_FALSE);
+//bool oldDepthMask = CQGLStateInst->setDepthMask(false);
   glDepthFunc(GL_LEQUAL);
 
   // setup model shader
@@ -262,7 +263,7 @@ render()
       if (cubemap_) {
         cubemap_->enable(/*enable*/true);
 
-        glActiveTexture(GL_TEXTURE0);
+        CQGLStateInst->setEnableTextureNum(0, true);
 
         cubemap_->bind();
 
@@ -273,7 +274,7 @@ render()
       if (texture_) {
         texture_->enable(/*enable*/true);
 
-        glActiveTexture(GL_TEXTURE0);
+        CQGLStateInst->setEnableTextureNum(0, true);
 
         texture_->bind();
       }
@@ -292,24 +293,24 @@ render()
     // render model
     for (const auto &faceData : objectData->faceDatas) {
       if (! canvas_->isWireframe()) {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        CQGLStateInst->setPolygonMode(GL_FILL);
 
         glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
       }
       else {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        CQGLStateInst->setPolygonMode(GL_LINE);
 
         glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
       }
     }
 #else
     if (! canvas_->isWireframe()) {
-      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      CQGLStateInst->setPolygonMode(GL_FILL);
 
       glDrawArrays(GL_TRIANGLES, 0, 36);
     }
     else {
-      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      CQGLStateInst->setPolygonMode(GL_LINE);
 
       glDrawArrays(GL_TRIANGLES, 0, 36);
     }
@@ -337,7 +338,7 @@ render()
     canvas_->bindProgram(nullptr);
   }
 
-//glDepthMask(GL_TRUE);
+//CQGLStateInst->setDepthMask(oldDepthMask);
   glDepthFunc(GL_LESS);
 }
 

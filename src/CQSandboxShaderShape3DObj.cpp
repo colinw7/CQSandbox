@@ -6,6 +6,7 @@
 #include <CQSandboxShaderToyProgram.h>
 
 #include <CQGLTexture.h>
+#include <CQGLState.h>
 #include <CQGLUtil.h>
 #include <CQTclUtil.h>
 
@@ -490,9 +491,9 @@ render()
   updateGL();
 
   if (wireframe_ || canvas_->isWireframe())
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    CQGLStateInst->setPolygonMode(GL_LINE);
   else
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    CQGLStateInst->setPolygonMode(GL_FILL);
 
   //---
 
@@ -511,8 +512,9 @@ render()
 
   s_program->setUniformValue("textureId", 0);
 
-  glEnable(GL_TEXTURE_2D);
-  glActiveTexture(GL_TEXTURE0);
+  bool oldTexture = CQGLStateInst->setEnableTexture(true);
+
+  CQGLStateInst->setEnableTextureNum(0, true);
 
   if (shaderToyData_.texture)
     shaderToyData_.texture->bindBuffer();
@@ -536,7 +538,7 @@ render()
 
   //canvas_->glBindVertexArray(0);
 
-  glDisable(GL_TEXTURE_2D);
+  CQGLStateInst->setEnableTexture(oldTexture);
 
   //---
 

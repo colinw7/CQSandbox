@@ -8,6 +8,7 @@
 #include <CQGLTexture.h>
 #include <CQGLUtil.h>
 #include <CQTclUtil.h>
+#include <CQGLState.h>
 
 #include <CLorenzCalc.h>
 
@@ -506,7 +507,7 @@ render()
 
   //---
 
-  glDisable(GL_CULL_FACE);
+  bool oldCullFace = CQGLStateInst->setCullFace(false);
 
   s_program->bind();
 
@@ -534,7 +535,7 @@ render()
   s_program->setUniformValue("textureId", 0);
 
   if (useTexture) {
-    glActiveTexture(GL_TEXTURE0);
+    CQGLStateInst->setEnableTextureNum(0, true);
     texture_->bind();
   }
 
@@ -616,7 +617,13 @@ render()
   // but faster.
   canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, n);
 
-  //s_program->release();
+  //---
+
+  CQGLStateInst->setCullFace(oldCullFace);
+
+  //---
+
+  s_program->release();
 }
 
 }

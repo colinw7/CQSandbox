@@ -4,8 +4,9 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
-#include <CQTclUtil.h>
 #include <CQGLUtil.h>
+#include <CQGLState.h>
+#include <CQTclUtil.h>
 
 #ifdef CQSANDBOX_WATER_SURFACE
 #include <CWaterSurface.h>
@@ -451,9 +452,9 @@ render()
   updateGL();
 
   if (wireframe_)
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    CQGLStateInst->setPolygonMode(GL_LINE);
   else
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    CQGLStateInst->setPolygonMode(GL_FILL);
 
   //---
 

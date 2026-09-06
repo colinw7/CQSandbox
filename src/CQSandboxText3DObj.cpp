@@ -4,6 +4,7 @@
 #include <CQSandboxUtil.h>
 
 #include <CQGLUtil.h>
+#include <CQGLState.h>
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb/stb_truetype.h>
@@ -335,7 +336,7 @@ render()
 
   glPushAttrib(GL_ALL_ATTRIB_BITS);
 
-  glEnable(GL_TEXTURE_2D);
+  bool oldTexture = CQGLStateInst->setEnableTexture(true);
 
   //---
 
@@ -389,7 +390,8 @@ render()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
-  glActiveTexture(GL_TEXTURE0);
+
+  CQGLStateInst->setEnableTextureNum(0, true);
 
   s_program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
 
@@ -410,6 +412,8 @@ render()
   //---
 
   canvas_->bindProgram(nullptr);
+
+  CQGLStateInst->setEnableTexture(oldTexture);
 
   glPopAttrib();
 }

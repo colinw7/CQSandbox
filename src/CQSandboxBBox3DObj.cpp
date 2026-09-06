@@ -5,6 +5,7 @@
 #include <CQTclUtil.h>
 #include <CQGLBuffer.h>
 #include <CQGLUtil.h>
+#include <CQGLState.h>
 
 namespace CQSandbox {
 
@@ -158,15 +159,19 @@ render()
 
   canvas_->bindBuffer(buffer_);
 
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  CQGLStateInst->setPolygonMode(GL_LINE);
 
-  glDisable(GL_CULL_FACE);
+  bool oldCullFace = CQGLStateInst->setCullFace(false);
 
   //---
 
   int np = points_.size();
 
   glDrawArrays(GL_TRIANGLES, 0, np);
+
+  //---
+
+  CQGLStateInst->setCullFace(oldCullFace);
 
   //---
 

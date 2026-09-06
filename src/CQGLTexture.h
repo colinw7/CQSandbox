@@ -54,7 +54,7 @@ class CQGLTexture {
   void bindBuffer() const;
   void unbindBuffer() const;
 
-  void enable(bool b);
+  void enable(bool b) const;
 
   void draw();
   void draw(double x1, double y1, double x2, double y2);

@@ -7,6 +7,7 @@
 #include <CQGLTexture.h>
 #include <CQGLBuffer.h>
 #include <CQGLUtil.h>
+#include <CQGLState.h>
 
 namespace CQSandbox {
 
@@ -244,11 +245,10 @@ render()
   s_program->setUniformValue("useTexture", useTexture_);
   s_program->setUniformValue("textureId", 0);
 
-  if (useTexture_)
-    glEnable(GL_TEXTURE_2D);
+  bool oldTexture = CQGLStateInst->setEnableTexture(useTexture_);
 
   if (useTexture_) {
-    glActiveTexture(GL_TEXTURE0);
+    CQGLStateInst->setEnableTextureNum(0, true);
     texture_->bind();
   }
 
@@ -257,20 +257,19 @@ render()
   int np = points_.size();
 
   if (canvas_->isWireframe()) {
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    CQGLStateInst->setPolygonMode(GL_LINE);
 
     glDrawArrays(GL_TRIANGLES, 0, np);
   }
   else {
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    CQGLStateInst->setPolygonMode(GL_FILL);
 
     glDrawArrays(GL_TRIANGLES, 0, np);
   }
 
   //---
 
-  if (useTexture_)
-    glDisable(GL_TEXTURE_2D);
+  CQGLStateInst->setEnableTexture(oldTexture);
 
   //---
 

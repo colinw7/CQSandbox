@@ -8,6 +8,7 @@
 
 #include <CQGLTexture.h>
 #include <CQGLBuffer.h>
+#include <CQGLState.h>
 #include <CQGLUtil.h>
 #include <CGLTexture.h>
 #include <CImportBase.h>
@@ -723,7 +724,7 @@ drawObject(CGeomObject3D *object)
     program->setUniformValue("diffuseTexture.enabled", textured && useDiffuseTexture);
 
     if (useDiffuseTexture) {
-      glActiveTexture(GL_TEXTURE0);
+      CQGLStateInst->setEnableTextureNum(0, true);
       diffuseTexture->bind();
 
       program->setUniformValue("diffuseTexture.texture", 0);
@@ -742,7 +743,7 @@ drawObject(CGeomObject3D *object)
     program->setUniformValue("normalTexture.enabled", textured && useNormalTexture);
 
     if (useNormalTexture) {
-      glActiveTexture(GL_TEXTURE1);
+      CQGLStateInst->setEnableTextureNum(1, true);
       normalTexture->bind();
 
       program->setUniformValue("normalTexture.texture", 1);
@@ -761,7 +762,7 @@ drawObject(CGeomObject3D *object)
     program->setUniformValue("specularTexture.enabled", textured && useSpecularTexture);
 
     if (useSpecularTexture) {
-      glActiveTexture(GL_TEXTURE2);
+      CQGLStateInst->setEnableTextureNum(2, true);
       specularTexture->bind();
 
       program->setUniformValue("specularTexture.texture", 2);
@@ -780,7 +781,7 @@ drawObject(CGeomObject3D *object)
     program->setUniformValue("emissiveTexture.enabled", textured && useEmissiveTexture);
 
     if (useEmissiveTexture) {
-      glActiveTexture(GL_TEXTURE3);
+      CQGLStateInst->setEnableTextureNum(3, true);
       emissiveTexture->bind();
 
       program->setUniformValue("emissiveTexture.texture", 3);
@@ -799,7 +800,7 @@ drawObject(CGeomObject3D *object)
     if (canvas_->isSolid() || canvas_->isTextured()) {
       program->setUniformValue("isWireframe", 0);
 
-      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      CQGLStateInst->setPolygonMode(GL_FILL);
 
       glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
     }
@@ -807,7 +808,7 @@ drawObject(CGeomObject3D *object)
     if (canvas_->isPolygonLine() || canvas_->isWireframe()) {
       program->setUniformValue("isWireframe", 1);
 
-      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      CQGLStateInst->setPolygonMode(GL_LINE);
 
       glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
     //glDrawArrays(GL_TRIANGLES, faceData.pos, faceData.len);

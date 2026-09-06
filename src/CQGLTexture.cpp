@@ -1,4 +1,6 @@
 #include <CQGLTexture.h>
+
+#include <CQGLState.h>
 #include <CQImage.h>
 #include <CMathGen.h>
 
@@ -97,7 +99,7 @@ void
 CQGLTexture::
 setImage(const CImagePtr &image)
 {
-  QImage &qimage = dynamic_cast<CQImage *>(image.get())->getQImage();
+  auto &qimage = dynamic_cast<CQImage *>(image.get())->getQImage();
 
   init(qimage, /*flip*/false);
 }
@@ -285,7 +287,7 @@ void
 CQGLTexture::
 bind() const
 {
-  glEnable(GL_TEXTURE_2D);
+  enable(true);
 
   if (frameBufferId_ > 0) {
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -316,7 +318,7 @@ void
 CQGLTexture::
 bindBuffer() const
 {
-  glEnable(GL_TEXTURE_2D);
+  enable(true);
 
   if (frameBufferId_)
     glBindTexture(GL_TEXTURE_2D, id_);
@@ -332,12 +334,9 @@ unbindBuffer() const
 
 void
 CQGLTexture::
-enable(bool b)
+enable(bool b) const
 {
-  if (b)
-    glEnable(GL_TEXTURE_2D);
-  else
-    glDisable(GL_TEXTURE_2D);
+  CQGLStateInst->setEnableTexture(b);
 }
 
 void
@@ -405,7 +404,7 @@ displayFramebufferTexture(ShaderProgram *program, int vertexId)
     [...]
   }
 
-  glActiveTexture(GL_TEXTURE0);
+  CQGLStateInst->setEnableTextureNum(0, true);
 
   program->bind();
 

@@ -10,6 +10,7 @@
 #include <CQSandboxCube3DObj.h>
 #include <CQSandboxDungeon3DObj.h>
 #include <CQSandboxGraph3DObj.h>
+#include <CQSandboxGrid3DObj.h>
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxJson3DObj.h>
 #include <CQSandboxModel3DObj.h>
@@ -44,6 +45,7 @@
 
 #include <CQGLUtil.h>
 #include <CQGLBuffer.h>
+#include <CQGLState.h>
 #include <CGeometry3D.h>
 
 #ifdef CQ_PERF_GRAPH
@@ -475,6 +477,10 @@ addCommands()
 
   tcl->createObjCommand("sb3d::axis",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Axis3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::grid",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Grid3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::sprite",
@@ -1974,23 +1980,25 @@ render()
 
   //---
 
-  glDepthMask(GL_TRUE);
+  CQGLStateInst->setDepthMask(true);
 
-  isDepthTest() ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
-  isCullFace () ? glEnable(GL_CULL_FACE ) : glDisable(GL_CULL_FACE );
-//isLighting () ? glEnable(GL_LIGHTING  ) : glDisable(GL_LIGHTING  );
+  CQGLStateInst->setDepthTest(isDepthTest());
+  CQGLStateInst->setCullFace (isCullFace ());
 
-  isFrontFace() ? glFrontFace(GL_CW) : glFrontFace(GL_CCW);
+//CQGLStateInst->setEnableLighting(isLighting());
 
-  isSmoothShade() ? glShadeModel(GL_SMOOTH) : glShadeModel(GL_FLAT);
+  CQGLStateInst->setFrontFace(isFrontFace() ? GL_CW : GL_CCW);
 
-//isOutline() ? glPolygonMode(GL_FRONT_AND_BACK, GL_LINE) :
-//              glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+  CQGLStateInst->setSmoothShade(isSmoothShade());
+
+//isOutline() ? CQGLStateInst->setPolygonMode(GL_LINE) : CQGLStateInst->setPolygonMode(GL_FILL);
 
   glDepthFunc(GL_LEQUAL);
 
-  glEnable(GL_BLEND);
+  CQGLStateInst->setBlend(true);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  CQGLStateInst->setEnableTexture(true);
 
   //---
 
@@ -2006,9 +2014,7 @@ render()
 
   //---
 
-  auto oldBBox = bbox_;
-
-  bbox_ = CBBox3D();
+  CBBox3D newBBox;
 
   //---
 
@@ -2068,7 +2074,7 @@ render()
           objectSelectedFaces[obj] = selectedFaces;
       }
 
-      bbox_ += obj->bbox();
+      newBBox += obj->bbox();
     }
 
     //---
@@ -2194,14 +2200,14 @@ render()
 
     selectionProgram_->setUniformValue("isWireframe", 0);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    CQGLStateInst->setPolygonMode(GL_FILL);
 
     for (const auto &faceData : selectedFaceDataList.faceDatas)
       glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
 
     selectionProgram_->setUniformValue("isWireframe", 1);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    CQGLStateInst->setPolygonMode(GL_LINE);
 
     for (const auto &faceData : selectedFaceDataList.faceDatas)
       glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
@@ -2222,11 +2228,13 @@ render()
 
   //---
 
-  //std::cerr << "BBox: " << bbox_ << "\n";
+  //std::cerr << "BBox: " << newBBox << "\n";
 
   //---
 
-  if (bbox_ != oldBBox) {
+  if (newBBox != bbox_) {
+    bbox_ = newBBox;
+
     Q_EMIT bboxChanged();
 
     runTclCmd("bboxChanged");
@@ -3515,14 +3523,8 @@ void
 Canvas3D::
 enableClips(bool b)
 {
-  if (b) {
-    for (uint ic = 0; ic < clips_.size(); ++ic)
-      glEnable(GL_CLIP_DISTANCE0 + ic);
-  }
-  else {
-    for (uint ic = 0; ic < clips_.size(); ++ic)
-      glDisable(GL_CLIP_DISTANCE0 + ic);
-  }
+  for (uint ic = 0; ic < clips_.size(); ++ic)
+    CQGLStateInst->setEnableClip(ic, b);
 }
 
 void

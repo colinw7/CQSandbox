@@ -7,6 +7,7 @@
 
 #include <CQGLTexture.h>
 #include <CQGLBuffer.h>
+#include <CQGLState.h>
 #include <CQGLUtil.h>
 #include <CShape3D.h>
 #include <CLine3D.h>
@@ -519,17 +520,16 @@ render()
   s_program->setUniformValue("useNormalTexture", useNormalTexture_);
   s_program->setUniformValue("normTex", 1);
 
-  if (useDiffuseTexture_ || useNormalTexture_)
-    glEnable(GL_TEXTURE_2D);
+  bool oldTexture = CQGLStateInst->setEnableTexture(useDiffuseTexture_ || useNormalTexture_);
 
   if (useDiffuseTexture_) {
-    glActiveTexture(GL_TEXTURE0);
+    CQGLStateInst->setEnableTextureNum(0, true);
 
     diffuseTexture_->bind();
   }
 
   if (useNormalTexture_) {
-    glActiveTexture(GL_TEXTURE1);
+    CQGLStateInst->setEnableTextureNum(1, true);
 
     normalTexture_->bind();
   }
@@ -537,12 +537,12 @@ render()
   if (wireframe_ || canvas_->isWireframe()) {
     s_program->setUniformValue("isWireframe", 1);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    CQGLStateInst->setPolygonMode(GL_LINE);
   }
   else {
     s_program->setUniformValue("isWireframe", 0);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    CQGLStateInst->setPolygonMode(GL_FILL);
   }
 
   if (buffer_->hasIndices())
@@ -556,8 +556,7 @@ render()
       buffer_->drawTriangles();
   }
 
-  if (useDiffuseTexture_ || useNormalTexture_)
-    glDisable(GL_TEXTURE_2D);
+  CQGLStateInst->setEnableTexture(oldTexture);
 
   //---
 

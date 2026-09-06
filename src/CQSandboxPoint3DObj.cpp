@@ -4,6 +4,7 @@
 #include <CQSandboxUtil.h>
 
 #include <CQGLBuffer.h>
+#include <CQGLState.h>
 #include <CQTclUtil.h>
 
 namespace CQSandbox {
@@ -169,6 +170,8 @@ render()
   //---
 
   glPointSize(size_);
+
+  CQGLStateInst->setPolygonMode(GL_POINT);
 
   glDrawArrays(GL_POINTS, 0, 1);
 

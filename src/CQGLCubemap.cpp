@@ -1,4 +1,6 @@
 #include <CQGLCubemap.h>
+
+#include <CQGLState.h>
 #include <CMathGen.h>
 
 #include <QFileInfo>
@@ -178,12 +180,5 @@ void
 CQGLCubemap::
 enable(bool b)
 {
-  if (b) {
-    glEnable(GL_TEXTURE_CUBE_MAP);
-    glEnable(GL_TEXTURE_CUBE_MAP_EXT);
-  }
-  else {
-    glDisable(GL_TEXTURE_CUBE_MAP);
-    glDisable(GL_TEXTURE_CUBE_MAP_EXT);
-  }
+  CQGLStateInst->setEnableCubeMap(b);
 }

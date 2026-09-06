@@ -5,6 +5,7 @@
 
 #include <CQGLBuffer.h>
 #include <CQGLTexture.h>
+#include <CQGLState.h>
 #include <CQGLUtil.h>
 
 namespace CQSandbox {
@@ -221,7 +222,7 @@ render()
 
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
-  glActiveTexture(GL_TEXTURE0);
+  CQGLStateInst->setEnableTextureNum(0, true);
 
   auto *texture = currentTexture();
 
