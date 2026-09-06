@@ -28,6 +28,8 @@ class Surface3DObj : public Object3D {
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
+  //---
+
   Surface3DObj(Canvas3D *canvas);
 
   const char *typeName() const override { return "surface"; }
@@ -59,6 +61,8 @@ class Surface3DObj : public Object3D {
 
   void updateGL();
 
+  void initShader();
+
   void calcNormals();
 
   CBBox3D calcBBox() override { return bbox_; }
@@ -85,11 +89,13 @@ class Surface3DObj : public Object3D {
   CFlag *flag_ { nullptr };
 #endif
 
+#if 0
   unsigned int pointsBufferId_  { 0 };
   unsigned int normalsBufferId_ { 0 };
   unsigned int colorsBufferId_  { 0 };
   unsigned int vertexArrayId_   { 0 };
   unsigned int indBufferId_     { 0 };
+#endif
 };
 
 }

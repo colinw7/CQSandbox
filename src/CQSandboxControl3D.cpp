@@ -135,6 +135,12 @@ Control3D(CQSandbox::Canvas3D *canvas) :
   updateWidgets();
 }
 
+Control3D::
+~Control3D()
+{
+  delete xml_;
+}
+
 void
 Control3D::
 init()
@@ -176,13 +182,6 @@ addControlFrame()
     return checkBox;
   };
 
-  auto addRealEdit = [&](const QString &label, const char *slotName) {
-    auto *edit = new CQRealSpin;
-    connect(edit, SIGNAL(realValueChanged(double)), this, slotName);
-    addLabelEdit(label, edit);
-    return edit;
-  };
-
   auto addColorEdit = [&](const QString &label, const char *slotName) {
     auto *edit = new CQColorEdit;
     connect(edit, SIGNAL(colorChanged(const QColor &)), this, slotName);
@@ -199,40 +198,6 @@ addControlFrame()
   //---
 
   controlData_.bgColorEdit = addColorEdit("Bg Color", SLOT(bgColorSlot(const QColor &)));
-
-  //---
-
-  controlData_.ambientColorEdit =
-    addColorEdit("Ambient Color", SLOT(ambientColorSlot(const QColor &)));
-
-  controlData_.ambientStrengthEdit = addRealEdit("Ambient Strength", SLOT(ambientStrengthSlot()));
-  controlData_.ambientStrengthEdit->setRange(0.0, 1.0);
-
-  //---
-
-  controlData_.diffuseEdit = addRealEdit("Diffuse Strength", SLOT(diffuseSlot()));
-  controlData_.diffuseEdit->setRange(0.0, 1.0);
-
-  //---
-
-  controlData_.specularColorEdit =
-    addColorEdit("Specular Color", SLOT(specularColorSlot(const QColor &)));
-
-  controlData_.specularEdit = addRealEdit("Specular Strength", SLOT(specularSlot()));
-  controlData_.specularEdit->setRange(0.0, 1.0);
-
-  //---
-
-  controlData_.emissiveColorEdit =
-    addColorEdit("Emissive Color", SLOT(emissiveColorSlot(const QColor &)));
-
-  controlData_.emissiveEdit = addRealEdit("Emissive Strength", SLOT(emissiveSlot()));
-  controlData_.emissiveEdit->setRange(0.0, 1.0);
-
-  //---
-
-  controlData_.shininessEdit = addRealEdit("Shininess", SLOT(shininessSlot()));
-  controlData_.shininessEdit->setRange(0.0, 100.0);
 
   //---
 
@@ -352,12 +317,16 @@ addLightFrame()
   auto *frame  = new QFrame;
   auto *layout = new QVBoxLayout(frame);
 
-  auto *controlFrame  = new QFrame;
+  //---
+
+  auto *controlFrame  = new QGroupBox("Global");
   auto *controlLayout = new QGridLayout(controlFrame);
 
   layout->addWidget(controlFrame);
 
   int lightRow = 0;
+
+  //---
 
   auto addLabelEdit = [&](const QString &label, QWidget *w) {
     controlLayout->addWidget(new QLabel(label), lightRow, 0);
@@ -399,11 +368,53 @@ addLightFrame()
 
   //---
 
+  lightData_.ambientColorEdit = addColorEdit("Ambient Color");
+
+  lightData_.ambientStrengthEdit = addRealEdit("Ambient Strength");
+  lightData_.ambientStrengthEdit->setRange(0.0, 1.0);
+
+  //---
+
+  lightData_.diffuseEdit = addRealEdit("Diffuse Strength");
+  lightData_.diffuseEdit->setRange(0.0, 1.0);
+
+  //---
+
+  lightData_.specularColorEdit = addColorEdit("Specular Color");
+
+  lightData_.specularEdit = addRealEdit("Specular Strength");
+  lightData_.specularEdit->setRange(0.0, 1.0);
+
+  //---
+
+  lightData_.emissiveColorEdit = addColorEdit("Emissive Color");
+
+  lightData_.emissiveEdit = addRealEdit("Emissive Strength");
+  lightData_.emissiveEdit->setRange(0.0, 1.0);
+
+  //---
+
+  lightData_.shininessEdit = addRealEdit("Shininess");
+  lightData_.shininessEdit->setRange(0.0, 100.0);
+
+  //---
+
+  controlFrame  = new QGroupBox("Lights");
+  controlLayout = new QGridLayout(controlFrame);
+
+  layout->addWidget(controlFrame);
+
+  lightRow = 0;
+
+  //---
+
   lightData_.list = new QListWidget;
 
   lightData_.list->setSelectionMode(QListWidget::SingleSelection);
 
-  layout->addWidget(lightData_.list);
+  controlLayout->addWidget(lightData_.list, lightRow, 0, 1, 2);
+
+  ++lightRow;
 
   //--
 
@@ -662,36 +673,10 @@ updateControl()
   disconnect(controlData_.bgColorEdit   , &CQColorEdit::colorChanged,
              this, &Control3D::bgColorSlot);
 
-  disconnect(controlData_.ambientColorEdit, &CQColorEdit::colorChanged,
-             this, &Control3D::ambientColorSlot);
-  disconnect(controlData_.ambientStrengthEdit, &CQRealSpin::realValueChanged,
-             this, &Control3D::ambientStrengthSlot);
-  disconnect(controlData_.diffuseEdit, &CQRealSpin::realValueChanged,
-             this, &Control3D::diffuseSlot);
-  disconnect(controlData_.specularColorEdit, &CQColorEdit::colorChanged,
-             this, &Control3D::specularColorSlot);
-  disconnect(controlData_.specularEdit, &CQRealSpin::realValueChanged,
-             this, &Control3D::specularSlot);
-  disconnect(controlData_.emissiveColorEdit, &CQColorEdit::colorChanged,
-             this, &Control3D::emissiveColorSlot);
-  disconnect(controlData_.emissiveEdit, &CQRealSpin::realValueChanged,
-             this, &Control3D::emissiveSlot);
-  disconnect(controlData_.shininessEdit, &CQRealSpin::realValueChanged,
-             this, &Control3D::shininessSlot);
-
   controlData_.depthTestCheck->setChecked(canvas_->isDepthTest());
   controlData_.cullFaceCheck ->setChecked(canvas_->isCullFace());
   controlData_.frontFaceCheck->setChecked(canvas_->isFrontFace());
   controlData_.bgColorEdit   ->setColor(canvas_->bgColor());
-
-  controlData_.ambientColorEdit   ->setColor(Util::RGBAToQColor(canvas_->ambientColor()));
-  controlData_.ambientStrengthEdit->setValue(canvas_->ambientStrength());
-  controlData_.diffuseEdit        ->setValue(canvas_->diffuseStrength());
-  controlData_.specularColorEdit  ->setColor(Util::RGBAToQColor(canvas_->specularColor()));
-  controlData_.specularEdit       ->setValue(canvas_->specularStrength());
-  controlData_.emissiveColorEdit  ->setColor(Util::RGBAToQColor(canvas_->emissiveColor()));
-  controlData_.emissiveEdit       ->setValue(canvas_->emissiveStrength());
-  controlData_.shininessEdit      ->setValue(canvas_->shininess());
 
   connect(controlData_.depthTestCheck, &QCheckBox::stateChanged,
           this, &Control3D::depthTestSlot);
@@ -701,23 +686,6 @@ updateControl()
           this, &Control3D::frontFaceSlot);
   connect(controlData_.bgColorEdit   , &CQColorEdit::colorChanged,
           this, &Control3D::bgColorSlot);
-
-  connect(controlData_.ambientColorEdit, &CQColorEdit::colorChanged,
-          this, &Control3D::ambientColorSlot);
-  connect(controlData_.ambientStrengthEdit, &CQRealSpin::realValueChanged,
-          this, &Control3D::ambientStrengthSlot);
-  connect(controlData_.diffuseEdit, &CQRealSpin::realValueChanged,
-          this, &Control3D::diffuseSlot);
-  connect(controlData_.specularColorEdit, &CQColorEdit::colorChanged,
-          this, &Control3D::specularColorSlot);
-  connect(controlData_.specularEdit, &CQRealSpin::realValueChanged,
-          this, &Control3D::specularSlot);
-  connect(controlData_.emissiveColorEdit, &CQColorEdit::colorChanged,
-          this, &Control3D::emissiveColorSlot);
-  connect(controlData_.emissiveEdit, &CQRealSpin::realValueChanged,
-          this, &Control3D::emissiveSlot);
-  connect(controlData_.shininessEdit, &CQRealSpin::realValueChanged,
-          this, &Control3D::shininessSlot);
 }
 
 void
@@ -827,6 +795,17 @@ updateLights()
 
   //---
 
+  lightData_.ambientColorEdit   ->setColor(Util::RGBAToQColor(canvas_->ambientColor()));
+  lightData_.ambientStrengthEdit->setValue(canvas_->ambientStrength());
+  lightData_.diffuseEdit        ->setValue(canvas_->diffuseStrength());
+  lightData_.specularColorEdit  ->setColor(Util::RGBAToQColor(canvas_->specularColor()));
+  lightData_.specularEdit       ->setValue(canvas_->specularStrength());
+  lightData_.emissiveColorEdit  ->setColor(Util::RGBAToQColor(canvas_->emissiveColor()));
+  lightData_.emissiveEdit       ->setValue(canvas_->emissiveStrength());
+  lightData_.shininessEdit      ->setValue(canvas_->shininess());
+
+  //---
+
   auto *currentLight = canvas_->currentLight();
 
   lightData_.typeCombo->setCurrentIndex(int(currentLight->getType()));
@@ -880,6 +859,23 @@ Control3D::
 connectLights(bool b)
 {
   if (b) {
+    connect(lightData_.ambientColorEdit, &CQColorEdit::colorChanged,
+            this, &Control3D::ambientColorSlot);
+    connect(lightData_.ambientStrengthEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::ambientStrengthSlot);
+    connect(lightData_.diffuseEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::diffuseSlot);
+    connect(lightData_.specularColorEdit, &CQColorEdit::colorChanged,
+            this, &Control3D::specularColorSlot);
+    connect(lightData_.specularEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::specularSlot);
+    connect(lightData_.emissiveColorEdit, &CQColorEdit::colorChanged,
+            this, &Control3D::emissiveColorSlot);
+    connect(lightData_.emissiveEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::emissiveSlot);
+    connect(lightData_.shininessEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::shininessSlot);
+
     connect(lightData_.enabledCheck , &QCheckBox::stateChanged,
             this, &Control3D::lightCheckSlot);
     connect(lightData_.colorEdit , &CQColorEdit::colorChanged,
@@ -896,6 +892,23 @@ connectLights(bool b)
             this, &Control3D::lightSelectedSlot);
   }
   else {
+    disconnect(lightData_.ambientColorEdit, &CQColorEdit::colorChanged,
+               this, &Control3D::ambientColorSlot);
+    disconnect(lightData_.ambientStrengthEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::ambientStrengthSlot);
+    disconnect(lightData_.diffuseEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::diffuseSlot);
+    disconnect(lightData_.specularColorEdit, &CQColorEdit::colorChanged,
+               this, &Control3D::specularColorSlot);
+    disconnect(lightData_.specularEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::specularSlot);
+    disconnect(lightData_.emissiveColorEdit, &CQColorEdit::colorChanged,
+               this, &Control3D::emissiveColorSlot);
+    disconnect(lightData_.emissiveEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::emissiveSlot);
+    disconnect(lightData_.shininessEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::shininessSlot);
+
     disconnect(lightData_.enabledCheck , &QCheckBox::stateChanged,
                this, &Control3D::lightCheckSlot);
     disconnect(lightData_.colorEdit , &CQColorEdit::colorChanged,
@@ -1085,7 +1098,7 @@ void
 Control3D::
 ambientStrengthSlot()
 {
-  auto a = controlData_.ambientStrengthEdit->value();
+  auto a = lightData_.ambientStrengthEdit->value();
 
   canvas_->setAmbientStrength(a);
   canvas_->update();
@@ -1095,7 +1108,7 @@ void
 Control3D::
 diffuseSlot()
 {
-  auto a = controlData_.diffuseEdit->value();
+  auto a = lightData_.diffuseEdit->value();
 
   canvas_->setDiffuseStrength(a);
   canvas_->update();
@@ -1113,7 +1126,7 @@ void
 Control3D::
 specularSlot()
 {
-  auto a = controlData_.specularEdit->value();
+  auto a = lightData_.specularEdit->value();
 
   canvas_->setSpecularStrength(a);
   canvas_->update();
@@ -1131,7 +1144,7 @@ void
 Control3D::
 emissiveSlot()
 {
-  auto a = controlData_.emissiveEdit->value();
+  auto a = lightData_.emissiveEdit->value();
 
   canvas_->setEmissiveStrength(a);
   canvas_->update();
@@ -1141,7 +1154,7 @@ void
 Control3D::
 shininessSlot()
 {
-  auto a = controlData_.shininessEdit->value();
+  auto a = lightData_.shininessEdit->value();
 
   canvas_->setShininess(a);
   canvas_->update();

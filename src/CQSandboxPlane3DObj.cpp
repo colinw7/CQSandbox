@@ -254,17 +254,15 @@ render()
 
   //---
 
-  int np = points_.size();
-
   if (canvas_->isWireframe()) {
     CQGLStateInst->setPolygonMode(GL_LINE);
 
-    glDrawArrays(GL_TRIANGLES, 0, np);
+    buffer_->drawTriangles();
   }
   else {
     CQGLStateInst->setPolygonMode(GL_FILL);
 
-    glDrawArrays(GL_TRIANGLES, 0, np);
+    buffer_->drawTriangles();
   }
 
   //---

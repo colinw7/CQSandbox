@@ -173,7 +173,7 @@ render()
 
   CQGLStateInst->setPolygonMode(GL_POINT);
 
-  glDrawArrays(GL_POINTS, 0, 1);
+  buffer_->drawPoints();
 
   //---
 

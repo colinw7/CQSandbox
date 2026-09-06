@@ -9,10 +9,14 @@ out vec4 FragColor;
 uniform vec3 viewPos;
 uniform vec3 lightPos;
 uniform vec3 lightColor;
+
+uniform vec3  ambientColor;
 uniform float ambientStrength;
 uniform float diffuseStrength;
 uniform float specularStrength;
 uniform float shininess;
+
+uniform bool isWireframe;
 
 void main() {
   vec3 norm = normalize(Normal);
@@ -22,7 +26,7 @@ void main() {
   vec3 diffuseColor = Color;
   vec3 diffuse = diffuseStrength*diff*diffuseColor;
 
-  vec3 ambient = ambientStrength*diffuseColor;
+  vec3 ambient = ambientStrength*ambientColor;
 
   vec3 viewDir = normalize(viewPos - FragPos);
   vec3 reflectDir = reflect(-lightDir, norm);
@@ -33,5 +37,8 @@ void main() {
 
   vec3 result = ambient + diffuse + specular;
 
-  FragColor = vec4(result, 1.0f);
+  if (isWireframe)
+    FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+  else
+    FragColor = vec4(result, 1.0f);
 }

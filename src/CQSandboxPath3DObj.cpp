@@ -285,11 +285,9 @@ render()
 
   //---
 
-  auto np = points_.size();
-
   CQGLStateInst->setPolygonMode(GL_LINE);
 
-  glDrawArrays(GL_LINES, 0, np);
+  buffer_->drawLines();
 
   //---
 

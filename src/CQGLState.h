@@ -40,6 +40,23 @@ class CQGLState {
 
   //---
 
+  bool isDepthMask() const { return stenclTest_; }
+
+  bool setDepthMask(bool b) {
+    if (b != depthMask_) {
+      std::swap(depthMask_, b);
+
+      if (depthMask_)
+        glDepthMask(GL_TRUE);
+      else
+        glDepthMask(GL_FALSE);
+    }
+
+    return b;
+  }
+
+  //---
+
   bool isDepthTest() const { return depthTest_; }
 
   bool setDepthTest(bool b) {
@@ -70,6 +87,70 @@ class CQGLState {
     }
 
     return b;
+  }
+
+  //---
+
+  bool isEnableLighting() const { return lighting_; }
+
+  bool setEnableLighting(bool b) {
+    if (b != lighting_) {
+      std::swap(lighting_, b);
+
+      if (lighting_)
+        glEnable(GL_LIGHTING);
+      else
+        glDisable(GL_LIGHTING);
+    }
+
+    return b;
+  }
+
+  //---
+
+  int getFrontFace() const { return frontFace_; }
+
+  int setFrontFace(int frontFace) {
+    assert(frontFace == GL_CW || frontFace == GL_CCW);
+
+    if (frontFace != frontFace_) {
+      std::swap(frontFace_, frontFace);
+
+      glFrontFace(frontFace_);
+    }
+
+    return frontFace;
+  }
+
+  //---
+
+  bool isSmoothShade() const { return smooth_; }
+
+  bool setSmoothShade(bool b) {
+    if (b != smooth_) {
+      std::swap(smooth_, b);
+
+      if (smooth_)
+        glShadeModel(GL_SMOOTH);
+      else
+        glShadeModel(GL_FLAT);
+    }
+
+    return b;
+  }
+
+  //---
+
+  int getPolygonMode() const { return polygonMode_; }
+
+  int setPolygonMode(int mode) {
+    if (mode != polygonMode_) {
+      glPolygonMode(GL_FRONT_AND_BACK, mode);
+
+      std::swap(polygonMode_, mode);
+    }
+
+    return mode;
   }
 
   //---
@@ -142,39 +223,6 @@ class CQGLState {
 
   //---
 
-  int getFrontFace() const { return frontFace_; }
-
-  int setFrontFace(int frontFace) {
-    assert(frontFace == GL_CW || frontFace == GL_CCW);
-
-    if (frontFace != frontFace_) {
-      std::swap(frontFace_, frontFace);
-
-      glFrontFace(frontFace_);
-    }
-
-    return frontFace;
-  }
-
-  //---
-
-  bool isDepthMask() const { return stenclTest_; }
-
-  bool setDepthMask(bool b) {
-    if (b != depthMask_) {
-      std::swap(depthMask_, b);
-
-      if (depthMask_)
-        glDepthMask(GL_TRUE);
-      else
-        glDepthMask(GL_FALSE);
-    }
-
-    return b;
-  }
-
-  //---
-
   bool isEnableTexture() const { return texture_; }
 
   bool setEnableTexture(bool b) {
@@ -189,6 +237,8 @@ class CQGLState {
 
     return b;
   }
+
+  //---
 
   bool isEnableTextureNum(int i) const { return textureNum_.get(i); }
 
@@ -228,40 +278,6 @@ class CQGLState {
 
   //---
 
-  bool isEnableLighting() const { return lighting_; }
-
-  bool setEnableLighting(bool b) {
-    if (b != lighting_) {
-      std::swap(lighting_, b);
-
-      if (lighting_)
-        glEnable(GL_LIGHTING);
-      else
-        glDisable(GL_LIGHTING);
-    }
-
-    return b;
-  }
-
-  //---
-
-  bool isSmoothShade() const { return smooth_; }
-
-  bool setSmoothShade(bool b) {
-    if (b != smooth_) {
-      std::swap(smooth_, b);
-
-      if (smooth_)
-        glShadeModel(GL_SMOOTH);
-      else
-        glShadeModel(GL_FLAT);
-    }
-
-    return b;
-  }
-
-  //---
-
   bool isEnableClip(int i) const { return clip_.get(i); }
 
   bool setEnableClip(int i, bool b) {
@@ -275,20 +291,6 @@ class CQGLState {
     }
 
     return b;
-  }
-
-  //---
-
-  int getPolygonMode() const { return polygonMode_; }
-
-  int setPolygonMode(int mode) {
-    if (mode != polygonMode_) {
-      glPolygonMode(GL_FRONT_AND_BACK, mode);
-
-      std::swap(polygonMode_, mode);
-    }
-
-    return mode;
   }
 
  private:

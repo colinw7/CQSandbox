@@ -290,10 +290,10 @@ class Canvas3D : public OpenGLWindow {
   const std::vector<Light3D *> lights() const { return lights_; }
 
   int lightNum() const { return lightNum_; }
-  void setLightNum(int i) { lightNum_ = i; }
+  void setLightNum(int i);
 
   bool isSimpleLights() const { return simpleLights_; }
-  void setSimpleLights(bool b) { simpleLights_ = b; }
+  void setSimpleLights(bool b);
 
   //---
 
@@ -538,6 +538,7 @@ class Canvas3D : public OpenGLWindow {
   void cameraChangedSignal();
 
   void lightAdded();
+  void lightChanged();
 
  private:
   struct PaintData {
@@ -579,10 +580,13 @@ class Canvas3D : public OpenGLWindow {
 
   CQTcl* tcl_ { nullptr };
 
-  bool    looping_       { false };
-  QTimer *timer_         { nullptr };
-  QTimer *uiTimer_       { nullptr };
-  int     redrawTimeOut_ { 100 };
+  bool    looping_        { false };
+  QTimer *timer_          { nullptr };
+  QTimer *uiTimer_        { nullptr };
+  int     redrawTimeOut_  { 100 };
+
+  bool commandRunning_     { false };
+  bool emitObjectsChanged_ { false };
 
   size_t lastInd_ { 0 };
 

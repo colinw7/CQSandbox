@@ -229,7 +229,7 @@ render()
   if (texture)
     texture->bind();
 
-  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  buffer_->drawTriangleStrip();
 
   canvas_->bindProgram(nullptr);
 

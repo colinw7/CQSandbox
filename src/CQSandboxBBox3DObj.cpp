@@ -165,9 +165,7 @@ render()
 
   //---
 
-  int np = points_.size();
-
-  glDrawArrays(GL_TRIANGLES, 0, np);
+  buffer_->drawTriangles();
 
   //---
 

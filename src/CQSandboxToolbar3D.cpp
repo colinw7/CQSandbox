@@ -149,6 +149,7 @@ CanvasToolbar3D(Canvas3D *canvas) :
   updateInfo();
 
   connect(canvas_, SIGNAL(typeChanged()), this, SLOT(updateInfo()));
+  connect(canvas_, SIGNAL(lightChanged()), this, SLOT(updateInfo()));
 }
 
 QToolButton *
@@ -270,6 +271,11 @@ updateInfo()
   else if (type == Canvas3D::Type::GAME) {
     text += "Mode: Game";
   }
+
+  text += " Light: " + QString::number(canvas_->lightNum());
+
+  if (canvas_->isSimpleLights())
+    text += " (Simple)";
 
   infoLabel_->setText(text);
 

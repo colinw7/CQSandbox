@@ -546,7 +546,10 @@ addNewObject(Object3D *obj)
 
   auto id = obj->calcId();
 
-  Q_EMIT objectsChanged();
+  if (! commandRunning_)
+    Q_EMIT objectsChanged();
+  else
+    emitObjectsChanged_ = true;
 
   return id;
 }
@@ -577,7 +580,10 @@ removeObject(Object3D *obj)
 
   objectsValid_ = false;
 
-  Q_EMIT objectsChanged();
+  if (! commandRunning_)
+    Q_EMIT objectsChanged();
+  else
+    emitObjectsChanged_ = true;
 }
 
 Object3D *
@@ -650,7 +656,10 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
       th->objectsValid_ = false;
 
-      Q_EMIT th->objectsChanged();
+      if (! th->commandRunning_)
+        Q_EMIT th->objectsChanged();
+      else
+        th->emitObjectsChanged_ = true;
     }
   }
   else
@@ -1851,6 +1860,26 @@ setProgramLights(ShaderProgram *program)
   }
 }
 
+void
+Canvas3D::
+setLightNum(int i)
+{
+  lightNum_ = i;
+
+  Q_EMIT lightChanged();
+}
+
+void
+Canvas3D::
+setSimpleLights(bool b)
+{
+  simpleLights_ = b;
+
+  Q_EMIT lightChanged();
+}
+
+//---
+
 Object3D *
 Canvas3D::
 objectFromInd(uint ind) const
@@ -1940,6 +1969,8 @@ lightChangeSlot()
     return;
 
   update();
+
+  Q_EMIT lightChanged();
 }
 
 void
@@ -1991,14 +2022,20 @@ render()
 
   CQGLStateInst->setSmoothShade(isSmoothShade());
 
-//isOutline() ? CQGLStateInst->setPolygonMode(GL_LINE) : CQGLStateInst->setPolygonMode(GL_FILL);
+  isOutline() ? CQGLStateInst->setPolygonMode(GL_LINE) : CQGLStateInst->setPolygonMode(GL_FILL);
 
   glDepthFunc(GL_LEQUAL);
 
   CQGLStateInst->setBlend(true);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  CQGLStateInst->setEnableTexture(true);
+  CQGLStateInst->setPolygonOffsetLine(false);
+
+  CQGLStateInst->setMultiSample(false);
+
+  CQGLStateInst->setStencilTest(false);
+
+  CQGLStateInst->setEnableTexture(false);
 
   //---
 
@@ -2137,7 +2174,7 @@ render()
 
     glPointSize(8);
 
-    glDrawArrays(GL_POINTS, 0, selectionBuffer_->numPoints());
+    selectionBuffer_->drawPoints();
 
     bindBuffer(nullptr);
 
@@ -3554,10 +3591,20 @@ bool
 Canvas3D::
 runTclCmd(const QString &cmd)
 {
+  commandRunning_ = true;
+
   auto rc = tcl_->eval(cmd, /*showError*/true, /*showResult*/false);
 
   if (! rc)
     (void) app_->errorMsg(QString("Command '%1' failed").arg(cmd));
+
+  if (emitObjectsChanged_) {
+    Q_EMIT objectsChanged();
+
+    emitObjectsChanged_ = false;
+  }
+
+  commandRunning_ = false;
 
   return rc;
 }

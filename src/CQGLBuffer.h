@@ -259,6 +259,10 @@ class CQGLBuffer {
     addNormal(Point(n.x(), n.y(), n.z()));
   }
 
+  void addNormal(const CGLVector3D &n) {
+    addNormal(Point(n.x(), n.y(), n.z()));
+  }
+
   void addNormal(const Point &p) {
     data_.types |= static_cast<unsigned int>(Parts::NORMAL);
 
@@ -279,6 +283,10 @@ class CQGLBuffer {
 
   void addColor(const CGLColor &c) {
     addColor(Color(c.r, c.g, c.b));
+  }
+
+  void addColor(const CGLVector3D &c) {
+    addColor(Color(c.x(), c.y(), c.z()));
   }
 
   void addColor(float r, float g, float b) {
@@ -506,6 +514,14 @@ class CQGLBuffer {
 
   void drawTriangleFan() {
     glDrawArrays(GL_TRIANGLE_FAN, 0, int(numPoints()));
+  }
+
+  void drawLines() {
+    glDrawArrays(GL_LINES, 0, int(numPoints()));
+  }
+
+  void drawPoints() {
+    glDrawArrays(GL_POINTS, 0, int(numPoints()));
   }
 
   void drawTriangleIndices() {

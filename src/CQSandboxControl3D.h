@@ -24,6 +24,7 @@ class Control3D : public QFrame {
 
  public:
   Control3D(Canvas3D *canvas);
+ ~Control3D() override;
 
   Canvas3D *canvas() const { return canvas_; }
 
@@ -65,15 +66,6 @@ class Control3D : public QFrame {
 
   void bgColorSlot(const QColor &c);
 
-  void ambientColorSlot(const QColor &c);
-  void ambientStrengthSlot();
-  void diffuseSlot();
-  void specularColorSlot(const QColor &c);
-  void specularSlot();
-  void emissiveColorSlot(const QColor &c);
-  void emissiveSlot();
-  void shininessSlot();
-
   // camera
   void cameraTypeSlot(int i);
   void cameraOrthoTypeSlot(int i);
@@ -96,6 +88,15 @@ class Control3D : public QFrame {
   void resetCameraSlot();
 
   // light
+  void ambientColorSlot(const QColor &c);
+  void ambientStrengthSlot();
+  void diffuseSlot();
+  void specularColorSlot(const QColor &c);
+  void specularSlot();
+  void emissiveColorSlot(const QColor &c);
+  void emissiveSlot();
+  void shininessSlot();
+
   void lightSelectedSlot(QListWidgetItem *, QListWidgetItem *);
 
   void lightCheckSlot(int b);
@@ -145,14 +146,6 @@ class Control3D : public QFrame {
     QCheckBox*   cullFaceCheck       { nullptr };
     QCheckBox*   frontFaceCheck      { nullptr };
     CQColorEdit* bgColorEdit         { nullptr };
-    CQColorEdit* ambientColorEdit    { nullptr };
-    CQRealSpin*  ambientStrengthEdit { nullptr };
-    CQRealSpin*  diffuseEdit         { nullptr };
-    CQColorEdit* specularColorEdit   { nullptr };
-    CQRealSpin*  specularEdit        { nullptr };
-    CQColorEdit* emissiveColorEdit   { nullptr };
-    CQRealSpin*  emissiveEdit        { nullptr };
-    CQRealSpin*  shininessEdit       { nullptr };
   };
 
   ControlData controlData_;
@@ -176,14 +169,22 @@ class Control3D : public QFrame {
   CameraData cameraData_;
 
   struct LightData {
-    QListWidget*   list         { nullptr };
-    QComboBox*     typeCombo    { nullptr };
-    QCheckBox*     enabledCheck { nullptr };
-    CQColorEdit*   colorEdit    { nullptr };
-    CQPoint3DEdit* posEdit      { nullptr };
-    CQPoint3DEdit* dirEdit      { nullptr };
-    CQRealSpin*    cutoffEdit   { nullptr };
-    CQRealSpin*    radiusEdit   { nullptr };
+    CQColorEdit*   ambientColorEdit    { nullptr };
+    CQRealSpin*    ambientStrengthEdit { nullptr };
+    CQRealSpin*    diffuseEdit         { nullptr };
+    CQColorEdit*   specularColorEdit   { nullptr };
+    CQRealSpin*    specularEdit        { nullptr };
+    CQColorEdit*   emissiveColorEdit   { nullptr };
+    CQRealSpin*    emissiveEdit        { nullptr };
+    CQRealSpin*    shininessEdit       { nullptr };
+    QListWidget*   list                { nullptr };
+    QComboBox*     typeCombo           { nullptr };
+    QCheckBox*     enabledCheck        { nullptr };
+    CQColorEdit*   colorEdit           { nullptr };
+    CQPoint3DEdit* posEdit             { nullptr };
+    CQPoint3DEdit* dirEdit             { nullptr };
+    CQRealSpin*    cutoffEdit          { nullptr };
+    CQRealSpin*    radiusEdit          { nullptr };
   };
 
   LightData lightData_;

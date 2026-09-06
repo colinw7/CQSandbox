@@ -4,6 +4,7 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
+#include <CQGLBuffer.h>
 #include <CQGLUtil.h>
 #include <CQGLState.h>
 #include <CQTclUtil.h>
@@ -232,19 +233,39 @@ resizePoints()
 
   indices_.resize(ni);
 
+  faceDatas_.clear();
+
+  //---
+
   int ii = 0;
+
+  FaceData faceData;
+
+  faceData.len = 3;
 
   for (int iy = 0; iy < ny_ - 1; ++iy) {
     for (int ix = 0; ix < nx_ - 1; ++ix) {
       int ixy = iy*nx_ + ix;
 
+      //---
+
+      faceData.pos = ii;
+
       indices_[ii++] = ixy;
       indices_[ii++] = ixy + 1;
       indices_[ii++] = ixy + nx_;
 
+      faceDatas_.push_back(faceData);
+
+      //---
+
+      faceData.pos = ii;
+
       indices_[ii++] = ixy + 1;
       indices_[ii++] = ixy + nx_ + 1;
       indices_[ii++] = ixy + nx_;
+
+      faceDatas_.push_back(faceData);
     }
   }
 
@@ -264,25 +285,37 @@ init()
 
   //---
 
-  if (! s_program) {
-    auto *app = canvas_->app();
-
-    s_program = new ShaderProgram(this);
-
-    s_program->addVertexFile  (app->buildDir() + "/shaders/surface.vs");
-    s_program->addFragmentFile(app->buildDir() + "/shaders/surface.fs");
-
-    s_program->link();
-  }
+  initShader();
 
   //---
 
+#if 0
   canvas_->glGenVertexArrays(1, &vertexArrayId_);
 
   canvas_->glGenBuffers(1, &pointsBufferId_);
   canvas_->glGenBuffers(1, &normalsBufferId_);
   canvas_->glGenBuffers(1, &colorsBufferId_);
   canvas_->glGenBuffers(1, &indBufferId_);
+#else
+  buffer_ = s_program->createBuffer();
+#endif
+}
+
+void
+Surface3DObj::
+initShader()
+{
+  if (s_program)
+    return;
+
+  auto *app = canvas_->app();
+
+  s_program = new ShaderProgram(this);
+
+  s_program->addVertexFile  (app->buildDir() + "/shaders/surface.vs");
+  s_program->addFragmentFile(app->buildDir() + "/shaders/surface.fs");
+
+  s_program->link();
 }
 
 void
@@ -363,12 +396,14 @@ updateGL()
 
   //---
 
-  // bind the Vertex Array Object
-  canvas_->glBindVertexArray(vertexArrayId_);
+  auto np = points_ .size();
+  auto ni = indices_.size();
 
   //---
 
-  int np = points_.size();
+#if 0
+  // bind the Vertex Array Object
+  canvas_->glBindVertexArray(vertexArrayId_);
 
   //---
 
@@ -400,8 +435,6 @@ updateGL()
   //---
 
   // store index data in element buffer
-  int ni = indices_.size();
-
   if (ni > 0) {
     canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufferId_);
     canvas_->glBufferData(GL_ELEMENT_ARRAY_BUFFER, ni*sizeof(unsigned int),
@@ -414,6 +447,20 @@ updateGL()
 //canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  0);
 
   canvas_->glBindVertexArray(0);
+#else
+  buffer_->clearBuffers();
+
+  for (uint i = 0; i < np; ++i) {
+    buffer_->addPoint (points_ [i]);
+    buffer_->addNormal(normals_[i]);
+    buffer_->addColor (colors_ [i]);
+  }
+
+  for (uint i = 0; i < ni; ++i)
+    buffer_->addIndex(indices_[i]);
+
+  buffer_->load();
+#endif
 }
 
 void
@@ -451,11 +498,6 @@ render()
 {
   updateGL();
 
-  if (wireframe_)
-    CQGLStateInst->setPolygonMode(GL_LINE);
-  else
-    CQGLStateInst->setPolygonMode(GL_FILL);
-
   //---
 
   canvas_->bindProgram(s_program);
@@ -471,19 +513,44 @@ render()
 
   //---
 
+#if 0
   canvas_->glBindVertexArray(vertexArrayId_);
+#else
+  canvas_->bindBuffer(buffer_);
+#endif
 
   //---
 
-  int np = points_.size();
-  int ni = indices_.size();
+  bool solid     = ! wireframe_;
+  bool wireframe = (wireframe_ || canvas_->isWireframe());
 
-  if (ni > 0)
-    glDrawElements(GL_TRIANGLES, ni, GL_UNSIGNED_INT, nullptr);
-  else
-    glDrawArrays(GL_TRIANGLES, 0, np);
+  if (solid) {
+    s_program->setUniformValue("isWireframe", 0);
 
+    CQGLStateInst->setPolygonMode(GL_FILL);
+
+    if (buffer_->numIndices() > 0)
+      buffer_->drawTriangleIndices();
+    else
+      buffer_->drawTriangles();
+  }
+
+  if (wireframe) {
+    s_program->setUniformValue("isWireframe", 1);
+
+    CQGLStateInst->setPolygonMode(GL_LINE);
+
+    if (buffer_->numIndices() > 0)
+      buffer_->drawTriangleIndices();
+    else
+      buffer_->drawTriangles();
+  }
+
+#if 0
   //canvas_->glBindVertexArray(0);
+#else
+  canvas_->bindBuffer(nullptr);
+#endif
 
   //---
 

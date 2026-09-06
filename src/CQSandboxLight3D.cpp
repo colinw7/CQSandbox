@@ -92,7 +92,6 @@ render()
 
   // draw light
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-  //buffer_->drawTriangles();
 
   canvas_->bindProgram(nullptr);
 
