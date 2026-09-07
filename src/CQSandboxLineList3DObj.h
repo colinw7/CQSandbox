@@ -32,7 +32,7 @@ class LineList3DObj : public Object3D {
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  const Lines &points() const { return lines_; }
+  const Lines &lines() const { return lines_; }
   void setLines(const Lines &lines);
 
   const Colors &colors() const { return colors_; }

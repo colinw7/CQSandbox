@@ -119,7 +119,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
 
-  if (name == "path") {
+  if      (name == "path") {
     path_.clear();
 
     QStringList strs;
@@ -150,6 +150,10 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     updatePoints();
 
     setNeedsUpdate();
+  }
+  else if (name == "color") {
+    if (! Util::stringToGLColor(tcl, value, color_))
+      return false;
   }
   else
     return Object3D::setValue(name, value, args);

@@ -1,15 +1,19 @@
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxGeomObject.h>
+
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxModel3DObj.h>
+#include <CQSandboxLineList3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxPath3DObj.h>
 #include <CQSandboxPoint3DObj.h>
+#include <CQSandboxPointList3DObj.h>
 #include <CQSandboxShape3DObj.h>
 #include <CQSandboxSprite3DObj.h>
 #include <CQSandboxSurface3DObj.h>
 #include <CQSandboxText3DObj.h>
+
 #include <CQSandboxCamera.h>
 #include <CQSandboxLight3D.h>
 #include <CQSandboxApp.h>
@@ -340,32 +344,27 @@ updateObject(Object3D *object)
 {
   auto *group3DObj      = dynamic_cast<Group3DObj        *>(object);
   auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
+  auto *lineListObj     = dynamic_cast<LineList3DObj     *>(object);
   auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
   auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
   auto *pointObj        = dynamic_cast<Point3DObj        *>(object);
+  auto *pointListObj    = dynamic_cast<PointList3DObj    *>(object);
   auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
   auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
   auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
   auto *textObj         = dynamic_cast<Text3DObj         *>(object);
 
-  if      (group3DObj)
-    updateGroup(group3DObj);
-  else if (model3DObj)
-    updateModel(model3DObj);
-  else if (particleListObj)
-    updateParticleList(particleListObj);
-  else if (pathObj)
-    updatePath(pathObj);
-  else if (pointObj)
-    updatePoint(pointObj);
-  else if (shapeObj)
-    updateShape(shapeObj);
-  else if (spriteObj)
-    updateSprite(spriteObj);
-  else if (surface3DObj)
-    updateSurface(surface3DObj);
-  else if (textObj)
-    updateText(textObj);
+  if      (group3DObj     ) updateGroup(group3DObj);
+  else if (model3DObj     ) updateModel(model3DObj);
+  else if (lineListObj    ) updateLineList(lineListObj);
+  else if (particleListObj) updateParticleList(particleListObj);
+  else if (pathObj        ) updatePath(pathObj);
+  else if (pointObj       ) updatePoint(pointObj);
+  else if (pointListObj   ) updatePointList(pointListObj);
+  else if (shapeObj       ) updateShape(shapeObj);
+  else if (spriteObj      ) updateSprite(spriteObj);
+  else if (surface3DObj   ) updateSurface(surface3DObj);
+  else if (textObj        ) updateText(textObj);
 }
 
 void
@@ -385,6 +384,24 @@ Overview3D::
 updateModel(Model3DObj *obj)
 {
   updateGeomObject(obj->object());
+}
+
+void
+Overview3D::
+updateLineList(LineList3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &lines = obj->lines();
+
+  auto nl = lines.size();
+
+  for (uint i = 0; i < nl; ++i) {
+    const auto &line = lines[i];
+
+    drawData_.bbox += mm*line.start();
+    drawData_.bbox += mm*line.end  ();
+  }
 }
 
 void
@@ -430,6 +447,21 @@ updatePoint(Point3DObj *obj)
   auto p1 = mm*obj->position();
 
   drawData_.bbox += p1;
+}
+
+void
+Overview3D::
+updatePointList(PointList3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &points = obj->points();
+
+  auto np = points.size();
+
+  for (uint i = 0; i < np; ++i) {
+    drawData_.bbox += mm*points[i].vector();
+  }
 }
 
 void
@@ -756,32 +788,27 @@ drawObject(Object3D *object)
 {
   auto *group3DObj      = dynamic_cast<Group3DObj        *>(object);
   auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
+  auto *lineListObj     = dynamic_cast<LineList3DObj     *>(object);
   auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
   auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
   auto *pointObj        = dynamic_cast<Point3DObj        *>(object);
+  auto *pointListObj    = dynamic_cast<PointList3DObj    *>(object);
   auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
   auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
   auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
   auto *textObj         = dynamic_cast<Text3DObj         *>(object);
 
-  if      (group3DObj)
-    drawGroup(group3DObj);
-  else if (model3DObj)
-    drawModel(model3DObj);
-  else if (particleListObj)
-    drawParticleList(particleListObj);
-  else if (pathObj)
-    drawPath(pathObj);
-  else if (pointObj)
-    drawPoint(pointObj);
-  else if (shapeObj)
-    drawShape(shapeObj);
-  else if (spriteObj)
-    drawSprite(spriteObj);
-  else if (surface3DObj)
-    drawSurface(surface3DObj);
-  else if (textObj)
-    drawText(textObj);
+  if      (group3DObj     ) drawGroup(group3DObj);
+  else if (model3DObj     ) drawModel(model3DObj);
+  else if (lineListObj    ) drawLineList(lineListObj);
+  else if (particleListObj) drawParticleList(particleListObj);
+  else if (pathObj        ) drawPath(pathObj);
+  else if (pointObj       ) drawPoint(pointObj);
+  else if (pointListObj   ) drawPointList(pointListObj);
+  else if (shapeObj       ) drawShape(shapeObj);
+  else if (spriteObj      ) drawSprite(spriteObj);
+  else if (surface3DObj   ) drawSurface(surface3DObj);
+  else if (textObj        ) drawText(textObj);
 }
 
 void
@@ -1037,6 +1064,27 @@ drawTexts()
 
 void
 Overview3D::
+drawLineList(LineList3DObj *obj)
+{
+  drawData_.modelMatrix = obj->modelMatrix();
+
+  const auto &lines  = obj->lines ();
+  const auto &colors = obj->colors();
+
+  auto nl = lines.size();
+
+  for (uint i = 0; i < nl; ++i) {
+    const auto &l = lines [i];
+    const auto &c = colors[i];
+
+    drawData_.painter->setPen(Util::colorToQColor(c));
+
+    drawModelLine(l.start(), l.end());
+  }
+}
+
+void
+Overview3D::
 drawParticleList(ParticleList3DObj *obj)
 {
   bool objSelected = obj->isSelected();
@@ -1063,6 +1111,8 @@ void
 Overview3D::
 drawPath(Path3DObj *obj)
 {
+  auto c = obj->color();
+
   drawData_.modelMatrix = obj->modelMatrix();
 
   const auto &points = obj->points();
@@ -1072,6 +1122,8 @@ drawPath(Path3DObj *obj)
   for (uint i = 0; i < np; i += 2) {
     auto p1 = points[i + 0].point();
     auto p2 = points[i + 1].point();
+
+    drawData_.painter->setPen(Util::colorToQColor(c));
 
     drawModelLine(p1, p2);
   }
@@ -1086,6 +1138,30 @@ drawPoint(Point3DObj *obj)
   auto p1 = obj->position();
 
   drawModelPoint(p1);
+}
+
+void
+Overview3D::
+drawPointList(PointList3DObj *obj)
+{
+  bool objSelected = obj->isSelected();
+
+  drawData_.modelMatrix = obj->modelMatrix();
+
+  const auto &points = obj->points();
+  const auto &colors = obj->colors();
+
+  drawData_.pointSize = pointSize();
+
+  auto np = points.size();
+
+  for (uint i = 0; i < np; ++i) {
+    const auto &c = colors[i];
+
+    drawData_.painter->setPen(Util::colorToQColor(c));
+
+    drawModelPoint(points[i].point(), "", objSelected);
+  }
 }
 
 void
@@ -1306,13 +1382,17 @@ drawCone(const CVector3D &p, const CVector3D &d, double a) const
 void
 Overview3D::
 drawModelLine(const CPoint3D &p1, const CPoint3D &p2,
-              const QString & /*label*/, bool /*selected*/) const
+              const QString & /*label*/, bool selected) const
 {
   auto drawLine2D = [&](const ViewData &view, double /*pos*/,
                         const CPoint2D &p1, const CPoint2D &p2) {
     CPoint2D pp1, pp2;
     view.range->windowToPixel(p1, pp1);
     view.range->windowToPixel(p2, pp2);
+
+    auto pen = drawData_.painter->pen();
+    pen.setWidthF(selected ? 3 : 0);
+    drawData_.painter->setPen(pen);
 
     drawData_.painter->setClipRect(view.rect);
     drawData_.painter->drawLine(pp1.x, pp1.y, pp2.x, pp2.y);

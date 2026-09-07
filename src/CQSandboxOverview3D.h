@@ -29,9 +29,11 @@ class Text;
 
 class Group3DObj;
 class Model3DObj;
+class LineList3DObj;
 class ParticleList3DObj;
 class Path3DObj;
 class Point3DObj;
+class PointList3DObj;
 class Shape3DObj;
 class Sprite3DObj;
 class Surface3DObj;
@@ -168,9 +170,11 @@ class Overview3D : public QFrame {
   void updateGroup(Group3DObj *obj);
   void updateModel(Model3DObj *obj);
   void updateGeomObject(CGeomObject3D *object);
+  void updateLineList(LineList3DObj *obj);
   void updateParticleList(ParticleList3DObj *obj);
   void updatePath(Path3DObj *obj);
   void updatePoint(Point3DObj *obj);
+  void updatePointList(PointList3DObj *obj);
   void updateShape(Shape3DObj *obj);
   void updateSprite(Sprite3DObj *obj);
   void updateSurface(Surface3DObj *obj);
@@ -181,9 +185,11 @@ class Overview3D : public QFrame {
   void drawGroup(Group3DObj *obj);
   void drawModel(Model3DObj *obj);
   void drawGeomObject(CGeomObject3D *object);
+  void drawLineList(LineList3DObj *obj);
   void drawParticleList(ParticleList3DObj *obj);
   void drawPath(Path3DObj *obj);
   void drawPoint(Point3DObj *obj);
+  void drawPointList(PointList3DObj *obj);
   void drawShape(Shape3DObj *obj);
   void drawSprite(Sprite3DObj *obj);
   void drawSurface(Surface3DObj *obj);

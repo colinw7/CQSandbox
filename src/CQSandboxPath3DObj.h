@@ -4,6 +4,7 @@
 #include <CQSandboxObject3D.h>
 
 #include <CGLPath3D.h>
+#include <CGLColor.h>
 
 class CGLPath3D;
 
@@ -59,6 +60,9 @@ class Path3DObj : public Object3D {
 
   void setLine(const CVector3D &p1, const CVector3D &p2);
 
+  const CGLColor &color() const { return color_; }
+  void setColor(const CGLColor &c) { color_ = c; }
+
   //---
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
@@ -82,7 +86,8 @@ class Path3DObj : public Object3D {
 
   CGLPath3D path_;
 
-  Points points_;
+  Points   points_;
+  CGLColor color_ { 1.0, 1.0, 1.0 };
 };
 
 }

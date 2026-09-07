@@ -533,11 +533,9 @@ inline std::vector<unsigned int> stringToUIntArray(CQTcl *tcl, const QString &st
 
 //---
 
-inline CGLColor stringToGLColor(CQTcl *tcl, const QString &str) {
+inline bool stringToGLColor(CQTcl *tcl, const QString &str, CGLColor &c) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
-
-  CGLColor c;
 
   if (strs.size() >= 3) {
     auto r = stringToReal(strs[0]);
@@ -562,6 +560,12 @@ inline CGLColor stringToGLColor(CQTcl *tcl, const QString &str) {
     c.a = 1.0;
   }
 
+  return true;
+}
+
+inline CGLColor stringToGLColor(CQTcl *tcl, const QString &str) {
+  CGLColor c;
+  (void) stringToGLColor(tcl, str, c);
   return c;
 }
 
