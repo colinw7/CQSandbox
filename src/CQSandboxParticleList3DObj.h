@@ -25,8 +25,20 @@ class ParticleList3DObj : public Object3D {
   Q_PROPERTY(double particleSize READ particleSize WRITE setParticleSize)
 
  public:
-  using Points = std::vector<CGLVector3D>;
-  using Colors = std::vector<CGLColor>;
+  enum class Shape {
+    PLANE,
+    CUBE
+  };
+
+  using Points  = std::vector<CGLVector3D>;
+  using Normals = std::vector<CGLVector3D>;
+  using Colors  = std::vector<CGLColor>;
+
+  struct ParticleShape {
+    Points  points;
+    Normals normals;
+    bool    flat { false };
+  };
 
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
@@ -35,8 +47,14 @@ class ParticleList3DObj : public Object3D {
 
   const char *typeName() const override { return "particle_list"; }
 
+  const Shape &shape() const { return shape_; }
+  void setShape(const Shape &v) { shape_ = v; }
+
   double particleSize() const { return particleSize_; }
   void setParticleSize(double r) { particleSize_ = r; setNeedsUpdate(); }
+
+  double particleAlpha() const { return particleAlpha_; }
+  void setParticleAlpha(double r) { particleAlpha_ = r; setNeedsUpdate(); }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -56,7 +74,7 @@ class ParticleList3DObj : public Object3D {
 
   void initShader();
 
-  const std::vector<CGLVector3D> &getParticleShape() const;
+  const ParticleShape &getParticleShape() const;
   void addParticlePoint(const CGLVector3D &v);
 
   void tick() override;
@@ -84,10 +102,14 @@ class ParticleList3DObj : public Object3D {
     }
 
     GLint positionAttr { 0 };
+    GLint normalAttr   { 0 };
     GLint centerAttr   { 0 };
     GLint colorAttr    { 0 };
   };
 
+  //--
+
+  static size_t s_maxShape;
   static size_t s_maxPoints;
 
   static ParticleListShaderProgram *s_program;
@@ -95,9 +117,11 @@ class ParticleList3DObj : public Object3D {
   Points points_;
   Colors colors_;
 
+  GLuint billboardPointsBuffer_  { 0 };
+  GLuint billboardNormalsBuffer_ { 0 };
+
   GLuint particlesPositionBuffer_ { 0 };
   GLuint particlesColorBuffer_    { 0 };
-  GLuint billboardVertexBuffer_   { 0 };
 
   QString      textureFile_;
   CQGLTexture *texture_ { nullptr };
@@ -114,8 +138,9 @@ class ParticleList3DObj : public Object3D {
   double particleAlpha_ { 0.5 };
   bool   cullFace_      { false };
 
-  std::vector<CGLVector3D> particleShape_;
-  bool                     particleFlat_ { false };
+  Shape         shape_ { Shape::CUBE };
+  ParticleShape particleShape_;
+  bool          particleFlat_ { false };
 };
 
 }

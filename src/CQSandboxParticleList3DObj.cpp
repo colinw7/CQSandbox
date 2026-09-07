@@ -22,6 +22,7 @@
 
 namespace CQSandbox {
 
+size_t                                        ParticleList3DObj::s_maxShape  = 1024;
 size_t                                        ParticleList3DObj::s_maxPoints = 50000;
 ParticleList3DObj::ParticleListShaderProgram *ParticleList3DObj::s_program   = nullptr;
 
@@ -257,6 +258,25 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     setParticleSize(r);
   }
+  else if (name == "particle.alpha") {
+    double r;
+    if (! Util::stringToReal(value, r))
+       return false;
+
+    setParticleAlpha(r);
+  }
+  else if (name == "particle.shape") {
+    auto lstr = value.toLower();
+
+    if      (lstr == "plane")
+      setShape(Shape::PLANE);
+    else if (lstr == "cube")
+      setShape(Shape::CUBE);
+    else
+      return false;
+
+    particleShape_.points.clear();
+  }
   else if (name == "cull_face") {
     bool b;
     if (! Util::stringToBool(value, b))
@@ -361,11 +381,16 @@ init()
 
   //---
 
-  // The VBO containing the vertices of the particles.
-  // Thanks to instancing, they will be shared by all particles.
-  canvas_->glGenBuffers(1, &billboardVertexBuffer_);
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardVertexBuffer_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLVector3D),
+  // The VBO containing the vertices of the particle shape (shared by all particles)
+  canvas_->glGenBuffers(1, &billboardPointsBuffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardPointsBuffer_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxShape*sizeof(CGLVector3D),
+                        nullptr, GL_STATIC_DRAW);
+
+  // The VBO containing the normals of the particle shape (shared by all particles)
+  canvas_->glGenBuffers(1, &billboardNormalsBuffer_);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardNormalsBuffer_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxShape*sizeof(CGLVector3D),
                         nullptr, GL_STATIC_DRAW);
 
   // The VBO containing the positions and sizes of the particles
@@ -399,9 +424,14 @@ initShader()
 
   s_program->link();
 
+  //---
+
   // get program variables
   s_program->positionAttr = s_program->attributeLocation("position");
   Q_ASSERT(s_program->positionAttr != -1);
+
+  s_program->normalAttr = s_program->attributeLocation("normal");
+  Q_ASSERT(s_program->normalAttr != -1);
 
   s_program->centerAttr = s_program->attributeLocation("center");
   Q_ASSERT(s_program->centerAttr != -1);
@@ -409,62 +439,69 @@ initShader()
   s_program->colorAttr = s_program->attributeLocation("color");
   Q_ASSERT(s_program->colorAttr != -1);
 
+  //---
+
   s_program->setProjectionUniform();
   s_program->setViewUniform();
 }
 
-const std::vector<CGLVector3D> &
+const ParticleList3DObj::ParticleShape &
 ParticleList3DObj::
 getParticleShape() const
 {
-  if (particleShape_.empty()) {
+  if (particleShape_.points.empty()) {
     auto *th = const_cast<ParticleList3DObj *>(this);
 
-#if 1
-    th->addParticlePoint(CGLVector3D(-0.5f, -0.5f, 0.0f));
-    th->addParticlePoint(CGLVector3D( 0.5f, -0.5f, 0.0f));
-    th->addParticlePoint(CGLVector3D(-0.5f,  0.5f, 0.0f));
-    th->addParticlePoint(CGLVector3D( 0.5f,  0.5f, 0.0f));
-
-    th->particleFlat_ = true;
-#else
-    std::vector<CGLVector3D> v;
-    v.resize(8);
-
-    v[0] = CGLVector3D( 0.5f, -0.5f,  0.5f);
-    v[1] = CGLVector3D( 0.5f, -0.5f, -0.5f);
-    v[2] = CGLVector3D( 0.5f,  0.5f, -0.5f);
-    v[3] = CGLVector3D( 0.5f,  0.5f,  0.5f);
-    v[4] = CGLVector3D(-0.5f, -0.5f,  0.5f);
-    v[5] = CGLVector3D(-0.5f, -0.5f, -0.5f);
-    v[6] = CGLVector3D(-0.5f,  0.5f, -0.5f);
-    v[7] = CGLVector3D(-0.5f,  0.5f,  0.5f);
+    th->particleShape_.normals.clear();
 
     auto setPoints = [&](const CGLVector3D &v1, const CGLVector3D &v2,
-                         const CGLVector3D &v3, const CGLVector3D &v4) {
-      th->addParticlePoint(v1); th->addParticlePoint(v2);
-      th->addParticlePoint(v4); th->addParticlePoint(v3);
+                         const CGLVector3D &v3, const CGLVector3D &v4,
+                         const CGLVector3D &n) {
+      th->particleShape_.points.push_back(v1);
+      th->particleShape_.points.push_back(v2);
+      th->particleShape_.points.push_back(v4);
+      th->particleShape_.points.push_back(v3);
+
+      th->particleShape_.normals.push_back(n);
+      th->particleShape_.normals.push_back(n);
+      th->particleShape_.normals.push_back(n);
+      th->particleShape_.normals.push_back(n);
     };
 
-    setPoints(v[0], v[1], v[2], v[3]); // Right
-    setPoints(v[1], v[5], v[6], v[2]); // Back
-    setPoints(v[5], v[4], v[7], v[6]); // Left
-    setPoints(v[4], v[0], v[3], v[7]); // Front
-    setPoints(v[3], v[2], v[6], v[7]); // Top
-    setPoints(v[4], v[5], v[1], v[0]); // Bottom
+    if      (shape() == Shape::PLANE) {
+      setPoints(CGLVector3D(-0.5f, -0.5f, 0.0f),
+                CGLVector3D( 0.5f, -0.5f, 0.0f),
+                CGLVector3D( 0.5f,  0.5f, 0.0f),
+                CGLVector3D(-0.5f,  0.5f, 0.0f),
+                CGLVector3D(0, 1, 0));
 
-    th->particleFlat_ = false;
-#endif
+      th->particleShape_.flat = true;
+    }
+    else if (shape() == Shape::CUBE) {
+      std::vector<CGLVector3D> v;
+      v.resize(8);
+
+      v[0] = CGLVector3D( 0.5f, -0.5f,  0.5f);
+      v[1] = CGLVector3D( 0.5f, -0.5f, -0.5f);
+      v[2] = CGLVector3D( 0.5f,  0.5f, -0.5f);
+      v[3] = CGLVector3D( 0.5f,  0.5f,  0.5f);
+      v[4] = CGLVector3D(-0.5f, -0.5f,  0.5f);
+      v[5] = CGLVector3D(-0.5f, -0.5f, -0.5f);
+      v[6] = CGLVector3D(-0.5f,  0.5f, -0.5f);
+      v[7] = CGLVector3D(-0.5f,  0.5f,  0.5f);
+
+      setPoints(v[0], v[1], v[2], v[3], CGLVector3D( 1.0,  0.0,  0.0)); // Right
+      setPoints(v[1], v[5], v[6], v[2], CGLVector3D( 0.0,  0.0, -1.0)); // Back
+      setPoints(v[5], v[4], v[7], v[6], CGLVector3D(-1.0,  0.0,  0.0)); // Left
+      setPoints(v[4], v[0], v[3], v[7], CGLVector3D( 0.0,  0.0,  1.0)); // Front
+      setPoints(v[3], v[2], v[6], v[7], CGLVector3D( 0.0,  1.0,  0.0)); // Top
+      setPoints(v[4], v[5], v[1], v[0], CGLVector3D( 0.0, -1.0,  0.0)); // Bottom
+
+      th->particleShape_.flat = false;
+    }
   }
 
   return particleShape_;
-}
-
-void
-ParticleList3DObj::
-addParticlePoint(const CGLVector3D &v)
-{
-  particleShape_.push_back(v);
 }
 
 void
@@ -593,7 +630,6 @@ render()
   //---
 
   s_program->setUniformValue("particleSize" , float(particleSize()));
-  s_program->setUniformValue("particleFlat" , particleFlat_);
   s_program->setUniformValue("particleAlpha", float(particleAlpha_));
 
   //---
@@ -613,7 +649,11 @@ render()
   auto n = points_.size();
 
   const auto &particleShape = getParticleShape();
-  auto np = particleShape.size();
+
+  auto np = particleShape.points.size();
+  assert(particleShape.normals.size() == np);
+
+  s_program->setUniformValue("particleFlat", particleShape.flat);
 
   //---
 
@@ -622,10 +662,21 @@ render()
   // but this is outside the scope of this tutorial.
   // http://www.opengl.org/wiki/Buffer_Object_Streaming
 
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardVertexBuffer_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLVector3D),
+  // particle shape
+
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardPointsBuffer_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxShape*sizeof(CGLVector3D),
                         nullptr, GL_STATIC_DRAW);
-  canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, np*sizeof(CGLVector3D), &particleShape[0]);
+  canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, np*sizeof(CGLVector3D), &particleShape.points[0]);
+
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardNormalsBuffer_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxShape*sizeof(CGLVector3D),
+                        nullptr, GL_STATIC_DRAW);
+  canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, np*sizeof(CGLVector3D), &particleShape.normals[0]);
+
+  //---
+
+  // particle list points/colors
 
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesPositionBuffer_);
   // Buffer orphaning, a common way to improve streaming perf. See above link for details.
@@ -639,41 +690,39 @@ render()
                         nullptr, GL_STREAM_DRAW);
   canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, n*sizeof(CGLColor), &colors_[0]);
 
-  // 1st attribute buffer : vertices
-  canvas_->glEnableVertexAttribArray(s_program->positionAttr);
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardVertexBuffer_);
-  canvas_->glVertexAttribPointer(
-   s_program->positionAttr,
-   3,
-   GL_FLOAT, // type
-   GL_FALSE, // normalized?
-   0,
-   nullptr
-  );
+  //---
 
-  // 2nd attribute buffer : positions of particles' centers
+  // 1st attribute buffer : particle shape points
+  canvas_->glEnableVertexAttribArray(s_program->positionAttr);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardPointsBuffer_);
+  canvas_->glVertexAttribPointer(s_program->positionAttr, 3,
+                                 GL_FLOAT, // type
+                                 GL_FALSE, // normalized?
+                                 0, nullptr);
+
+  // 2nd attribute buffer : particle shape normals
+  canvas_->glEnableVertexAttribArray(s_program->normalAttr);
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardNormalsBuffer_);
+  canvas_->glVertexAttribPointer(s_program->normalAttr, 3,
+                                 GL_FLOAT, // type
+                                 GL_FALSE, // normalized?
+                                 0, nullptr);
+
+  // 3nd attribute buffer : positions of particles' centers
   canvas_->glEnableVertexAttribArray(s_program->centerAttr);
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesPositionBuffer_);
-  canvas_->glVertexAttribPointer(
-   s_program->centerAttr,
-   3,
-   GL_FLOAT, // type
-   GL_FALSE, // normalized?
-   0,
-   nullptr
-  );
+  canvas_->glVertexAttribPointer(s_program->centerAttr, 3,
+                                 GL_FLOAT, // type
+                                 GL_FALSE, // normalized?
+                                 0, nullptr);
 
-  // 3rd attribute buffer : particles' colors
+  // 4rd attribute buffer : particles' colors
   canvas_->glEnableVertexAttribArray(s_program->colorAttr);
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesColorBuffer_);
-  canvas_->glVertexAttribPointer(
-   s_program->colorAttr,
-   4,
-   GL_FLOAT, // type
-   GL_FALSE, // normalized?
-   0,
-   nullptr
-  );
+  canvas_->glVertexAttribPointer(s_program->colorAttr, 4,
+                                 GL_FLOAT, // type
+                                 GL_FALSE, // normalized?
+                                 0, nullptr);
 
   //canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, np, n);
 
@@ -683,8 +732,10 @@ render()
   // rendering multiple instances"
   // http://www.opengl.org/sdk/docs/man/xhtml/glVertexAttribDivisor.xml
 
-  // particles vertices : always reuse the same np vertices -> 0
+  // particle points : always reuse the same np vertices -> 0
   canvas_->glVertexAttribDivisor(s_program->positionAttr, 0);
+  // particle normals : always reuse the same np vertices -> 0
+  canvas_->glVertexAttribDivisor(s_program->normalAttr, 0);
   // center per quad -> 1
   canvas_->glVertexAttribDivisor(s_program->centerAttr, 1);
   // color per quad -> 1

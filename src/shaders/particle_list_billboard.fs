@@ -1,6 +1,7 @@
 #version 330 core
 
 varying lowp  vec4 Color;
+varying highp vec3 Normal;
 varying highp vec4 FragPos;
 varying highp vec2 TexPos;
 
@@ -41,9 +42,8 @@ void main() {
       gl_FragColor = vec4(Color.rgb, particleAlpha);
     } else {
       vec3 lightDir = normalize(lightPos - vec3(FragPos));
-      vec3 viewDir  = normalize(viewPos  - vec3(FragPos));
 
-      float angle = dot(lightDir, viewDir);
+      float angle = dot(lightDir, Normal);
 
       gl_FragColor = angle*Color;
     }

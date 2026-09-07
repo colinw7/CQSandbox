@@ -30,6 +30,9 @@ proc createObjs { } {
 
   $::particles set size $::nr
 
+  $::particles set particle.shape plane
+  $::particles set particle.alpha 0.1
+
   for {set r 0} {$r < $::nr} {incr r} {
     set x [$::csv get data $r 1]
     set y [$::csv get data $r 2]
