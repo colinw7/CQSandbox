@@ -36,20 +36,16 @@ initRender(Canvas3D *canvas)
 
   //---
 
-#if 0
-  t_ = 1.0*ticks_/100.0;
+  auto t = 1.0*ticks_/100.0;
 
   if      (dt_ > 0 && t >= 1.0)
     dt_ = -dt_;
   else if (dt_ < 0 && t <= 0.0)
     dt_ = -dt_;
-#else
-  t_ = 0.0;
-#endif
 
   //---
 
-  Model3DObj::initDraw(canvas, t_);
+  Model3DObj::initDraw(canvas, t);
 }
 
 void
@@ -57,6 +53,13 @@ Model3DObjMgr::
 termRender(Canvas3D *canvas)
 {
   Model3DObj::termDraw(canvas);
+}
+
+void
+Model3DObjMgr::
+tick()
+{
+  ticks_ += dt_;
 }
 
 //---
@@ -724,7 +727,7 @@ drawObject(CGeomObject3D *object)
     program->setUniformValue("diffuseTexture.enabled", textured && useDiffuseTexture);
 
     if (useDiffuseTexture) {
-      CQGLStateInst->setEnableTextureNum(0, true);
+      CQGLStateInst->setActiveTextureNum(0, true);
       diffuseTexture->bind();
 
       program->setUniformValue("diffuseTexture.texture", 0);
@@ -743,7 +746,7 @@ drawObject(CGeomObject3D *object)
     program->setUniformValue("normalTexture.enabled", textured && useNormalTexture);
 
     if (useNormalTexture) {
-      CQGLStateInst->setEnableTextureNum(1, true);
+      CQGLStateInst->setActiveTextureNum(1, true);
       normalTexture->bind();
 
       program->setUniformValue("normalTexture.texture", 1);
@@ -762,7 +765,7 @@ drawObject(CGeomObject3D *object)
     program->setUniformValue("specularTexture.enabled", textured && useSpecularTexture);
 
     if (useSpecularTexture) {
-      CQGLStateInst->setEnableTextureNum(2, true);
+      CQGLStateInst->setActiveTextureNum(2, true);
       specularTexture->bind();
 
       program->setUniformValue("specularTexture.texture", 2);
@@ -781,7 +784,7 @@ drawObject(CGeomObject3D *object)
     program->setUniformValue("emissiveTexture.enabled", textured && useEmissiveTexture);
 
     if (useEmissiveTexture) {
-      CQGLStateInst->setEnableTextureNum(3, true);
+      CQGLStateInst->setActiveTextureNum(3, true);
       emissiveTexture->bind();
 
       program->setUniformValue("emissiveTexture.texture", 3);
@@ -811,7 +814,6 @@ drawObject(CGeomObject3D *object)
       CQGLStateInst->setPolygonMode(GL_LINE);
 
       glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
-    //glDrawArrays(GL_TRIANGLES, faceData.pos, faceData.len);
     }
   }
 

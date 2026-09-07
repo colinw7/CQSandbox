@@ -13,11 +13,13 @@
 #include <CQSandboxGrid3DObj.h>
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxJson3DObj.h>
+#include <CQSandboxLineList3DObj.h>
 #include <CQSandboxModel3DObj.h>
 #include <CQSandboxOthello3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxPath3DObj.h>
 #include <CQSandboxPoint3DObj.h>
+#include <CQSandboxPointList3DObj.h>
 #include <CQSandboxPlane3DObj.h>
 #include <CQSandboxQuadTree3DObj.h>
 #include <CQSandboxShader3DObj.h>
@@ -459,8 +461,16 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ParticleList3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  tcl->createObjCommand("sb3d::line_list",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<LineList3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb3d::point",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Point3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::point_list",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<PointList3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::shader",
@@ -641,6 +651,25 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
       if (! th->setValue(name, value, args1))
         return TCL_ERROR;
+    }
+  }
+  else if (args[0] == "exec") {
+    if (args.size() > 1) {
+      QString op = args[1];
+
+      QStringList args1;
+      for (int i = 2; i < args.length(); ++i)
+        args1.push_back(args[i]);
+
+      QVariant res;
+      if (! th->exec(op, args1, res))
+        return TCL_ERROR;
+
+      tcl->setResult(res);
+    }
+    else {
+      (void) th->app()->errorMsg("Missing args for exec");
+      return TCL_ERROR;
     }
   }
   else if (args[0] == "delete") {
@@ -1168,6 +1197,23 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 bool
 Canvas3D::
+exec(const QString &op, const QStringList &, QVariant &res)
+{
+  res = QVariant();
+
+  if      (op == "update") {
+    update();
+  }
+  else
+    return false;
+
+  return true;
+}
+
+//---
+
+bool
+Canvas3D::
 getCameraValue(const QString &name, const QStringList &, QVariant &res)
 {
 //auto *tcl = this->tcl();
@@ -1598,6 +1644,15 @@ setCameraType(const CameraType &t)
   runTclCmd("cameraChanged");
 }
 
+void
+Canvas3D::
+setProgramCamera(ShaderProgram *program, CameraIFace *camera)
+{
+  program->setUniformValue("cameraFront", CQGLUtil::toVector(camera->front()));
+  program->setUniformValue("cameraRight", CQGLUtil::toVector(camera->right()));
+  program->setUniformValue("cameraUp"   , CQGLUtil::toVector(camera->up(  )));
+}
+
 //---
 
 Light3D *
@@ -1922,6 +1977,11 @@ timerSlot()
 
   //---
 
+  ++ticks_;
+
+  for (const auto &pm : mgrs_)
+    pm.second->tick();
+
   auto objects = objects_;
 
   for (auto *obj : objects)
@@ -2018,7 +2078,7 @@ render()
 
 //CQGLStateInst->setEnableLighting(isLighting());
 
-  CQGLStateInst->setFrontFace(isFrontFace() ? GL_CW : GL_CCW);
+  CQGLStateInst->setFrontFace(isFrontFace() ? GL_CCW : GL_CW);
 
   CQGLStateInst->setSmoothShade(isSmoothShade());
 
@@ -2084,6 +2144,8 @@ render()
 
     if (mgr)
       mgr->initRender(this);
+
+    //---
 
     const auto &objects = pm.second;
 
@@ -2166,6 +2228,8 @@ render()
 
     selectionBuffer_->load();
 
+    //---
+
     bindProgram(selectionProgram_);
 
     setProgramMatrices(selectionProgram_);
@@ -2228,6 +2292,8 @@ render()
     }
 
     selectionBuffer_->load();
+
+    //---
 
     bindProgram(selectionProgram_);
 
@@ -2972,18 +3038,20 @@ selectNearestFace(const CPoint2D &p)
         points.push_back(pp);
       }
 
+#if 0
       auto orient = Util::pointsOrientation(points);
 
       if (isCullFace()) {
         if (isFrontFace()) {
-          if (orient == CPolygonOrientation::ANTICLOCKWISE)
+          if (orient != CPolygonOrientation::ANTICLOCKWISE)
             continue;
         }
         else {
-          if (orient == CPolygonOrientation::CLOCKWISE)
+          if (orient != CPolygonOrientation::CLOCKWISE)
             continue;
         }
       }
+#endif
 
       QPolygonF poly;
 
@@ -3075,7 +3143,7 @@ selectFacesInside(const CBBox2D &r)
   auto x2 = CMathUtil::map(r.getMax().x, 0, pixelWidth_  - 1, -1,  1);
   auto y2 = CMathUtil::map(r.getMax().y, 0, pixelHeight_ - 1,  1, -1);
 
-  auto p1 = QRectF(x1, y1, x2 - x1, y2 - y1);
+  auto r1 = QRectF(x1, y1, x2 - x1, y2 - y1);
 
   auto *camera = currentCamera();
 
@@ -3112,7 +3180,7 @@ selectFacesInside(const CBBox2D &r)
         poly << QPointF(pp.x, pp.y);
       }
 
-      if (poly.intersects(p1))
+      if (poly.intersects(r1))
         object->selectFace(ii);
 
       ++ii;

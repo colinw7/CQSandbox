@@ -222,7 +222,7 @@ render()
 
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
-  CQGLStateInst->setEnableTextureNum(0, true);
+  CQGLStateInst->setActiveTextureNum(0, true);
 
   auto *texture = currentTexture();
 

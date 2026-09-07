@@ -523,13 +523,13 @@ render()
   bool oldTexture = CQGLStateInst->setEnableTexture(useDiffuseTexture_ || useNormalTexture_);
 
   if (useDiffuseTexture_) {
-    CQGLStateInst->setEnableTextureNum(0, true);
+    CQGLStateInst->setActiveTextureNum(0, true);
 
     diffuseTexture_->bind();
   }
 
   if (useNormalTexture_) {
-    CQGLStateInst->setEnableTextureNum(1, true);
+    CQGLStateInst->setActiveTextureNum(1, true);
 
     normalTexture_->bind();
   }

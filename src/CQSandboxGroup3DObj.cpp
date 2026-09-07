@@ -117,40 +117,39 @@ void
 Group3DObj::
 render()
 {
-#if 0
-  bool        singleBuffer = true;
-  CQGLBuffer* buffer       = nullptr;
+  using MgrObjects = std::map<ObjectMgr3D *, Objects>;
+
+  MgrObjects mgrObjects;
 
   for (auto *obj : objects_) {
-    auto *modelObj = dynamic_cast<Model3DObj *>(obj);
-    if (! modelObj) { singleBuffer = false; break; }
+    auto *mgr = obj->mgr();
 
-    auto *geomObject = dynamic_cast<GeomObject *>(modelObj->object());
-    if (! geomObject->refObject()) { singleBuffer = false; break; }
-
-    auto *geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
-    if (! geomObject1) { singleBuffer = false; break; }
-
-    auto *buffer1 = geomObject1->buffer();
-
-    if (! buffer)
-      buffer = buffer1;
-    else if (buffer1 != buffer) {
-      singleBuffer = false; break;
-    }
+    mgrObjects[mgr].push_back(obj);
   }
-
-  if (singleBuffer)
-    std::cerr << "Single Buffer\n";
-#endif
 
   //---
 
-  for (auto *obj : objects_) {
-    if (! obj || ! obj->isVisible())
-      continue;
+  for (const auto &pm : mgrObjects) {
+    auto *mgr = pm.first;
 
-    obj->render();
+    if (mgr)
+      mgr->initRender(canvas_);
+
+    //---
+
+    const auto &objects = pm.second;
+
+    for (auto *obj : objects) {
+      if (! obj || ! obj->isVisible())
+        continue;
+
+      obj->render();
+    }
+
+    //---
+
+    if (mgr)
+      mgr->termRender(canvas_);
   }
 
   //---

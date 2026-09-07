@@ -37,8 +37,6 @@ GeomObject::
 initBuffer(Canvas3D * /*canvas*/)
 {
   auto *program = Model3DObj::shaderProgram();
-//auto *program = canvas->sceneShaderProgram();
-
   assert(program);
 
   if (! buffer_)

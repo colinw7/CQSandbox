@@ -114,11 +114,7 @@ class CQGLBuffer {
   CQGLBuffer(QOpenGLShaderProgram *program=nullptr) {
     data_.program = program;
 
-    data_.vObj         = new QOpenGLVertexArrayObject;
-    data_.vertexBuffer = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
-    data_.indBuffer    = new QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
-
-    initIds();
+    data_.initialized = false;
   }
 
  ~CQGLBuffer() {
@@ -397,6 +393,8 @@ class CQGLBuffer {
   //---
 
   void load() {
+    init();
+
     initData();
 
     // bind the Vertex Array Object first, then bind and set vertex buffer(s),
@@ -491,13 +489,17 @@ class CQGLBuffer {
     // but we'll do so to keep things a bit more organized
     data_.vObj->bind();
 
+#if 0
     if (hasIndices())
       data_.indBuffer->bind();
+#endif
   }
 
   void unbind() {
+#if 0
     if (hasIndices())
       data_.indBuffer->release();
+#endif
 
     data_.vObj->release();
   }
@@ -540,6 +542,18 @@ class CQGLBuffer {
   }
 
  private:
+  void init() {
+    if (! data_.initialized) {
+      data_.initialized = true;
+
+      data_.vObj         = new QOpenGLVertexArrayObject;
+      data_.vertexBuffer = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
+      data_.indBuffer    = new QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
+
+      initIds();
+    }
+  }
+
   void term() {
     data_.vertexBuffer->destroy();
     data_.indBuffer   ->destroy();
@@ -554,6 +568,8 @@ class CQGLBuffer {
     delete [] data_.indData;
 
     data_ = Data();
+
+    data_.initialized = false;
   }
 
   void initFrom(const CQGLBuffer &buffer) {
@@ -579,10 +595,16 @@ class CQGLBuffer {
   }
 
   void initIds() {
-    data_.vObj->create();
+    bool rc;
 
-    data_.vertexBuffer->create();
-    data_.indBuffer   ->create();
+    rc = data_.vObj->create();
+    assert(rc);
+
+    rc = data_.vertexBuffer->create();
+    assert(rc);
+
+    rc = data_.indBuffer->create();
+    assert(rc);
   }
 
   void initData() {
@@ -701,6 +723,8 @@ class CQGLBuffer {
  private:
   struct Data {
     QOpenGLShaderProgram *program { nullptr };
+
+    bool initialized { false };
 
     QOpenGLVertexArrayObject* vObj         { nullptr };
     QOpenGLBuffer*            vertexBuffer { nullptr };

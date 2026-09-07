@@ -8,27 +8,6 @@
 #include <QImageReader>
 #include <iostream>
 
-#if 0
-#include <glad/glad.h>
-#endif
-#include <GL/glut.h>
-
-namespace {
-
-bool checkError(const char *msg) {
-  // check texture generated
-  GLenum err = glGetError();
-
-  if (err != GL_NO_ERROR) {
-    std::cerr << "OpenGL Error: " << gluErrorString(err) << "(" << msg << ")\n";
-    return false;
-  }
-
-  return true;
-}
-
-}
-
 //---
 
 CQGLTexture::
@@ -117,23 +96,23 @@ setTarget(int w, int h)
       functions_->glGenFramebuffers(1, &frameBufferId_);
 
     functions_->glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId_);
-    if (! checkError("glBindFramebuffer")) return false;
+    if (! CQGLStateInst->checkError("glBindFramebuffer")) return false;
 
     // The texture we're going to render to
     if (id_ == 0) {
       glGenTextures(1, &id_);
-      if (! checkError("glGenTextures")) return false;
+      if (! CQGLStateInst->checkError("glGenTextures")) return false;
     }
 
     // generate texture
     glBindTexture(GL_TEXTURE_2D, id_);
-    if (! checkError("glBindTexture")) return false;
+    if (! CQGLStateInst->checkError("glBindTexture")) return false;
 
     // Give an empty image to OpenGL ( the last "0" )
     // no difference for GL_RGBA and GL_RGB
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, targetWidth_, targetHeight_,
                  /*border*/0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    if (! checkError("glTexImage2D")) return false;
+    if (! CQGLStateInst->checkError("glTexImage2D")) return false;
 
     // Poor filtering (need min filter to avoid mip map use - not set)
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -145,7 +124,7 @@ setTarget(int w, int h)
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 //  glBindTexture(GL_TEXTURE_2D, 0);
-//  if (! checkError("glBindTexture")) return false;
+//  if (! CQGLStateInst->checkError("glBindTexture")) return false;
 
     if (depthRenderBuffer_ == 0)
       functions_->glGenRenderbuffers(1, &depthRenderBuffer_);
@@ -224,13 +203,13 @@ init(const QImage &image, bool flip)
 
   // allocate texture id
   glGenTextures(1, &id_);
-  if (! checkError("glGenTextures")) return false;
+  if (! CQGLStateInst->checkError("glGenTextures")) return false;
 
   valid_ = true;
 
   // set texture type
   glBindTexture(GL_TEXTURE_2D, id_);
-  if (! checkError("glBindTexture")) return false;
+  if (! CQGLStateInst->checkError("glBindTexture")) return false;
 
   if (wrapType() == WrapType::CLAMP) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -240,15 +219,15 @@ init(const QImage &image, bool flip)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   }
-  if (! checkError("glTexParameteri")) return false;
+  if (! CQGLStateInst->checkError("glTexParameteri")) return false;
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  if (! checkError("glTexParameteri")) return false;
+  if (! CQGLStateInst->checkError("glTexParameteri")) return false;
 
   // select modulate to mix texture with color for shading
   //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-  //if (! checkError("glTexEnvf")) return false;
+  //if (! CQGLStateInst->checkError("glTexEnvf")) return false;
 
   // build our texture mipmaps
   GLint internalFormat = (useAlpha() ? GL_RGBA : GL_RGB);
@@ -257,19 +236,19 @@ init(const QImage &image, bool flip)
 #if 1
     // Hardware mipmap generation
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP_SGIS, GL_TRUE);
-    if (! checkError("glTexParameteri")) return false;
+    if (! CQGLStateInst->checkError("glTexParameteri")) return false;
 
     glHint(GL_GENERATE_MIPMAP_HINT_SGIS, GL_NICEST);
-    if (! checkError("glHint")) return false;
+    if (! CQGLStateInst->checkError("glHint")) return false;
 #endif
 
     glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width_, height_, 0,
                  GL_BGRA, GL_UNSIGNED_BYTE, &imageData_[0]);
-    if (! checkError("glTexImage2D")) return false;
+    if (! CQGLStateInst->checkError("glTexImage2D")) return false;
 
 #if 0
     glGenerateMipmap(GL_TEXTURE_2D);
-    if (! checkError("glGenerateMipmap")) return false;
+    if (! CQGLStateInst->checkError("glGenerateMipmap")) return false;
 #endif
   }
   else {
@@ -277,7 +256,7 @@ init(const QImage &image, bool flip)
     // good old gluBuild2DMipmaps function
     gluBuild2DMipmaps(GL_TEXTURE_2D, internalFormat, width_, height_,
                       GL_BGRA, GL_UNSIGNED_BYTE, &imageData_[0]);
-    if (! checkError("gluBuild2DMipmaps")) return false;
+    if (! CQGLStateInst->checkError("gluBuild2DMipmaps")) return false;
   }
 
   return true;
@@ -404,7 +383,7 @@ displayFramebufferTexture(ShaderProgram *program, int vertexId)
     [...]
   }
 
-  CQGLStateInst->setEnableTextureNum(0, true);
+  CQGLStateInst->setActiveTextureNum(0, true);
 
   program->bind();
 

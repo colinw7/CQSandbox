@@ -208,6 +208,8 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = typeName();
   else if (name == "visible")
     value = QString(isVisible() ? "1" : "0");
+  else if (name == "pseudo")
+    value = QString(isPseudo() ? "1" : "0");
   else if (name == "position")
     value = Util::point3DToString(position());
   else if (name == "x_angle")
@@ -218,6 +220,18 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = Util::realToString(Util::radToDeg(zAngle()));
   else if (name == "group")
     value = (group() ? group()->calcId() : "");
+  else if (name == "bbox") {
+    QStringList strs;
+
+    strs << QString::number(bbox_.getXMin());
+    strs << QString::number(bbox_.getYMin());
+    strs << QString::number(bbox_.getZMin());
+    strs << QString::number(bbox_.getXMax());
+    strs << QString::number(bbox_.getYMax());
+    strs << QString::number(bbox_.getZMax());
+
+    value = strs.join(" ");
+  }
   else if (name == "bbox.center")
     value = Util::point3DToString(bbox_.getCenter());
   else if (name == "faces") {
@@ -264,7 +278,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     auto orient = getFaceOrient(ind);
 
-    value = (orient == CPolygonOrientation::CLOCKWISE ? "clockwise" : "antoclockwise");
+    value = (orient == CPolygonOrientation::CLOCKWISE ? "clockwise" : "anticlockwise");
   }
   else
     return app->errorMsg(QString("Invalid get name '%1'").arg(name));
@@ -283,6 +297,11 @@ setValue(const QString &name, const QString &value, const QStringList &)
     setId(value);
   else if (name == "visible") {
     setVisible(Util::stringToBool(value));
+
+    setNeedsUpdate();
+  }
+  else if (name == "pseudo") {
+    setPseudo(Util::stringToBool(value));
 
     setNeedsUpdate();
   }

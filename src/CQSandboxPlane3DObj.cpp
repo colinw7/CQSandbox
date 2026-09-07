@@ -248,7 +248,7 @@ render()
   bool oldTexture = CQGLStateInst->setEnableTexture(useTexture_);
 
   if (useTexture_) {
-    CQGLStateInst->setEnableTextureNum(0, true);
+    CQGLStateInst->setActiveTextureNum(0, true);
     texture_->bind();
   }
 

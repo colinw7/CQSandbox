@@ -263,7 +263,7 @@ render()
       if (cubemap_) {
         cubemap_->enable(/*enable*/true);
 
-        CQGLStateInst->setEnableTextureNum(0, true);
+        CQGLStateInst->setActiveTextureNum(0, true);
 
         cubemap_->bind();
 
@@ -274,7 +274,7 @@ render()
       if (texture_) {
         texture_->enable(/*enable*/true);
 
-        CQGLStateInst->setEnableTextureNum(0, true);
+        CQGLStateInst->setActiveTextureNum(0, true);
 
         texture_->bind();
       }

@@ -391,7 +391,7 @@ render()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
 
-  CQGLStateInst->setEnableTextureNum(0, true);
+  CQGLStateInst->setActiveTextureNum(0, true);
 
   s_program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
 

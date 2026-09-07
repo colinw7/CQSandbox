@@ -3,6 +3,10 @@
 
 #define CQGLStateInst CQGLState::instance()
 
+#include <iostream>
+
+#include <GL/glut.h>
+
 class CQGLState {
  public:
   class BoolMap {
@@ -240,14 +244,14 @@ class CQGLState {
 
   //---
 
-  bool isEnableTextureNum(int i) const { return textureNum_.get(i); }
+  bool isActiveTextureNum(int i) const { return textureNum_.get(i); }
 
-  bool setEnableTextureNum(int i, bool b) {
+  bool setActiveTextureNum(int i, bool b) {
     if (b != textureNum_.get(i)) {
       if (b)
-        glEnable(GL_TEXTURE0 + i);
+        glActiveTexture(GL_TEXTURE0 + i);
       else
-        glDisable(GL_TEXTURE0 + i);
+        glActiveTexture(GL_TEXTURE0 + i);
 
       b = textureNum_.set(i, b);
     }
@@ -293,6 +297,19 @@ class CQGLState {
     return b;
   }
 
+  //---
+
+  bool checkError(const char *msg) {
+    GLenum err = glGetError();
+
+    if (err != GL_NO_ERROR) {
+      std::cerr << "OpenGL Error: " << gluErrorString(err) << "(" << msg << ")\n";
+      return false;
+    }
+
+    return true;
+  }
+
  private:
   CQGLState() { }
 
@@ -304,7 +321,7 @@ class CQGLState {
   bool    multiSample_       { false };
   bool    stenclTest_        { false };
   int     frontFace_         { GL_CCW };
-  bool    depthMask_         { true };   // default enabled
+  bool    depthMask_         { true };   // default true (GL_CCW)
   bool    texture_           { false };
   bool    cubeMap_           { false };
   bool    lighting_          { false };

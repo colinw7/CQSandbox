@@ -19,7 +19,7 @@
 
 namespace CQSandbox {
 
-ShaderProgram *Surface3DObj::s_program   = nullptr;
+ShaderProgram *Surface3DObj::s_program = nullptr;
 
 Object3D *
 Surface3DObj::
@@ -289,16 +289,7 @@ init()
 
   //---
 
-#if 0
-  canvas_->glGenVertexArrays(1, &vertexArrayId_);
-
-  canvas_->glGenBuffers(1, &pointsBufferId_);
-  canvas_->glGenBuffers(1, &normalsBufferId_);
-  canvas_->glGenBuffers(1, &colorsBufferId_);
-  canvas_->glGenBuffers(1, &indBufferId_);
-#else
   buffer_ = s_program->createBuffer();
-#endif
 }
 
 void
@@ -401,53 +392,6 @@ updateGL()
 
   //---
 
-#if 0
-  // bind the Vertex Array Object
-  canvas_->glBindVertexArray(vertexArrayId_);
-
-  //---
-
-  // store point data in array buffer
-  uint aPos = 0;
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, pointsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &points_[0], GL_STATIC_DRAW);
-
-  // set points attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(aPos, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
-  canvas_->glEnableVertexAttribArray(aPos);
-
-  // store normal data in array buffer
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, normalsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &normals_[0], GL_STATIC_DRAW);
-
-  // set normals attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
-  canvas_->glEnableVertexAttribArray(1);
-
-  // store color data in array buffer
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, colorsBufferId_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, np*sizeof(CGLVector3D), &colors_[0], GL_STATIC_DRAW);
-
-  // set colors attrib data and format (for current buffer)
-  canvas_->glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(CGLVector3D), nullptr);
-  canvas_->glEnableVertexAttribArray(2);
-
-  //---
-
-  // store index data in element buffer
-  if (ni > 0) {
-    canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufferId_);
-    canvas_->glBufferData(GL_ELEMENT_ARRAY_BUFFER, ni*sizeof(unsigned int),
-                          &indices_[0], GL_STATIC_DRAW);
-  }
-
-  //---
-
-  canvas_->glBindBuffer(GL_ARRAY_BUFFER, 0);
-//canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  0);
-
-  canvas_->glBindVertexArray(0);
-#else
   buffer_->clearBuffers();
 
   for (uint i = 0; i < np; ++i) {
@@ -460,7 +404,6 @@ updateGL()
     buffer_->addIndex(indices_[i]);
 
   buffer_->load();
-#endif
 }
 
 void
@@ -513,11 +456,7 @@ render()
 
   //---
 
-#if 0
-  canvas_->glBindVertexArray(vertexArrayId_);
-#else
   canvas_->bindBuffer(buffer_);
-#endif
 
   //---
 
@@ -546,11 +485,7 @@ render()
       buffer_->drawTriangles();
   }
 
-#if 0
-  //canvas_->glBindVertexArray(0);
-#else
   canvas_->bindBuffer(nullptr);
-#endif
 
   //---
 

@@ -25,8 +25,11 @@ class Model3DObjMgr : public ObjectMgr3D {
   void initRender(Canvas3D *canvas) override;
   void termRender(Canvas3D *canvas) override;
 
+  void tick() override;
+
  private:
-  double t_ { 0.0 };
+  int ticks_ { 0 };
+  int dt_    { 1 };
 };
 
 //---
@@ -119,8 +122,6 @@ class Model3DObj : public Object3D {
   static Model3DObjMgr* s_objectMgr;
 
   QString filename_;
-
-  bool needsUpdate_ { true };
 
   CGeomObject3D* object_ { nullptr };
 

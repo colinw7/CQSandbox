@@ -7,29 +7,6 @@
 #include <QImageReader>
 #include <iostream>
 
-#if 0
-#include <glad/glad.h>
-#endif
-#include <GL/glut.h>
-
-namespace {
-
-bool checkError(const char *msg) {
-  // check texture generated
-  GLenum err = glGetError();
-
-  if (err != GL_NO_ERROR) {
-    std::cerr << "OpenGL Error: " << gluErrorString(err) << "(" << msg << ")\n";
-    return false;
-  }
-
-  return true;
-}
-
-}
-
-//---
-
 CQGLCubemap::
 CQGLCubemap()
 {
@@ -115,13 +92,13 @@ setImages(const std::vector<QImage> &images, bool flip)
 
   // allocate texture id
   glGenTextures(1, &id_);
-  if (! checkError("glGenTextures")) return false;
+  if (! CQGLStateInst->checkError("glGenTextures")) return false;
 
   valid_ = true;
 
   // set texture type
   glBindTexture(GL_TEXTURE_CUBE_MAP, id_);
-  if (! checkError("glBindTexture")) return false;
+  if (! CQGLStateInst->checkError("glBindTexture")) return false;
 
   return setParameters();
 }
@@ -140,15 +117,15 @@ setParameters()
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_REPEAT);
   }
-  if (! checkError("glTexParameteri")) return false;
+  if (! CQGLStateInst->checkError("glTexParameteri")) return false;
 
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  if (! checkError("glTexParameteri")) return false;
+  if (! CQGLStateInst->checkError("glTexParameteri")) return false;
 
   // select modulate to mix texture with color for shading
   //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-  //if (! checkError("glTexEnvf")) return false;
+  //if (! CQGLStateInst->checkError("glTexEnvf")) return false;
 
   // build our texture mipmaps
   GLint internalFormat = (useAlpha() ? GL_RGBA : GL_RGB);

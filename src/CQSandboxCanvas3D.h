@@ -191,6 +191,8 @@ class Canvas3D : public OpenGLWindow {
   int redrawTimeOut() const { return redrawTimeOut_; }
   void setRedrawTimeOut(int t);
 
+  uint ticks() const { return ticks_; }
+
   //---
 
   const CRGBA &ambientColor() const { return ambientColor_; }
@@ -256,6 +258,8 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  // cameras
+
   Camera      *camera     () const { return camera_  ; }
   FPCamera    *fpCamera   () const { return fpCamera_; }
   OrthoCamera *orthoCamera() const { return orthoCamera_; }
@@ -267,6 +271,8 @@ class Canvas3D : public OpenGLWindow {
   const CameraType &cameraType() const { return cameraType_; }
   void setCameraType(const CameraType &cameraType);
 
+  void setProgramCamera(ShaderProgram *program, CameraIFace *camera);
+
   //---
 
   double modelXAngle() const { return modelXAngle_; }
@@ -274,6 +280,8 @@ class Canvas3D : public OpenGLWindow {
   double modelZAngle() const { return modelZAngle_; }
 
   //---
+
+  // lights
 
   Light3D *currentLight() const;
 
@@ -512,6 +520,7 @@ class Canvas3D : public OpenGLWindow {
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value);
   bool setValue(const QString &name, const QString &value, const QStringList &args);
+  bool exec(const QString &op, const QStringList &args, QVariant &res);
 
   bool getCameraValue(const QString &name, const QStringList &args, QVariant &value);
   bool setCameraValue(const QString &name, const QString &value, const QStringList &args);
@@ -584,6 +593,7 @@ class Canvas3D : public OpenGLWindow {
   QTimer *timer_          { nullptr };
   QTimer *uiTimer_        { nullptr };
   int     redrawTimeOut_  { 100 };
+  uint    ticks_          { 0 };
 
   bool commandRunning_     { false };
   bool emitObjectsChanged_ { false };
@@ -620,7 +630,7 @@ class Canvas3D : public OpenGLWindow {
   bool depthTest_   { true };
   bool cullFace_    { true };
   bool lighting_    { true };
-  bool frontFace_   { false };
+  bool frontFace_   { true };
   bool smoothShade_ { true };
   bool outline_     { false };
 

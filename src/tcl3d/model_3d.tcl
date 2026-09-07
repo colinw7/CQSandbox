@@ -1,5 +1,7 @@
-source "tcl3d/addNormals.tcl"
-source "tcl3d/showOrient.tcl"
+#source "tcl3d/addNormals.tcl"
+source "tcl3d/addNormalList.tcl"
+#source "tcl3d/showOrient.tcl"
+source "tcl3d/showOrientList.tcl"
 
 proc init { } {
   set ::model [sb3d::model models/v3d/F15.V3D]
@@ -15,8 +17,6 @@ proc init { } {
   # $::model set specular_texture models/ply/shield_spec.png
   # $::model set normal_texture   models/ply/shield_normal.png
 
-  # sb3d::custom_form string -label "Model" -proc modelProc
-
   # sb3d::camera set position [list 5 5 19]
 
   sb3d::ui create "\
@@ -28,6 +28,9 @@ proc init { } {
 </QVBoxLayout>
 <QLayoutItem stretch=\"1\"/>\n\
 </qxml>"
+
+  set ::orient  0
+  set ::normals 0
 }
 
 proc bboxChanged { } {
@@ -39,10 +42,28 @@ proc resetProc { } {
   sb3d::light  exec reset 1
 }
 
+proc cameraChanged { } {
+  if {$::orient} {
+    showOrient
+  }
+}
+
 proc normalsProc { } {
-  addNormals
+  set ::normals [expr {1 - $::normals}]
+
+  if {$::normals} {
+    addNormals
+  } else {
+    removeNormals
+  }
 }
 
 proc orientSlot { } {
-  showOrient
+  set ::orient [expr {1 - $::orient}]
+
+  if {$::orient} {
+    showOrient
+  } else {
+    hideOrient
+  }
 }

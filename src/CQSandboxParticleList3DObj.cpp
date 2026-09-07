@@ -518,10 +518,9 @@ render()
 
   //---
 
-  auto *camera = canvas_->camera();
+  auto *camera = canvas_->currentCamera();
 
-  s_program->setUniformValue("cameraUp", CQGLUtil::toVector(camera->up()));
-  s_program->setUniformValue("cameraRight", CQGLUtil::toVector(camera->right()));
+  canvas_->setProgramCamera(s_program, camera);
 
   //---
 
@@ -535,7 +534,7 @@ render()
   s_program->setUniformValue("textureId", 0);
 
   if (useTexture) {
-    CQGLStateInst->setEnableTextureNum(0, true);
+    CQGLStateInst->setActiveTextureNum(0, true);
     texture_->bind();
   }
 

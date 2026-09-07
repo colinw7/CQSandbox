@@ -43,6 +43,8 @@ class ObjectMgr3D {
     objects_.push_back(object);
   }
 
+  virtual void tick() { }
+
  private:
   std::vector<Object3D *> objects_;
 };
@@ -53,10 +55,10 @@ class Object3D : public QObject {
   Q_OBJECT
 
   Q_PROPERTY(QString id       READ id)
-  Q_PROPERTY(bool    visible  READ isVisible  WRITE setVisible )
+  Q_PROPERTY(bool    visible  READ isVisible  WRITE setVisible)
   Q_PROPERTY(bool    selected READ isSelected WRITE setSelected)
-  Q_PROPERTY(bool    inside   READ isInside   WRITE setInside  )
-  Q_PROPERTY(bool    pseudo   READ isPseudo)
+  Q_PROPERTY(bool    inside   READ isInside   WRITE setInside)
+  Q_PROPERTY(bool    pseudo   READ isPseudo   WRITE setPseudo)
   Q_PROPERTY(double  xangle   READ xAngle     WRITE setXAngle)
   Q_PROPERTY(double  yangle   READ yAngle     WRITE setYAngle)
   Q_PROPERTY(double  zangle   READ zAngle     WRITE setZAngle)
@@ -78,12 +80,14 @@ class Object3D : public QObject {
     FIELD_RUNNERS,
     GRAPH,
     GROUP,
+    LINE_LIST,
     MODEL,
     OTHELLO,
     PARTICLE_LIST,
     PATH,
     PLANE,
     POINT,
+    POINT_LIST,
     QUAD_TREE,
     SHADER,
     SHADER_SHAPE,
@@ -315,8 +319,8 @@ class Object3D : public QObject {
   CMatrix3DH meshMatrix_  { CMatrix3DH::identity() };
 
   int    ticks_   { 0 };
-  int    dt_      { 1 };
   double elapsed_ { 0.0 };
+  int    dt_      { 1 };
 
   Group3DObj *group_ { nullptr };
 

@@ -514,7 +514,7 @@ render()
 
   bool oldTexture = CQGLStateInst->setEnableTexture(true);
 
-  CQGLStateInst->setEnableTextureNum(0, true);
+  CQGLStateInst->setActiveTextureNum(0, true);
 
   if (shaderToyData_.texture)
     shaderToyData_.texture->bindBuffer();

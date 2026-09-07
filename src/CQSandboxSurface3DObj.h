@@ -88,14 +88,6 @@ class Surface3DObj : public Object3D {
 #ifdef CQSANDBOX_FLAG
   CFlag *flag_ { nullptr };
 #endif
-
-#if 0
-  unsigned int pointsBufferId_  { 0 };
-  unsigned int normalsBufferId_ { 0 };
-  unsigned int colorsBufferId_  { 0 };
-  unsigned int vertexArrayId_   { 0 };
-  unsigned int indBufferId_     { 0 };
-#endif
 };
 
 }
