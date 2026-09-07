@@ -22,7 +22,7 @@ proc init { } {
 <QLayoutItem stretch=\"1\"/>\n\
 </qxml>"
 
-  sb3d::ui widget.set pointSize text [$::particles get particleSize]
+  sb3d::ui widget.set pointSize text [$::particles get particle.size]
 }
 
 proc createObjs { } {
@@ -68,7 +68,7 @@ proc setPointSize { } {
   set text [sb3d::ui get text]
 
   # echo "setPointSize $::execArgs $::execText"
-  echo "Text: $text"
+  # echo "Text: $text"
 
-  $::particles set particleSize $text
+  $::particles set particle.size $text
 }

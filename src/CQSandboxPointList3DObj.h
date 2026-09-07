@@ -84,8 +84,7 @@ class PointList3DObj : public Object3D {
   CQGLTexture *texture_ { nullptr };
 
   double pointSize_ { 0.05 };
-
-  bool cullFace_ { false };
+  bool   cullFace_  { false };
 };
 
 }

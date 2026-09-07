@@ -49,7 +49,15 @@ class ParticleList3DObj : public Object3D {
   const QString &textureFile() const { return textureFile_; }
   void setTextureFile(const QString &filename);
 
+  bool isCullFace() const { return cullFace_; }
+  void setCullFace(bool b) { cullFace_ = b; }
+
   void init() override;
+
+  void initShader();
+
+  const std::vector<CGLVector3D> &getParticleShape() const;
+  void addParticlePoint(const CGLVector3D &v);
 
   void tick() override;
 
@@ -102,7 +110,12 @@ class ParticleList3DObj : public Object3D {
   CFireworks* fireworks_ { nullptr };
 #endif
 
-  double particleSize_ { 0.05 };
+  double particleSize_  { 0.05 };
+  double particleAlpha_ { 0.5 };
+  bool   cullFace_      { false };
+
+  std::vector<CGLVector3D> particleShape_;
+  bool                     particleFlat_ { false };
 };
 
 }

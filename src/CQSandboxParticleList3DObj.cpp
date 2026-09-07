@@ -93,8 +93,11 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = strs.join(" ");
   }
-  else if (name == "particleSize") {
+  else if (name == "particle.size") {
     value = QVariant(particleSize());
+  }
+  else if (name == "cull_face") {
+    value = QVariant(isCullFace());
   }
   else
     return Object3D::getValue(name, args, value);
@@ -247,12 +250,19 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "texture") {
     setTextureFile(value);
   }
-  else if (name == "particleSize") {
+  else if (name == "particle.size") {
     double r;
     if (! Util::stringToReal(value, r))
        return false;
 
     setParticleSize(r);
+  }
+  else if (name == "cull_face") {
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setCullFace(b);
   }
   else
     return Object3D::setValue(name, value, args);
@@ -347,46 +357,16 @@ init()
 
   //---
 
-  if (! s_program) {
-    auto *app = canvas_->app();
+  initShader();
 
-    s_program = new ParticleListShaderProgram(this);
+  //---
 
-    //s_program->addVertexFile  (app->buildDir() + "/shaders/particle_list.vs");
-    //s_program->addFragmentFile(app->buildDir() + "/shaders/particle_list.fs");
-
-    s_program->addVertexFile  (app->buildDir() + "/shaders/particle_list_billboard.vs");
-    s_program->addFragmentFile(app->buildDir() + "/shaders/particle_list_billboard.fs");
-
-    s_program->link();
-
-    // get program variables
-    s_program->positionAttr = s_program->attributeLocation("position");
-    Q_ASSERT(s_program->positionAttr != -1);
-
-    s_program->centerAttr = s_program->attributeLocation("center");
-    Q_ASSERT(s_program->centerAttr != -1);
-
-    s_program->colorAttr = s_program->attributeLocation("color");
-    Q_ASSERT(s_program->colorAttr != -1);
-
-    s_program->setProjectionUniform();
-    s_program->setViewUniform();
-  }
-
-  // The VBO containing the 4 vertices of the particles.
+  // The VBO containing the vertices of the particles.
   // Thanks to instancing, they will be shared by all particles.
-  static const GLfloat g_vertex_buffer_data[] = {
-   -0.5f, -0.5f, 0.0f,
-    0.5f, -0.5f, 0.0f,
-   -0.5f,  0.5f, 0.0f,
-    0.5f,  0.5f, 0.0f,
-  };
-
   canvas_->glGenBuffers(1, &billboardVertexBuffer_);
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardVertexBuffer_);
-  canvas_->glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data),
-                        g_vertex_buffer_data, GL_STATIC_DRAW);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLVector3D),
+                        nullptr, GL_STATIC_DRAW);
 
   // The VBO containing the positions and sizes of the particles
   canvas_->glGenBuffers(1, &particlesPositionBuffer_);
@@ -401,6 +381,90 @@ init()
   // Initialize with empty (null) buffer : it will be updated later, each frame.
   canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLColor),
                         nullptr, GL_STREAM_DRAW);
+}
+
+void
+ParticleList3DObj::
+initShader()
+{
+  if (s_program)
+    return;
+
+  auto *app = canvas_->app();
+
+  s_program = new ParticleListShaderProgram(this);
+
+  s_program->addVertexFile  (app->buildDir() + "/shaders/particle_list_billboard.vs");
+  s_program->addFragmentFile(app->buildDir() + "/shaders/particle_list_billboard.fs");
+
+  s_program->link();
+
+  // get program variables
+  s_program->positionAttr = s_program->attributeLocation("position");
+  Q_ASSERT(s_program->positionAttr != -1);
+
+  s_program->centerAttr = s_program->attributeLocation("center");
+  Q_ASSERT(s_program->centerAttr != -1);
+
+  s_program->colorAttr = s_program->attributeLocation("color");
+  Q_ASSERT(s_program->colorAttr != -1);
+
+  s_program->setProjectionUniform();
+  s_program->setViewUniform();
+}
+
+const std::vector<CGLVector3D> &
+ParticleList3DObj::
+getParticleShape() const
+{
+  if (particleShape_.empty()) {
+    auto *th = const_cast<ParticleList3DObj *>(this);
+
+#if 1
+    th->addParticlePoint(CGLVector3D(-0.5f, -0.5f, 0.0f));
+    th->addParticlePoint(CGLVector3D( 0.5f, -0.5f, 0.0f));
+    th->addParticlePoint(CGLVector3D(-0.5f,  0.5f, 0.0f));
+    th->addParticlePoint(CGLVector3D( 0.5f,  0.5f, 0.0f));
+
+    th->particleFlat_ = true;
+#else
+    std::vector<CGLVector3D> v;
+    v.resize(8);
+
+    v[0] = CGLVector3D( 0.5f, -0.5f,  0.5f);
+    v[1] = CGLVector3D( 0.5f, -0.5f, -0.5f);
+    v[2] = CGLVector3D( 0.5f,  0.5f, -0.5f);
+    v[3] = CGLVector3D( 0.5f,  0.5f,  0.5f);
+    v[4] = CGLVector3D(-0.5f, -0.5f,  0.5f);
+    v[5] = CGLVector3D(-0.5f, -0.5f, -0.5f);
+    v[6] = CGLVector3D(-0.5f,  0.5f, -0.5f);
+    v[7] = CGLVector3D(-0.5f,  0.5f,  0.5f);
+
+    auto setPoints = [&](const CGLVector3D &v1, const CGLVector3D &v2,
+                         const CGLVector3D &v3, const CGLVector3D &v4) {
+      th->addParticlePoint(v1); th->addParticlePoint(v2);
+      th->addParticlePoint(v4); th->addParticlePoint(v3);
+    };
+
+    setPoints(v[0], v[1], v[2], v[3]); // Right
+    setPoints(v[1], v[5], v[6], v[2]); // Back
+    setPoints(v[5], v[4], v[7], v[6]); // Left
+    setPoints(v[4], v[0], v[3], v[7]); // Front
+    setPoints(v[3], v[2], v[6], v[7]); // Top
+    setPoints(v[4], v[5], v[1], v[0]); // Bottom
+
+    th->particleFlat_ = false;
+#endif
+  }
+
+  return particleShape_;
+}
+
+void
+ParticleList3DObj::
+addParticlePoint(const CGLVector3D &v)
+{
+  particleShape_.push_back(v);
 }
 
 void
@@ -507,11 +571,15 @@ render()
 
   //---
 
-  bool oldCullFace = CQGLStateInst->setCullFace(false);
+  bool oldCullFace = CQGLStateInst->setCullFace(isCullFace());
 
   s_program->bind();
 
   canvas_->setProgramMatrices(s_program);
+
+  canvas_->setProgramLightGlobals(s_program);
+
+  canvas_->setProgramSimpleLight(s_program);
 
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
@@ -524,7 +592,9 @@ render()
 
   //---
 
-  s_program->setUniformValue("particleSize", float(particleSize()));
+  s_program->setUniformValue("particleSize" , float(particleSize()));
+  s_program->setUniformValue("particleFlat" , particleFlat_);
+  s_program->setUniformValue("particleAlpha", float(particleAlpha_));
 
   //---
 
@@ -542,10 +612,21 @@ render()
 
   auto n = points_.size();
 
+  const auto &particleShape = getParticleShape();
+  auto np = particleShape.size();
+
+  //---
+
   // Update the buffers that OpenGL uses for rendering.
   // There are much more sophisticated means to stream data from the CPU to the GPU,
   // but this is outside the scope of this tutorial.
   // http://www.opengl.org/wiki/Buffer_Object_Streaming
+
+  canvas_->glBindBuffer(GL_ARRAY_BUFFER, billboardVertexBuffer_);
+  canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLVector3D),
+                        nullptr, GL_STATIC_DRAW);
+  canvas_->glBufferSubData(GL_ARRAY_BUFFER, 0, np*sizeof(CGLVector3D), &particleShape[0]);
+
   canvas_->glBindBuffer(GL_ARRAY_BUFFER, particlesPositionBuffer_);
   // Buffer orphaning, a common way to improve streaming perf. See above link for details.
   canvas_->glBufferData(GL_ARRAY_BUFFER, s_maxPoints*sizeof(CGLVector3D),
@@ -594,7 +675,7 @@ render()
    nullptr
   );
 
-  canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, n);
+  //canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, np, n);
 
   // These functions are specific to glDrawArrays*Instanced*.
   // The first parameter is the attribute buffer we're talking about.
@@ -602,7 +683,7 @@ render()
   // rendering multiple instances"
   // http://www.opengl.org/sdk/docs/man/xhtml/glVertexAttribDivisor.xml
 
-  // particles vertices : always reuse the same 4 vertices -> 0
+  // particles vertices : always reuse the same np vertices -> 0
   canvas_->glVertexAttribDivisor(s_program->positionAttr, 0);
   // center per quad -> 1
   canvas_->glVertexAttribDivisor(s_program->centerAttr, 1);
@@ -612,9 +693,9 @@ render()
   // Draw the particules !
   // This draws many times a small triangle_strip (which looks like a quad).
   // This is equivalent to :
-  // for (i in n) : glDrawArrays(GL_TRIANGLE_STRIP, 0, 4),
+  // for (i in n) : glDrawArrays(GL_TRIANGLE_STRIP, 0, np),
   // but faster.
-  canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, n);
+  canvas_->glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, np, n);
 
   //---
 

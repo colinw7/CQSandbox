@@ -1752,7 +1752,8 @@ updateLights()
   lights_[il]->setDiffuse        (CRGBA(1, 1, 1));
   lights_[il]->setPosition       (cpos + CPoint3D(0.0, 0.5, 0));
   lights_[il]->setSpotDirection  (CVector3D(0, 0, -1));
-  lights_[il]->setSpotCutOffAngle(std::cos(35.0));
+//lights_[il]->setSpotCutOffAngle(std::cos(35.0));
+  lights_[il]->setSpotCutOffAngle(35.0);
 
   ++il;
 
@@ -1762,7 +1763,8 @@ updateLights()
   lights_[il]->setDiffuse        (CRGBA(1, 1, 1));
   lights_[il]->setPosition       (cpos + CPoint3D(0.0, -0.5, 0));
   lights_[il]->setSpotDirection  (CVector3D(0, 0, -1));
-  lights_[il]->setSpotCutOffAngle(std::cos(15.0));
+//lights_[il]->setSpotCutOffAngle(std::cos(15.0));
+  lights_[il]->setSpotCutOffAngle(15.0);
 
   //++il;
 
@@ -1793,7 +1795,7 @@ resetLight(Light3D *light)
     light->setSpotDirection(CVector3D(0, 0, 1));
   }
 
-  light->setSpotCutOffAngle(45);
+  light->setSpotCutOffAngle(45.0);
 }
 
 void

@@ -145,7 +145,7 @@ proc init { } {
   set y1 0.0
   set z1 0.0
 
-  $particles set particleSize 0.007
+  $particles set particle.size 0.007
 
   for {set i 0} {$i < $n} {incr i} {
     set pos [nextValue]
