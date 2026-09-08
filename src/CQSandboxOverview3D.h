@@ -22,10 +22,9 @@ class CGLCameraIFace;
 namespace CQSandbox {
 
 class App;
-class Shape;
-class Camera;
-class Light;
-class Text;
+//class CameraIFace;
+class Light3D;
+//class Text;
 
 class Group3DObj;
 class Model3DObj;
@@ -199,11 +198,10 @@ class Overview3D : public QFrame {
   void drawCamera(CGLCameraIFace *camera);
 
   void drawLights();
+  void drawLight(Light3D *light);
 
   void drawTexts();
 //void drawText(Text *text);
-
-  void drawLight(Light *light);
 
   void updateBBox();
 
@@ -242,7 +240,7 @@ class Overview3D : public QFrame {
   CPoint2D windowToPixelZ(const CPoint2D &p) const;
   CPoint2D windowToPixelP(const CPoint2D &p) const;
 
-  //void getCameraShape(Camera *camera, CameraShape &shape) const;
+  //void getCameraShape(CameraIFace *camera, CameraShape &shape) const;
 
   QPointF viewQPoint(ViewType viewType, const CPoint3D &p) const;
   CPoint2D viewPoint(ViewType viewType, const CPoint3D &p) const;

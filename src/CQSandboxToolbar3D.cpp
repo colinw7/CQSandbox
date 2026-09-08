@@ -41,18 +41,8 @@ CanvasToolbar3D(Canvas3D *canvas) :
 
   auto addCheckButton = [&](const QString &name, const QString &iconName,
                             const QString &tip, const char *slotName) {
-    auto *button = new CQIconButton;
-
-    button->setObjectName(name);
+    auto *button = addToolButton(name, iconName, tip, slotName);
     button->setCheckable(true);
-    button->setIcon(iconName);
-    button->setIconSize(QSize(32, 32));
-    button->setAutoRaise(true);
-    button->setToolTip(tip);
-    button->setFocusPolicy(Qt::NoFocus);
-
-    connect(button, SIGNAL(clicked()), this, slotName);
-
     return button;
   };
 
@@ -67,10 +57,10 @@ CanvasToolbar3D(Canvas3D *canvas) :
 
   //---
 
-  cameraButton_ = addToolButton("camera", "CAMERA", "Mode: Camera", SLOT(cameraSlot()));
-  modelButton_  = addToolButton("model" , "MODEL" , "Mode: Model" , SLOT(modelSlot()));
-  lightButton_  = addToolButton("light" , "LIGHT" , "Mode: Light" , SLOT(lightSlot()));
-  gameButton_   = addToolButton("game"  , "GAME"  , "Mode: Game"  , SLOT(gameSlot()));
+  cameraButton_ = addCheckButton("camera", "CAMERA", "Mode: Camera", SLOT(cameraSlot()));
+  modelButton_  = addCheckButton("model" , "MODEL" , "Mode: Model" , SLOT(modelSlot()));
+  lightButton_  = addCheckButton("light" , "LIGHT" , "Mode: Light" , SLOT(lightSlot()));
+  gameButton_   = addCheckButton("game"  , "GAME"  , "Mode: Game"  , SLOT(gameSlot()));
 
   layout->addWidget(cameraButton_);
   layout->addWidget(modelButton_);
@@ -200,21 +190,45 @@ setPos(const QString &label)
 
 void
 CanvasToolbar3D::
+connectSlots(bool b)
+{
+  if (b) {
+    connect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
+    connect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
+    connect(lightButton_ , SIGNAL(clicked()), this, SLOT(lightSlot()));
+    connect(gameButton_  , SIGNAL(clicked()), this, SLOT(gameSlot()));
+
+    connect(wireButton_    , SIGNAL(clicked()), this, SLOT(wireSlot()));
+    connect(solidButton_   , SIGNAL(clicked()), this, SLOT(solidSlot()));
+    connect(texturedButton_, SIGNAL(clicked()), this, SLOT(texturedSlot()));
+
+    connect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
+    connect(faceSelectButton_  , SIGNAL(clicked()), this, SLOT(faceSelectSlot()));
+    connect(edgeSelectButton_  , SIGNAL(clicked()), this, SLOT(edgeSelectSlot()));
+    connect(pointSelectButton_ , SIGNAL(clicked()), this, SLOT(pointSelectSlot()));
+  }
+  else {
+    disconnect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
+    disconnect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
+    disconnect(lightButton_ , SIGNAL(clicked()), this, SLOT(lightSlot()));
+    disconnect(gameButton_  , SIGNAL(clicked()), this, SLOT(gameSlot()));
+
+    disconnect(wireButton_    , SIGNAL(clicked()), this, SLOT(wireSlot()));
+    disconnect(solidButton_   , SIGNAL(clicked()), this, SLOT(solidSlot()));
+    disconnect(texturedButton_, SIGNAL(clicked()), this, SLOT(texturedSlot()));
+
+    disconnect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
+    disconnect(pointSelectButton_ , SIGNAL(clicked()), this, SLOT(pointSelectSlot()));
+    disconnect(edgeSelectButton_  , SIGNAL(clicked()), this, SLOT(edgeSelectSlot()));
+    disconnect(faceSelectButton_  , SIGNAL(clicked()), this, SLOT(faceSelectSlot()));
+  }
+}
+
+void
+CanvasToolbar3D::
 updateInfo()
 {
-  disconnect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
-  disconnect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
-  disconnect(lightButton_ , SIGNAL(clicked()), this, SLOT(lightSlot()));
-  disconnect(gameButton_  , SIGNAL(clicked()), this, SLOT(gameSlot()));
-
-  disconnect(wireButton_    , SIGNAL(clicked()), this, SLOT(wireSlot()));
-  disconnect(solidButton_   , SIGNAL(clicked()), this, SLOT(solidSlot()));
-  disconnect(texturedButton_, SIGNAL(clicked()), this, SLOT(texturedSlot()));
-
-  disconnect(pointSelectButton_ , SIGNAL(clicked()), this, SLOT(pointSelectSlot()));
-  disconnect(edgeSelectButton_  , SIGNAL(clicked()), this, SLOT(edgeSelectSlot()));
-  disconnect(faceSelectButton_  , SIGNAL(clicked()), this, SLOT(faceSelectSlot()));
-  disconnect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
+  connectSlots(false);
 
   //---
 
@@ -281,19 +295,7 @@ updateInfo()
 
   //---
 
-  connect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
-  connect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
-  connect(lightButton_ , SIGNAL(clicked()), this, SLOT(lightSlot()));
-  connect(gameButton_  , SIGNAL(clicked()), this, SLOT(gameSlot()));
-
-  connect(wireButton_    , SIGNAL(clicked()), this, SLOT(wireSlot()));
-  connect(solidButton_   , SIGNAL(clicked()), this, SLOT(solidSlot()));
-  connect(texturedButton_, SIGNAL(clicked()), this, SLOT(texturedSlot()));
-
-  connect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
-  connect(faceSelectButton_  , SIGNAL(clicked()), this, SLOT(faceSelectSlot()));
-  connect(edgeSelectButton_  , SIGNAL(clicked()), this, SLOT(edgeSelectSlot()));
-  connect(pointSelectButton_ , SIGNAL(clicked()), this, SLOT(pointSelectSlot()));
+  connectSlots(true);
 }
 
 void
@@ -341,9 +343,19 @@ solidSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
 
+  connectSlots(false);
+
   canvas_->setSolid(button->isChecked());
 
+  if (canvas_->isSolid()) {
+    canvas_->setTextured(false);
+
+    updateInfo();
+  }
+
   canvas_->update();
+
+  connectSlots(true);
 }
 
 void
@@ -352,9 +364,19 @@ texturedSlot()
 {
   auto *button = qobject_cast<CQIconButton *>(sender());
 
+  connectSlots(false);
+
   canvas_->setTextured(button->isChecked());
 
+  if (canvas_->isTextured()) {
+    canvas_->setSolid(false);
+
+    updateInfo();
+  }
+
   canvas_->update();
+
+  connectSlots(true);
 }
 
 void
@@ -463,6 +485,13 @@ OverviewToolbar3D(Overview3D *overview) :
     return button;
   };
 
+  auto addCheckButton = [&](const QString &name, const QString &iconName,
+                            const QString &tip, const char *slotName) {
+    auto *button = addToolButton(name, iconName, tip, slotName);
+    button->setCheckable(true);
+    return button;
+  };
+
   auto addSeparator = [&]() {
     auto *frame = new QFrame;
 
@@ -472,28 +501,11 @@ OverviewToolbar3D(Overview3D *overview) :
     return frame;
   };
 
-  auto addCheckButton = [&](const QString &name, const QString &iconName,
-                            const QString &tip, const char *slotName) {
-    auto *button = new CQIconButton;
-
-    button->setObjectName(name);
-    button->setCheckable(true);
-    button->setIcon(iconName);
-    button->setIconSize(QSize(32, 32));
-    button->setAutoRaise(true);
-    button->setToolTip(tip);
-    button->setFocusPolicy(Qt::NoFocus);
-
-    connect(button, SIGNAL(clicked()), this, slotName);
-
-    return button;
-  };
-
   //---
 
-  cameraButton_ = addToolButton("camera", "CAMERA", "Mode: Camera", SLOT(cameraSlot()));
-  modelButton_  = addToolButton("model" , "MODEL" , "Mode: Model" , SLOT(modelSlot()));
-  lightButton_  = addToolButton("light" , "LIGHT" , "Mode: Light" , SLOT(lightSlot()));
+  cameraButton_ = addCheckButton("camera", "CAMERA", "Mode: Camera", SLOT(cameraSlot()));
+  modelButton_  = addCheckButton("model" , "MODEL" , "Mode: Model" , SLOT(modelSlot()));
+  lightButton_  = addCheckButton("light" , "LIGHT" , "Mode: Light" , SLOT(lightSlot()));
 
   layout->addWidget(cameraButton_);
   layout->addWidget(modelButton_);
@@ -504,13 +516,13 @@ OverviewToolbar3D(Overview3D *overview) :
   //---
 
   objectSelectButton_  =
-    addToolButton("objectSelect", "OBJECT_SELECT", "Object Select", SLOT(objectSelectSlot()));
+    addCheckButton("objectSelect", "OBJECT_SELECT", "Object Select", SLOT(objectSelectSlot()));
   faceSelectButton_  =
-    addToolButton("faceSelect"  , "FACE_SELECT"  , "Face Select"  , SLOT(faceSelectSlot()));
+    addCheckButton("faceSelect"  , "FACE_SELECT"  , "Face Select"  , SLOT(faceSelectSlot()));
   edgeSelectButton_  =
-    addToolButton("edgeSelect"  , "EDGE_SELECT"  , "Edge Select"  , SLOT(edgeSelectSlot()));
+    addCheckButton("edgeSelect"  , "EDGE_SELECT"  , "Edge Select"  , SLOT(edgeSelectSlot()));
   pointSelectButton_ =
-    addToolButton("pointSelect" , "POINT_SELECT" , "Point Select" , SLOT(pointSelectSlot()));
+    addCheckButton("pointSelect" , "POINT_SELECT" , "Point Select" , SLOT(pointSelectSlot()));
 
   layout->addWidget(objectSelectButton_);
   layout->addWidget(faceSelectButton_);
@@ -606,26 +618,75 @@ settingsSlot()
 
 void
 OverviewToolbar3D::
+connectSlots(bool b)
+{
+  if (b) {
+    connect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
+    connect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
+    connect(lightButton_ , SIGNAL(clicked()), this, SLOT(lightSlot()));
+
+    connect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
+    connect(faceSelectButton_  , SIGNAL(clicked()), this, SLOT(faceSelectSlot()));
+    connect(edgeSelectButton_  , SIGNAL(clicked()), this, SLOT(edgeSelectSlot()));
+    connect(pointSelectButton_ , SIGNAL(clicked()), this, SLOT(pointSelectSlot()));
+  }
+  else {
+    disconnect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
+    disconnect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
+    disconnect(lightButton_ , SIGNAL(clicked()), this, SLOT(lightSlot()));
+
+    disconnect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
+    disconnect(faceSelectButton_  , SIGNAL(clicked()), this, SLOT(faceSelectSlot()));
+    disconnect(edgeSelectButton_  , SIGNAL(clicked()), this, SLOT(edgeSelectSlot()));
+    disconnect(pointSelectButton_ , SIGNAL(clicked()), this, SLOT(pointSelectSlot()));
+  }
+}
+
+void
+OverviewToolbar3D::
 updateInfo()
 {
-  auto type = overview_->editType();
+  connectSlots(false);
 
-  auto *canvas = overview_->app()->canvas3D();
+  //--
+
+  auto type = overview_->editType();
 
   QString text;
 
-  if      (type == Overview3D::EditType::SELECT) {
-    text += "Mode: Select";
-  }
-  else if (type == Overview3D::EditType::CAMERA) {
+  if      (type == Overview3D::EditType::CAMERA) {
     text += "Mode: Camera";
   }
+  else if (type == Overview3D::EditType::SELECT) {
+    text += "Mode: Select";
+  }
   else if (type == Overview3D::EditType::LIGHT) {
+    auto *canvas = overview_->app()->canvas3D();
+
     text += "Mode: Light";
     text += " #" + QString::number(canvas->lightNum());
   }
 
+  cameraButton_->setChecked(type == Overview3D::EditType::CAMERA);
+  modelButton_ ->setChecked(type == Overview3D::EditType::SELECT);
+  lightButton_ ->setChecked(type == Overview3D::EditType::LIGHT);
+
+  //---
+
+  auto selectType = overview_->selectType();
+
+  objectSelectButton_->setChecked(selectType == Overview3D::SelectType::OBJECT);
+  faceSelectButton_  ->setChecked(selectType == Overview3D::SelectType::FACE);
+  edgeSelectButton_  ->setChecked(selectType == Overview3D::SelectType::EDGE);
+  pointSelectButton_ ->setChecked(selectType == Overview3D::SelectType::POINT);
+
+  //---
+
   infoLabel_->setText(text);
+
+  //---
+
+  connectSlots(true);
 }
 
 }

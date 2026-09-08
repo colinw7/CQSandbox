@@ -8,7 +8,7 @@ proc mapV { v v1 v2 } {
 proc init { } {
   # sb3d::canvas set lights.simple 1
 
-  set nc 1
+  set nc 100
 
   for {set i 0} {$i < $nc} {incr i} {
     set ::cube($i) [sb3d::cube]
@@ -26,42 +26,14 @@ proc init { } {
     $::cube($i) set angles   [list $xa $ya $za]
     $::cube($i) set texture "textures/container.jpg"
   }
+}
 
-  sb3d::ui create "\
-<qxml>\n\
-<QVBoxLayout>
-<QPushButton text=\"Normals\" onClicked=\"normalsProc\"/>\n\
-<QPushButton text=\"Orientation\" onClicked=\"orientSlot\"/>\n\
-</QVBoxLayout>
-<QLayoutItem stretch=\"1\"/>\n\
-</qxml>"
+proc bboxChanged { } {
+  # addNormals
 
-  set ::orient  0
-  set ::normals 0
+  showOrient
 }
 
 proc cameraChanged { } {
-  if {$::orient} {
-    showOrient
-  }
-}
-
-proc normalsProc { } {
-  set ::normals [expr {1 - $::normals}]
-
-  if {$::normals} {
-    addNormals
-  } else {
-    removeNormals
-  }
-}
-
-proc orientSlot { } {
-  set ::orient [expr {1 - $::orient}]
-
-  if {$::orient} {
-    showOrient
-  } else {
-    hideOrient
-  }
+  showOrient
 }

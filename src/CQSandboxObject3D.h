@@ -3,6 +3,7 @@
 
 #include <CQSandboxGeom.h>
 #include <CQSandboxFaceData.h>
+#include <CQSandboxUtil.h>
 
 #include <CVector3D.h>
 #include <CMatrix3DH.h>
@@ -54,20 +55,25 @@ class ObjectMgr3D {
 class Object3D : public QObject {
   Q_OBJECT
 
-  Q_PROPERTY(QString id       READ id)
-  Q_PROPERTY(bool    visible  READ isVisible  WRITE setVisible)
-  Q_PROPERTY(bool    selected READ isSelected WRITE setSelected)
-  Q_PROPERTY(bool    inside   READ isInside   WRITE setInside)
-  Q_PROPERTY(bool    pseudo   READ isPseudo   WRITE setPseudo)
-  Q_PROPERTY(double  xangle   READ xAngle     WRITE setXAngle)
-  Q_PROPERTY(double  yangle   READ yAngle     WRITE setYAngle)
-  Q_PROPERTY(double  zangle   READ zAngle     WRITE setZAngle)
-  Q_PROPERTY(double  xpos     READ xPos       WRITE setXPos)
-  Q_PROPERTY(double  ypos     READ yPos       WRITE setYPos)
-  Q_PROPERTY(double  zpos     READ zPos       WRITE setZPos)
-  Q_PROPERTY(double  xscale   READ xScale     WRITE setXScale)
-  Q_PROPERTY(double  yscale   READ yScale     WRITE setYScale)
-  Q_PROPERTY(double  zscale   READ zScale     WRITE setZScale)
+  Q_PROPERTY(QString id          READ id)
+  Q_PROPERTY(int     ind         READ indI)
+  Q_PROPERTY(QString typeName    READ typeNameStr)
+  Q_PROPERTY(QString commandName READ getCommandName)
+
+  Q_PROPERTY(bool visible  READ isVisible  WRITE setVisible)
+  Q_PROPERTY(bool selected READ isSelected WRITE setSelected)
+  Q_PROPERTY(bool inside   READ isInside   WRITE setInside)
+  Q_PROPERTY(bool pseudo   READ isPseudo   WRITE setPseudo)
+
+  Q_PROPERTY(double xangle  READ xAngleDeg WRITE setXAngleDeg)
+  Q_PROPERTY(double yangle  READ yAngleDeg WRITE setYAngleDeg)
+  Q_PROPERTY(double zangle  READ zAngleDeg WRITE setZAngleDeg)
+  Q_PROPERTY(double xpos    READ xPos      WRITE setXPos)
+  Q_PROPERTY(double ypos    READ yPos      WRITE setYPos)
+  Q_PROPERTY(double zpos    READ zPos      WRITE setZPos)
+  Q_PROPERTY(double xscale  READ xScale    WRITE setXScale)
+  Q_PROPERTY(double yscale  READ yScale    WRITE setYScale)
+  Q_PROPERTY(double zscale  READ zScale    WRITE setZScale)
 
  public:
   enum class Type {
@@ -122,11 +128,13 @@ class Object3D : public QObject {
 
   //---
 
-  virtual const char *typeName() const = 0;
-
   virtual ObjectMgr3D *mgr() { return nullptr; }
 
   //---
+
+  virtual const char *typeName() const = 0;
+
+  QString typeNameStr() const { return QString(typeName()); }
 
   Type type() const { return type_; }
 
@@ -134,6 +142,8 @@ class Object3D : public QObject {
 
   size_t ind() const { return ind_; }
   void setInd(size_t ind) { ind_ = ind; }
+
+  int indI() const { return int(ind()); }
 
   const QString &id() const { return id_; }
   void setId(const QString &s) { id_ = s; }
@@ -158,48 +168,76 @@ class Object3D : public QObject {
 
   //---
 
-  double xAngle() const { return xAngle_; }
-  void setXAngle(double a);
+  double xAngle() const { return angles().x; }
+  void setXAngle(double a) { setAngles(CPoint3D(a, yAngle(), zAngle())); }
 
-  double yAngle() const { return yAngle_; }
-  void setYAngle(double a);
+  double yAngle() const { return angles().y; }
+  void setYAngle(double a) { setAngles(CPoint3D(xAngle(), a, zAngle())); }
 
-  double zAngle() const { return zAngle_; }
-  void setZAngle(double a);
+  double zAngle() const { return angles().z; }
+  void setZAngle(double a) { setAngles(CPoint3D(xAngle(), yAngle(), a)); }
 
-  virtual void setAngles(double xa, double ya, double za);
+  double xAngleDeg() const { return Util::radToDeg(xAngle()); }
+  void setXAngleDeg(double a) { setXAngle(Util::degToRad(a)); }
+
+  double yAngleDeg() const { return Util::radToDeg(yAngle()); }
+  void setYAngleDeg(double a) { setYAngle(Util::degToRad(a)); }
+
+  double zAngleDeg() const { return Util::radToDeg(zAngle()); }
+  void setZAngleDeg(double a) { setZAngle(Util::degToRad(a)); }
+
+  virtual const CPoint3D &angles() const;
+  virtual void setAngles(const CPoint3D &p);
+
+  CPoint3D anglesDeg() const {
+    const auto &a = angles();
+    return CPoint3D(Util::radToDeg(a.x), Util::radToDeg(a.y), Util::radToDeg(a.z));
+  }
+
+  void setAnglesDeg(const CPoint3D &p) {
+    setAngles(CPoint3D(Util::degToRad(p.x), Util::degToRad(p.y), Util::degToRad(p.z)));
+  }
 
   //---
 
-  double xPos() const { return position_.x; }
-  void setXPos(double a);
+  double xPos() const { return position().x; }
+  void setXPos(double x) { setPosition(CPoint3D(x, yPos(), zPos())); }
 
-  double yPos() const { return position_.y; }
-  void setYPos(double a);
+  double yPos() const { return position().y; }
+  void setYPos(double y) { setPosition(CPoint3D(xPos(), y, zPos())); }
 
-  double zPos() const { return position_.z; }
-  void setZPos(double a);
+  double zPos() const { return position().z; }
+  void setZPos(double z) { setPosition(CPoint3D(xPos(), yPos(), z)); }
 
-  const CPoint3D &position() const { return position_; }
+  virtual const CPoint3D &position() const;
   virtual void setPosition(const CPoint3D &p);
+
+  //---
+
+  double xScale() const { return scales().x; }
+  void setXScale(double s) { setScales(CPoint3D(s, yScale(), zScale())); }
+
+  double yScale() const { return scales().y; }
+  void setYScale(double s) { setScales(CPoint3D(xScale(), s, zScale())); }
+
+  double zScale() const { return scales().z; }
+  void setZScale(double s) { setScales(CPoint3D(xScale(), yScale(), s)); }
+
+  void setScale(double s) { setScales(CPoint3D(s, s, s)); }
+
+  virtual const CPoint3D &scales() const;
+  virtual void setScales(const CPoint3D &p);
+
+  //---
 
   virtual CPoint3D origin() const;
   virtual void setOrigin(const CPoint3D &p);
 
   //---
 
-  double xScale() const { return xscale_; }
-  void setXScale(double s) { setScales(s, yscale_, zscale_); }
+  virtual void applyTransform();
 
-  double yScale() const { return yscale_; }
-  void setYScale(double s) { setScales(xscale_, s, zscale_); }
-
-  double zScale() const { return zscale_; }
-  void setZScale(double s) { setScales(xscale_, yscale_, s); }
-
-  void setScale(double s) { setScales(s, s, s); }
-
-  virtual void setScales(double xs, double ys, double zs);
+  virtual void applyMatrix(const CMatrix3DH &) { }
 
   //---
 
@@ -251,6 +289,8 @@ class Object3D : public QObject {
 
   virtual Rect getBBox() const { return Rect(); } // TODO: for Quad Tree
 
+  //---
+
   virtual CQGLBuffer *getBuffer() const { return buffer_; }
 
   virtual const FaceDatas &getFaceDatas() const { return faceDatas_; }
@@ -293,6 +333,9 @@ class Object3D : public QObject {
 
   bool getFacePoints(int i, std::vector<CPoint3D> &points) const;
 
+ Q_SIGNALS:
+  void transformChanged();
+
  protected:
   using OptPoint = std::optional<CPoint3D>;
 
@@ -306,14 +349,10 @@ class Object3D : public QObject {
   bool    inside_   { false };
   bool    pseudo_   { false };
 
-  double   xAngle_   { 0.0 };
-  double   yAngle_   { 0.0 };
-  double   zAngle_   { 0.0 };
-  CPoint3D position_ { 0, 0, 0 };
+  CPoint3D angles_   { 0.0, 0.0, 0.0 };
+  CPoint3D position_ { 0.0, 0.0, 0.0 };
+  CPoint3D scales_   { 1.0, 1.0, 1.0 };
   OptPoint origin_;
-  double   xscale_   { 1.0 };
-  double   yscale_   { 1.0 };
-  double   zscale_   { 1.0 };
 
   CMatrix3DH modelMatrix_ { CMatrix3DH::identity() };
   CMatrix3DH meshMatrix_  { CMatrix3DH::identity() };

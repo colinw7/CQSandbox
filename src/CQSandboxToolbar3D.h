@@ -25,6 +25,8 @@ class CanvasToolbar3D : public QFrame {
 
   void setPos(const QString &label);
 
+  void connectSlots(bool b);
+
  public Q_SLOTS:
   void updateInfo();
 
@@ -85,6 +87,8 @@ class OverviewToolbar3D : public QFrame {
   OverviewToolbar3D(Overview3D *overview);
 
   Overview3D *overview() const { return overview_; }
+
+  void connectSlots(bool b);
 
  public Q_SLOTS:
   void updateInfo();

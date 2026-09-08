@@ -8,6 +8,7 @@
 #include <CQSandboxUtil.h>
 
 #include <CQColorEdit.h>
+#include <CQBBox3DEdit.h>
 #include <CQPoint3DEdit.h>
 #include <CQRealSpin.h>
 #include <CQPropertyViewTree.h>
@@ -124,6 +125,8 @@ Control3D(CQSandbox::Canvas3D *canvas) :
   buttonLayout->addStretch(1);
   buttonLayout->addWidget(updateButton);
   buttonLayout->addWidget(closeButton);
+
+  connect(canvas_, SIGNAL(objectTransformChanged()), this, SLOT(updateSlot()));
 
   connect(updateButton, &QPushButton::clicked, this, &Control3D::updateSlot);
   connect(closeButton, &QPushButton::clicked, this, &Control3D::closeSlot);
@@ -376,7 +379,7 @@ addLightFrame()
   //---
 
   lightData_.diffuseEdit = addRealEdit("Diffuse Strength");
-  lightData_.diffuseEdit->setRange(0.0, 1.0);
+  lightData_.diffuseEdit->setRange(0.0, 2.0);
 
   //---
 
@@ -424,6 +427,11 @@ addLightFrame()
   lightData_.enabledCheck = addCheck("Enabled");
 
   lightData_.colorEdit = addColorEdit("Color"); // diffuse
+
+  //---
+
+  lightData_.powerEdit = addRealEdit("Power");
+  lightData_.powerEdit->setRange(0.0, 100.0);
 
   //---
 
@@ -479,20 +487,81 @@ addObjectsFrame()
 
   layout->addWidget(controlFrame);
 
+  //---
+
   objectsData_.list = new QListWidget;
 
   objectsData_.list->setSelectionMode(QListWidget::SingleSelection);
 
-  connect(objectsData_.list, &QListWidget::currentItemChanged,
-          this, &Control3D::objectSelectedSlot);
-
   controlLayout->addWidget(objectsData_.list);
+
+  //---
 
   objectsData_.tree = new CQPropertyViewTree(this);
 
   layout->addWidget(objectsData_.tree);
 
   //---
+
+  auto *posFrame  = new QGroupBox("Translate");
+  auto *posLayout = new QVBoxLayout(posFrame);
+
+  layout->addWidget(posFrame);
+
+  objectsData_.posEdit = new CQPoint3DEdit;
+
+  posLayout->addWidget(objectsData_.posEdit);
+
+  //---
+
+  auto *scaleFrame  = new QGroupBox("Scale");
+  auto *scaleLayout = new QVBoxLayout(scaleFrame);
+
+  layout->addWidget(scaleFrame);
+
+  objectsData_.scaleEdit = new CQPoint3DEdit;
+
+  scaleLayout->addWidget(objectsData_.scaleEdit);
+
+  //---
+
+  auto *rotateFrame  = new QGroupBox("Rotate");
+  auto *rotateLayout = new QVBoxLayout(rotateFrame);
+
+  layout->addWidget(rotateFrame);
+
+  objectsData_.rotateEdit = new CQPoint3DEdit;
+
+  rotateLayout->addWidget(objectsData_.rotateEdit);
+
+  //---
+
+  auto *bboxFrame  = new QGroupBox("BBox");
+  auto *bboxLayout = new QVBoxLayout(bboxFrame);
+
+  layout->addWidget(bboxFrame);
+
+  objectsData_.bboxEdit = new CQBBox3DEdit;
+
+  bboxLayout->addWidget(objectsData_.bboxEdit);
+
+  //---
+
+  auto *buttonFrame  = new QFrame(this);
+  auto *buttonLayout = new QHBoxLayout(buttonFrame);
+
+  layout->addWidget(buttonFrame);
+
+  auto *applyButton = new QPushButton("Apply Transform");
+
+  connect(applyButton, SIGNAL(clicked()), this, SLOT(objectApplySlot()));
+
+  buttonLayout->addWidget(applyButton);
+  buttonLayout->addStretch(1);
+
+  //---
+
+  connectObjects(true);
 
   return frame;
 }
@@ -812,6 +881,7 @@ updateLights()
 
   lightData_.enabledCheck->setChecked(currentLight->getEnabled());
   lightData_.colorEdit   ->setColor(Util::RGBAToQColor(currentLight->getDiffuse()));
+  lightData_.powerEdit   ->setValue(currentLight->getPower());
   lightData_.posEdit     ->setValue(currentLight->getPosition());
 
   if (currentLight->getType() == Light3D::Type::SPOT)
@@ -880,6 +950,8 @@ connectLights(bool b)
             this, &Control3D::lightCheckSlot);
     connect(lightData_.colorEdit , &CQColorEdit::colorChanged,
             this, &Control3D::lightColorSlot);
+    connect(lightData_.powerEdit , &CQRealSpin::realValueChanged,
+            this, &Control3D::lightPowerSlot);
     connect(lightData_.posEdit   , &CQPoint3DEdit::editingFinished,
             this, &Control3D::lightPosSlot);
     connect(lightData_.dirEdit   , &CQPoint3DEdit::editingFinished,
@@ -913,6 +985,8 @@ connectLights(bool b)
                this, &Control3D::lightCheckSlot);
     disconnect(lightData_.colorEdit , &CQColorEdit::colorChanged,
                this, &Control3D::lightColorSlot);
+    disconnect(lightData_.powerEdit , &CQRealSpin::realValueChanged,
+               this, &Control3D::lightPowerSlot);
     disconnect(lightData_.posEdit   , &CQPoint3DEdit::editingFinished,
                this, &Control3D::lightPosSlot);
     disconnect(lightData_.dirEdit   , &CQPoint3DEdit::editingFinished,
@@ -928,14 +1002,39 @@ connectLights(bool b)
 
 void
 Control3D::
+connectObjects(bool b)
+{
+  if (b) {
+    connect(objectsData_.list, &QListWidget::currentItemChanged,
+            this, &Control3D::objectSelectedSlot);
+
+    connect(objectsData_.posEdit, &CQPoint3DEdit::editingFinished,
+            this, &Control3D::objectPosSlot);
+    connect(objectsData_.scaleEdit, &CQPoint3DEdit::editingFinished,
+            this, &Control3D::objectScaleSlot);
+    connect(objectsData_.rotateEdit, &CQPoint3DEdit::editingFinished,
+            this, &Control3D::objectRotateSlot);
+  }
+  else {
+    disconnect(objectsData_.list, &QListWidget::currentItemChanged,
+               this, &Control3D::objectSelectedSlot);
+
+    disconnect(objectsData_.posEdit, &CQPoint3DEdit::editingFinished,
+               this, &Control3D::objectPosSlot);
+    disconnect(objectsData_.scaleEdit, &CQPoint3DEdit::editingFinished,
+               this, &Control3D::objectScaleSlot);
+    disconnect(objectsData_.rotateEdit, &CQPoint3DEdit::editingFinished,
+               this, &Control3D::objectRotateSlot);
+  }
+}
+
+void
+Control3D::
 updateObjects()
 {
+  connectObjects(false);
+
   if (objectsChanged_) {
-    disconnect(objectsData_.list, &QListWidget::currentItemChanged,
-             this, &Control3D::objectSelectedSlot);
-
-    //---
-
     objectsChanged_ = false;
 
     QListWidgetItem *currentItem = nullptr;
@@ -967,12 +1066,39 @@ updateObjects()
 
     if (currentItem)
       objectSelectedSlot(currentItem, nullptr);
-
-    //---
-
-    connect(objectsData_.list, &QListWidget::currentItemChanged,
-            this, &Control3D::objectSelectedSlot);
   }
+
+  //---
+
+  auto *currentObj = getCurrentObject();
+
+  if (currentObj) {
+    objectsData_.posEdit   ->setValue(currentObj->position());
+    objectsData_.scaleEdit ->setValue(currentObj->scales());
+    objectsData_.rotateEdit->setValue(currentObj->anglesDeg());
+
+    objectsData_.bboxEdit->setValue(currentObj->bbox());
+  }
+
+  //---
+
+  connectObjects(true);
+}
+
+Object3D *
+Control3D::
+getCurrentObject() const
+{
+  auto items = objectsData_.list->selectedItems();
+  if (items.size() <= 0) return nullptr;
+
+  auto *currentItem = items[0];
+
+  int ind = currentItem->data(Qt::UserRole).toInt();
+
+  auto *indObj = canvas_->objectFromInd(ind);
+
+  return indObj;
 }
 
 void
@@ -1383,6 +1509,16 @@ lightColorSlot(const QColor &c)
 
 void
 Control3D::
+lightPowerSlot(double r)
+{
+  auto *light = canvas_->currentLight();
+
+  light->setPower(r);
+  canvas_->update();
+}
+
+void
+Control3D::
 lightPosSlot()
 {
   auto *light = canvas_->currentLight();
@@ -1448,15 +1584,69 @@ objectSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
     obj->setSelected(obj == indObj);
 #endif
 
+  auto skipPropeties = QStringList() <<
+    "xangle" << "yangle" << "zangle" <<
+    "xpos" << "ypos" << "zpos" <<
+    "xscale" << "yscale" << "zscale";
+
   objectsData_.tree->clear();
 
   if (indObj) {
     auto properties = CQUtil::getPropertyList(indObj);
 
     for (auto &prop : properties) {
+      if (skipPropeties.contains(prop))
+        continue;
+
       objectsData_.tree->addProperty("", indObj, prop);
     }
   }
+}
+
+void
+Control3D::
+objectPosSlot()
+{
+  auto p = objectsData_.posEdit->getValue();
+
+  auto *obj = getCurrentObject();
+
+  if (obj)
+    obj->setPosition(p);
+}
+
+void
+Control3D::
+objectScaleSlot()
+{
+  auto p = objectsData_.scaleEdit->getValue();
+
+  auto *obj = getCurrentObject();
+
+  if (obj)
+    obj->setScales(p);
+}
+
+void
+Control3D::
+objectRotateSlot()
+{
+  auto p = objectsData_.rotateEdit->getValue();
+
+  auto *obj = getCurrentObject();
+
+  if (obj)
+    obj->setAnglesDeg(p);
+}
+
+void
+Control3D::
+objectApplySlot()
+{
+  auto *obj = getCurrentObject();
+
+  if (obj)
+    obj->applyTransform();
 }
 
 void

@@ -233,9 +233,7 @@ updateObjectData()
   auto sceneScale = float(1.0/max3(sceneSize.getX(), sceneSize.getY(), sceneSize.getZ()));
   //std::cerr << "Scene Scale : " << sceneScale << "\n";
 
-  xscale_ = sceneScale;
-  yscale_ = sceneScale;
-  zscale_ = sceneScale;
+  setScale(sceneScale);
 }
 
 void

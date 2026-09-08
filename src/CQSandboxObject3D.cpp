@@ -44,76 +44,33 @@ setSelected(bool b)
   setNeedsUpdate();
 }
 
-void
+//---
+
+const CPoint3D &
 Object3D::
-setXAngle(double a)
+angles() const
 {
-  setAngles(a, yAngle_, zAngle_);
+  return angles_;
 }
 
 void
 Object3D::
-setYAngle(double a)
+setAngles(const CPoint3D &p)
 {
-  setAngles(xAngle_, a, zAngle_);
-}
-
-void
-Object3D::
-setZAngle(double a)
-{
-  setAngles(xAngle_, yAngle_, a);
-}
-
-void
-Object3D::
-setAngles(double xa, double ya, double za)
-{
-  xAngle_ = xa;
-  yAngle_ = ya;
-  zAngle_ = za;
+  angles_ = p;
 
   updateModelMatrix();
 
   setNeedsUpdate();
+
+  Q_EMIT transformChanged();
 }
 
-void
+const CPoint3D &
 Object3D::
-setXPos(double x)
+position() const
 {
-  position_.x = x;
-
-  setNeedsUpdate();
-}
-
-void
-Object3D::
-setYPos(double y)
-{
-  position_.y = y;
-
-  setNeedsUpdate();
-}
-
-void
-Object3D::
-setZPos(double z)
-{
-  position_.z = z;
-
-  setNeedsUpdate();
-}
-
-void
-Object3D::
-setScales(double xs, double ys, double zs)
-{
-  xscale_ = xs;
-  yscale_ = ys;
-  zscale_ = zs;
-
-  setNeedsUpdate();
+  return position_;
 }
 
 void
@@ -125,6 +82,28 @@ setPosition(const CPoint3D &p)
   updateModelMatrix();
 
   setNeedsUpdate();
+
+  Q_EMIT transformChanged();
+}
+
+const CPoint3D &
+Object3D::
+scales() const
+{
+  return scales_;
+}
+
+void
+Object3D::
+setScales(const CPoint3D &p)
+{
+  scales_ = p;
+
+  updateModelMatrix();
+
+  setNeedsUpdate();
+
+  Q_EMIT transformChanged();
 }
 
 CPoint3D
@@ -143,7 +122,30 @@ setOrigin(const CPoint3D &p)
   updateModelMatrix();
 
   setNeedsUpdate();
+
+  Q_EMIT transformChanged();
 }
+
+void
+Object3D::
+applyTransform()
+{
+  updateModelMatrix();
+
+  applyMatrix(modelMatrix());
+
+  angles_   = CPoint3D(0.0, 0.0, 0.0);
+  position_ = CPoint3D(0.0, 0.0, 0.0);
+  scales_   = CPoint3D(1.0, 1.0, 1.0);
+
+  updateModelMatrix();
+
+  setNeedsUpdate();
+
+  Q_EMIT transformChanged();
+}
+
+//---
 
 void
 Object3D::
@@ -174,12 +176,11 @@ Object3D::
 setModelMatrix(uint matrixFlags)
 {
   // object centered at (0, 0). Moved to specified position
-  auto o   = origin();
-  auto pos = this->position();
-
   modelMatrix_ = CMatrix3DH::identity();
 
   if (matrixFlags & ModelMatrixFlags::ROTATE) {
+    auto o = origin();
+
     modelMatrix_.translated(float(o.getX()), float(o.getY()), float(o.getZ()));
 
     modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
@@ -189,8 +190,11 @@ setModelMatrix(uint matrixFlags)
     modelMatrix_.translated(-float(o.getX()), -float(o.getY()), -float(o.getZ()));
   }
 
-  if (matrixFlags & ModelMatrixFlags::TRANSLATE)
+  if (matrixFlags & ModelMatrixFlags::TRANSLATE) {
+    auto pos = this->position();
+
     modelMatrix_.translated(float(pos.getX()), float(pos.getY()), float(pos.getZ()));
+  }
 
   if (matrixFlags & ModelMatrixFlags::SCALE)
     modelMatrix_.scaled(xScale(), yScale(), zScale());
@@ -311,8 +315,13 @@ setValue(const QString &name, const QString &value, const QStringList &)
       return false;
 
     setPosition(p);
+  }
+  else if (name == "angles") {
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, value, p))
+      return false;
 
-    setNeedsUpdate();
+    setAngles(CPoint3D(Util::degToRad(p.x), Util::degToRad(p.y), Util::degToRad(p.z)));
   }
   else if (name == "x_angle") {
     double a;
@@ -320,8 +329,6 @@ setValue(const QString &name, const QString &value, const QStringList &)
       return false;
 
     setXAngle(Util::degToRad(a));
-
-    setNeedsUpdate();
   }
   else if (name == "y_angle") {
     double a;
@@ -329,8 +336,6 @@ setValue(const QString &name, const QString &value, const QStringList &)
       return false;
 
     setYAngle(Util::degToRad(a));
-
-    setNeedsUpdate();
   }
   else if (name == "z_angle") {
     double a;
@@ -338,8 +343,13 @@ setValue(const QString &name, const QString &value, const QStringList &)
       return false;
 
     setZAngle(Util::degToRad(a));
+  }
+  else if (name == "scales") {
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, value, p))
+      return false;
 
-    setNeedsUpdate();
+    setScales(p);
   }
   else if (name == "scale") {
     double s;
@@ -347,8 +357,6 @@ setValue(const QString &name, const QString &value, const QStringList &)
       return false;
 
     setScale(s);
-
-    setNeedsUpdate();
   }
   else if (name == "group") {
     auto *group = dynamic_cast<Group3DObj *>(canvas()->getObjectByName(value));
@@ -495,7 +503,7 @@ createBBoxObj()
 
     auto s = 1.01;
 
-    bboxObj_->setScales(s*bbox_.getXSize(), s*bbox_.getYSize(), s*bbox_.getZSize());
+    bboxObj_->setScales(CPoint3D(s*bbox_.getXSize(), s*bbox_.getYSize(), s*bbox_.getZSize()));
 
     bboxObj_->setNeedsUpdate();
   }

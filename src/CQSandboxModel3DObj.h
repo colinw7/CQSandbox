@@ -64,6 +64,17 @@ class Model3DObj : public Object3D {
 
   CGeomObject3D *object() const { return object_; }
 
+  const CPoint3D &position() const override;
+  void setPosition(const CPoint3D &p) override;
+
+  const CPoint3D &scales() const override;
+  void setScales(const CPoint3D &p) override;
+
+  const CPoint3D &angles() const override;
+  void setAngles(const CPoint3D &p) override;
+
+  //---
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 

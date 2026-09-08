@@ -3,6 +3,7 @@
 
 #include <CQSandboxFaceData.h>
 
+#include <CMatrix3DH.h>
 #include <CVector2D.h>
 #include <CVector3D.h>
 
@@ -70,6 +71,10 @@ class Shape3DData {
 
   static void addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
                           std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices);
+
+  //---
+
+  void transform(const CMatrix3DH &m);
 
  private:
   Points    points_;

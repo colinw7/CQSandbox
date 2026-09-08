@@ -129,9 +129,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToPoint3D(tcl, value, p))
       return false;
 
-    xAngle_ = p.getX();
-    yAngle_ = p.getY();
-    zAngle_ = p.getZ();
+    setAngles(p);
 
     setNeedsUpdate();
   }

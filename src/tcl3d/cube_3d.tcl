@@ -1,39 +1,46 @@
 source "tcl3d/addNormals.tcl"
 source "tcl3d/showOrient.tcl"
 
-proc mapV { v v1 v2 } {
-  return [expr {$v*($v2 - $v1) + $v1}]
-}
-
 proc init { } {
-  # sb3d::canvas set lights.simple 1
+  set ::cube [sb3d::cube]
 
-  set nc 100
+  $::cube set texture "textures/container.jpg"
 
-  for {set i 0} {$i < $nc} {incr i} {
-    set ::cube($i) [sb3d::cube]
+  sb3d::ui create "\
+<qxml>\n\
+<QVBoxLayout>
+<QPushButton text=\"Normals\" onClicked=\"normalsProc\"/>\n\
+<QPushButton text=\"Orientation\" onClicked=\"orientSlot\"/>\n\
+</QVBoxLayout>
+<QLayoutItem stretch=\"1\"/>\n\
+</qxml>"
 
-    set x [mapV [expr {rand()}] -0.5 0.5]
-    set y [mapV [expr {rand()}] -0.5 0.5]
-    set z [mapV [expr {rand()}] -0.5 0.5]
-
-    set xa [mapV [expr {rand()}] 0 360]
-    set ya [mapV [expr {rand()}] 0 360]
-    set za [mapV [expr {rand()}] 0 360]
-
-    $::cube($i) set scale    0.1
-    $::cube($i) set position [list $x $y $z]
-    $::cube($i) set angle    [list $xa $ya $za]
-    $::cube($i) set texture "textures/container.jpg"
-  }
-}
-
-proc bboxChanged { } {
-  # addNormals
-
-  showOrient
+  set ::orient  0
+  set ::normals 0
 }
 
 proc cameraChanged { } {
-  showOrient
+  if {$::orient} {
+    showOrient
+  }
+}
+
+proc normalsProc { } {
+  set ::normals [expr {1 - $::normals}]
+
+  if {$::normals} {
+    addNormals
+  } else {
+    removeNormals
+  }
+}
+
+proc orientSlot { } {
+  set ::orient [expr {1 - $::orient}]
+
+  if {$::orient} {
+    showOrient
+  } else {
+    hideOrient
+  }
 }

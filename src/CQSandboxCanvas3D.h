@@ -541,6 +541,7 @@ class Canvas3D : public OpenGLWindow {
   void bboxChanged();
 
   void objectsChanged();
+  void objectTransformChanged();
 
   void uiUpdateSignal();
 

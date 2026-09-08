@@ -472,7 +472,6 @@ class CQGLBuffer {
 
     // remember: do NOT unbind the EBO while a VAO is active as the bound element buffer object
     // IS stored in the VAO; keep the EBO bound.
-    //data_.vertexBuffer->release();
 
     // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO,
     // but this rarely happens. Modifying other VAOs requires a call to glBindVertexArray
@@ -489,17 +488,13 @@ class CQGLBuffer {
     // but we'll do so to keep things a bit more organized
     data_.vObj->bind();
 
-#if 0
     if (hasIndices())
       data_.indBuffer->bind();
-#endif
   }
 
   void unbind() {
-#if 0
     if (hasIndices())
       data_.indBuffer->release();
-#endif
 
     data_.vObj->release();
   }

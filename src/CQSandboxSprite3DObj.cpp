@@ -197,9 +197,10 @@ void
 Sprite3DObj::
 updateModelMatrix()
 {
-  xAngle_ = 2.0;
-  yAngle_ = 0.0;
-  zscale_ = 1.0;
+  setXAngle(2.0);
+  setYAngle(0.0);
+
+  setZScale(1.0);
 
   setModelMatrix();
 }

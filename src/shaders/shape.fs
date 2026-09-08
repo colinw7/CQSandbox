@@ -8,11 +8,15 @@ in vec2 TexCoord;
 out vec4 FragColor;
 
 uniform vec3 viewPos;
-uniform vec3 lightPos;
-uniform vec3 lightColor;
 
+uniform vec3  lightPos;
+uniform vec3  lightColor;
+uniform float lightPower;
+
+uniform vec3  ambientColor;
 uniform float ambientStrength;
 uniform float diffuseStrength;
+uniform vec3  specularColor;
 uniform float specularStrength;
 uniform float shininess;
 
@@ -24,6 +28,15 @@ uniform bool      useNormalTexture;
 uniform bool isWireframe;
 
 void main() {
+  // Ambient
+
+  //vec3 ambient = ambientStrength*vec3(diffuseColor);
+  vec3 ambient = ambientStrength*ambientColor;
+
+  //---
+
+  // Diffuse
+
   vec3 norm;
   if (useNormalTexture) {
     norm = texture(normTex, TexCoord).rgb;
@@ -35,22 +48,28 @@ void main() {
   vec3 lightDir = normalize(lightPos - FragPos);
 
   float diff = max(dot(norm, lightDir), 0.0);
+
   vec4 diffuseColor = Color;
   if (useDiffuseTexture) {
     diffuseColor = texture(textureId, TexCoord);
   }
-  vec3 diffuse = diffuseStrength*diff*vec3(diffuseColor);
+  vec3 diffuse = diffuseStrength*diff*lightColor*lightPower;
 
-  vec3 ambient = ambientStrength*vec3(diffuseColor);
+  vec3 result = (ambient + diffuse)*vec3(diffuseColor);
 
-  vec3 viewDir = normalize(viewPos - FragPos);
+  //---
+
+  // Specular
+
+  vec3 viewDir    = normalize(viewPos - FragPos);
   vec3 reflectDir = reflect(-lightDir, norm);
 
   float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-  vec3 specColor = lightColor;
-  vec3 specular = specularStrength*spec*specColor;
+  vec3 specular = specularStrength*spec*specularColor;
 
-  vec3 result = ambient + diffuse + specular;
+  result += specular;
+
+  //---
 
   if (! isWireframe)
     FragColor = vec4(result, diffuseColor.a);

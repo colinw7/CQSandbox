@@ -33,10 +33,6 @@ void
 Cube3DObj::
 init()
 {
-  Object3D::init();
-
-  //---
-
   auto xc = 0.0;
   auto yc = 0.0;
   auto zc = 0.0;

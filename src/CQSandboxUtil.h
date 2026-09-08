@@ -13,6 +13,7 @@
 #include <CMathGeom2D.h>
 #include <CPoint3D.h>
 #include <CPolygonOrientation.h>
+#include <CRGBA.h>
 
 #include <QPainterPath>
 #include <QString>

@@ -184,14 +184,12 @@ origin() const
 
 void
 Group3DObj::
-setAngles(double xa, double ya, double za)
+setAngles(const CPoint3D &p)
 {
-  xAngle_ = xa;
-  yAngle_ = ya;
-  zAngle_ = za;
+  angles_ = p;
 
   for (auto *obj : objects_)
-    obj->setAngles(xa, ya, za);
+    obj->setAngles(p);
 
   bboxValid_ = false;
 }

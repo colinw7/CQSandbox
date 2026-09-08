@@ -121,6 +121,68 @@ initShader(Canvas3D *canvas)
   s_shaderData.program->link();
 }
 
+//---
+
+const CPoint3D &
+Model3DObj::
+position() const
+{
+  return position_;
+}
+
+void
+Model3DObj::
+setPosition(const CPoint3D &p)
+{
+  position_ = p;
+
+  object_->setTranslate(p.x, p.y, p.z);
+
+  setNeedsUpdate();
+}
+
+const CPoint3D &
+Model3DObj::
+scales() const
+{
+  return scales_;
+}
+
+void
+Model3DObj::
+setScales(const CPoint3D &p)
+{
+  scales_ = p;
+
+  object_->setScale(p.x, p.y, p.z);
+
+  setNeedsUpdate();
+}
+
+const CPoint3D &
+Model3DObj::
+angles() const
+{
+  return angles_;
+}
+
+void
+Model3DObj::
+setAngles(const CPoint3D &p)
+{
+  angles_ = p;
+
+  auto rx = CMatrix3D::rotation(p.x, CVector3D(1, 0, 0));
+  auto ry = CMatrix3D::rotation(p.y, CVector3D(0, 1, 0));
+  auto rz = CMatrix3D::rotation(p.z, CVector3D(0, 0, 1));
+
+  object_->setRotate(rx*ry*rz);
+
+  setNeedsUpdate();
+}
+
+//---
+
 bool
 Model3DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
@@ -864,9 +926,7 @@ updateObjectData()
     auto sceneScale = float(1.0/max3(sceneSize.getX(), sceneSize.getY(), sceneSize.getZ()));
     //std::cerr << "Scene Scale : " << sceneScale << "\n";
 
-    xscale_ = sceneScale;
-    yscale_ = sceneScale;
-    zscale_ = sceneScale;
+    setScale(sceneScale);
   }
 }
 

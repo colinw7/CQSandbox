@@ -561,6 +561,8 @@ addNewObject(Object3D *obj)
   else
     emitObjectsChanged_ = true;
 
+  connect(obj, SIGNAL(transformChanged()), this, SIGNAL(objectTransformChanged()));
+
   return id;
 }
 
@@ -1824,6 +1826,8 @@ setProgramSimpleLight(ShaderProgram *program)
 
   program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->getPosition()));
   program->setUniformValue("lightColor", CQGLUtil::toVector(light->getDiffuse()));
+
+  program->setUniformValue("lightPower", light->getPower());
 }
 
 void
@@ -1864,6 +1868,8 @@ setProgramLights(ShaderProgram *program)
     program->setUniformValue(STR(lightName + ".enabled"), light->getEnabled());
 
     program->setUniformValue(STR(lightName + ".color"), CQGLUtil::toVector(light->getDiffuse()));
+
+    program->setUniformValue(STR(lightName + ".power"), light->getPower());
 
     if (light->getType() == Light3D::Type::DIRECTIONAL) {
       program->setUniformValue(STR(lightName + ".direction"),

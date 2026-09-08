@@ -313,9 +313,7 @@ render()
 
   //---
 
-  xscale_ = size_;
-  yscale_ = size_;
-  zscale_ = 1.0;
+  setScales(CPoint3D(size_, size_, 1));
 
   auto matrixFlags = ModelMatrixFlags::TRANSLATE | ModelMatrixFlags::SCALE;
 

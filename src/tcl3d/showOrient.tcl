@@ -1,4 +1,12 @@
 proc showOrient { } {
+  if {! [info exists ::orient_points]} {
+    set ::orient_points { }
+  }
+
+  foreach point $::orient_points {
+    $point set visible 0
+  }
+
   set objects [sb3d::canvas get objects]
 
   set i 0
@@ -19,7 +27,11 @@ proc showOrient { } {
         set ::orient_point($i,$j) [sb3d::point]
 
         $::orient_point($i,$j) set size 24
+
+        lappend ::orient_points $::orient_point($i,$j)
       }
+
+      $::orient_point($i,$j) set visible 1
 
       set center [$object get face.center $face]
 
@@ -38,4 +50,14 @@ proc showOrient { } {
 
     incr i
   }
+
+  sb3d::canvas exec update
+}
+
+proc hideOrient { } {
+  foreach point $::orient_points {
+    $point set visible 0
+  }
+
+  sb3d::canvas exec update
 }

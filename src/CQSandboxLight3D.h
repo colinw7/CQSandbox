@@ -18,6 +18,7 @@ class Light3D : public QObject, public CGeomLight3D {
   Q_PROPERTY(bool  enabled         READ getEnabled         WRITE setEnabled)
   Q_PROPERTY(float spotCutOffAngle READ getSpotCutOffAngle WRITE setSpotCutOffAngle)
   Q_PROPERTY(float pointRadius     READ getPointRadius     WRITE setPointRadius)
+  Q_PROPERTY(float power           READ getPower           WRITE setPower)
 
  public:
   Light3D(Canvas3D *canvas, const Type &type=Type::DIRECTIONAL);

@@ -3,6 +3,7 @@
 
 #include <QFrame>
 
+class CQBBox3DEdit;
 class CQPoint3DEdit;
 class CQColorEdit;
 class CQRealSpin;
@@ -18,6 +19,7 @@ class QTabWidget;
 namespace CQSandbox {
 
 class Canvas3D;
+class Object3D;
 
 class Control3D : public QFrame {
   Q_OBJECT
@@ -44,12 +46,15 @@ class Control3D : public QFrame {
 
  private:
   void connectLights(bool);
+  void connectObjects(bool);
 
   void updateControl();
   void updateCamera();
   void updateLights();
   void updateObjects();
   void updateOverview();
+
+  Object3D *getCurrentObject() const;
 
  private:
   QFrame *addControlFrame();
@@ -101,6 +106,7 @@ class Control3D : public QFrame {
 
   void lightCheckSlot(int b);
   void lightColorSlot(const QColor &c);
+  void lightPowerSlot(double);
   void lightPosSlot();
   void lightDirSlot();
   void lightCutoffSlot(double);
@@ -109,6 +115,10 @@ class Control3D : public QFrame {
 
   // objects
   void objectSelectedSlot(QListWidgetItem *, QListWidgetItem *);
+  void objectPosSlot();
+  void objectScaleSlot();
+  void objectRotateSlot();
+  void objectApplySlot();
 
   // overview
   void overviewWireframeSlot(int);
@@ -181,6 +191,7 @@ class Control3D : public QFrame {
     QComboBox*     typeCombo           { nullptr };
     QCheckBox*     enabledCheck        { nullptr };
     CQColorEdit*   colorEdit           { nullptr };
+    CQRealSpin*    powerEdit           { nullptr };
     CQPoint3DEdit* posEdit             { nullptr };
     CQPoint3DEdit* dirEdit             { nullptr };
     CQRealSpin*    cutoffEdit          { nullptr };
@@ -190,8 +201,12 @@ class Control3D : public QFrame {
   LightData lightData_;
 
   struct ObjectsData {
-    QListWidget*        list { nullptr };
-    CQPropertyViewTree* tree { nullptr };
+    QListWidget*        list       { nullptr };
+    CQPropertyViewTree* tree       { nullptr };
+    CQPoint3DEdit*      posEdit    { nullptr };
+    CQPoint3DEdit*      scaleEdit  { nullptr };
+    CQPoint3DEdit*      rotateEdit { nullptr };
+    CQBBox3DEdit*       bboxEdit   { nullptr };
   };
 
   ObjectsData objectsData_;

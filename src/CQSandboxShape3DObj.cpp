@@ -148,17 +148,6 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     setNeedsUpdate();
   }
-  else if (name == "angle") {
-    CPoint3D p;
-    if (! Util::stringToPoint3D(tcl, value, p))
-      return false;
-
-    xAngle_ = p.getX();
-    yAngle_ = p.getY();
-    zAngle_ = p.getZ();
-
-    setNeedsUpdate();
-  }
   else if (name == "wireframe") {
     wireframe_ = Util::stringToBool(value);
 
@@ -511,8 +500,8 @@ render()
 
   //---
 
-  useDiffuseTexture_ = (diffuseTexture_ && buffer_->hasTexturePart());
-  useNormalTexture_  = (normalTexture_  && buffer_->hasTexturePart());
+  useDiffuseTexture_ = (diffuseTexture_ && buffer_->hasTexturePart() && canvas_->isTextured());
+  useNormalTexture_  = (normalTexture_  && buffer_->hasTexturePart() && canvas_->isTextured());
 
   s_program->setUniformValue("useDiffuseTexture", useDiffuseTexture_);
   s_program->setUniformValue("textureId", 0);
@@ -534,27 +523,37 @@ render()
     normalTexture_->bind();
   }
 
-  if (wireframe_ || canvas_->isWireframe()) {
-    s_program->setUniformValue("isWireframe", 1);
+  //---
 
-    CQGLStateInst->setPolygonMode(GL_LINE);
-  }
-  else {
-    s_program->setUniformValue("isWireframe", 0);
+  auto drawBuffer = [&](bool wireframe) {
+    s_program->setUniformValue("isWireframe", wireframe);
 
-    CQGLStateInst->setPolygonMode(GL_FILL);
+    CQGLStateInst->setPolygonMode(wireframe ? GL_LINE : GL_FILL);
+
+    if (buffer_->hasIndices())
+      buffer_->drawTriangleIndices();
+    else {
+      if      (shapeData_.isUseTriangleStrip())
+        buffer_->drawTriangleStrip();
+      else if (shapeData_.isUseTriangleFan())
+        buffer_->drawTriangleFan();
+      else
+        buffer_->drawTriangles();
+    }
+  };
+
+  bool wireframe = (wireframe_ || canvas_->isWireframe());
+  bool solid     = (! wireframe_ && (canvas_->isSolid() || canvas_->isTextured()));
+
+  if (wireframe) {
+    drawBuffer(true);
   }
 
-  if (buffer_->hasIndices())
-    buffer_->drawTriangleIndices();
-  else {
-    if      (shapeData_.isUseTriangleStrip())
-      buffer_->drawTriangleStrip();
-    else if (shapeData_.isUseTriangleFan())
-      buffer_->drawTriangleFan();
-    else
-      buffer_->drawTriangles();
+  if (solid) {
+    drawBuffer(false);
   }
+
+  //---
 
   CQGLStateInst->setEnableTexture(oldTexture);
 
@@ -587,6 +586,15 @@ Shape3DObj::
 termDraw(Canvas3D *canvas)
 {
   canvas->bindProgram(nullptr);
+}
+
+void
+Shape3DObj::
+applyMatrix(const CMatrix3DH &m)
+{
+  shapeData_.transform(m);
+
+  setNeedsUpdate();
 }
 
 }

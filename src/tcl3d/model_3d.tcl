@@ -1,6 +1,4 @@
-#source "tcl3d/addNormals.tcl"
 source "tcl3d/addNormalList.tcl"
-#source "tcl3d/showOrient.tcl"
 source "tcl3d/showOrientList.tcl"
 
 proc init { } {

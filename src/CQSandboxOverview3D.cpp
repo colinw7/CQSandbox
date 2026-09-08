@@ -110,16 +110,13 @@ init()
 {
   auto *canvas = app_->canvas3D();
 
+  connect(canvas, SIGNAL(objectTransformChanged()), this, SLOT(invalidate()));
+
   connect(canvas, SIGNAL(cameraChangedSignal()), this, SLOT(cameraChangeSlot()));
+  connect(canvas, SIGNAL(lightChanged()), this, SLOT(lightChangeSlot()));
 
 //connect(canvas_, SIGNAL(animStateChanged()), this, SLOT(invalidate()));
 //connect(canvas_, SIGNAL(animTimeChanged()), this, SLOT(invalidate()));
-
-  for (auto *camera : canvas->cameras())
-    connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
-
-  for (auto *light : canvas->lights())
-    connect(light, SIGNAL(changedSignal()), this, SLOT(lightChangeSlot()));
 }
 
 void
@@ -1009,9 +1006,6 @@ drawLights()
   if (! isLightsVisible() && editType_ != EditType::LIGHT)
     return;
 
-  drawData_.painter->setPen(QColor(0, 0, 0, 255));
-  drawData_.painter->setBrush(Qt::NoBrush);
-
   auto *canvas = app_->canvas3D();
 
   // draw lights
@@ -1019,34 +1013,50 @@ drawLights()
     if (! light->getEnabled())
       continue;
 
-    auto p = light->getPosition();
-
-    drawPixmap(p, lightPixmap_);
-
-    if      (light->getType() == Light3D::Type::DIRECTIONAL) {
-      auto d = light->getDirection();
-
-      drawVector(CVector3D(p), d, "D");
-    }
-    else if (light->getType() == Light3D::Type::POINT) {
-      auto r = light->getPointRadius();
-
-      drawCircle(p, r, "P");
-    }
-    else if (light->getType() == Light3D::Type::SPOT) {
-      auto d = light->getSpotDirection();
-      auto a = light->getSpotCutOffAngle();
-
-      auto a1 = CMathGen::DegToRad(a)/2.0;
-
-      drawCone(CVector3D(p), d, a1);
-    }
-#if 0
-    else if (light->type() == Light3D::Type::FLASHLIGHT) {
-      // TODO
-    }
-#endif
+    drawLight(light);
   }
+}
+
+void
+Overview3D::
+drawLight(Light3D *light)
+{
+  auto p = light->getPosition();
+
+  drawPixmap(p, lightPixmap_);
+
+  if      (light->getType() == Light3D::Type::DIRECTIONAL) {
+    auto d = light->getDirection();
+
+    drawData_.painter->setPen(QColor(0, 0, 0, 255));
+    drawData_.painter->setBrush(Qt::NoBrush);
+
+    drawVector(CVector3D(p), d, "D");
+  }
+  else if (light->getType() == Light3D::Type::POINT) {
+    auto r = light->getPointRadius();
+
+    drawData_.painter->setPen(QColor(0, 0, 0, 255));
+    drawData_.painter->setBrush(QColor(255, 255, 0, 32));
+
+    drawCircle(p, r, "P");
+  }
+  else if (light->getType() == Light3D::Type::SPOT) {
+    auto d = light->getSpotDirection();
+    auto a = light->getSpotCutOffAngle();
+
+    auto a1 = CMathGen::DegToRad(a)/2.0;
+
+    drawData_.painter->setPen(QColor(0, 0, 0, 255));
+    drawData_.painter->setBrush(QColor(255, 255, 0, 32));
+
+    drawCone(CVector3D(p), d, a1);
+  }
+#if 0
+  else if (light->type() == Light3D::Type::FLASHLIGHT) {
+    // TODO
+  }
+#endif
 }
 
 void
@@ -1636,10 +1646,10 @@ drawPixmap(const CPoint3D &p, const QPixmap &pixmap) const
   auto s = pixmap.width();
 
   auto drawPixmap2D = [&](const ViewData &view, const CPoint2D &p, const QPixmap &pixmap) {
-    drawData_.painter->setClipRect(view.rect);
-
     double px, py;
     view.range->windowToPixel(p.x, p.y, &px, &py);
+
+    drawData_.painter->setClipRect(view.rect);
 
     drawData_.painter->drawPixmap(px - s/2, py - s/2, pixmap);
   };
@@ -1647,6 +1657,10 @@ drawPixmap(const CPoint3D &p, const QPixmap &pixmap) const
   drawPixmap2D(xview_, CPoint2D(p.getX(), p.getY()), pixmap); // XY
   drawPixmap2D(yview_, CPoint2D(p.getZ(), p.getY()), pixmap); // ZY
   drawPixmap2D(zview_, CPoint2D(p.getX(), p.getZ()), pixmap); // XZ
+
+  auto p1 = drawData_.pvMatrix*p;
+
+  drawPixmap2D(pview_, CPoint2D(p1.getX(), p1.getY()), pixmap); // 3D
 }
 
 CPoint2D

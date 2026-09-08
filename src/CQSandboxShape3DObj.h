@@ -32,6 +32,7 @@ class Shape3DObj : public Object3D {
   Q_OBJECT
 
   Q_PROPERTY(ShapeType shapeType READ shapeType)
+  Q_PROPERTY(QColor    color     READ qcolor      WRITE setQColor)
   Q_PROPERTY(QString   texture   READ textureFile WRITE setTextureFile)
 
   Q_ENUMS(ShapeType)
@@ -62,9 +63,11 @@ class Shape3DObj : public Object3D {
 
   //---
 
-  const char *typeName() const override { return "shape"; }
-
   virtual ObjectMgr3D *mgr() override { return s_objectMgr; }
+
+  //---
+
+  const char *typeName() const override { return "shape"; }
 
   //---
 
@@ -76,6 +79,11 @@ class Shape3DObj : public Object3D {
 
   const CGLColor &color() const { return color_; }
   void setColor(const CGLColor &c) { color_ = c; }
+
+  QColor qcolor() const { return Util::colorToQColor(color()); }
+  void setQColor(const QColor &c) { setColor(Util::qcolorToColor(c)); }
+
+  //---
 
   const QString &textureFile() const { return textureFile_; }
   void setTextureFile(const QString &filename);
@@ -106,6 +114,10 @@ class Shape3DObj : public Object3D {
   void render() override;
 
   void addCube(double sx, double sy, double sz);
+
+  //---
+
+  void applyMatrix(const CMatrix3DH &m) override;
 
  protected:
   using Colors = std::vector<CGLColor>;

@@ -344,4 +344,17 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
   }
 }
 
+void
+Shape3DData::
+transform(const CMatrix3DH &m)
+{
+  auto nm = m.inverse().transposed();
+
+  for (auto &p : points_)
+    p = m*p;
+
+  for (auto &n : normals_)
+    n = (nm*n).normalize();
+}
+
 }

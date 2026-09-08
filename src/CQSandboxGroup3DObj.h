@@ -36,7 +36,7 @@ class Group3DObj : public Object3D {
 
   CBBox3D calcBBox() override;
 
-  void setAngles(double xa, double ya, double za) override;
+  void setAngles(const CPoint3D &p) override;
 
   void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
 
