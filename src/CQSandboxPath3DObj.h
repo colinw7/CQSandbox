@@ -88,6 +88,8 @@ class Path3DObj : public Object3D {
 
   Points   points_;
   CGLColor color_ { 1.0, 1.0, 1.0 };
+
+  uint numLines_ { 16 };
 };
 
 }

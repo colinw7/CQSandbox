@@ -36,6 +36,8 @@ setOrigin(const CVector3D &p)
 
   origin_   = p;
   position_ = origin_ - front_*distance_;
+
+  stateChanged();
 }
 
 const CVector3D &
@@ -55,6 +57,8 @@ setPosition(const CVector3D &p)
 
   position_ = p;
   origin_   = position_ + front_*distance_;
+
+  stateChanged();
 }
 
 //---
@@ -289,6 +293,8 @@ updateOrientationI()
   calcPerspectiveMatrix();
 
   calcViewMatrix();
+
+  stateChanged();
 }
 
 CMatrix3DH

@@ -148,11 +148,8 @@ void
 Control3D::
 init()
 {
-  for (auto *camera : canvas_->cameras())
-    connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(updateSlot()));
-
-  for (auto *light : canvas_->lights())
-    connect(light, SIGNAL(changedSignal()), this, SLOT(updateSlot()));
+  connect(canvas_, SIGNAL(cameraChangedSignal()), this, SLOT(updateSlot()));
+  connect(canvas_, SIGNAL(lightChanged()), this, SLOT(updateSlot()));
 
   connect(canvas_, SIGNAL(objectsChanged()), this, SLOT(objectAddedSlot()));
 
@@ -761,6 +758,9 @@ void
 Control3D::
 updateCamera()
 {
+  disconnect(canvas_, SIGNAL(cameraChangedSignal()),
+             this, SLOT(updateSlot()));
+
   disconnect(cameraData_.typeCombo,
              static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
              this, &Control3D::cameraTypeSlot);
@@ -797,6 +797,17 @@ updateCamera()
 
   //---
 
+  auto cameraType = canvas_->cameraType();
+
+  if      (cameraType == Canvas3D::CameraType::MODEL)
+    cameraData_.typeCombo->setCurrentIndex(0);
+  else if (cameraType == Canvas3D::CameraType::FIRST_PERSON)
+    cameraData_.typeCombo->setCurrentIndex(1);
+  else if (cameraType == Canvas3D::CameraType::ORTHO)
+    cameraData_.typeCombo->setCurrentIndex(2);
+
+  //---
+
   auto *camera = canvas_->currentCamera();
 
   if (camera) {
@@ -819,6 +830,9 @@ updateCamera()
   }
 
   //---
+
+  connect(canvas_, SIGNAL(cameraChangedSignal()),
+          this, SLOT(updateSlot()));
 
   connect(cameraData_.typeCombo,
           static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),

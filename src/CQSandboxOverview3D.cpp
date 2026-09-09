@@ -127,6 +127,8 @@ setEditType(const EditType &v)
 
   updateState();
 
+  invalidate();
+
   Q_EMIT editTypeChanged();
 }
 

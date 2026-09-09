@@ -112,6 +112,16 @@ CanvasToolbar3D(Canvas3D *canvas) :
 
   //---
 
+  playButton_  = addToolButton("play" , "PLAY"    , "Play" , SLOT(playSlot()));
+  pauseButton_ = addToolButton("pause", "PAUSE"   , "Pause", SLOT(pauseSlot()));
+  stepButton_  = addToolButton("step" , "PLAY_ONE", "Step" , SLOT(stepSlot()));
+
+  layout->addWidget(playButton_);
+  layout->addWidget(pauseButton_);
+  layout->addWidget(stepButton_);
+
+  //---
+
   infoLabel_ = new QLabel(" ");
 
   layout->addWidget(infoLabel_);
@@ -416,6 +426,27 @@ bboxSlot()
   canvas_->setShowBBox(button->isChecked());
 
   canvas_->update();
+}
+
+void
+CanvasToolbar3D::
+playSlot()
+{
+  canvas()->play();
+}
+
+void
+CanvasToolbar3D::
+pauseSlot()
+{
+  canvas()->pause();
+}
+
+void
+CanvasToolbar3D::
+stepSlot()
+{
+  canvas()->step();
 }
 
 void

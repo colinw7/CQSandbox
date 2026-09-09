@@ -45,6 +45,10 @@ class CanvasToolbar3D : public QFrame {
   void pointSelectSlot();
   void bboxSlot();
 
+  void playSlot();
+  void pauseSlot();
+  void stepSlot();
+
   void settingsSlot();
 
 #ifdef CQSANDBOX_META_EDIT
@@ -71,6 +75,10 @@ class CanvasToolbar3D : public QFrame {
   QToolButton* pointSelectButton_  { nullptr };
 
   QToolButton* bboxButton_ { nullptr };
+
+  QToolButton* playButton_  { nullptr };
+  QToolButton* pauseButton_ { nullptr };
+  QToolButton* stepButton_  { nullptr };
 
   QToolButton* settingsButton_ { nullptr };
 

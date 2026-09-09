@@ -7,6 +7,9 @@
 #include <CQGLState.h>
 #include <CQGLUtil.h>
 
+#include <C2Bezier3D.h>
+#include <C3Bezier3D.h>
+
 namespace CQSandbox {
 
 ShaderProgram *Path3DObj::s_program   = nullptr;
@@ -110,7 +113,24 @@ bool
 Path3DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  return Object3D::getValue(name, args, value);
+  if (name == "tpos") {
+    if (args.size() < 1)
+      return false;
+
+    double t;
+    if (! Util::stringToReal(args[0], t))
+      return false;
+
+    CPoint3D pos;
+    if (! path_.calc(t, pos))
+      return false;
+
+    value = Util::point3DToString(pos);
+  }
+  else
+    return Object3D::getValue(name, args, value);
+
+  return true;
 }
 
 bool
@@ -129,7 +149,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       QStringList strs1;
       (void) tcl->splitList(str, strs1);
 
-      if (strs1.size() < 2) continue;
+      if (strs1.size() < 2)
+        return false;
 
       if      (strs1[0] == "M") {
         CVector3D p;
@@ -144,6 +165,29 @@ setValue(const QString &name, const QString &value, const QStringList &args)
           return false;
 
         path_.lineTo(p);
+      }
+      else if (strs1[0] == "Q") {
+        if (strs1.size() < 3)
+          return false;
+
+        CVector3D p1, p2;
+        if (! Util::stringToVector3D(tcl, strs1[1], p1) ||
+            ! Util::stringToVector3D(tcl, strs1[2], p2))
+          return false;
+
+        path_.quadTo(p1, p2);
+      }
+      else if (strs1[0] == "C") {
+        if (strs1.size() < 4)
+          return false;
+
+        CVector3D p1, p2, p3;
+        if (! Util::stringToVector3D(tcl, strs1[1], p1) ||
+            ! Util::stringToVector3D(tcl, strs1[2], p2) ||
+            ! Util::stringToVector3D(tcl, strs1[3], p3))
+          return false;
+
+        path_.cubicTo(p1, p2, p3);
       }
     }
 
@@ -176,6 +220,8 @@ exec(const QString &op, const QStringList &args, QVariant &res)
       return false;
 
     path_.moveTo(p);
+
+    updatePoints();
   }
   else if (op == "lineTo") {
     if (args.size() < 1)
@@ -186,31 +232,33 @@ exec(const QString &op, const QStringList &args, QVariant &res)
       return false;
 
     path_.lineTo(p);
+
+    updatePoints();
   }
-#if 0
   else if (op == "curveTo") {
     if (args.size() < 2)
       return false;
 
-    CPoint3D p1;
-    if (! Util::stringToPoint3D(tcl, args[0], p1))
+    CVector3D p1;
+    if (! Util::stringToVector3D(tcl, args[0], p1))
       return false;
 
-    CPoint3D p2;
-    if (! Util::stringToPoint3D(tcl, args[1], p2))
+    CVector3D p2;
+    if (! Util::stringToVector3D(tcl, args[1], p2))
       return false;
 
     if (args.size() > 2) {
-      CPoint3D p3;
-      if (! Util::stringToPoint3D(tcl, args[2], p3))
+      CVector3D p3;
+      if (! Util::stringToVector3D(tcl, args[2], p3))
         return false;
 
-      path_.cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+      path_.cubicTo(p1, p2, p3);
     }
     else
-      path_.quadTo(p1.x, p1.y, p2.x, p2.y);
+      path_.quadTo(p1, p2);
+
+    updatePoints();
   }
-#endif
   else
     return Object3D::exec(op, args, res);
 
@@ -225,8 +273,65 @@ updatePoints()
 
   points_.clear();
 
-  for (const auto &element : path_.elements())
-    points_.push_back(element.pos);
+  CVector3D p1;
+
+  for (const auto &element : path_.elements()) {
+    if      (element.type == CGLPath3D::ElementType::MOVE) {
+      p1 = element.points[0];
+    }
+    else if (element.type == CGLPath3D::ElementType::LINE) {
+      auto p2 = element.points[0];
+
+      points_.push_back(p1);
+      points_.push_back(p2);
+
+      p1 = p2;
+    }
+    else if (element.type == CGLPath3D::ElementType::QUAD) {
+      auto p2 = element.points[0].point();
+      auto p3 = element.points[1].point();
+
+      C2Bezier3D quad(p1.point(), p2, p3);
+
+      auto dt = 1.0/numLines_;
+
+      auto t = dt;
+
+
+      for (uint i = 0; i < numLines_; ++i) {
+        auto pt = quad.calc(t);
+
+        points_.push_back(p1);
+        points_.push_back(CVector3D(pt));
+
+        t += dt;
+
+        p1 = pt;
+      }
+    }
+    else if (element.type == CGLPath3D::ElementType::CUBIC) {
+      auto p2 = element.points[0].point();
+      auto p3 = element.points[1].point();
+      auto p4 = element.points[2].point();
+
+      C3Bezier3D cubic(p1.point(), p2, p3, p4);
+
+      auto dt = 1.0/numLines_;
+
+      auto t = dt;
+
+      for (uint i = 0; i < numLines_; ++i) {
+        auto pt = cubic.calc(t);
+
+        points_.push_back(p1);
+        points_.push_back(CVector3D(pt));
+
+        t += dt;
+
+        p1 = pt;
+      }
+    }
+  }
 }
 
 void
@@ -248,8 +353,10 @@ updateGL()
 
   auto np = points_.size();
 
-  for (uint i = 0; i < np; ++i)
+  for (uint i = 0; i < np; ++i) {
     buffer_->addPoint(points_[i]);
+    buffer_->addColor(color_);
+  }
 
   buffer_->load();
 }

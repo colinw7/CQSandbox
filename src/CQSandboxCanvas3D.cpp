@@ -1282,12 +1282,20 @@ setCameraValue(const QString &name, const QString &value, const QStringList &)
     CVector3D pos;
     if (! Util::stringToVector3D(tcl, value, pos))
       return false;
+
     camera->setOrigin(pos);
   }
 #if 0
   else if (name == "zoom")
     camera->setZoom(Util::stringToReal(value));
 #endif
+  else if (name == "distance") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    camera->setDistance(r);
+  }
   else if (name == "look_at") {
     CVector3D pos;
     if (! Util::stringToVector3D(tcl, value, pos))
@@ -1579,14 +1587,66 @@ void
 Canvas3D::
 setLooping(bool b)
 {
-  if (b != looping_) {
-    if (looping_)
-      timer_->stop();
+  if (b == looping_)
+    return;
 
-    looping_ = b;
+  if (b)
+    play();
+  else
+    pause();
+}
 
-    if (looping_)
-      timer_->start(redrawTimeOut());
+void
+Canvas3D::
+play()
+{
+  step();
+
+  timer_->start(redrawTimeOut());
+
+  looping_ = true;
+}
+
+void
+Canvas3D::
+pause()
+{
+  timer_->stop();
+
+  looping_ = false;
+}
+
+void
+Canvas3D::
+step()
+{
+  for (auto *animObject : getAnimObjects())
+    animObject->stepAnimTime();
+
+  invalidateNodeMatrices();
+
+  //---
+
+  ++ticks_;
+
+  for (const auto &pm : mgrs_)
+    pm.second->tick();
+
+  auto objects = objects_;
+
+  for (auto *obj : objects)
+    obj->tick();
+
+  runTclCmd("update");
+
+  //---
+
+  update();
+
+  if (app_->overview3D()) {
+    app_->overview3D()->setValid(false);
+
+    app_->overview3D()->update();
   }
 }
 
@@ -1978,34 +2038,7 @@ void
 Canvas3D::
 timerSlot()
 {
-  for (auto *animObject : getAnimObjects())
-    animObject->stepAnimTime();
-
-  invalidateNodeMatrices();
-
-  //---
-
-  ++ticks_;
-
-  for (const auto &pm : mgrs_)
-    pm.second->tick();
-
-  auto objects = objects_;
-
-  for (auto *obj : objects)
-    obj->tick();
-
-  runTclCmd("update");
-
-  //---
-
-  update();
-
-  if (app_->overview3D()) {
-    app_->overview3D()->setValid(false);
-
-    app_->overview3D()->update();
-  }
+  step();
 }
 
 void

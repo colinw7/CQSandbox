@@ -172,11 +172,7 @@ setAngles(const CPoint3D &p)
 {
   angles_ = p;
 
-  auto rx = CMatrix3D::rotation(p.x, CVector3D(1, 0, 0));
-  auto ry = CMatrix3D::rotation(p.y, CVector3D(0, 1, 0));
-  auto rz = CMatrix3D::rotation(p.z, CVector3D(0, 0, 1));
-
-  object_->setRotate(rx*ry*rz);
+  object_->setRotateAngles(angles_);
 
   setNeedsUpdate();
 }

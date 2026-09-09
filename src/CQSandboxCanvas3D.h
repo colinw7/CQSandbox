@@ -6,7 +6,6 @@
 
 #include <CTclUtil.h>
 #include <CGLMatrix3D.h>
-#include <CGLPath3D.h>
 #include <CGLVector2D.h>
 #include <CGLColor.h>
 #include <CPoint3D.h>
@@ -192,6 +191,10 @@ class Canvas3D : public OpenGLWindow {
   void setRedrawTimeOut(int t);
 
   uint ticks() const { return ticks_; }
+
+  void play();
+  void pause();
+  void step();
 
   //---
 
