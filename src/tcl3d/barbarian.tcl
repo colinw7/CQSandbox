@@ -1,13 +1,9 @@
-proc loadModel { filename name { s 1.0 } } {
+proc loadModel { filename name } {
   set obj [sb3d::model $filename]
 
   $obj set id      $name
 # $obj set visible 0
 
-  if {$s != 1.0} {
-    $obj set scale $s
-  }
-  
   return $obj
 }
 
@@ -18,7 +14,7 @@ proc init { } {
 
   set ::model [loadModel "$model_dir/Barbarian.glb" "model"]
 
-  #$::model set anim.name "Walking_A"
+ #$::model set anim.name "Walking_A"
   $::model set anim.name "Idle"
   $::model set anim.step 0.1
 

@@ -24,6 +24,8 @@ class CGeomScene3D;
 class CGeomObject3D;
 class CGeomFace3D;
 class CGeomVertex3D;
+class CGeomNodeData;
+
 class CQGLBuffer;
 class CQTcl;
 
@@ -401,7 +403,9 @@ class Canvas3D : public OpenGLWindow {
 
   void clearObjectMeshData();
 
-  bool addObjectMeshData(CGeomObject3D *object, CMatrix3DH &meshMatrix);
+  void initObjectMeshData(CGeomObject3D *object, const std::string &animName, CGeomNodeData *node);
+
+  bool getObjectMeshDataMatrix(CGeomObject3D *object, CMatrix3DH &meshMatrix);
 
   ObjectMeshData &getObjectMeshData(CGeomObject3D *object);
 

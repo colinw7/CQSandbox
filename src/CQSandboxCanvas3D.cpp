@@ -2424,9 +2424,36 @@ clearObjectMeshData()
   objectMeshData_.clear();
 }
 
+void
+Canvas3D::
+initObjectMeshData(CGeomObject3D *object, const std::string &animName, CGeomNodeData *node)
+{
+  auto &objectMeshData = getObjectMeshData(object);
+
+  auto *animObject = object->getAnimObject();
+
+  objectMeshData.nt = object->animTimeFrames();
+
+  (void) animObject->getAnimationTranslationRange(animName,
+           objectMeshData.tmin, objectMeshData.tmax);
+
+  if (objectMeshData.nt > 1)
+    objectMeshData.dt = (objectMeshData.tmax - objectMeshData.tmin)/(objectMeshData.nt - 1);
+  else
+    objectMeshData.dt = (objectMeshData.tmax - objectMeshData.tmin);
+
+  for (int i = 0; i < objectMeshData.nt; ++i) {
+    auto animTime1 = objectMeshData.tmin + i*objectMeshData.dt;
+
+    auto meshMatrix1 = CMatrix3DH(object->getNodeAnimHierTransform(*node, animName, animTime1));
+
+    objectMeshData.frameMatrix[i] = meshMatrix1;
+  }
+}
+
 bool
 Canvas3D::
-addObjectMeshData(CGeomObject3D *object, CMatrix3DH &meshMatrix)
+getObjectMeshDataMatrix(CGeomObject3D *object, CMatrix3DH &meshMatrix)
 {
   auto pm = objectMeshData_.find(object);
 

@@ -584,11 +584,6 @@ updateGeomObject(CGeomObject3D *object)
   drawData_.modelMatrix = CMatrix3DH(object->getHierTransform());
   drawData_.meshMatrix  = CMatrix3DH(object->getMeshGlobalTransform());
 
-#if 0
-  if (refObject && refObject != object)
-    drawData_.modelMatrix = refObject->getHierTransform()*drawData_.modelMatrix;
-#endif
-
   //---
 
   auto *animObject = geomObject1->getAnimObject();

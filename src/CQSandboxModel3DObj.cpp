@@ -731,12 +731,10 @@ drawObject(CGeomObject3D *object)
   bool hasMeshMatrix { false };
 
   if (isAnim)
-    hasMeshMatrix = canvas_->addObjectMeshData(geomObject1, meshMatrix_);
+    hasMeshMatrix = canvas_->getObjectMeshDataMatrix(geomObject1, meshMatrix_);
 
   if (! hasMeshMatrix)
     meshMatrix_ = CMatrix3DH(object->getMeshGlobalTransform());
-  else
-    meshMatrix_ = CMatrix3DH::identity();
 
   program->setUniformValue("meshMatrix", CQGLUtil::toQMatrix(meshMatrix_));
 
@@ -931,19 +929,16 @@ Model3DObj::
 updateObject(CGeomObject3D *object)
 {
   auto *geomObject = dynamic_cast<GeomObject *>(object);
+  assert(geomObject);
 
-  //---
+  auto *geomObject1 = geomObject;
 
-  if (geomObject->refObject()) {
-    auto *geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+  if (object->refObject()) {
+    geomObject1 = dynamic_cast<GeomObject *>(object->refObject());
+    assert(geomObject1);
 
     updateObject(geomObject1);
   }
-
-  //---
-
-  int    boneNodeIds[4];
-  double boneWeights[4];
 
   //---
 
@@ -961,11 +956,7 @@ updateObject(CGeomObject3D *object)
   if (canvas_->isAnimEnabled())
     isAnim = (animObject && animName != "");
 
-  //double animTime { 0.0 };
-
   if (isAnim) {
-    //animTime = animObject->animTime();
-
     auto meshNodeId = object->getMeshNode();
 
     CGeomNodeData *node = nullptr;
@@ -976,6 +967,7 @@ updateObject(CGeomObject3D *object)
     auto isJointed = (node && object->isJointed());
 
     if (node && ! isJointed) {
+#if 0
       auto &objectMeshData = canvas_->getObjectMeshData(object);
 
       objectMeshData.nt = object->animTimeFrames();
@@ -996,6 +988,9 @@ updateObject(CGeomObject3D *object)
 
         objectMeshData.frameMatrix[i] = meshMatrix1;
       }
+#else
+      canvas_->initObjectMeshData(object, animName, node);
+#endif
     }
   }
 
@@ -1162,6 +1157,9 @@ updateObject(CGeomObject3D *object)
       if (isAnim) {
         if (vertex.hasJointData()) {
           const auto &jointData = vertex.getJointData();
+
+          int    boneNodeIds[4];
+          double boneWeights[4];
 
           for (int i = 0; i < 4; ++i) {
             boneNodeIds[i] = jointData.nodeDatas[i].node;
