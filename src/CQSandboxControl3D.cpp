@@ -638,6 +638,20 @@ void
 Control3D::
 toggleShown()
 {
+  setShown(! isShown());
+}
+
+void
+Control3D::
+setShown(bool shown)
+{
+  if (shown == shown_)
+    return;
+
+  shown_ = ! shown_;
+
+  //---
+
   auto *app = canvas_->app();
 
   auto geom = app->geometry();
@@ -646,7 +660,7 @@ toggleShown()
 
   QRect geom1;
 
-  if (! shown_) {
+  if (shown_) {
     geom1 = QRect(geom.x(), geom.y(), geom.width() + w + 6, geom.height());
 
     this->updateWidgets();
@@ -660,14 +674,14 @@ toggleShown()
 
   app->setGeometry(geom1);
 
-  shown_ = ! shown_;
-
   if (shown_)
     this->setFixedWidth(w);
   else {
     this->setMinimumWidth(0);
     this->setMaximumWidth(QWIDGETSIZE_MAX);
   }
+
+  Q_EMIT shownStateChanged();
 }
 
 void

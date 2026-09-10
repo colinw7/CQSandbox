@@ -42,7 +42,13 @@ class Control3D : public QFrame {
 
   void updateWidgets();
 
+  bool isShown() const { return shown_; }
+  void setShown(bool b);
+
   void toggleShown();
+
+ Q_SIGNALS:
+  void shownStateChanged();
 
  private:
   void connectLights(bool);

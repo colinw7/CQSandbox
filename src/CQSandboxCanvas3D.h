@@ -541,6 +541,8 @@ class Canvas3D : public OpenGLWindow {
   void timerSlot();
   void uiTimerSlot();
 
+  void controlStateChanged();
+
   void cameraChangeSlot();
   void lightChangeSlot();
 
@@ -556,6 +558,8 @@ class Canvas3D : public OpenGLWindow {
 
   void lightAdded();
   void lightChanged();
+
+  void loopStateChanged();
 
  private:
   struct PaintData {

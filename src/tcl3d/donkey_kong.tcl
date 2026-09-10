@@ -148,6 +148,8 @@ proc init { } {
         $::playerPath($iy) exec lineTo [list $x1 $y1 $z]
       }
 
+      set ::playerDir($iy) $dir
+
       set x [expr {$x + $dir*$dx1}]
       set y [expr {$y + $dy1}]
     }
@@ -174,6 +176,12 @@ proc init { } {
   set ::barrel_a   0.0
   set ::barrel_da  0.5
   set ::barrel_pos {0 0 0}
+
+  # ---
+
+  updatePlayerPos
+
+  # ---
 
   sb3d::canvas set camera.type first_person
 
@@ -218,28 +226,61 @@ proc keyPress { k } {
   if       {$k == "left"} {
     $::playerObj set angles [list 0 -90 0]
 
-    set ::player_t [expr {$::player_t - $::player_dt}]
+    if {$::playerDir($::player_iy) > 0} {
+      if {$::player_t >= $::player_dt} {
+        set ::player_t [expr {$::player_t - $::player_dt}]
+      } else {
+        set ::player_t 0.0
+      }
+    } else {
+      if {$::player_t <= 1.0 - $::player_dt} {
+        set ::player_t [expr {$::player_t + $::player_dt}]
+      } else {
+        set ::player_t 1.0
+      }
+    }
 
     updatePlayerPos
   } elseif {$k == "right"} {
     $::playerObj set angles [list 0 90 0]
 
-    set ::player_t [expr {$::player_t + $::player_dt}]
+    if {$::playerDir($::player_iy) > 0} {
+      if {$::player_t <= 1.0 - $::player_dt} {
+        set ::player_t [expr {$::player_t + $::player_dt}]
+      } else {
+        set ::player_t 1.0
+      }
+    } else {
+      if {$::player_t >= $::player_dt} {
+        set ::player_t [expr {$::player_t - $::player_dt}]
+      } else {
+        set ::player_t 0.0
+      }
+    }
 
     updatePlayerPos
   } elseif {$k == "up"} {
-    set ::player_iy [expr {$::player_iy + 1}]
+    if {$::player_iy < $::ny - 1} {
+      set ::player_iy [expr {$::player_iy + 1}]
+
+      set ::player_t [expr {1.0 - $::player_t}]
+    }
 
     updatePlayerPos
-  } elseif {$k == "up"} {
-    set ::player_iy [expr {$::player_iy - 1}]
+  } elseif {$k == "down"} {
+    if {$::player_iy > 0} {
+      set ::player_iy [expr {$::player_iy - 1}]
+
+      set ::player_t [expr {1.0 - $::player_t}]
+    }
 
     updatePlayerPos
   }
 }
 
 proc updatePlayerPos { } {
-  echo "IY: $::player_iy T: $::player_t"
+  # echo "IY: $::player_iy T: $::player_t"
+
   if {$::player_iy < 0 || $::player_iy >= $::ny} {
     return
   }
@@ -249,7 +290,8 @@ proc updatePlayerPos { } {
   }
 
   set ::player_pos [$::playerPath($::player_iy) get tpos $::player_t]
-  echo "Pos: $::player_pos"
+
+  # echo "Pos: $::player_pos"
 
   $::playerObj set position $::player_pos
 }

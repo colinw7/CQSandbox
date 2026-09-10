@@ -293,6 +293,10 @@ init()
   //---
 
   initCamera();
+
+  //---
+
+  connect(app_->control3D(), SIGNAL(shownStateChanged()), this, SLOT(controlStateChanged()));
 }
 
 void
@@ -1600,20 +1604,28 @@ void
 Canvas3D::
 play()
 {
-  step();
+  if (! looping_) {
+    step();
 
-  timer_->start(redrawTimeOut());
+    timer_->start(redrawTimeOut());
 
-  looping_ = true;
+    looping_ = true;
+
+    Q_EMIT loopStateChanged();
+  }
 }
 
 void
 Canvas3D::
 pause()
 {
-  timer_->stop();
+  if (looping_) {
+    timer_->stop();
 
-  looping_ = false;
+    looping_ = false;
+
+    Q_EMIT loopStateChanged();
+  }
 }
 
 void
@@ -2046,6 +2058,14 @@ Canvas3D::
 uiTimerSlot()
 {
   Q_EMIT uiUpdateSignal();
+}
+
+void
+Canvas3D::
+controlStateChanged()
+{
+  if (app_->control3D()->isShown())
+    pause();
 }
 
 void

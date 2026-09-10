@@ -101,8 +101,8 @@ setLine(const CVector3D &p1, const CVector3D &p2)
 {
   path_.clear();
 
-  path_.moveTo(p1);
-  path_.lineTo(p2);
+  path_.moveTo(p1.point());
+  path_.lineTo(p2.point());
 
   updatePoints();
 
@@ -122,7 +122,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
       return false;
 
     CPoint3D pos;
-    if (! path_.calc(t, pos))
+    if (! path_.calc(t, numLines_, pos))
       return false;
 
     value = Util::point3DToString(pos);
@@ -157,14 +157,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
         if (! Util::stringToVector3D(tcl, strs1[1], p))
           return false;
 
-        path_.moveTo(p);
+        path_.moveTo(p.point());
       }
       else if (strs1[0] == "L") {
         CVector3D p;
         if (! Util::stringToVector3D(tcl, strs1[1], p))
           return false;
 
-        path_.lineTo(p);
+        path_.lineTo(p.point());
       }
       else if (strs1[0] == "Q") {
         if (strs1.size() < 3)
@@ -175,7 +175,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
             ! Util::stringToVector3D(tcl, strs1[2], p2))
           return false;
 
-        path_.quadTo(p1, p2);
+        path_.quadTo(p1.point(), p2.point());
       }
       else if (strs1[0] == "C") {
         if (strs1.size() < 4)
@@ -187,7 +187,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
             ! Util::stringToVector3D(tcl, strs1[3], p3))
           return false;
 
-        path_.cubicTo(p1, p2, p3);
+        path_.cubicTo(p1.point(), p2.point(), p3.point());
       }
     }
 
@@ -219,7 +219,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     if (! Util::stringToVector3D(tcl, args[0], p))
       return false;
 
-    path_.moveTo(p);
+    path_.moveTo(p.point());
 
     updatePoints();
   }
@@ -231,7 +231,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     if (! Util::stringToVector3D(tcl, args[0], p))
       return false;
 
-    path_.lineTo(p);
+    path_.lineTo(p.point());
 
     updatePoints();
   }
@@ -252,10 +252,10 @@ exec(const QString &op, const QStringList &args, QVariant &res)
       if (! Util::stringToVector3D(tcl, args[2], p3))
         return false;
 
-      path_.cubicTo(p1, p2, p3);
+      path_.cubicTo(p1.point(), p2.point(), p3.point());
     }
     else
-      path_.quadTo(p1, p2);
+      path_.quadTo(p1.point(), p2.point());
 
     updatePoints();
   }
@@ -273,64 +273,12 @@ updatePoints()
 
   points_.clear();
 
-  CVector3D p1;
+  std::vector<CLine3D> lines;
+  path_.toLines(numLines_, lines);
 
-  for (const auto &element : path_.elements()) {
-    if      (element.type == CGLPath3D::ElementType::MOVE) {
-      p1 = element.points[0];
-    }
-    else if (element.type == CGLPath3D::ElementType::LINE) {
-      auto p2 = element.points[0];
-
-      points_.push_back(p1);
-      points_.push_back(p2);
-
-      p1 = p2;
-    }
-    else if (element.type == CGLPath3D::ElementType::QUAD) {
-      auto p2 = element.points[0].point();
-      auto p3 = element.points[1].point();
-
-      C2Bezier3D quad(p1.point(), p2, p3);
-
-      auto dt = 1.0/numLines_;
-
-      auto t = dt;
-
-
-      for (uint i = 0; i < numLines_; ++i) {
-        auto pt = quad.calc(t);
-
-        points_.push_back(p1);
-        points_.push_back(CVector3D(pt));
-
-        t += dt;
-
-        p1 = pt;
-      }
-    }
-    else if (element.type == CGLPath3D::ElementType::CUBIC) {
-      auto p2 = element.points[0].point();
-      auto p3 = element.points[1].point();
-      auto p4 = element.points[2].point();
-
-      C3Bezier3D cubic(p1.point(), p2, p3, p4);
-
-      auto dt = 1.0/numLines_;
-
-      auto t = dt;
-
-      for (uint i = 0; i < numLines_; ++i) {
-        auto pt = cubic.calc(t);
-
-        points_.push_back(p1);
-        points_.push_back(CVector3D(pt));
-
-        t += dt;
-
-        p1 = pt;
-      }
-    }
+  for (const auto &line : lines) {
+    points_.push_back(CVector3D(line.start()));
+    points_.push_back(CVector3D(line.end  ()));
   }
 }
 

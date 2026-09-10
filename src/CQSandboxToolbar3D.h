@@ -46,7 +46,7 @@ class CanvasToolbar3D : public QFrame {
   void bboxSlot();
 
   void playSlot();
-  void pauseSlot();
+//void pauseSlot();
   void stepSlot();
 
   void settingsSlot();

@@ -1,7 +1,10 @@
 #ifndef CGLPath3D_H
 #define CGLPath3D_H
 
-#include <CVector3D.h>
+#include <CPoint3D.h>
+#include <CLine3D.h>
+#include <C2Bezier3D.h>
+#include <C3Bezier3D.h>
 
 class CGLPath3D {
  public:
@@ -14,20 +17,20 @@ class CGLPath3D {
   };
 
   struct Element {
-    using Points = std::vector<CVector3D>;
+    using Points = std::vector<CPoint3D>;
 
-    static Element makeElement(ElementType type, const CVector3D &p) {
+    static Element makeElement(ElementType type, const CPoint3D &p) {
       Points points = { p };
       return makeElement(type, points);
     }
 
-    static Element makeElement(ElementType type, const CVector3D &p1, const CVector3D &p2) {
+    static Element makeElement(ElementType type, const CPoint3D &p1, const CPoint3D &p2) {
       Points points = { p1, p2 };
       return makeElement(type, points);
     }
 
-    static Element makeElement(ElementType type, const CVector3D &p1,
-                               const CVector3D &p2, const CVector3D &p3) {
+    static Element makeElement(ElementType type, const CPoint3D &p1,
+                               const CPoint3D &p2, const CPoint3D &p3) {
       Points points = { p1, p2, p3 };
       return makeElement(type, points);
     }
@@ -38,8 +41,8 @@ class CGLPath3D {
       return e;
     }
 
-    ElementType            type { ElementType::NONE };
-    std::vector<CVector3D> points;
+    ElementType           type { ElementType::NONE };
+    std::vector<CPoint3D> points;
   };
 
   using Elements = std::vector<Element>;
@@ -51,123 +54,150 @@ class CGLPath3D {
 
   void clear() {
     elements_.clear();
+
+    linesValid_ = false;
   }
 
-  void moveTo(const CVector3D &p) {
+  void moveTo(const CPoint3D &p) {
     elements_.push_back(Element::makeElement(ElementType::MOVE, p));
+
+    linesValid_ = false;
   }
 
-  void lineTo(const CVector3D &p) {
+  void lineTo(const CPoint3D &p) {
     elements_.push_back(Element::makeElement(ElementType::LINE, p));
+
+    linesValid_ = false;
   }
 
-  void quadTo(const CVector3D &p1, const CVector3D &p2) {
+  void quadTo(const CPoint3D &p1, const CPoint3D &p2) {
     elements_.push_back(Element::makeElement(ElementType::QUAD, p1, p2));
+
+    linesValid_ = false;
   }
 
-  void cubicTo(const CVector3D &p1, const CVector3D &p2, const CVector3D &p3) {
+  void cubicTo(const CPoint3D &p1, const CPoint3D &p2, const CPoint3D &p3) {
     elements_.push_back(Element::makeElement(ElementType::CUBIC, p1, p2, p3));
+
+    linesValid_ = false;
   }
 
-  bool calc(double t, CPoint3D &pi) {
-    auto vectorDistance = [](const CVector3D &v1, const CVector3D &v2) {
-      return v1.point().distanceTo(v2.point());
+  bool calc(double t, uint numLines, CPoint3D &pi) {
+    updateLines(numLines);
+
+    auto pointDistance = [](const CPoint3D &p1, const CPoint3D &p2) {
+      return p1.distanceTo(p2);
     };
 
     double len = 0.0;
 
-    CVector3D p;
+    for (const auto &line : lines_) {
+      const auto &p1 = line.start();
+      const auto &p2 = line.end  ();
 
-    for (const auto &element : elements_) {
-      if      (element.type == ElementType::MOVE) {
-        p = element.points[0];
-      }
-      else if (element.type == ElementType::LINE) {
-        auto p1 = element.points[0];
-
-        len += vectorDistance(p, p1);
-
-        p = p1;
-      }
-      else if (element.type == ElementType::QUAD) {
-        auto p1 = element.points[1];
-
-        len += vectorDistance(p, p1);
-
-        p = p1;
-      }
-      else if (element.type == ElementType::CUBIC) {
-        auto p1 = element.points[2];
-
-        len += vectorDistance(p, p1);
-
-        p = p1;
-      }
+      len += pointDistance(p1, p2);
     }
 
     auto tlen = t*len;
 
     len = 0.0;
 
-    for (const auto &element : elements_) {
-      if      (element.type == ElementType::MOVE) {
-        p = element.points[0];
+    for (const auto &line : lines_) {
+      const auto &p1 = line.start();
+      const auto &p2 = line.end  ();
+
+      auto len1 = len + pointDistance(p1, p2);
+
+      if (tlen >= len && tlen <= len1) {
+        auto t1 = (tlen - len)/(len1 - len);
+
+        pi = (p2 - p1)*t1 + p1;
+
+        return true;
       }
-      else if (element.type == ElementType::LINE) {
-        auto p1 = element.points[0];
 
-        auto len1 = len + vectorDistance(p, p1);
-
-        if (tlen >= len && tlen <= len1) {
-          auto t1 = (tlen - len)/(len1 - len);
-
-          pi = ((p1 - p)*t1 + p1).point();
-
-          return true;
-        }
-
-        p   = p1;
-        len = len1;
-      }
-      else if (element.type == ElementType::QUAD) {
-        auto p1 = element.points[1];
-
-        auto len1 = len + vectorDistance(p, p1);
-
-        if (tlen >= len && tlen <= len1) {
-          auto t1 = (tlen - len)/(len1 - len);
-
-          pi = ((p1 - p)*t1 + p1).point();
-
-          return true;
-        }
-
-        p   = p1;
-        len = len1;
-      }
-      else if (element.type == ElementType::CUBIC) {
-        auto p1 = element.points[2];
-
-        auto len1 = len + vectorDistance(p, p1);
-
-        if (tlen >= len && tlen <= len1) {
-          auto t1 = (tlen - len)/(len1 - len);
-
-          pi = ((p1 - p)*t1 + p1).point();
-
-          return true;
-        }
-
-        p   = p1;
-        len = len1;
-      }
+      len = len1;
     }
 
     return false;
   }
 
+  void toLines(uint numLines, std::vector<CLine3D> &lines) {
+    lines.clear();
+
+    CPoint3D lastPoint;
+
+    for (const auto &element : elements_) {
+      if      (element.type == CGLPath3D::ElementType::MOVE) {
+        lastPoint = element.points[0];
+      }
+      else if (element.type == CGLPath3D::ElementType::LINE) {
+        auto p = element.points[0];
+
+        lines.push_back(CLine3D(lastPoint, p));
+
+        lastPoint = p;
+      }
+      else if (element.type == CGLPath3D::ElementType::QUAD) {
+        auto p1 = element.points[0];
+        auto p2 = element.points[1];
+
+        C2Bezier3D quad(lastPoint, p1, p2);
+
+        auto dt = 1.0/numLines;
+
+        auto t = dt;
+
+
+        for (uint i = 0; i < numLines; ++i) {
+          auto pt = quad.calc(t);
+
+          lines.push_back(CLine3D(lastPoint, pt));
+
+          t += dt;
+
+          lastPoint = pt;
+        }
+      }
+      else if (element.type == CGLPath3D::ElementType::CUBIC) {
+        auto p1 = element.points[0];
+        auto p2 = element.points[1];
+        auto p3 = element.points[2];
+
+        C3Bezier3D cubic(lastPoint, p1, p2, p3);
+
+        auto dt = 1.0/numLines;
+
+        auto t = dt;
+
+        for (uint i = 0; i < numLines; ++i) {
+          auto pt = cubic.calc(t);
+
+          lines.push_back(CLine3D(lastPoint, pt));
+
+          t += dt;
+
+          lastPoint = pt;
+        }
+      }
+    }
+  }
+
+ private:
+  void updateLines(uint numLines) {
+    if (! linesValid_ || numLines != numLines_) {
+      numLines_ = numLines;
+
+      toLines(numLines_, lines_);
+    }
+  }
+
  private:
   Elements elements_;
+
+  bool                 linesValid_ { false };
+  uint                 numLines_   { 0 };
+  std::vector<CLine3D> lines_;
 };
 
 #endif
