@@ -76,6 +76,10 @@ class Shape3DData {
 
   void transform(const CMatrix3DH &m);
 
+  //---
+
+  void setBuffer(CQGLBuffer *buffer);
+
  private:
   Points    points_;
   Points    normals_;

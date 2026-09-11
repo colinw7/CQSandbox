@@ -13,6 +13,7 @@ namespace CQSandbox {
 
 class Texture;
 class ShaderProgram;
+class GeomObject;
 
 //---
 
@@ -36,6 +37,15 @@ class Model3DObjMgr : public ObjectMgr3D {
 
 class Model3DObj : public Object3D {
   Q_OBJECT
+
+ public:
+  struct ObjectData {
+    CQGLBuffer*               buffer { nullptr };
+    CMatrix3DH                modelMatrix;
+    CMatrix3DH                meshMatrix;
+    CBBox3D                   bbox;
+    std::vector<GeomObject *> geomObjects;
+  };
 
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
@@ -95,7 +105,7 @@ class Model3DObj : public Object3D {
   void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
 
  private:
-  void updateObject(CGeomObject3D *object);
+  void updateObject(CGeomObject3D *object, ObjectData &objectData);
 
   void drawObject(CGeomObject3D *object);
 
@@ -141,7 +151,12 @@ class Model3DObj : public Object3D {
   CQGLTexture* normalTexture_   { nullptr };
   CQGLTexture* emissiveTexture_ { nullptr };
 
-  CPoint3D sceneCenter_ { 0 , 0, 0 };
+  CVector3D sceneSize_   { 1, 1, 1 };
+  CPoint3D  sceneCenter_ { 0, 0, 0 };
+
+  std::vector<GeomObject *> geomObjects_;
+
+  FaceDatas faceDatas_;
 
   bool flipYZ_      { false };
   bool autoScale_   { false };

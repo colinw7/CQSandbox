@@ -5,11 +5,13 @@
 
 class CGeomFace3D;
 
+class CQGLBuffer;
 class CQGLTexture;
 
 namespace CQSandbox {
 
 struct FaceData {
+  CQGLBuffer*  buffer          { nullptr };
   CGeomFace3D* face            { nullptr };
   int          pos             { 0 };
   int          len             { 0 };

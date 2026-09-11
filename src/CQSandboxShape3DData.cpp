@@ -357,4 +357,12 @@ transform(const CMatrix3DH &m)
     n = (nm*n).normalize();
 }
 
+void
+Shape3DData::
+setBuffer(CQGLBuffer *buffer)
+{
+  for (auto &faceData : faceDatas_)
+    faceData.buffer = buffer;
+}
+
 }

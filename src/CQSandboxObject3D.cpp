@@ -399,9 +399,26 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
 bool
 Object3D::
-exec(const QString &, const QStringList &, QVariant &)
+exec(const QString &op, const QStringList &args, QVariant &res)
 {
-  return false;
+  if (op == "intersect") {
+    if (args.size() < 1)
+      return false;
+
+    auto *obj = canvas()->getObjectByName(args[0]);
+    if (! obj) return false;
+
+    auto bbox1 = this->bbox();
+    auto bbox2 = obj ->bbox();
+
+    auto overlap = bbox1.overlaps(bbox2);
+
+    res = overlap;
+  }
+  else
+    return false;
+
+  return true;
 }
 
 void

@@ -436,11 +436,9 @@ class Canvas3D : public OpenGLWindow {
   void selectFacesInside  (const CBBox2D &r);
   void selectObjectsInside(const CBBox2D &r);
 
-  QPolygonF getFacePoly(CQGLBuffer *buffer, const FaceData &faceData,
-                        const CMatrix3DH &matrix) const;
+  QPolygonF getFacePoly(const FaceData &faceData, const CMatrix3DH &matrix) const;
 
-  std::vector<CPoint3D> getFacePoints(CQGLBuffer *buffer, const FaceData &faceData,
-                                      const CMatrix3DH &matrix) const;
+  std::vector<CPoint3D> getFacePoints(const FaceData &faceData, const CMatrix3DH &matrix) const;
 
   //---
 

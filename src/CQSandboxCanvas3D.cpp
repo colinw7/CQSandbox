@@ -2343,7 +2343,7 @@ render()
 
         for (int i = 0; i < faceData.len; ++i) {
           CQGLBuffer::PointData pointData;
-          buffer->getPointData(faceData.pos + i, pointData);
+          faceData.buffer->getPointData(faceData.pos + i, pointData);
 
           auto pp = matrix*(pointData.point->point() + dn*pointData.normal->point());
 
@@ -3128,7 +3128,7 @@ selectNearestFace(const CPoint2D &p)
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
-      auto points = getFacePoints(buffer, faceData, matrix);
+      auto points = getFacePoints(faceData, matrix);
 
 #if 0
       auto orient = Util::pointsOrientation(points);
@@ -3214,7 +3214,7 @@ selectNearestObject(const CPoint2D &p)
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
-      auto points = getFacePoints(buffer, faceData, matrix);
+      auto points = getFacePoints(faceData, matrix);
 
       QPolygonF poly;
 
@@ -3331,7 +3331,7 @@ selectFacesInside(const CBBox2D &r)
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
-      auto poly = getFacePoly(buffer, faceData, matrix);
+      auto poly = getFacePoly(faceData, matrix);
 
       if (poly.intersects(r1))
         object->selectFace(ii);
@@ -3378,7 +3378,7 @@ selectObjectsInside(const CBBox2D &r)
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
-      auto poly = getFacePoly(buffer, faceData, matrix);
+      auto poly = getFacePoly(faceData, matrix);
 
       if (poly.intersects(r1)) {
         inside = true;
@@ -3395,13 +3395,13 @@ selectObjectsInside(const CBBox2D &r)
 
 QPolygonF
 Canvas3D::
-getFacePoly(CQGLBuffer *buffer, const FaceData &faceData, const CMatrix3DH &matrix) const
+getFacePoly(const FaceData &faceData, const CMatrix3DH &matrix) const
 {
   QPolygonF poly;
 
   for (int i = 0; i < faceData.len; ++i) {
     CQGLBuffer::PointData pointData;
-    buffer->getPointData(faceData.pos + i, pointData);
+    faceData.buffer->getPointData(faceData.pos + i, pointData);
 
     auto pp = (matrix*pointData.point->point()).toPoint2D();
 
@@ -3413,13 +3413,13 @@ getFacePoly(CQGLBuffer *buffer, const FaceData &faceData, const CMatrix3DH &matr
 
 std::vector<CPoint3D>
 Canvas3D::
-getFacePoints(CQGLBuffer *buffer, const FaceData &faceData, const CMatrix3DH &matrix) const
+getFacePoints(const FaceData &faceData, const CMatrix3DH &matrix) const
 {
   std::vector<CPoint3D> points;
 
   for (int i = 0; i < faceData.len; ++i) {
     CQGLBuffer::PointData pointData;
-    buffer->getPointData(faceData.pos + i, pointData);
+    faceData.buffer->getPointData(faceData.pos + i, pointData);
 
     auto pp = matrix*pointData.point->point();
 
@@ -3744,6 +3744,9 @@ modelKeyPress()
   }
   else if (mouseData_.key == Qt::Key_3) {
     setEditType(EditType::FACE);
+  }
+  else if (mouseData_.key == Qt::Key_4) {
+    setEditType(EditType::OBJECT);
   }
   else if (mouseData_.key == Qt::Key_X) {
     if (editMode_ == EditMode::SCALE) {

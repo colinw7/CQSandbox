@@ -604,6 +604,7 @@ const Model3DObj::FaceDatas &
 Model3DObj::
 getFaceDatas() const
 {
+#if 0
   auto *geomObject = dynamic_cast<GeomObject *>(object_);
 
   auto *geomObject1 = geomObject;
@@ -613,38 +614,25 @@ getFaceDatas() const
     assert(geomObject1);
   }
 
-  return geomObject1->faceDatas();
+  auto *th = const_cast<Model3DObj *>(this);
+
+  th->faceDatas_ = geomObject1->faceDatas();
+#else
+  auto *th = const_cast<Model3DObj *>(this);
+
+  for (auto *geomObject : geomObjects_) {
+    for (const auto &faceData : geomObject->faceDatas())
+      th->faceDatas_.push_back(faceData);
+  }
+#endif
+
+  return faceDatas_;
 }
 
 void
 Model3DObj::
 setModelMatrix(uint /*matrixFlags*/)
 {
-#if 0
-  if (transformed_) {
-    modelMatrix_ = CMatrix3DH(object_->getHierTransform());
-  }
-  else {
-    modelMatrix_ = CMatrix3DH::identity();
-
-    auto c = sceneCenter_;
-
-    if (matrixFlags & ModelMatrixFlags::TRANSLATE)
-      modelMatrix_.translated(c.getX() + xPos(), c.getY() + yPos(), c.getZ() + zPos());
-
-    if (matrixFlags & ModelMatrixFlags::SCALE)
-      modelMatrix_.scaled(xscale(), yscale(), zscale());
-
-    if (matrixFlags & ModelMatrixFlags::ROTATE) {
-      modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
-      modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
-      modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
-    }
-
-    if (matrixFlags & ModelMatrixFlags::TRANSLATE)
-      modelMatrix_.translated(-c.getX(), -c.getY(), -c.getZ());
-  }
-#endif
 }
 
 void
@@ -727,22 +715,23 @@ drawObject(CGeomObject3D *object)
   //---
 
   // mesh matrix
-  bool hasMeshMatrix { false };
+  bool       hasMeshMatrix { false };
+  CMatrix3DH meshMatrix;
 
   if (isAnim)
-    hasMeshMatrix = canvas_->getObjectMeshDataMatrix(geomObject1, meshMatrix_);
+    hasMeshMatrix = canvas_->getObjectMeshDataMatrix(geomObject1, meshMatrix);
 
   if (! hasMeshMatrix)
-    meshMatrix_ = CMatrix3DH(object->getMeshGlobalTransform());
+    meshMatrix = CMatrix3DH(object->getMeshGlobalTransform());
 
-  program->setUniformValue("meshMatrix", CQGLUtil::toQMatrix(meshMatrix_));
+  program->setUniformValue("meshMatrix", CQGLUtil::toQMatrix(meshMatrix));
 
   //---
 
   // model matrix
-  modelMatrix_ = CMatrix3DH(object->getHierTransform());
+  auto modelMatrix = CMatrix3DH(object->getHierTransform());
 
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix_));
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
 
   //---
 
@@ -894,19 +883,24 @@ updateObjectData()
   needsUpdate_ = false;
 
   // set up vertex data (and buffer(s)) and configure vertex attributes
-  CVector3D sceneSize(1, 1, 1);
+  sceneSize_   = CVector3D(1, 1, 1);
+  sceneCenter_ = CPoint3D (0, 0, 0);
 
   if (object_) {
-    //object_->getModelBBox(bbox_);
-    object_->getTransformedModelBBox(bbox_);
+    ObjectData objectData;
+    updateObject(object_, objectData);
 
-    sceneSize    = bbox_.getSize();
+    bbox_ = objectData.bbox;
+
+    modelMatrix_ = objectData.modelMatrix;
+    meshMatrix_  = objectData.meshMatrix;
+
+    sceneSize_   = bbox_.getSize();
     sceneCenter_ = bbox_.getCenter();
 
-    //std::cerr << "Scene Center : " << sceneCenter_.getX() << " " <<
-    //             sceneCenter_.getY() << " " << sceneCenter_.getZ() << "\n";
+    geomObjects_ = objectData.geomObjects;
 
-    updateObject(object_);
+  //std::cerr << "Scene Center : " << sceneCenter_ << "\n";
   }
 
   //---
@@ -916,8 +910,8 @@ updateObjectData()
       return std::max(std::max(x, y), z);
     };
 
-    auto sceneScale = float(1.0/max3(sceneSize.getX(), sceneSize.getY(), sceneSize.getZ()));
-    //std::cerr << "Scene Scale : " << sceneScale << "\n";
+    auto sceneScale = float(1.0/max3(sceneSize_.getX(), sceneSize_.getY(), sceneSize_.getZ()));
+  //std::cerr << "Scene Scale : " << sceneScale << "\n";
 
     setScale(sceneScale);
   }
@@ -925,7 +919,7 @@ updateObjectData()
 
 void
 Model3DObj::
-updateObject(CGeomObject3D *object)
+updateObject(CGeomObject3D *object, ObjectData &objectData)
 {
   auto *geomObject = dynamic_cast<GeomObject *>(object);
   assert(geomObject);
@@ -936,13 +930,16 @@ updateObject(CGeomObject3D *object)
     geomObject1 = dynamic_cast<GeomObject *>(object->refObject());
     assert(geomObject1);
 
-    updateObject(geomObject1);
+    ObjectData objectData1;
+    updateObject(geomObject1, objectData1);
   }
+
+  objectData.geomObjects.push_back(geomObject1);
 
   //---
 
-  modelMatrix_ = CMatrix3DH(object->getHierTransform());
-  meshMatrix_  = CMatrix3DH(object->getMeshGlobalTransform());
+  objectData.modelMatrix = CMatrix3DH(object->getHierTransform());
+  objectData.meshMatrix  = CMatrix3DH(object->getMeshGlobalTransform());
 
   //---
 
@@ -995,7 +992,10 @@ updateObject(CGeomObject3D *object)
 
   //---
 
-  buffer_ = geomObject->initBuffer(canvas_);
+  auto *buffer = geomObject->initBuffer(canvas_);
+
+  if (objectData.buffer)
+    objectData.buffer->addChild(buffer);
 
   //---
 
@@ -1008,7 +1008,7 @@ updateObject(CGeomObject3D *object)
 
   //---
 
-  bbox_ = CBBox3D();
+  objectData.bbox = CBBox3D();
 
   int pos = 0;
 
@@ -1099,8 +1099,8 @@ updateObject(CGeomObject3D *object)
       const auto &vertex = geomObject->getVertex(v);
       const auto &model  = vertex.getModel();
 
-      auto model1 = meshMatrix_ *model;
-      auto model2 = modelMatrix_*model1;
+      auto model1 = objectData.meshMatrix *model;
+      auto model2 = objectData.modelMatrix*model1;
 
       //---
 
@@ -1143,13 +1143,13 @@ updateObject(CGeomObject3D *object)
 
       //---
 
-      buffer_->addInd(vertex.getInd());
+      buffer->addInd(vertex.getInd());
 
-      buffer_->addPoint(model);
+      buffer->addPoint(model);
 
-      buffer_->addNormal(normal1);
+      buffer->addNormal(normal1);
 
-      buffer_->addColor(color1);
+      buffer->addColor(color1);
 
       //---
 
@@ -1165,8 +1165,8 @@ updateObject(CGeomObject3D *object)
             boneWeights[i] = jointData.nodeDatas[i].weight;
           }
 
-          buffer_->addBoneIds    (boneNodeIds[0], boneNodeIds[1], boneNodeIds[2], boneNodeIds[3]);
-          buffer_->addBoneWeights(boneWeights[0], boneWeights[1], boneWeights[2], boneWeights[3]);
+          buffer->addBoneIds    (boneNodeIds[0], boneNodeIds[1], boneNodeIds[2], boneNodeIds[3]);
+          buffer->addBoneWeights(boneWeights[0], boneWeights[1], boneWeights[2], boneWeights[3]);
         }
       }
 
@@ -1175,35 +1175,28 @@ updateObject(CGeomObject3D *object)
       if (faceData.diffuseTexture) {
         const auto &tpoint = face->getTexturePoint(vertex, iv);
 
-        buffer_->addTexturePoint(tpoint);
+        buffer->addTexturePoint(tpoint);
       }
       else
-        buffer_->addTexturePoint(0.0f, 0.0f);
+        buffer->addTexturePoint(0.0f, 0.0f);
 
       //---
 
       ++iv;
 
-      bbox_ += model2;
+      objectData.bbox += model2;
     }
 
     pos += faceData.len;
+
+    faceData.buffer = buffer;
 
     geomObject->addFaceData(faceData);
   }
 
   //---
 
-  if (! bbox_.isSet()) {
-    bbox_.add(CPoint3D(-1, -1, -1));
-    bbox_.add(CPoint3D( 1,  1,  1));
-  }
-
-  geomObject->setBBox(bbox_);
-
-  //---
-
-  buffer_->load();
+  buffer->load();
 
   //---
 
@@ -1211,8 +1204,26 @@ updateObject(CGeomObject3D *object)
     if (! child->getVisible())
       continue;
 
-    updateObject(child);
+    ObjectData objectData1;
+
+    objectData1.buffer = buffer;
+
+    updateObject(child, objectData1);
+
+    for (auto *obj1 : objectData1.geomObjects)
+      objectData.geomObjects.push_back(obj1);
+
+    objectData.bbox += objectData1.bbox;
   }
+
+  //---
+
+  if (! objectData.bbox.isSet()) {
+    objectData.bbox.add(CPoint3D(-1, -1, -1));
+    objectData.bbox.add(CPoint3D( 1,  1,  1));
+  }
+
+  geomObject->setBBox(objectData.bbox);
 }
 
 CQGLTexture *

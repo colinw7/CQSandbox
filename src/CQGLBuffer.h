@@ -536,6 +536,16 @@ class CQGLBuffer {
     return bbox;
   }
 
+  //---
+
+  void addChild(CQGLBuffer *buffer) {
+    buffer->parent_ = this;
+
+    children_.push_back(buffer);
+  }
+
+  const std::vector<CQGLBuffer *> &children() const { return children_; }
+
  private:
   void init() {
     if (! data_.initialized) {
@@ -716,6 +726,9 @@ class CQGLBuffer {
   }
 
  private:
+  CQGLBuffer*               parent_ { nullptr };
+  std::vector<CQGLBuffer *> children_;
+
   struct Data {
     QOpenGLShaderProgram *program { nullptr };
 

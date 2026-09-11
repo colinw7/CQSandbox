@@ -419,6 +419,10 @@ updateGL()
   }
 
   buffer_->load();
+
+  //---
+
+  shapeData_.setBuffer(buffer_);
 }
 
 CBBox3D
