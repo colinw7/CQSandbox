@@ -11,7 +11,7 @@ proc init { } {
   updateParticles
 }
 
-proc update { } {
+proc tick { } {
   set ::t [expr {$::t + $::dt}]
 
   updateParticles

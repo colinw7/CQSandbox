@@ -136,8 +136,8 @@ updateGL()
 
   buffer_->clearBuffers();
 
-  buffer_->addPoint(position_);
-  buffer_->addColor(color_);
+  buffer_->addPoint(position());
+  buffer_->addColor(color());
 
   buffer_->load();
 }

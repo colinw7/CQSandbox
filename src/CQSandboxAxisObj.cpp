@@ -18,8 +18,8 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  Point pos;
-  if (! Util::stringToPoint(tcl, args[0], pos))
+  Point2D pos;
+  if (! Util::stringToPoint2D(tcl, args[0], pos))
     return false;
 
   Coord len;
@@ -36,7 +36,7 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 AxisObj::
-AxisObj(Canvas *canvas, const Point &pos, const Coord &len) :
+AxisObj(Canvas *canvas, const Point2D &pos, const Coord &len) :
  Object(canvas), pos_(pos), len_(len)
 {
   axis_ = new CQAxis;
@@ -47,7 +47,7 @@ AxisObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "pos")
-    value = Util::pointToString(pos_);
+    value = Util::point2DToString(pos_);
   else if (name == "p2")
     value = Util::coordToString(len_);
   else
@@ -63,7 +63,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "pos") {
-    if (! Util::stringToPoint(tcl, value, pos_))
+    if (! Util::stringToPoint2D(tcl, value, pos_))
       return false;
   }
   else if (name == "p2") {
@@ -84,12 +84,13 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   return true;
 }
 
-Rect
+Rect2D
 AxisObj::
 calcRect() const
 {
-  Point pos1 = pointToWindow(pos_);
-  Point pos2;
+  auto pos1 = pointToWindow(pos_);
+
+  Point2D pos2;
 
   if (len_.units == Units::PIXEL) {
     auto ppos1 = pointToPixel(pos_).qpoint();
@@ -101,16 +102,16 @@ calcRect() const
     else
       ppos2 = QPointF(ppos1.x(), ppos1.y() + len_.value);
 
-    pos2 = pointToWindow(Point::makePixel(ppos2));
+    pos2 = pointToWindow(Point2D::makePixel(ppos2));
   }
   else {
     if (axis_->getDirection() == CQAxis::DIR_HORIZONTAL)
-      pos2 = Point::makeWindow(pos1.x.value + len_.value, pos1.y.value);
+      pos2 = Point2D::makeWindow(pos1.x.value + len_.value, pos1.y.value);
     else
-      pos2 = Point::makeWindow(pos1.x.value, pos1.y.value + len_.value);
+      pos2 = Point2D::makeWindow(pos1.x.value, pos1.y.value + len_.value);
   }
 
-  return Rect(pos1, pos2);
+  return Rect2D(pos1, pos2);
 }
 
 void

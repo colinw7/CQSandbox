@@ -11,11 +11,11 @@ struct Viewport {
   Canvas*         canvas { nullptr };
   QString         name;
   CDisplayRange2D displayRange;
-  Rect            rect;
+  Rect2D          rect;
   QPen            pen;
   AnimateBrush    brush;
   Objects         objects;
-  Rect            clip;
+  Rect2D          clip;
   bool            hasRange { false };
 };
 

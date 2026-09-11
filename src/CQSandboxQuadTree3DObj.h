@@ -25,7 +25,7 @@ class QuadTree3DObj : public Group3DObj {
   void init() override;
 
  private:
-  using QuadTree = CQuadTree<Object3D, Rect>;
+  using QuadTree = CQuadTree<Object3D, Rect2D>;
 
   QuadTree quadTree_;
 };

@@ -98,11 +98,11 @@ class Object : public QObject {
 
   //---
 
-  virtual Rect calcRect() const { return Rect(); }
+  virtual Rect2D calcRect() const { return Rect2D(); }
 
   virtual QPainterPath calcPath() const { return QPainterPath(); }
 
-  Rect getBBox() const { return calcRect(); }
+  Rect2D getBBox() const { return calcRect(); }
 
   //---
 
@@ -117,11 +117,11 @@ class Object : public QObject {
 
   QString getCommandName() const;
 
-  virtual Point pointToWindow(const Point &p) const;
+  virtual Point2D pointToWindow(const Point2D &p) const;
 
-  Point pointToPixel(const Point &p) const;
+  Point2D pointToPixel(const Point2D &p) const;
 
-  Rect rectToWindow(const Rect &r) const;
+  Rect2D rectToWindow(const Rect2D &r) const;
 
  protected:
   using NameValues = std::map<QString, QVariant>;

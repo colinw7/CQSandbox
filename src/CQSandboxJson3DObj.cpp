@@ -31,7 +31,7 @@ create(Canvas3D *canvas, const QStringList &args)
 
 Json3DObj::
 Json3DObj(Canvas3D *canvas, const QString &filename) :
- Object3D(canvas, Type::CSV), filename_(filename)
+ Object3D(canvas, Type::JSON), filename_(filename)
 {
   json_ = new CJson;
 }

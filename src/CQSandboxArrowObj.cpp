@@ -18,9 +18,9 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  Point p1, p2;
-  if (! Util::stringToPoint(tcl, args[0], p1) ||
-      ! Util::stringToPoint(tcl, args[1], p2))
+  Point2D p1, p2;
+  if (! Util::stringToPoint2D(tcl, args[0], p1) ||
+      ! Util::stringToPoint2D(tcl, args[1], p2))
     return false;
 
   auto *obj = new ArrowObj(canvas, p1, p2);
@@ -33,7 +33,7 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 ArrowObj::
-ArrowObj(Canvas *canvas, const Point &p1, const Point &p2) :
+ArrowObj(Canvas *canvas, const Point2D &p1, const Point2D &p2) :
  Object(canvas), p1_(p1), p2_(p2)
 {
   arrow_ = new CQArrow;
@@ -44,9 +44,9 @@ ArrowObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "p1")
-    value = Util::pointToString(p1_);
+    value = Util::point2DToString(p1_);
   else if (name == "p2")
-    value = Util::pointToString(p2_);
+    value = Util::point2DToString(p2_);
   else
     return Object::getValue(name, args, value);
 
@@ -60,11 +60,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "p1") {
-    if (! Util::stringToPoint(tcl, value, p1_))
+    if (! Util::stringToPoint2D(tcl, value, p1_))
       return false;
   }
   else if (name == "p2") {
-    if (! Util::stringToPoint(tcl, value, p2_))
+    if (! Util::stringToPoint2D(tcl, value, p2_))
       return false;
   }
   else if (name == "lineWidth")
@@ -99,11 +99,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   return true;
 }
 
-Rect
+Rect2D
 ArrowObj::
 calcRect() const
 {
-  return Rect(p1_, p2_);
+  return Rect2D(p1_, p2_);
 }
 
 void
@@ -120,11 +120,11 @@ draw(QPainter *painter)
     }
 
     QPointF windowToPixel(const QPointF &w) override {
-      return canvas_->pointToPixel(Point::makeWindow(w)).qpoint();
+      return canvas_->pointToPixel(Point2D::makeWindow(w)).qpoint();
     }
 
     QPointF pixelToWindow(const QPointF &p) override {
-      return canvas_->pointToWindow(Point::makePixel(p)).qpoint();
+      return canvas_->pointToWindow(Point2D::makePixel(p)).qpoint();
     }
 
    private:

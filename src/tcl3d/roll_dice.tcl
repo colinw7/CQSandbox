@@ -19,7 +19,7 @@ proc init { } {
   sb3d::canvas set loop.enabled 1
 }
 
-proc update { args } {
+proc tick { args } {
   $::dice exec rotate [list 1 0 0] $::x_angle
   $::dice exec rotate [list 0 1 0] $::y_angle
   $::dice exec rotate [list 0 0 1] $::z_angle

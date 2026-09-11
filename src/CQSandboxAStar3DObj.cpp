@@ -16,8 +16,10 @@ create(Canvas3D *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  auto nx = Util::stringToInt(args[0]);
-  auto ny = Util::stringToInt(args[1]);
+  int nx, ny;
+  if (! Util::stringToInt(args[0], nx) ||
+      ! Util::stringToInt(args[1], ny))
+    return nullptr;
 
   auto *obj = new AStar3DObj(canvas, nx, ny);
 
@@ -32,7 +34,7 @@ create(Canvas3D *canvas, const QStringList &args)
 
 AStar3DObj::
 AStar3DObj(Canvas3D *canvas, uint nx, uint ny) :
- Object3D(canvas, Type::ARRAY), nx_(nx), ny_(ny), searchData_(this)
+ Object3D(canvas, Type::ASTAR), nx_(nx), ny_(ny), searchData_(this)
 {
   nodesArray_.resize(nx_);
 
@@ -61,8 +63,10 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     uint ix, iy;
 
     if      (args.size() == 2) {
-      ix = Util::stringToInt(args[0]);
-      iy = Util::stringToInt(args[1]);
+      int ix, iy;
+      if (! Util::stringToInt(args[0], ix) ||
+          ! Util::stringToInt(args[1], iy))
+        return false;
     }
     else if (args.size() == 1) {
       std::vector<int> a;
@@ -83,11 +87,12 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = node->value();
   }
   else if (name == "empty") {
-    uint ix, iy;
+    int ix, iy;
 
     if      (args.size() == 2) {
-      ix = Util::stringToInt(args[0]);
-      iy = Util::stringToInt(args[1]);
+      if (! Util::stringToInt(args[0], ix) ||
+          ! Util::stringToInt(args[1], iy))
+        return false;
     }
     else if (args.size() == 1) {
       std::vector<int> a;
@@ -100,7 +105,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     else
       return false;
 
-    if (ix >= nx_ || iy >= ny_)
+    if (ix >= int(nx_) || iy >= int(ny_))
       return false;
 
     auto *node = nodesArray_[ix][iy];
@@ -149,11 +154,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "value") {
-    uint ix, iy;
+    int ix, iy;
 
     if      (args.size() == 2) {
-      ix = Util::stringToInt(args[0]);
-      iy = Util::stringToInt(args[1]);
+      if (! Util::stringToInt(args[0], ix) ||
+          ! Util::stringToInt(args[1], iy))
+        return false;
     }
     else if (args.size() == 1) {
       std::vector<int> a;
@@ -166,7 +172,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else
       return false;
 
-    if (ix >= nx_ || iy >= ny_)
+    if (ix >= int(nx_) || iy >= int(ny_))
       return false;
 
     auto r = Util::stringToReal(value);
@@ -176,11 +182,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     node->setValue(r);
   }
   else if (name == "empty") {
-    uint ix, iy;
+    int ix, iy;
 
     if      (args.size() == 2) {
-      ix = Util::stringToInt(args[0]);
-      iy = Util::stringToInt(args[1]);
+      if (! Util::stringToInt(args[0], ix) ||
+          ! Util::stringToInt(args[1], iy))
+        return false;
     }
     else if (args.size() == 1) {
       std::vector<int> a;
@@ -193,7 +200,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else
       return false;
 
-    if (ix >= nx_ || iy >= ny_)
+    if (ix >= int(nx_) || iy >= int(ny_))
       return false;
 
     auto b = Util::stringToBool(value);

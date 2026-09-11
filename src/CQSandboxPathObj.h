@@ -22,7 +22,7 @@ class PathObj : public Object {
 
   bool exec(const QString &op, const QStringList &args, QVariant &res) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 

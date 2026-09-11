@@ -44,6 +44,9 @@ class Point3DObj : public Object3D {
 
   virtual ObjectMgr3D *mgr() override { return s_objectMgr; }
 
+  const QColor &color() const { return color_; }
+  void setColor(const QColor &c) { color_ = c; }
+
   //---
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;

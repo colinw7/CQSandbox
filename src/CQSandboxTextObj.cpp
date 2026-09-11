@@ -17,17 +17,17 @@ create(Canvas *canvas, const QStringList &args)
 {
   auto *tcl = canvas->tcl();
 
-  Point   pos;
+  Point2D pos;
   QString text;
 
   if      (args.size() >= 2) {
-    if (! Util::stringToPoint(tcl, args[0], pos))
+    if (! Util::stringToPoint2D(tcl, args[0], pos))
       return false;
 
     text = args[1];
   }
   else if (args.size() >= 1) {
-    if (! Util::stringToPoint(tcl, args[0], pos))
+    if (! Util::stringToPoint2D(tcl, args[0], pos))
       return false;
   }
 
@@ -41,7 +41,7 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 TextObj::
-TextObj(Canvas *canvas, const Point &pos, const QString &text) :
+TextObj(Canvas *canvas, const Point2D &pos, const QString &text) :
  Object(canvas), pos_(pos), text_(text)
 {
   font_ = canvas->font();
@@ -52,7 +52,7 @@ TextObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "position")
-    value = Util::pointToString(pos_);
+    value = Util::point2DToString(pos_);
   else if (name == "text")
     value = text_;
   else if (name == "align")
@@ -72,7 +72,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "position") {
-    if (! Util::stringToPoint(tcl, value, pos_))
+    if (! Util::stringToPoint2D(tcl, value, pos_))
       return false;
   }
   else if (name == "text")
@@ -89,7 +89,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   return true;
 }
 
-Rect
+Rect2D
 TextObj::
 calcRect() const
 {
@@ -125,10 +125,10 @@ calcRect() const
   if      (align_ & Qt::AlignBottom ) y -= s.height();
   else if (align_ & Qt::AlignVCenter) y -= s.height()/2.0;
 
-  auto ll = Point(Coord(x            ), Coord(y             ));
-  auto ur = Point(Coord(x + s.width()), Coord(y + s.height()));
+  auto ll = Point2D(Coord(x            ), Coord(y             ));
+  auto ur = Point2D(Coord(x + s.width()), Coord(y + s.height()));
 
-  return Rect(ll, ur);
+  return Rect2D(ll, ur);
 }
 
 void

@@ -13,6 +13,8 @@ enum class Units {
   PIXEL
 };
 
+//---
+
 struct Coord {
   Coord() { }
 
@@ -26,9 +28,11 @@ struct Coord {
 
 using OptCoord = std::optional<Coord>;
 
-struct Point {
-  static Point makePixel(double x, double y) {
-    Point p;
+//---
+
+struct Point2D {
+  static Point2D makePixel(double x, double y) {
+    Point2D p;
 
     p.x.value = x; p.x.units = Units::PIXEL;
     p.y.value = y; p.y.units = Units::PIXEL;
@@ -36,12 +40,12 @@ struct Point {
     return p;
   }
 
-  static Point makePixel(const QPointF &p) {
+  static Point2D makePixel(const QPointF &p) {
     return makePixel(p.x(), p.y());
   }
 
-  static Point makeWindow(double x, double y) {
-    Point p;
+  static Point2D makeWindow(double x, double y) {
+    Point2D p;
 
     p.x.value = x; p.x.units = Units::WINDOW;
     p.y.value = y; p.y.units = Units::WINDOW;
@@ -49,13 +53,13 @@ struct Point {
     return p;
   }
 
-  static Point makeWindow(const QPointF &p) {
+  static Point2D makeWindow(const QPointF &p) {
     return makeWindow(p.x(), p.y());
   }
 
-  Point() { }
+  Point2D() { }
 
-  Point(const Coord &c1, const Coord &c2) :
+  Point2D(const Coord &c1, const Coord &c2) :
    x(c1), y(c2) {
   }
 
@@ -67,19 +71,21 @@ struct Point {
   Coord y;
 };
 
-struct Rect {
-  static Rect makeWindow(const QRectF &r) {
-    return Rect(Point::makeWindow(r.left (), r.top   ()),
-                Point::makeWindow(r.right(), r.bottom()));
+//---
+
+struct Rect2D {
+  static Rect2D makeWindow(const QRectF &r) {
+    return Rect2D(Point2D::makeWindow(r.left (), r.top   ()),
+                  Point2D::makeWindow(r.right(), r.bottom()));
   }
 
-  Rect() { }
+  Rect2D() { }
 
-  Rect(double x1, double y1, double x2, double y2) :
+  Rect2D(double x1, double y1, double x2, double y2) :
    ll(x1, y1), ur(x2, y2) {
   }
 
-  Rect(const Point &p1, const Point &p2) :
+  Rect2D(const Point2D &p1, const Point2D &p2) :
    ll(p1), ur(p2) {
   }
 
@@ -92,8 +98,8 @@ struct Rect {
     return QRectF(x1, y1, x2 - x1, y2 - y1);
   }
 
-  Point center() const {
-    return Point((ll.x.value + ur.x.value)/2.0, (ll.y.value + ur.y.value)/2.0);
+  Point2D center() const {
+    return Point2D((ll.x.value + ur.x.value)/2.0, (ll.y.value + ur.y.value)/2.0);
   }
 
   double getLeft  () const { return ll.x.value; }
@@ -101,9 +107,11 @@ struct Rect {
   double getBottom() const { return ll.y.value; }
   double getTop   () const { return ur.y.value; }
 
-  Point ll;
-  Point ur;
+  Point2D ll;
+  Point2D ur;
 };
+
+//---
 
 }
 

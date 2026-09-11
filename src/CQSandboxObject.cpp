@@ -39,9 +39,9 @@ getCommandName() const
   return QString("sb::%1.%2").arg(typeName()).arg(ind_);
 }
 
-Point
+Point2D
 Object::
-pointToWindow(const Point &p) const
+pointToWindow(const Point2D &p) const
 {
   auto p1 = p;
 
@@ -53,7 +53,7 @@ pointToWindow(const Point &p) const
     double x, y;
     range.windowToPixel(p1.x.value, p1.y.value, &x, &y);
 
-    p1 = Point::makeWindow(x, y);
+    p1 = Point2D::makeWindow(x, y);
 
     group = group->group();
   }
@@ -73,34 +73,34 @@ pointToWindow(const Point &p) const
       y = p1.y.value;
     }
 
-    return Point::makeWindow(x, y);
+    return Point2D::makeWindow(x, y);
   }
   else
-    return Point::makeWindow(p1.x.value, p1.y.value);
+    return Point2D::makeWindow(p1.x.value, p1.y.value);
 }
 
-Point
+Point2D
 Object::
-pointToPixel(const Point &p) const
+pointToPixel(const Point2D &p) const
 {
   if (group_) {
     double px, py;
     group_->displayRange().windowToPixel(p.x.value, p.y.value, &px, &py);
 
-    return canvas()->pointToPixel(Point::makeWindow(px, py));
+    return canvas()->pointToPixel(Point2D::makeWindow(px, py));
   }
   else
     return canvas()->pointToPixel(p);
 }
 
-Rect
+Rect2D
 Object::
-rectToWindow(const Rect &r) const
+rectToWindow(const Rect2D &r) const
 {
   auto p1 = pointToWindow(r.ll);
   auto p2 = pointToWindow(r.ur);
 
-  return Rect(p1, p2);
+  return Rect2D(p1, p2);
 }
 
 QString
@@ -127,7 +127,7 @@ getValue(const QString &name, const QStringList &, QVariant &value)
     value = isVisible();
   else if (name == "brush.color")
     value = Util::colorToString(brush_.value().color());
-  else if (name == "brush.color.target")
+  else if (name == "brush.target.color")
     value = Util::colorToString(brush_.target().color());
   else if (name == "brush.alpha")
     value = Util::realToString(brush_.value().color().alphaF());
@@ -181,7 +181,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     brush_ = b;
   }
-  else if (name == "brush.color.target") {
+  else if (name == "brush.target.color") {
     auto b = brush_.target();
 
     b.setColor(Util::stringToColor(tcl, value));

@@ -127,14 +127,14 @@ const CPoint3D &
 Model3DObj::
 position() const
 {
-  return position_;
+  return position_.value();
 }
 
 void
 Model3DObj::
 setPosition(const CPoint3D &p)
 {
-  position_ = p;
+  position_.setValue(p);
 
   object_->setTranslate(p.x, p.y, p.z);
 

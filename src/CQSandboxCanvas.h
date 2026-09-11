@@ -62,7 +62,7 @@ class CirclesGroupObj : public GroupObj {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  CirclesGroupObj(Canvas *canvas, const Rect &rect);
+  CirclesGroupObj(Canvas *canvas, const Rect2D &rect);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -80,19 +80,19 @@ class RectObj : public Object {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  RectObj(Canvas *canvas, const Rect &rect);
+  RectObj(Canvas *canvas, const Rect2D &rect);
 
   const char *typeName() const override { return "rect"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
  protected:
-  Rect rect_;
+  Rect2D rect_;
 };
 
 //---
@@ -103,13 +103,13 @@ class CircleObj : public Object {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  CircleObj(Canvas *canvas, const Point &center, const Coord &radius);
+  CircleObj(Canvas *canvas, const Point2D &center, const Coord &radius);
 
   const char *typeName() const override { return "circle"; }
 
-  const AnimatePoint &center() const { return center_; }
-  void setCenter(const AnimatePoint &c) { center_ = c; }
-  void setTargetCenter(const Point &c) { center_.setTarget(c); }
+  const AnimatePoint2D &center() const { return center_; }
+  void setCenter(const AnimatePoint2D &c) { center_ = c; }
+  void setTargetCenter(const Point2D &c) { center_.setTarget(c); }
 
   const AnimateCoord &radius() const { return radius_; }
   void setRadius(const AnimateCoord &r) { radius_ = r; }
@@ -118,15 +118,15 @@ class CircleObj : public Object {
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   bool step() override;
 
   void draw(QPainter *) override;
 
  protected:
-  AnimatePoint center_;
-  AnimateCoord radius_;
+  AnimatePoint2D center_;
+  AnimateCoord   radius_;
 };
 
 //---
@@ -137,20 +137,20 @@ class LineObj : public Object {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  LineObj(Canvas *canvas, const Point &p1, const Point &p2);
+  LineObj(Canvas *canvas, const Point2D &p1, const Point2D &p2);
 
   const char *typeName() const override { return "line"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
  protected:
-  Point p1_;
-  Point p2_;
+  Point2D p1_;
+  Point2D p2_;
 };
 
 //---
@@ -167,7 +167,7 @@ class ImageObj : public Object {
 
   static bool create(Canvas *canvas, const QStringList &args);
 
-  ImageObj(Canvas *canvas, const Point &pos, const QImage &image);
+  ImageObj(Canvas *canvas, const Point2D &pos, const QImage &image);
 
   const char *typeName() const override { return "image"; }
 
@@ -176,13 +176,13 @@ class ImageObj : public Object {
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
  protected:
-  Point    pos_;
-  Rect     rect_;
+  Point2D  pos_;
+  Rect2D   rect_;
   Position posType_ { Position::TOP_LEFT };
   QImage   image_;
 };
@@ -221,16 +221,16 @@ class PointListObj : public Object {
   double scale() const { return scale_; }
   void setScale(double r) { scale_ = r; }
 
-  const Point &center() const { return center_; }
-  void setCenter(const Point &o) { center_ = o; }
+  const Point2D &center() const { return center_; }
+  void setCenter(const Point2D &o) { center_ = o; }
 
-  const Point &offset() const { return offset_; }
-  void setOffset(const Point &o) { offset_ = o; }
+  const Point2D &offset() const { return offset_; }
+  void setOffset(const Point2D &o) { offset_ = o; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   QPainterPath calcPath() const override { return path_; }
 
@@ -239,7 +239,7 @@ class PointListObj : public Object {
   void draw(QPainter *) override;
 
  protected:
-  using Points = std::vector<Point>;
+  using Points = std::vector<Point2D>;
 
   Points       points_;
   AnimateCoord radius_;
@@ -249,8 +249,8 @@ class PointListObj : public Object {
   OptCoord     fillUnderY_;
   double       angle_      { 0.0 };
   double       scale_      { 1.0 };
-  Point        center_     { 0, 0 };
-  Point        offset_     { 0, 0 };
+  Point2D      center_     { 0, 0 };
+  Point2D      offset_     { 0, 0 };
   QPainterPath path_;
 };
 
@@ -262,7 +262,7 @@ class ParticleObj : public Object {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  ParticleObj(Canvas *canvas, const Point &pos);
+  ParticleObj(Canvas *canvas, const Point2D &pos);
 
   const char *typeName() const override { return "particle"; }
 
@@ -272,12 +272,12 @@ class ParticleObj : public Object {
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
  protected:
-  Point     pos_;
+  Point2D   pos_;
   Particle* particle_ { nullptr };
 };
 
@@ -307,21 +307,21 @@ class RealEdit : public EditObj {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  RealEdit(Canvas *canvas, const Point &p, const QString &name);
+  RealEdit(Canvas *canvas, const Point2D &p, const QString &name);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
   void move(int, int) override;
 
  protected:
-  Point  p_;
-  double minValue_ { 0.0 };
-  double maxValue_ { 1.0 };
+  Point2D p_;
+  double  minValue_ { 0.0 };
+  double  maxValue_ { 1.0 };
 };
 
 //---
@@ -332,12 +332,12 @@ class IntegerEdit : public EditObj {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  IntegerEdit(Canvas *canvas, const Point &p, const QString &name);
+  IntegerEdit(Canvas *canvas, const Point2D &p, const QString &name);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
@@ -350,11 +350,11 @@ class IntegerEdit : public EditObj {
   void setIValue(int i);
 
  protected:
-  Point p_;
-  int   minValue_ { -9999 };
-  int   maxValue_ { 9999 };
-  QRect lrect_;
-  QRect rrect_;
+  Point2D p_;
+  int     minValue_ { -9999 };
+  int     maxValue_ { 9999 };
+  QRect   lrect_;
+  QRect   rrect_;
 };
 
 //---
@@ -365,21 +365,21 @@ class ButtonObj : public Object {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  ButtonObj(Canvas *canvas, const Point &p, const QString &name);
+  ButtonObj(Canvas *canvas, const Point2D &p, const QString &name);
 
   const char *typeName() const override { return "button"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
   void click(int x, int y) override;
 
  protected:
-  Point   p_;
+  Point2D p_;
   QString name_;
   QString proc_;
 };
@@ -447,10 +447,10 @@ class Canvas : public QFrame {
 
   void createObjCommand(Object *obj);
 
-  Point pointToWindow(const Point &p) const;
+  Point2D pointToWindow(const Point2D &p) const;
 
-  Rect rectToPixel(const Rect &rect) const;
-  Point pointToPixel(const Point &p) const;
+  Rect2D rectToPixel(const Rect2D &rect) const;
+  Point2D pointToPixel(const Point2D &p) const;
 
   QSizeF pixelSizeToWindow(const QSizeF &psize) const;
 

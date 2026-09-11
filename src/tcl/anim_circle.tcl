@@ -11,7 +11,7 @@ proc init { } {
   $::circle set center.steps       20
   $::circle set radius.target      128px
   $::circle set radius.steps       20
-  $::circle set brush.color.target blue
+  $::circle set brush.target.color blue
   $::circle set brush.steps        20
 }
 
@@ -45,6 +45,6 @@ proc update { } {
     $::circle set animate.animating  1
     $::circle set center.target      $dest
     $::circle set radius.target      $radius
-    $::circle set brush.color.target $color
+    $::circle set brush.target.color $color
   }
 }

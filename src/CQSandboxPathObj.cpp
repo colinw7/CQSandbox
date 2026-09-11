@@ -114,7 +114,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   return true;
 }
 
-Rect
+Rect2D
 PathObj::
 calcRect() const
 {
@@ -123,8 +123,8 @@ calcRect() const
   auto tl = r.topLeft();
   auto br = r.bottomRight();
 
-  return Rect(Point(Coord(tl.x()), Coord(tl.y())),
-              Point(Coord(br.x()), Coord(br.y())));
+  return Rect2D(Point2D(Coord(tl.x()), Coord(tl.y())),
+                Point2D(Coord(br.x()), Coord(br.y())));
 }
 
 void
@@ -132,7 +132,7 @@ PathObj::
 draw(QPainter *painter)
 {
   auto pointToPixel = [&](const QPointF &p) {
-    auto p1 = canvas_->pointToPixel(Point(p.x(), p.y()));
+    auto p1 = canvas_->pointToPixel(Point2D(p.x(), p.y()));
     return QPointF(p1.x.value, p1.y.value);
   };
 

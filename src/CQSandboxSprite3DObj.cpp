@@ -162,7 +162,9 @@ tick()
 
   Object3D::tick();
 
-  position_ = CPoint3D(position_.x + xv_, position_.y + yv_, position_.z);
+  auto p = position();
+
+  position_ = CPoint3D(p.x + xv_, p.y + yv_, p.z);
 
   if (ticks_ % 100) {
     int textureEnd = textureEnd_;

@@ -156,11 +156,11 @@ inline void stringToRange(CQTcl *tcl, CDisplayRange2D &range, const QString &str
   }
 }
 
-inline bool stringToRect(CQTcl *tcl, const QString &str, Rect &rect) {
+inline bool stringToRect2D(CQTcl *tcl, const QString &str, Rect2D &rect) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  Point ll, ur;
+  Point2D ll, ur;
 
   if (strs.size() > 4) {
     if (strs[4] == "px") {
@@ -193,13 +193,13 @@ inline bool stringToRect(CQTcl *tcl, const QString &str, Rect &rect) {
   return true;
 }
 
-inline Rect stringToRect(CQTcl *tcl, const QString &str) {
-  Rect r;
-  (void) stringToRect(tcl, str, r);
+inline Rect2D stringToRect2D(CQTcl *tcl, const QString &str) {
+  Rect2D r;
+  (void) stringToRect2D(tcl, str, r);
   return r;
 }
 
-inline QString rectToString(const Rect &r) {
+inline QString rect2DToString(const Rect2D &r) {
   auto x1str = QString::number(r.ll.x.value);
   auto y1str = QString::number(r.ll.y.value);
   auto x2str = QString::number(r.ur.x.value);
@@ -248,7 +248,7 @@ inline Coord stringToCoord(const QString &str) {
 }
 #endif
 
-inline bool stringToPoint(CQTcl *tcl, const QString &str, Point &p) {
+inline bool stringToPoint2D(CQTcl *tcl, const QString &str, Point2D &p) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
@@ -277,14 +277,14 @@ inline bool stringToPoint(CQTcl *tcl, const QString &str, Point &p) {
 }
 
 #if 0
-inline Point stringToPoint(CQTcl *tcl, const QString &str) {
-  Point p;
+inline Point2D stringToPoint2D(CQTcl *tcl, const QString &str) {
+  Point2D p;
   (void) stringToPoint(tcl, str, p);
   return p;
 }
 #endif
 
-inline QString pointToString(const Point &p) {
+inline QString point2DToString(const Point2D &p) {
   auto xstr = QString::number(p.x.value);
   auto ystr = QString::number(p.y.value);
 

@@ -27,7 +27,7 @@ create(Canvas *canvas, const QStringList &args)
 
 QuadTreeObj::
 QuadTreeObj(Canvas *canvas) :
- GroupObj(canvas, Rect())
+ GroupObj(canvas, Rect2D())
 {
 }
 
@@ -41,7 +41,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (args.size() < 1)
       return false;
 
-    auto rect = Util::stringToRect(tcl, args[0]);
+    auto rect = Util::stringToRect2D(tcl, args[0]);
 
     QuadTree::DataList dataList;
     quadTree_.getDataInsideBBox(rect, dataList);
@@ -57,8 +57,8 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (args.size() < 1)
       return false;
 
-    Point p;
-    if (! Util::stringToPoint(tcl, args[0], p))
+    Point2D p;
+    if (! Util::stringToPoint2D(tcl, args[0], p))
       return false;
 
     QuadTree::DataList dataList;

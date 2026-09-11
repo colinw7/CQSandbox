@@ -15,7 +15,7 @@ create(Canvas *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  auto rect = Util::stringToRect(tcl, args[0]);
+  auto rect = Util::stringToRect2D(tcl, args[0]);
 
   auto *obj = new GroupObj(canvas, rect);
 
@@ -27,7 +27,7 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 GroupObj::
-GroupObj(Canvas *canvas, const Rect &rect) :
+GroupObj(Canvas *canvas, const Rect2D &rect) :
  Object(canvas), rect_(rect)
 {
 }
@@ -39,7 +39,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   auto *tcl = canvas()->tcl();
 
   if      (name == "rect")
-    value = Util::rectToString(calcRect());
+    value = Util::rect2DToString(calcRect());
   else if (name == "range")
     value = Util::rangeToString(tcl, displayRange_);
   else
@@ -55,7 +55,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "rect")
-    rect_ = Util::stringToRect(tcl, value);
+    rect_ = Util::stringToRect2D(tcl, value);
   else if (name == "range")
     Util::stringToRange(tcl, displayRange_, value);
   else
@@ -64,7 +64,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   return true;
 }
 
-Rect
+Rect2D
 GroupObj::
 calcRect() const
 {
@@ -125,19 +125,19 @@ removeObject(Object *obj)
   Q_EMIT objectsChanged();
 }
 
-Rect
+Rect2D
 GroupObj::
-rectToPixel(const Rect &r) const
+rectToPixel(const Rect2D &r) const
 {
   auto p1 = pointToPixel(r.ll);
   auto p2 = pointToPixel(r.ur);
 
-  return Rect(p1, p2);
+  return Rect2D(p1, p2);
 }
 
-Point
+Point2D
 GroupObj::
-pointToPixel(const Point &p) const
+pointToPixel(const Point2D &p) const
 {
   if (p.x.units == Units::PIXEL)
     return p;
@@ -145,7 +145,7 @@ pointToPixel(const Point &p) const
   double px, py;
   displayRange_.windowToPixel(p.x.value, p.y.value, &px, &py);
 
-  auto p1 = Point::makePixel(px, py);
+  auto p1 = Point2D::makePixel(px, py);
 
   if (group_)
     return group_->pointToPixel(p1);

@@ -19,7 +19,7 @@ class QuadTreeObj : public GroupObj {
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
  private:
-  using QuadTree = CQuadTree<Object, Rect>;
+  using QuadTree = CQuadTree<Object, Rect2D>;
 
   QuadTree quadTree_;
 };

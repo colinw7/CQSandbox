@@ -29,7 +29,7 @@ create(Canvas3D *canvas, const QStringList &)
 
 Grid3DObj::
 Grid3DObj(Canvas3D *canvas) :
- Object3D(canvas, Type::AXIS)
+ Object3D(canvas, Type::GRID)
 {
 }
 

@@ -70,14 +70,14 @@ const CPoint3D &
 Object3D::
 position() const
 {
-  return position_;
+  return position_.value();
 }
 
 void
 Object3D::
 setPosition(const CPoint3D &p)
 {
-  position_ = p;
+  position_.setValue(p);
 
   updateModelMatrix();
 
@@ -110,7 +110,7 @@ CPoint3D
 Object3D::
 origin() const
 {
-  return origin_.value_or(position_);
+  return origin_.value_or(position());
 }
 
 void
@@ -134,9 +134,11 @@ applyTransform()
 
   applyMatrix(modelMatrix());
 
-  angles_   = CPoint3D(0.0, 0.0, 0.0);
-  position_ = CPoint3D(0.0, 0.0, 0.0);
-  scales_   = CPoint3D(1.0, 1.0, 1.0);
+  angles_ = CPoint3D::makeZero();
+
+  position_.setValue(CPoint3D::makeZero());
+
+  scales_ = CPoint3D(1.0, 1.0, 1.0);
 
   updateModelMatrix();
 
@@ -199,6 +201,8 @@ setModelMatrix(uint matrixFlags)
   if (matrixFlags & ModelMatrixFlags::SCALE)
     modelMatrix_.scaled(xScale(), yScale(), zScale());
 }
+
+//---
 
 bool
 Object3D::
@@ -316,6 +320,20 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     setPosition(p);
   }
+  else if (name == "position.target") {
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, value, p))
+      return false;
+
+    position_.setTarget(p);
+  }
+  else if (name == "position.steps") {
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    position_.setSteps(i);
+  }
   else if (name == "angles") {
     CPoint3D p;
     if (! Util::stringToPoint3D(tcl, value, p))
@@ -394,7 +412,9 @@ tick()
 
   elapsed_ += canvas_->redrawTimeOut()/1000.0;
 
-  canvas()->runTclCmd("tick");
+  position_.step();
+
+  //canvas()->runTclCmd("tick");
 }
 
 void

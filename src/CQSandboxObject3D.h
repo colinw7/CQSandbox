@@ -4,6 +4,7 @@
 #include <CQSandboxGeom.h>
 #include <CQSandboxFaceData.h>
 #include <CQSandboxUtil.h>
+#include <CQSandboxAnim.h>
 
 #include <CVector3D.h>
 #include <CMatrix3DH.h>
@@ -78,14 +79,18 @@ class Object3D : public QObject {
  public:
   enum class Type {
     NONE,
+    ANIM_REAL,
     ARRAY,
+    ASTAR,
     AXIS,
     BBOX,
     CSV,
     DUNGEON,
     FIELD_RUNNERS,
     GRAPH,
+    GRID,
     GROUP,
+    JSON,
     LINE_LIST,
     MODEL,
     OTHELLO,
@@ -285,9 +290,9 @@ class Object3D : public QObject {
     return bbox_;
   }
 
-  virtual CBBox3D calcBBox() = 0;
+  virtual CBBox3D calcBBox() { return bbox_; }
 
-  virtual Rect getBBox() const { return Rect(); } // TODO: for Quad Tree
+  virtual Rect2D getBBox() const { return Rect2D(); } // TODO: for Quad Tree
 
   //---
 
@@ -349,10 +354,10 @@ class Object3D : public QObject {
   bool    inside_   { false };
   bool    pseudo_   { false };
 
-  CPoint3D angles_   { 0.0, 0.0, 0.0 };
-  CPoint3D position_ { 0.0, 0.0, 0.0 };
-  CPoint3D scales_   { 1.0, 1.0, 1.0 };
-  OptPoint origin_;
+  CPoint3D       angles_   { 0.0, 0.0, 0.0 };
+  AnimatePoint3D position_ { CPoint3D::makeZero() };
+  CPoint3D       scales_   { 1.0, 1.0, 1.0 };
+  OptPoint       origin_;
 
   CMatrix3DH modelMatrix_ { CMatrix3DH::identity() };
   CMatrix3DH meshMatrix_  { CMatrix3DH::identity() };

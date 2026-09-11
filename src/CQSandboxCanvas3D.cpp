@@ -2,6 +2,7 @@
 #include <CQSandboxToolbar3D.h>
 #include <CQSandboxLight3D.h>
 
+#include <CQSandboxAnimReal3DObj.h>
 #include <CQSandboxArray3DObj.h>
 #include <CQSandboxAStar3DObj.h>
 #include <CQSandboxAxis3DObj.h>
@@ -404,6 +405,10 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<AStar3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  tcl->createObjCommand("sb3d::anim_real",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<AnimReal3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   //---
 
   // ui
@@ -505,6 +510,9 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Skybox3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  //---
+
+  // custom (remove ?)
 #ifdef CQSANDBOX_OTHELLO
   tcl->createObjCommand("sb3d::othello",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Othello3DObj>),
@@ -1649,7 +1657,8 @@ step()
   for (auto *obj : objects)
     obj->tick();
 
-  runTclCmd("update");
+//runTclCmd("update");
+  runTclCmd("tick");
 
   //---
 

@@ -16,7 +16,7 @@ class GroupObj : public Object {
  public:
   static bool create(Canvas *canvas, const QStringList &args);
 
-  GroupObj(Canvas *canvas, const Rect &rect);
+  GroupObj(Canvas *canvas, const Rect2D &rect);
 
   const char *typeName() const override { return "group"; }
 
@@ -27,23 +27,23 @@ class GroupObj : public Object {
 
   const Objects &objects() const { return objects_; }
 
-  Rect calcRect() const override;
+  Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
   void addObject(Object *obj);
   void removeObject(Object *obj);
 
-  Rect rectToPixel(const Rect &p) const;
-  Point pointToPixel(const Point &p) const;
+  Rect2D rectToPixel(const Rect2D &p) const;
+  Point2D pointToPixel(const Point2D &p) const;
 
-//Point pointToWindow(const Point &p) const override;
+//Point2D pointToWindow(const Point2D &p) const override;
 
  Q_SIGNALS:
   void objectsChanged();
 
  protected:
-  Rect rect_;
+  Rect2D rect_;
 
   CDisplayRange2D displayRange_;
   Objects         objects_;
