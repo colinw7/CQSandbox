@@ -294,7 +294,9 @@ updateOrientationI()
 
   calcViewMatrix();
 
-  stateChanged();
+  //---
+
+  Q_EMIT stateChangedSignal();
 }
 
 CMatrix3DH

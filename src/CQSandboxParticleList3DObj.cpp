@@ -1,6 +1,5 @@
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxCanvas3D.h>
-#include <CQSandboxBBox3DObj.h>
 #include <CQSandboxCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>

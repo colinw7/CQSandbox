@@ -1,6 +1,5 @@
 #include <CQSandboxModel3DObj.h>
 #include <CQSandboxCanvas3D.h>
-#include <CQSandboxBBox3DObj.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxGeomObject.h>
 #include <CQSandboxTexture.h>

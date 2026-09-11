@@ -426,13 +426,21 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  void selectNearestPoint(const CPoint2D &p);
-  void selectNearestLine (const CPoint2D &p);
-  void selectNearestFace (const CPoint2D &p);
+  void selectNearestPoint (const CPoint2D &p);
+  void selectNearestLine  (const CPoint2D &p);
+  void selectNearestFace  (const CPoint2D &p);
+  void selectNearestObject(const CPoint2D &p);
 
-  void selectPointsInside(const CBBox2D &r);
-  void selectLinesInside (const CBBox2D &r);
-  void selectFacesInside (const CBBox2D &r);
+  void selectPointsInside (const CBBox2D &r);
+  void selectLinesInside  (const CBBox2D &r);
+  void selectFacesInside  (const CBBox2D &r);
+  void selectObjectsInside(const CBBox2D &r);
+
+  QPolygonF getFacePoly(CQGLBuffer *buffer, const FaceData &faceData,
+                        const CMatrix3DH &matrix) const;
+
+  std::vector<CPoint3D> getFacePoints(CQGLBuffer *buffer, const FaceData &faceData,
+                                      const CMatrix3DH &matrix) const;
 
   //---
 

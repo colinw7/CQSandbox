@@ -2911,6 +2911,8 @@ mouseReleaseEvent(QMouseEvent *e)
           selectNearestLine(mouseData_.press);
         else if (editType() == EditType::FACE)
           selectNearestFace(mouseData_.press);
+        else if (editType() == EditType::OBJECT)
+          selectNearestObject(mouseData_.press);
       }
       else {
         auto bbox = CBBox2D(mouseData_.press, mouseData_.move1);
@@ -2921,6 +2923,8 @@ mouseReleaseEvent(QMouseEvent *e)
           selectLinesInside(bbox);
         else if (editType() == EditType::FACE)
           selectFacesInside(bbox);
+        else if (editType() == EditType::OBJECT)
+          selectObjectsInside(bbox);
       }
     }
   }
@@ -3124,16 +3128,7 @@ selectNearestFace(const CPoint2D &p)
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
-      std::vector<CPoint3D> points;
-
-      for (int i = 0; i < faceData.len; ++i) {
-        CQGLBuffer::PointData pointData;
-        buffer->getPointData(faceData.pos + i, pointData);
-
-        auto pp = matrix*pointData.point->point();
-
-        points.push_back(pp);
-      }
+      auto points = getFacePoints(buffer, faceData, matrix);
 
 #if 0
       auto orient = Util::pointsOrientation(points);
@@ -3179,6 +3174,76 @@ selectNearestFace(const CPoint2D &p)
     //             minPointData.i << ") " << minPointData.point->point() << "\n";
 
     minObject->selectFace(minFace);
+  }
+}
+
+void
+Canvas3D::
+selectNearestObject(const CPoint2D &p)
+{
+  auto x1 = CMathUtil::map(p.x, 0, pixelWidth_  - 1, -1,  1);
+  auto y1 = CMathUtil::map(p.y, 0, pixelHeight_ - 1,  1, -1);
+
+  CPoint2D p1(x1, y1);
+  QPointF  p2(x1, y1);
+
+  auto *camera = currentCamera();
+
+  const auto &projectionMatrix = camera->perspectiveMatrix();
+  const auto &viewMatrix       = camera->viewMatrix();
+
+  auto pvMatrix = projectionMatrix*viewMatrix;
+
+  Object3D* minObject = nullptr;
+  double    minDist   = 0.0;
+
+  for (auto *object : objects_) {
+    object->setSelected(false);
+
+    auto *buffer = object->getBuffer();
+    if (! buffer) continue;
+
+    const auto &faceDatas = object->getFaceDatas();
+    if (faceDatas.empty()) continue;
+
+    const auto &modelMatrix = object->modelMatrix();
+    const auto &meshMatrix  = object->meshMatrix();
+
+    auto matrix = pvMatrix*modelMatrix*meshMatrix;
+
+    uint ii = 0;
+
+    for (const auto &faceData : faceDatas) {
+      auto points = getFacePoints(buffer, faceData, matrix);
+
+      QPolygonF poly;
+
+      for (const auto &p : points) {
+        auto pp = p.toPoint2D();
+
+        poly << QPointF(pp.x, pp.y);
+      }
+
+      if (poly.containsPoint(p2, Qt::WindingFill)) {
+        auto c = Util::pointsCenter(points).toPoint2D();
+
+        auto d = c.distanceTo(p1);
+
+        if (! minObject || d < minDist) {
+          minObject   = object;
+          minDist     = d;
+        }
+      }
+
+      ++ii;
+    }
+  }
+
+  if (minObject) {
+    //std::cerr << minObject->getCommandName().toStdString() << " (#" <<
+    //             minPointData.i << ") " << minPointData.point->point() << "\n";
+
+    minObject->setSelected(true);
   }
 }
 
@@ -3266,16 +3331,7 @@ selectFacesInside(const CBBox2D &r)
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
-      QPolygonF poly;
-
-      for (int i = 0; i < faceData.len; ++i) {
-        CQGLBuffer::PointData pointData;
-        buffer->getPointData(faceData.pos + i, pointData);
-
-        auto pp = (matrix*pointData.point->point()).toPoint2D();
-
-        poly << QPointF(pp.x, pp.y);
-      }
+      auto poly = getFacePoly(buffer, faceData, matrix);
 
       if (poly.intersects(r1))
         object->selectFace(ii);
@@ -3283,6 +3339,94 @@ selectFacesInside(const CBBox2D &r)
       ++ii;
     }
   }
+}
+
+void
+Canvas3D::
+selectObjectsInside(const CBBox2D &r)
+{
+  auto x1 = CMathUtil::map(r.getMin().x, 0, pixelWidth_  - 1, -1,  1);
+  auto y1 = CMathUtil::map(r.getMin().y, 0, pixelHeight_ - 1,  1, -1);
+  auto x2 = CMathUtil::map(r.getMax().x, 0, pixelWidth_  - 1, -1,  1);
+  auto y2 = CMathUtil::map(r.getMax().y, 0, pixelHeight_ - 1,  1, -1);
+
+  auto r1 = QRectF(x1, y1, x2 - x1, y2 - y1);
+
+  auto *camera = currentCamera();
+
+  const auto &projectionMatrix = camera->perspectiveMatrix();
+  const auto &viewMatrix       = camera->viewMatrix();
+
+  auto pvMatrix = projectionMatrix*viewMatrix;
+
+  for (auto *object : objects_) {
+    object->clearSelection();
+
+    auto *buffer = object->getBuffer();
+    if (! buffer) continue;
+
+    const auto &faceDatas = object->getFaceDatas();
+    if (faceDatas.empty()) continue;
+
+    const auto &modelMatrix = object->modelMatrix();
+    const auto &meshMatrix  = object->meshMatrix();
+
+    auto matrix = pvMatrix*modelMatrix*meshMatrix;
+
+    bool inside = false;
+
+    uint ii = 0;
+
+    for (const auto &faceData : faceDatas) {
+      auto poly = getFacePoly(buffer, faceData, matrix);
+
+      if (poly.intersects(r1)) {
+        inside = true;
+        break;
+      }
+
+      ++ii;
+    }
+
+    if (inside)
+      object->setSelected(true);
+  }
+}
+
+QPolygonF
+Canvas3D::
+getFacePoly(CQGLBuffer *buffer, const FaceData &faceData, const CMatrix3DH &matrix) const
+{
+  QPolygonF poly;
+
+  for (int i = 0; i < faceData.len; ++i) {
+    CQGLBuffer::PointData pointData;
+    buffer->getPointData(faceData.pos + i, pointData);
+
+    auto pp = (matrix*pointData.point->point()).toPoint2D();
+
+    poly << QPointF(pp.x, pp.y);
+  }
+
+  return poly;
+}
+
+std::vector<CPoint3D>
+Canvas3D::
+getFacePoints(CQGLBuffer *buffer, const FaceData &faceData, const CMatrix3DH &matrix) const
+{
+  std::vector<CPoint3D> points;
+
+  for (int i = 0; i < faceData.len; ++i) {
+    CQGLBuffer::PointData pointData;
+    buffer->getPointData(faceData.pos + i, pointData);
+
+    auto pp = matrix*pointData.point->point();
+
+    points.push_back(pp);
+  }
+
+  return points;
 }
 
 //---

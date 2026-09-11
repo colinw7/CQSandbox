@@ -1,3 +1,8 @@
+# TODO:
+# . jump/climb
+# . anim on move
+# . hit (aabb)
+
 proc loadModel { filename name { s 1.0 } } {
   # echo "$filename $name"
 
@@ -195,8 +200,8 @@ proc init { } {
   sb3d::canvas set camera.type first_person
 
   sb3d::camera set pitch    -90
-  sb3d::camera set origin   {0 0 0}
   sb3d::camera set distance 18
+  sb3d::camera set position {0 12 18}
 
   sb3d::canvas set mode game
 
@@ -264,9 +269,9 @@ proc updateBarrelPos { } {
   set y [lindex $::barrel_pos 1]
   set z [lindex $::barrel_pos 2]
 
-  set y1 [expr {$y + 0.5}]
+  set y1 [expr {$y + 1.0}]
 
-  $::barrel($ib) set position [list $x $y $z]
+  $::barrel($ib) set position [list $x $y1 $z]
   $::barrel($ib) set angles   [list 90 $::barrel_a 0]
 
   set ::barrel_t [expr {$::barrel_t + $::barrel_dt}]
