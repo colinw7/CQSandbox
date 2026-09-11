@@ -89,7 +89,7 @@ CanvasToolbar3D(Canvas3D *canvas) :
   layout->addWidget(faceSelectButton_);
   layout->addWidget(objectSelectButton_);
 
-  layout->addWidget(addSeparator());
+  layout->addWidget(selectSep_ = addSeparator());
 
   //---
 
@@ -108,6 +108,8 @@ CanvasToolbar3D(Canvas3D *canvas) :
   layout->addWidget(playButton_);
 //layout->addWidget(pauseButton_);
   layout->addWidget(stepButton_);
+
+  layout->addWidget(addSeparator());
 
   //---
 
@@ -267,6 +269,7 @@ updateInfo()
   faceSelectButton_  ->setVisible(type == Canvas3D::Type::MODEL);
   edgeSelectButton_  ->setVisible(type == Canvas3D::Type::MODEL);
   pointSelectButton_ ->setVisible(type == Canvas3D::Type::MODEL);
+  selectSep_         ->setVisible(type == Canvas3D::Type::MODEL);
 
   playButton_->setChecked(canvas_->isLooping());
 
@@ -405,28 +408,40 @@ void
 CanvasToolbar3D::
 objectSelectSlot()
 {
-  canvas_->setEditType(Canvas3D::EditType::OBJECT);
+  setEditType(int(Canvas3D::EditType::OBJECT));
 }
 
 void
 CanvasToolbar3D::
 faceSelectSlot()
 {
-  canvas_->setEditType(Canvas3D::EditType::FACE);
+  setEditType(int(Canvas3D::EditType::FACE));
 }
 
 void
 CanvasToolbar3D::
 edgeSelectSlot()
 {
-  canvas_->setEditType(Canvas3D::EditType::LINE);
+  setEditType(int(Canvas3D::EditType::LINE));
 }
 
 void
 CanvasToolbar3D::
 pointSelectSlot()
 {
-  canvas_->setEditType(Canvas3D::EditType::POINT);
+  setEditType(int(Canvas3D::EditType::POINT));
+}
+
+void
+CanvasToolbar3D::
+setEditType(int editType)
+{
+  auto editType1 = static_cast<Canvas3D::EditType>(editType);
+
+  if (canvas_->editType() != editType1)
+    canvas_->setEditType(editType1);
+  else
+    updateInfo();
 }
 
 void

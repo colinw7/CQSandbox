@@ -96,6 +96,14 @@ class Model3DObj : public Object3D {
 
   CBBox3D calcBBox() override { return bbox_; }
 
+  virtual CQGLBuffer *getBuffer() const override;
+
+  CQGLBuffer *getChildBufferByInd(CQGLBuffer *parent, uint ind) const;
+
+  void updateBuffer();
+
+  CQGLBuffer *getBufferByInd(uint ind) const override;
+
   const FaceDatas &getFaceDatas() const override;
 
   void render() override;
@@ -156,7 +164,7 @@ class Model3DObj : public Object3D {
 
   std::vector<GeomObject *> geomObjects_;
 
-  FaceDatas faceDatas_;
+  bool faceDatasValid_ { false };
 
   bool flipYZ_      { false };
   bool autoScale_   { false };

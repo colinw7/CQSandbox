@@ -111,6 +111,8 @@ class CQGLBuffer {
   };
 
  public:
+  static uint nextInd() { static uint lastInd = 0; return ++lastInd; }
+
   CQGLBuffer(QOpenGLShaderProgram *program=nullptr) {
     data_.program = program;
 
@@ -538,6 +540,9 @@ class CQGLBuffer {
 
   //---
 
+  const uint &ind() const { return ind_; }
+  void setInd(uint i) { ind_ = i; }
+
   void addChild(CQGLBuffer *buffer) {
     buffer->parent_ = this;
 
@@ -726,6 +731,7 @@ class CQGLBuffer {
   }
 
  private:
+  uint                      ind_    { 0 };
   CQGLBuffer*               parent_ { nullptr };
   std::vector<CQGLBuffer *> children_;
 

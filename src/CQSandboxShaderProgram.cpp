@@ -15,7 +15,11 @@ CQGLBuffer *
 ShaderProgram::
 createBuffer() const
 {
-  return new CQGLBuffer(program_);
+  auto *buffer = new CQGLBuffer(program_);
+
+  buffer->setInd(CQGLBuffer::nextInd());
+
+  return buffer;
 }
 
 void

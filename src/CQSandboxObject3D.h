@@ -118,10 +118,37 @@ class Object3D : public QObject {
     ALL       = (TRANSLATE | SCALE | ROTATE)
   };
 
-  using SelectedPoints = std::set<int>;
-  using SelectedFaces  = std::set<int>;
-
   using FaceDatas = std::vector<FaceData>;
+
+  struct PointInd {
+    uint bufferInd { 0 };
+    uint pointInd  { 0 };
+
+    friend bool operator<(const PointInd &lhs, const PointInd &rhs) {
+      if (lhs.bufferInd != rhs.bufferInd)
+        return (lhs.bufferInd < rhs.bufferInd);
+
+      return (lhs.pointInd < rhs.pointInd);
+    }
+  };
+
+  struct FaceInd {
+    uint bufferInd { 0 };
+    uint faceInd  { 0 };
+
+    friend bool operator<(const FaceInd &lhs, const FaceInd &rhs) {
+      if (lhs.bufferInd != rhs.bufferInd)
+        return (lhs.bufferInd < rhs.bufferInd);
+
+      return (lhs.faceInd < rhs.faceInd);
+    }
+  };
+
+  using PointSet       = std::set<uint>;
+  using SelectedPoints = std::map<uint, PointSet>;
+
+  using FaceSet        = std::set<uint>;
+  using SelectedFaces  = std::map<uint, FaceSet>;
 
  public:
   Object3D(Canvas3D *canvas, Type type);
@@ -300,6 +327,8 @@ class Object3D : public QObject {
 
   virtual const FaceDatas &getFaceDatas() const { return faceDatas_; }
 
+  virtual CQGLBuffer *getBufferByInd(uint ind) const;
+
   //---
 
   virtual void tick();
@@ -324,8 +353,8 @@ class Object3D : public QObject {
 
   void clearSelection();
 
-  void selectPoint(int i);
-  void selectFace (int i);
+  void selectPoint(uint bufferInd, uint pointInd);
+  void selectFace (uint bufferInd, uint faceInd);
 
   const SelectedPoints &selectedPoints() const { return selectedPoints_; }
   const SelectedFaces  &selectedFaces () const { return selectedFaces_; }

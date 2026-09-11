@@ -421,6 +421,19 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   return true;
 }
 
+//---
+
+CQGLBuffer *
+Object3D::
+getBufferByInd(uint ind) const
+{
+  assert(ind == buffer_->ind());
+
+  return buffer_;
+}
+
+//---
+
 void
 Object3D::
 tick()
@@ -558,16 +571,16 @@ clearSelection()
 
 void
 Object3D::
-selectPoint(int i)
+selectPoint(uint bufferInd, uint pointInd)
 {
-  selectedPoints_.insert(i);
+  selectedPoints_[bufferInd].insert(pointInd);
 }
 
 void
 Object3D::
-selectFace(int i)
+selectFace(uint bufferInd, uint faceInd)
 {
-  selectedFaces_.insert(i);
+  selectedFaces_[bufferInd].insert(faceInd);
 }
 
 }

@@ -58,6 +58,9 @@ class CanvasToolbar3D : public QFrame {
   void optionsSlot();
 
  private:
+  void setEditType(int type);
+
+ private:
   Canvas3D* canvas_ { nullptr };
 
   QToolButton* cameraButton_ { nullptr };
@@ -73,6 +76,7 @@ class CanvasToolbar3D : public QFrame {
   QToolButton* faceSelectButton_   { nullptr };
   QToolButton* edgeSelectButton_   { nullptr };
   QToolButton* pointSelectButton_  { nullptr };
+  QFrame*      selectSep_          { nullptr };
 
   QToolButton* bboxButton_ { nullptr };
 

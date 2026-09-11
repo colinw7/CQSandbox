@@ -2187,9 +2187,11 @@ render()
 
   using ObjectSelectedPoints = std::map<Object3D *, Object3D::SelectedPoints>;
   using ObjectSelectedFaces  = std::map<Object3D *, Object3D::SelectedFaces>;
+  using ObjectSelected       = std::set<Object3D *>;
 
   ObjectSelectedPoints objectSelectedPoints;
   ObjectSelectedFaces  objectSelectedFaces;
+  ObjectSelected       objectSelected;
 
   //---
 
@@ -2242,6 +2244,10 @@ render()
         if (! selectedFaces.empty())
           objectSelectedFaces[obj] = selectedFaces;
       }
+      else if (editType() == EditType::OBJECT) {
+        if (obj->isSelected())
+          objectSelected.insert(obj);
+      }
 
       newBBox += obj->bbox();
     }
@@ -2278,21 +2284,22 @@ render()
     for (const auto &po : objectSelectedPoints) {
       auto *object = po.first;
 
-      auto *buffer = object->getBuffer();
-      assert(buffer);
-
       const auto &modelMatrix = object->modelMatrix();
       const auto &meshMatrix  = object->meshMatrix();
 
       auto matrix = modelMatrix*meshMatrix;
 
-      for (auto i : po.second) {
-        CQGLBuffer::PointData pointData;
-        buffer->getPointData(i, pointData);
+      for (auto bufferInds : po.second) {
+        auto *buffer = object->getBufferByInd(bufferInds.first);
 
-        auto pp = matrix*pointData.point->point();
+        for (auto ind : bufferInds.second) {
+          CQGLBuffer::PointData pointData;
+          buffer->getPointData(ind, pointData);
 
-        selectionBuffer_->addPoint(pp);
+          auto pp = matrix*pointData.point->point();
+
+          selectionBuffer_->addPoint(pp);
+        }
       }
     }
 
@@ -2327,9 +2334,6 @@ render()
     for (const auto &po : objectSelectedFaces) {
       auto *object = po.first;
 
-      auto *buffer = object->getBuffer();
-      assert(buffer);
-
       const auto &faceDatas = object->getFaceDatas();
       assert(! faceDatas.empty());
 
@@ -2338,9 +2342,79 @@ render()
 
       auto matrix = modelMatrix*meshMatrix;
 
-      for (auto i : po.second) {
-        const auto &faceData = faceDatas[i];
+      for (auto bufferInds : po.second) {
+        for (auto ind : bufferInds.second) {
+          const auto &faceData = faceDatas[ind];
 
+          for (int i = 0; i < faceData.len; ++i) {
+            CQGLBuffer::PointData pointData;
+            faceData.buffer->getPointData(faceData.pos + i, pointData);
+
+            auto pp = matrix*(pointData.point->point() + dn*pointData.normal->point());
+
+            selectionBuffer_->addPoint(pp);
+          }
+
+          FaceData selectedFaceData;
+
+          selectedFaceData.pos = selectedFaceDataList.pos;
+          selectedFaceData.len = faceData.len;
+
+          selectedFaceDataList.faceDatas.push_back(selectedFaceData);
+
+          selectedFaceDataList.pos += faceData.len;
+        }
+      }
+    }
+
+    selectionBuffer_->load();
+
+    //---
+
+    bindProgram(selectionProgram_);
+
+    setProgramMatrices(selectionProgram_);
+
+    bindBuffer(selectionBuffer_);
+
+    selectionProgram_->setUniformValue("isWireframe", 0);
+
+    CQGLStateInst->setPolygonMode(GL_FILL);
+
+    for (const auto &faceData : selectedFaceDataList.faceDatas)
+      glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
+
+    selectionProgram_->setUniformValue("isWireframe", 1);
+
+    CQGLStateInst->setPolygonMode(GL_LINE);
+
+    for (const auto &faceData : selectedFaceDataList.faceDatas)
+      glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
+
+    bindBuffer(nullptr);
+
+    bindProgram(nullptr);
+  }
+
+  if (! objectSelected.empty()) {
+    auto dn = 0.01;
+
+    initSelectionProgram();
+
+    selectionBuffer_->clearBuffers();
+
+    FaceDataList selectedFaceDataList;
+
+    for (auto *object : objectSelected) {
+      const auto &faceDatas = object->getFaceDatas();
+      assert(! faceDatas.empty());
+
+      const auto &modelMatrix = object->modelMatrix();
+      const auto &meshMatrix  = object->meshMatrix();
+
+      auto matrix = modelMatrix*meshMatrix;
+
+      for (const auto &faceData : faceDatas) {
         for (int i = 0; i < faceData.len; ++i) {
           CQGLBuffer::PointData pointData;
           faceData.buffer->getPointData(faceData.pos + i, pointData);
@@ -3043,9 +3117,7 @@ selectNearestPoint(const CPoint2D &p)
 
   auto pvMatrix = projectionMatrix*viewMatrix;
 
-  Object3D*             minObject = nullptr;
-  double                minDist   = 0.0;
-  CQGLBuffer::PointData minPointData;
+  MinPointData minPointData;
 
   for (auto *object : objects_) {
     object->clearSelection();
@@ -3058,29 +3130,42 @@ selectNearestPoint(const CPoint2D &p)
 
     auto matrix = pvMatrix*modelMatrix*meshMatrix;
 
-    auto np = buffer->numPoints();
+    updateNearestBufferPoint(object, buffer, matrix, p1, minPointData);
+  }
 
-    for (uint i = 0; i < np; ++i) {
-      CQGLBuffer::PointData pointData;
-      buffer->getPointData(i, pointData);
+  if (minPointData.object) {
+    //std::cerr << minPointData.object->getCommandName().toStdString() << " (#" <<
+    //             minPointData.point << ")\n";
 
-      auto pp = (matrix*pointData.point->point()).toPoint2D();
+    minPointData.object->selectPoint(minPointData.buffer->ind(), minPointData.point);
+  }
+}
 
-      auto d = pp.distanceTo(p1);
+void
+Canvas3D::
+updateNearestBufferPoint(Object3D *object, CQGLBuffer *buffer, const CMatrix3DH &matrix,
+                         const CPoint2D &p, MinPointData &minPointData)
+{
+  auto np = buffer->numPoints();
 
-      if (! minObject || d < minDist) {
-        minObject    = object;
-        minDist      = d;
-        minPointData = pointData;
-      }
+  for (uint i = 0; i < np; ++i) {
+    CQGLBuffer::PointData pointData;
+    buffer->getPointData(i, pointData);
+
+    auto pp = (matrix*pointData.point->point()).toPoint2D();
+
+    auto d = pp.distanceTo(p);
+
+    if (! minPointData.object || d < minPointData.dist) {
+      minPointData.object = object;
+      minPointData.buffer = buffer;
+      minPointData.dist   = d;
+      minPointData.point  = i;
     }
   }
 
-  if (minObject) {
-    //std::cerr << minObject->getCommandName().toStdString() << " (#" <<
-    //             minPointData.i << ") " << minPointData.point->point() << "\n";
-
-    minObject->selectPoint(minPointData.i);
+  for (auto *child : buffer->children()) {
+    updateNearestBufferPoint(object, child, matrix, p, minPointData);
   }
 }
 
@@ -3107,15 +3192,10 @@ selectNearestFace(const CPoint2D &p)
 
   auto pvMatrix = projectionMatrix*viewMatrix;
 
-  Object3D* minObject = nullptr;
-  double    minDist   = 0.0;
-  uint      minFace   = 0;
+  MinFaceData minFaceData;
 
   for (auto *object : objects_) {
     object->clearSelection();
-
-    auto *buffer = object->getBuffer();
-    if (! buffer) continue;
 
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
@@ -3158,10 +3238,11 @@ selectNearestFace(const CPoint2D &p)
 
         auto d = c.distanceTo(p1);
 
-        if (! minObject || d < minDist) {
-          minObject   = object;
-          minDist     = d;
-          minFace     = ii;
+        if (! minFaceData.object || d < minFaceData.dist) {
+          minFaceData.object = object;
+          minFaceData.buffer = faceData.buffer;
+          minFaceData.dist   = d;
+          minFaceData.face   = ii;
         }
       }
 
@@ -3169,11 +3250,11 @@ selectNearestFace(const CPoint2D &p)
     }
   }
 
-  if (minObject) {
-    //std::cerr << minObject->getCommandName().toStdString() << " (#" <<
+  if (minFaceData.object) {
+    //std::cerr << minFaceData.object->getCommandName().toStdString() << " (#" <<
     //             minPointData.i << ") " << minPointData.point->point() << "\n";
 
-    minObject->selectFace(minFace);
+    minFaceData.object->selectFace(minFaceData.buffer->ind(), minFaceData.face);
   }
 }
 
@@ -3194,14 +3275,10 @@ selectNearestObject(const CPoint2D &p)
 
   auto pvMatrix = projectionMatrix*viewMatrix;
 
-  Object3D* minObject = nullptr;
-  double    minDist   = 0.0;
+  MinFaceData minFaceData;
 
   for (auto *object : objects_) {
     object->setSelected(false);
-
-    auto *buffer = object->getBuffer();
-    if (! buffer) continue;
 
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
@@ -3229,9 +3306,9 @@ selectNearestObject(const CPoint2D &p)
 
         auto d = c.distanceTo(p1);
 
-        if (! minObject || d < minDist) {
-          minObject   = object;
-          minDist     = d;
+        if (! minFaceData.object || d < minFaceData.dist) {
+          minFaceData.object = object;
+          minFaceData.dist   = d;
         }
       }
 
@@ -3239,11 +3316,11 @@ selectNearestObject(const CPoint2D &p)
     }
   }
 
-  if (minObject) {
-    //std::cerr << minObject->getCommandName().toStdString() << " (#" <<
+  if (minFaceData.object) {
+    //std::cerr << minFaceData.object->getCommandName().toStdString() << " (#" <<
     //             minPointData.i << ") " << minPointData.point->point() << "\n";
 
-    minObject->setSelected(true);
+    minFaceData.object->setSelected(true);
   }
 }
 
@@ -3276,17 +3353,29 @@ selectPointsInside(const CBBox2D &r)
 
     auto matrix = pvMatrix*modelMatrix*meshMatrix;
 
-    auto np = buffer->numPoints();
+    selectBufferPoints(object, buffer, matrix, r1);
+  }
+}
 
-    for (uint i = 0; i < np; ++i) {
-      CQGLBuffer::PointData pointData;
-      buffer->getPointData(i, pointData);
+void
+Canvas3D::
+selectBufferPoints(Object3D *object, CQGLBuffer *buffer,
+                   const CMatrix3DH &matrix, const CBBox2D &r)
+{
+  auto np = buffer->numPoints();
 
-      auto pp = (matrix*pointData.point->point()).toPoint2D();
+  for (uint i = 0; i < np; ++i) {
+    CQGLBuffer::PointData pointData;
+    buffer->getPointData(i, pointData);
 
-      if (r1.inside(pp))
-        object->selectPoint(pointData.i);
-    }
+    auto pp = (matrix*pointData.point->point()).toPoint2D();
+
+    if (r.inside(pp))
+      object->selectPoint(buffer->ind(), pointData.i);
+  }
+
+  for (auto *child : buffer->children()) {
+    selectBufferPoints(object, child, matrix, r);
   }
 }
 
@@ -3317,9 +3406,6 @@ selectFacesInside(const CBBox2D &r)
   for (auto *object : objects_) {
     object->clearSelection();
 
-    auto *buffer = object->getBuffer();
-    if (! buffer) continue;
-
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
 
@@ -3334,7 +3420,7 @@ selectFacesInside(const CBBox2D &r)
       auto poly = getFacePoly(faceData, matrix);
 
       if (poly.intersects(r1))
-        object->selectFace(ii);
+        object->selectFace(faceData.buffer->ind(), ii);
 
       ++ii;
     }
@@ -3360,11 +3446,12 @@ selectObjectsInside(const CBBox2D &r)
   auto pvMatrix = projectionMatrix*viewMatrix;
 
   for (auto *object : objects_) {
+    object->setSelected(false);
+
     object->clearSelection();
+  }
 
-    auto *buffer = object->getBuffer();
-    if (! buffer) continue;
-
+  for (auto *object : objects_) {
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
 

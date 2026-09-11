@@ -600,13 +600,18 @@ tick()
   canvas_->update();
 }
 
-const Model3DObj::FaceDatas &
+CQGLBuffer *
 Model3DObj::
-getFaceDatas() const
+getBuffer() const
 {
-#if 0
-  auto *geomObject = dynamic_cast<GeomObject *>(object_);
+  return buffer_;
+}
 
+void
+Model3DObj::
+updateBuffer()
+{
+  auto *geomObject  = dynamic_cast<GeomObject *>(object_);
   auto *geomObject1 = geomObject;
 
   if (geomObject->refObject()) {
@@ -614,17 +619,51 @@ getFaceDatas() const
     assert(geomObject1);
   }
 
-  auto *th = const_cast<Model3DObj *>(this);
+  buffer_ = geomObject1->getBuffer();
+}
 
-  th->faceDatas_ = geomObject1->faceDatas();
-#else
-  auto *th = const_cast<Model3DObj *>(this);
+CQGLBuffer *
+Model3DObj::
+getBufferByInd(uint ind) const
+{
+  if (buffer_->ind() == ind)
+    return buffer_;
 
-  for (auto *geomObject : geomObjects_) {
-    for (const auto &faceData : geomObject->faceDatas())
-      th->faceDatas_.push_back(faceData);
+  return getChildBufferByInd(buffer_, ind);
+}
+
+CQGLBuffer *
+Model3DObj::
+getChildBufferByInd(CQGLBuffer *parent, uint ind) const
+{
+  for (auto *child : parent->children()) {
+    if (child->ind() == ind)
+      return child;
   }
-#endif
+
+  for (auto *child : parent->children()) {
+    auto *buffer = getChildBufferByInd(child, ind);
+    if (buffer)
+      return buffer;
+  }
+
+  return nullptr;
+}
+
+const Model3DObj::FaceDatas &
+Model3DObj::
+getFaceDatas() const
+{
+  if (! faceDatasValid_) {
+    auto *th = const_cast<Model3DObj *>(this);
+
+    th->faceDatasValid_ = true;
+
+    for (auto *geomObject : geomObjects_) {
+      for (const auto &faceData : geomObject->faceDatas())
+        th->faceDatas_.push_back(faceData);
+    }
+  }
 
   return faceDatas_;
 }
@@ -748,9 +787,9 @@ drawObject(CGeomObject3D *object)
   //---
 
   // setup data buffer
-  buffer_ = geomObject1->getBuffer();
+  auto *buffer = geomObject1->getBuffer();
 
-  canvas_->bindBuffer(buffer_);
+  canvas_->bindBuffer(buffer);
 
   //---
 
@@ -880,7 +919,8 @@ updateObjectData()
   if (! needsUpdate_)
     return;
 
-  needsUpdate_ = false;
+  needsUpdate_    = false;
+  faceDatasValid_ = false;
 
   // set up vertex data (and buffer(s)) and configure vertex attributes
   sceneSize_   = CVector3D(1, 1, 1);
@@ -915,6 +955,10 @@ updateObjectData()
 
     setScale(sceneScale);
   }
+
+  //---
+
+  updateBuffer();
 }
 
 void

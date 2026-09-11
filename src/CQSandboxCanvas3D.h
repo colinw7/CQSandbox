@@ -426,15 +426,35 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  struct MinPointData {
+    Object3D*   object { nullptr };
+    CQGLBuffer* buffer { nullptr };
+    double      dist   { 0.0 };
+    uint        point  { 0 };
+  };
+
+  struct MinFaceData {
+    Object3D*   object { nullptr };
+    CQGLBuffer* buffer { nullptr };
+    double      dist   { 0.0 };
+    uint        face   { 0 };
+  };
+
   void selectNearestPoint (const CPoint2D &p);
   void selectNearestLine  (const CPoint2D &p);
   void selectNearestFace  (const CPoint2D &p);
   void selectNearestObject(const CPoint2D &p);
 
+  void updateNearestBufferPoint(Object3D *object, CQGLBuffer *buffer, const CMatrix3DH &matrix,
+                                const CPoint2D &p, MinPointData &minPointData);
+
   void selectPointsInside (const CBBox2D &r);
   void selectLinesInside  (const CBBox2D &r);
   void selectFacesInside  (const CBBox2D &r);
   void selectObjectsInside(const CBBox2D &r);
+
+  void selectBufferPoints(Object3D *object, CQGLBuffer *buffer,
+                          const CMatrix3DH &matrix, const CBBox2D &r);
 
   QPolygonF getFacePoly(const FaceData &faceData, const CMatrix3DH &matrix) const;
 
