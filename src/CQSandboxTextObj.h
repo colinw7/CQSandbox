@@ -1,7 +1,7 @@
 #ifndef CQSandboxTextObj_H
 #define CQSandboxTextObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 #include <QFont>
 

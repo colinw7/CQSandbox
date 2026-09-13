@@ -1,5 +1,5 @@
-#ifndef CQSandboxObject_H
-#define CQSandboxObject_H
+#ifndef CQSandboxObject2D_H
+#define CQSandboxObject2D_H
 
 #include <CQSandboxGeom.h>
 #include <CQSandboxAnim.h>

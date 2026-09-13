@@ -59,6 +59,19 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "can_step") {
     value = real_.canStep();
   }
+  else if (name == "step") {
+    value = int(real_.getStep());
+  }
+  else if (name == "style") {
+    if      (real_.style() == AnimateReal::Style::ONE_SHOT)
+      value = "one_shot";
+    else if (real_.style() == AnimateReal::Style::BOUNCE_ONCE)
+      value = "bounce_once";
+    else if (real_.style() == AnimateReal::Style::BOUNCE_ALWAYS)
+      value = "bounce_always";
+    else
+      return false;
+  }
   else
     return Object3D::getValue(name, args, value);
 
@@ -89,6 +102,18 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return false;
 
     real_.setSteps(i);
+  }
+  else if (name == "style") {
+    auto lstr = value.toLower();
+
+    if      (lstr == "one_shot")
+      real_.setStyle(AnimateReal::Style::ONE_SHOT);
+    else if (lstr == "bounce_once")
+      real_.setStyle(AnimateReal::Style::BOUNCE_ONCE);
+    else if (lstr == "bounce_always")
+      real_.setStyle(AnimateReal::Style::BOUNCE_ALWAYS);
+    else
+      return false;
   }
   else
     return Object3D::setValue(name, value, args);

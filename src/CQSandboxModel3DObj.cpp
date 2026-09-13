@@ -260,6 +260,16 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = Util::vector3DToString(normal);
   }
+  else if (name == "anim.names") {
+    std::vector<std::string> animNames;
+    object_->getAnimationNames(animNames);
+
+    QStringList names;
+    for (const auto &name : animNames)
+      names.push_back(QString::fromStdString(name));
+
+    value = names;
+  }
   else
     return Object3D::getValue(name, args, value);
 
@@ -600,6 +610,15 @@ tick()
   canvas_->update();
 }
 
+CBBox3D
+Model3DObj::
+calcBBox()
+{
+  updateObjectData();
+
+  return bbox_;
+}
+
 CQGLBuffer *
 Model3DObj::
 getBuffer() const
@@ -922,6 +941,8 @@ updateObjectData()
   needsUpdate_    = false;
   faceDatasValid_ = false;
 
+  initShader(canvas_);
+
   // set up vertex data (and buffer(s)) and configure vertex attributes
   sceneSize_   = CVector3D(1, 1, 1);
   sceneCenter_ = CPoint3D (0, 0, 0);
@@ -1006,32 +1027,8 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
 
     auto isJointed = (node && object->isJointed());
 
-    if (node && ! isJointed) {
-#if 0
-      auto &objectMeshData = canvas_->getObjectMeshData(object);
-
-      objectMeshData.nt = object->animTimeFrames();
-
-      (void) animObject->getAnimationTranslationRange(animName,
-               objectMeshData.tmin, objectMeshData.tmax);
-
-      if (objectMeshData.nt > 1)
-        objectMeshData.dt = (objectMeshData.tmax - objectMeshData.tmin)/(objectMeshData.nt - 1);
-      else
-        objectMeshData.dt = (objectMeshData.tmax - objectMeshData.tmin);
-
-      for (int i = 0; i < objectMeshData.nt; ++i) {
-        auto animTime1 = objectMeshData.tmin + i*objectMeshData.dt;
-
-        auto meshMatrix1 =
-          CMatrix3DH(object->getNodeAnimHierTransform(*node, animName, animTime1));
-
-        objectMeshData.frameMatrix[i] = meshMatrix1;
-      }
-#else
+    if (node && ! isJointed)
       canvas_->initObjectMeshData(object, animName, node);
-#endif
-    }
   }
 
   //---

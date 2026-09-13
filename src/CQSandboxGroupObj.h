@@ -1,7 +1,7 @@
 #ifndef CQSandboxGroupObj_H
 #define CQSandboxGroupObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 #include <CWindowRange2D.h>
 

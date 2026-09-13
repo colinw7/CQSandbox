@@ -1,7 +1,7 @@
 #ifndef CQSandboxAStarObj_H
 #define CQSandboxAStarObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 #include <CAStar.h>
 

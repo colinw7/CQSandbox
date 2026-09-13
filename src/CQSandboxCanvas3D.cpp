@@ -178,7 +178,11 @@ resizeGL(int, int)
 
   glViewport(0, 0, pixelWidth_, pixelHeight_);
 
-  aspect_ = double(pixelWidth_)/double(pixelHeight_);
+  setAspect(double(pixelWidth_)/double(pixelHeight_));
+
+  //---
+
+  resize();
 }
 
 void
@@ -201,6 +205,12 @@ paintGL()
 void
 OpenGLWindow::
 initialize()
+{
+}
+
+void
+OpenGLWindow::
+resize()
 {
 }
 
@@ -1097,8 +1107,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       setType(Type::LIGHT);
     else if (value == "model")
       setType(Type::MODEL);
-    else if (value == "game")
+    else if (value == "game") {
       setType(Type::GAME);
+
+      setFocus();
+    }
   }
   else if (name == "loop.enabled") {
     setLooping(Util::stringToBool(value));
@@ -1553,6 +1566,10 @@ initialize()
   // camera
   for (auto *camera : cameras_)
     connect(camera, SIGNAL(stateChangedSignal()), this, SLOT(cameraChangeSlot()));
+
+  //---
+
+  updateLights();
 
   //---
 
@@ -2105,6 +2122,15 @@ lightChangeSlot()
 
 void
 Canvas3D::
+resize()
+{
+  // update camera
+  for (auto *camera : cameras_)
+    camera->setAspect(aspect());
+}
+
+void
+Canvas3D::
 render()
 {
   CQPerfTrace trace("Canvas3D::paintGL");
@@ -2134,10 +2160,6 @@ render()
 
   currentBuffer_  = nullptr;
   currentProgram_ = nullptr;
-
-  //---
-
-  updateLights();
 
   //---
 
@@ -2171,7 +2193,6 @@ render()
 
   auto *camera = currentCamera();
 
-//projectionMatrix_ = camera->perspectiveMatrix(aspect_);
   projectionMatrix_ = camera->perspectiveMatrix();
   viewMatrix_       = camera->viewMatrix();
 
@@ -2577,7 +2598,7 @@ getObjectMeshDataMatrix(CGeomObject3D *object, CMatrix3DH &meshMatrix)
       return true;
     }
     else {
-      std::cerr << "Bad meshMatrix anim time\n";
+      std::cerr << "Bad meshMatrix anim time (" << animTime << " (#" << frame << ")\n";
     }
   }
 
@@ -3105,10 +3126,7 @@ void
 Canvas3D::
 selectNearestPoint(const CPoint2D &p)
 {
-  auto x1 = CMathUtil::map(p.x, 0, pixelWidth_  - 1, -1,  1);
-  auto y1 = CMathUtil::map(p.y, 0, pixelHeight_ - 1,  1, -1);
-
-  CPoint2D p1(x1, y1);
+  auto p1 = mapPixelToViewport(p);
 
   auto *camera = currentCamera();
 
@@ -3179,11 +3197,9 @@ void
 Canvas3D::
 selectNearestFace(const CPoint2D &p)
 {
-  auto x1 = CMathUtil::map(p.x, 0, pixelWidth_  - 1, -1,  1);
-  auto y1 = CMathUtil::map(p.y, 0, pixelHeight_ - 1,  1, -1);
+  auto p1 = mapPixelToViewport(p);
 
-  CPoint2D p1(x1, y1);
-  QPointF  p2(x1, y1);
+  QPointF p2(p1.x, p1.y);
 
   auto *camera = currentCamera();
 
@@ -3262,11 +3278,9 @@ void
 Canvas3D::
 selectNearestObject(const CPoint2D &p)
 {
-  auto x1 = CMathUtil::map(p.x, 0, pixelWidth_  - 1, -1,  1);
-  auto y1 = CMathUtil::map(p.y, 0, pixelHeight_ - 1,  1, -1);
+  auto p1 = mapPixelToViewport(p);
 
-  CPoint2D p1(x1, y1);
-  QPointF  p2(x1, y1);
+  QPointF p2(p1.x, p1.y);
 
   auto *camera = currentCamera();
 
@@ -3328,12 +3342,10 @@ void
 Canvas3D::
 selectPointsInside(const CBBox2D &r)
 {
-  auto x1 = CMathUtil::map(r.getMin().x, 0, pixelWidth_  - 1, -1,  1);
-  auto y1 = CMathUtil::map(r.getMin().y, 0, pixelHeight_ - 1,  1, -1);
-  auto x2 = CMathUtil::map(r.getMax().x, 0, pixelWidth_  - 1, -1,  1);
-  auto y2 = CMathUtil::map(r.getMax().y, 0, pixelHeight_ - 1,  1, -1);
+  auto p1 = mapPixelToViewport(r.getMin());
+  auto p2 = mapPixelToViewport(r.getMax());
 
-  CBBox2D r1(x1, y1, x2, y2);
+  CBBox2D r1(p1, p2);
 
   auto *camera = currentCamera();
 
@@ -3389,12 +3401,10 @@ void
 Canvas3D::
 selectFacesInside(const CBBox2D &r)
 {
-  auto x1 = CMathUtil::map(r.getMin().x, 0, pixelWidth_  - 1, -1,  1);
-  auto y1 = CMathUtil::map(r.getMin().y, 0, pixelHeight_ - 1,  1, -1);
-  auto x2 = CMathUtil::map(r.getMax().x, 0, pixelWidth_  - 1, -1,  1);
-  auto y2 = CMathUtil::map(r.getMax().y, 0, pixelHeight_ - 1,  1, -1);
+  auto p1 = mapPixelToViewport(r.getMin());
+  auto p2 = mapPixelToViewport(r.getMax());
 
-  auto r1 = QRectF(x1, y1, x2 - x1, y2 - y1);
+  auto r1 = QRectF(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
 
   auto *camera = currentCamera();
 
@@ -3431,12 +3441,10 @@ void
 Canvas3D::
 selectObjectsInside(const CBBox2D &r)
 {
-  auto x1 = CMathUtil::map(r.getMin().x, 0, pixelWidth_  - 1, -1,  1);
-  auto y1 = CMathUtil::map(r.getMin().y, 0, pixelHeight_ - 1,  1, -1);
-  auto x2 = CMathUtil::map(r.getMax().x, 0, pixelWidth_  - 1, -1,  1);
-  auto y2 = CMathUtil::map(r.getMax().y, 0, pixelHeight_ - 1,  1, -1);
+  auto p1 = mapPixelToViewport(r.getMin());
+  auto p2 = mapPixelToViewport(r.getMax());
 
-  auto r1 = QRectF(x1, y1, x2 - x1, y2 - y1);
+  auto r1 = QRectF(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
 
   auto *camera = currentCamera();
 
@@ -3523,8 +3531,10 @@ Canvas3D::
 setMousePos(double xpos, double ypos)
 {
   // unobserve
-  auto x1 = CMathUtil::map(xpos, 0, pixelWidth_  - 1, -1,  1);
-  auto y1 = CMathUtil::map(ypos, 0, pixelHeight_ - 1,  1, -1);
+  auto p1 = mapPixelToViewport(CPoint2D(xpos, ypos));
+
+  auto x1 = p1.x;
+  auto y1 = p1.y;
   auto z1 = 0.1;
 
   auto x2 = x1;
@@ -3615,6 +3625,26 @@ setMousePos(double xpos, double ypos)
     intersectParticles_->setPoints(ppoints);
     intersectParticles_->setVisible(true);
   }
+}
+
+CPoint2D
+Canvas3D::
+mapPixelToViewport(const CPoint2D &pos) const
+{
+  auto aspect = this->aspect();
+
+  double x, y;
+
+  if (aspect > 1.0) {
+    x = CMathUtil::map(pos.x, 0, pixelWidth () - 1.0, -aspect,  aspect);
+    y = CMathUtil::map(pos.y, 0, pixelHeight() - 1.0,     1.0,    -1.0);
+  }
+  else {
+    x = CMathUtil::map(pos.x, 0, pixelWidth () - 1.0,   -1.0,      1.0);
+    y = CMathUtil::map(pos.y, 0, pixelHeight() - 1.0,  aspect, -aspect);
+  }
+
+  return CPoint2D(x, y);
 }
 
 void

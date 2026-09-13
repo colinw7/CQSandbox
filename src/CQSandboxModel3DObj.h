@@ -94,7 +94,7 @@ class Model3DObj : public Object3D {
 
   void tick() override;
 
-  CBBox3D calcBBox() override { return bbox_; }
+  CBBox3D calcBBox() override;
 
   virtual CQGLBuffer *getBuffer() const override;
 

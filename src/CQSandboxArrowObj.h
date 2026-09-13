@@ -1,7 +1,7 @@
 #ifndef CQSandboxArrowObj_H
 #define CQSandboxArrowObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 class CQArrow;
 

@@ -1,7 +1,7 @@
 #ifndef CQSandboxCsvObj_H
 #define CQSandboxCsvObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 class CQCsvModel;
 

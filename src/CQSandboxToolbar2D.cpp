@@ -1,6 +1,6 @@
 #include <CQSandboxToolbar2D.h>
 #include <CQSandboxControl2D.h>
-#include <CQSandboxCanvas.h>
+#include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 
 #include <CQIconButton.h>

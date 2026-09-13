@@ -1,7 +1,7 @@
 #ifndef CQSandboxPathObj_H
 #define CQSandboxPathObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 #include <QPainterPath>
 

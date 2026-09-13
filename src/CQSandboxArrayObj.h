@@ -1,7 +1,7 @@
 #ifndef CQSandboxArrayObj_H
 #define CQSandboxArrayObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 #include <CArray2D.h>
 

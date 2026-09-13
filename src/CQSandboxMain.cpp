@@ -1,5 +1,5 @@
 #include <CQSandboxApp.h>
-#include <CQSandboxCanvas.h>
+#include <CQSandboxCanvas2D.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQApp.h>
 
@@ -21,6 +21,7 @@ main(int argc, char **argv)
   app->resize(2000, 1500);
 
   QString filename;
+  QString modelName;
   bool    is3D     { false };
   bool    overview { false };
 
@@ -30,6 +31,16 @@ main(int argc, char **argv)
     if (arg.left(1) == '-') {
       if      (arg == "-3d")
         is3D = true;
+      else if (arg == "-model") {
+        ++i;
+
+        if (i < argc) {
+          modelName = argv[i];
+          is3D      = true ;
+        }
+        else
+          std::cerr << "Missing model\n";
+      }
       else if (arg == "-overview")
         overview = true;
       else
@@ -56,6 +67,19 @@ main(int argc, char **argv)
       if (! app->load(app->canvas3D()->tcl(), filename))
         std::cerr << "Failed to load '" << filename.toStdString() << "'\n";
     }
+  }
+
+  if (modelName != "") {
+    auto cmd = QString("\
+proc init { } {\n\
+  set ::model [sb3d::model {%1}]\n\
+}\n\
+proc bboxChanged { } {\n\
+  sb3d::light exec reset 1\n\
+  sb3d::camera exec reset\n\
+}").arg(modelName);
+
+    app->canvas3D()->runTclCmd(cmd);
   }
 
   app->show();

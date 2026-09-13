@@ -71,15 +71,20 @@ class OpenGLWindow : public QOpenGLWidget, public QOpenGLExtraFunctions {
   void setBgColor(const QColor &c) { bgColor_ = c; }
 
   double aspect() const { return aspect_; }
+  void setAspect(double r) { aspect_ = r; }
 
   //---
 
   virtual void initialize();
 
+  virtual void resize();
   virtual void render();
 
   bool isAnimating() const { return animating_; }
   void setAnimating(bool animating);
+
+  double pixelWidth () const { return pixelWidth_ ; }
+  double pixelHeight() const { return pixelHeight_; }
 
  protected:
   bool event(QEvent *event) override;
@@ -390,6 +395,7 @@ class Canvas3D : public OpenGLWindow {
 
   void initialize() override;
 
+  void resize() override;
   void render() override;
 
   void bindBuffer (CQGLBuffer *buffer);
@@ -414,6 +420,8 @@ class Canvas3D : public OpenGLWindow {
   void mousePressEvent  (QMouseEvent *e) override;
   void mouseMoveEvent   (QMouseEvent *e) override;
   void mouseReleaseEvent(QMouseEvent *e) override;
+
+  CPoint2D mapPixelToViewport(const CPoint2D &pos) const;
 
   void wheelEvent(QWheelEvent *e) override;
 

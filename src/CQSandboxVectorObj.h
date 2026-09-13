@@ -1,7 +1,7 @@
 #ifndef CQSandboxVectorObj_H
 #define CQSandboxVectorObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 #include <CVector2D.h>
 

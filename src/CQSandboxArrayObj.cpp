@@ -1,5 +1,5 @@
 #include <CQSandboxArrayObj.h>
-#include <CQSandboxCanvas.h>
+#include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 

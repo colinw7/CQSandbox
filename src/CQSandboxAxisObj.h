@@ -1,7 +1,7 @@
 #ifndef CQSandboxAxisObj_H
 #define CQSandboxAxisObj_H
 
-#include <CQSandboxObject.h>
+#include <CQSandboxObject2D.h>
 
 class CQAxis;
 

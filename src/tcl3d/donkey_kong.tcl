@@ -1,10 +1,17 @@
 # TODO:
-# . jump/climb
-# . anim on move
-# . hit (aabb)
+# . hit and die
+# . treasure at top
+# . lives, score ...
+# . backdrop (plane)
+# . random barrel add (max num)
+# . monitor keys on tick (allow run, jump forward)
 
 proc randIn { min max } {
   return [expr {rand()*($max - $min) + $min}]
+}
+
+proc irandIn { min max } {
+  return [expr {int(rand()*($max - $min) + $min + 0.5)}]
 }
 
 proc loadModel { filename name { s 1.0 } } {
@@ -20,6 +27,8 @@ proc loadModel { filename name { s 1.0 } } {
   }
 
   $obj set id $name
+
+  # echo [$obj get anim.names]
 
   return $obj
 }
@@ -42,6 +51,22 @@ proc loadBarrel { } {
     setModelDir "tcl3d/Dungeon_Assets/obj"
 
     set ::barrelRefObj [loadRefModel "barrel_large"]
+  }
+}
+
+proc loadLadder { } {
+  if {! [info exists ::ladderRefObj]} {
+    setModelDir "data"
+
+    set ::ladderRefObj [loadRefModel "ladder"]
+  }
+}
+
+proc loadChest { } {
+  if {! [info exists ::chestRefObj]} {
+    setModelDir "tcl3d/Dungeon_Assets/obj"
+
+    set ::chestRefObj [loadRefModel "chest_gold"]
   }
 }
 
@@ -75,8 +100,9 @@ proc loadPlayerObj { } {
   set obj [addObject $::playerRefObj player]
   #echo "$obj [$obj get transformed_model_bbox]"
 
-  $obj set anim.name "Idle"
-  $obj set anim.step 0.1
+  $obj set anim.name   "Idle"
+  $obj set anim.repeat 1
+  $obj set anim.step   0.1
 
   $obj set child.visible "Barbarian_Hat"  0
   $obj set child.visible "Mug"            0
@@ -93,12 +119,55 @@ proc setModelDir { dir } {
 }
 
 proc init { } {
+  set ::game_over 0
+
+  # ---
+
   loadFloor
 
   loadBarrel
 
+  loadLadder
+
+  loadChest
+
   # ---
 
+  initPlayer
+
+  initPlatforms
+
+  addLadders
+
+  addChest
+
+  # ---
+
+  addBarrel
+
+  set ::barrel_add_ticks [irandIn 100 300]
+
+  # ---
+
+  applyPlayerPos
+
+  # ---
+
+  sb3d::canvas set camera.type first_person
+
+  sb3d::camera set pitch    -90
+  sb3d::camera set distance 18
+  sb3d::camera set position {0 12 18}
+
+  # ---
+
+  sb3d::canvas set mode game
+
+  sb3d::canvas set loop.enabled 1
+  sb3d::canvas set loop.timeout 30
+}
+
+proc initPlayer { } {
   set ::playerObj [loadPlayerObj]
 
   $::playerObj set angles [list 0 90 0]
@@ -114,8 +183,14 @@ proc init { } {
   set ::player_anim_dy [sb3d::anim_real 0]
   $::player_anim_dy set id "player_anim_dy"
 
-  # ---
+  set ::player_dead  0
+  set ::player_dying 0
 
+  set ::player_lives 5
+}
+
+proc initPlatforms { } {
+  # path for barrels
   set ::barrelPath [sb3d::path]
   $::barrelPath set id "barrelPath"
 
@@ -124,21 +199,12 @@ proc init { } {
 
   set ::barrel_path_dy 0.1
 
-  set dir 1
-
-  set dx   4.0
-  set dx1  [expr {$dx + 0.2}]
-  set ::dy 4.1
-  set dy1  0.4
-
-  set z -8
+  #---
 
   set ::nx 5
   set ::ny 5
 
-  set w  [expr {$::nx*$dx1}]
-  set w2 [expr {$w/2.0}]
-
+  # path for player (one for each vertical platform)
   for {set iy 0} {$iy < $::ny} {incr iy} {
     set ::playerPath($iy) [sb3d::path]
     $::playerPath($iy) set id "playerPath.${iy}"
@@ -146,6 +212,20 @@ proc init { } {
     $::playerPath($iy) set visible 0
     $::playerPath($iy) set color   yellow
   }
+
+  #---
+
+  set dir 1
+
+  set dx   4.0
+  set dx1  [expr {$dx + 0.2}]
+  set ::dy 4.1
+  set dy1  0.4
+
+  set w  [expr {$::nx*$dx1}]
+  set w2 [expr {$w/2.0}]
+
+  set z -8
 
   set y 0
 
@@ -187,10 +267,28 @@ proc init { } {
 
     set dir [expr {-1*$dir}]
   }
+}
 
-  set ::nb 2
+proc addBarrel { } {
+  if {! [info exists ::max_barrels]} {
+    set ::max_barrels 4
 
-  for {set ib 0} {$ib < $::nb} {incr ib} {
+    for {set ib 0} {$ib < $::max_barrels} {incr ib} {
+      set ::barrel_obj($ib) ""
+    }
+  }
+
+  for {set ib 0} {$ib < $::max_barrels} {incr ib} {
+    if {! [isActiveBarrel $ib]} {
+      break
+    }
+  }
+
+  if {$ib >= $::max_barrels} {
+    return
+  }
+
+  if {$::barrel_obj($ib) == ""} {
     set ::barrel_obj($ib) [$::barrelRefObj get ref_object]
 
     $::barrel_obj($ib) set id "barrel.${ib}"
@@ -199,32 +297,48 @@ proc init { } {
     $::barrel_obj($ib) set angles   [list 90 0 0]
 
     $::barrel_obj($ib) set visible 1
-
-    set ::barrel_t($ib) [randIn 0 0.2]
-    set ::barrel_a($ib) [randIn 0 360]
-
-    set ::barrel_pos($ib) {0 0 0}
-
-    set ::barrel_dt($ib) [randIn 0.003 0.006]
-    set ::barrel_da($ib) [randIn 0.2 0.7]
   }
 
-  # ---
+  set ::barrel_t($ib) [randIn 0 0.2]
+  set ::barrel_a($ib) [randIn 0 360]
 
-  applyPlayerPos
+  set ::barrel_pos($ib) {0 0 0}
 
-  # ---
+  set ::barrel_dt($ib) [randIn 0.002 0.005]
+  set ::barrel_da($ib) [randIn 0.2 0.6]
+}
 
-  sb3d::canvas set camera.type first_person
+proc isActiveBarrel { ib } {
+  if {$::barrel_obj($ib) == ""} {
+    return 0
+  }
+  
+  if {! [$::barrel_obj($ib) get visible]} {
+    return 0
+  }
 
-  sb3d::camera set pitch    -90
-  sb3d::camera set distance 18
-  sb3d::camera set position {0 12 18}
+  return 1
+}
 
-  sb3d::canvas set mode game
+proc addLadders { } {
+  for {set iy 0} {$iy < $::ny - 1} {incr iy} {
+    set ::ladder_obj($iy) [$::ladderRefObj get ref_object]
 
-  sb3d::canvas set loop.enabled 1
-  sb3d::canvas set loop.timeout 30
+    set pos [$::playerPath($iy) get tpos 1.0]
+
+    $::ladder_obj($iy) set scale    0.6
+    $::ladder_obj($iy) set position $pos
+  }
+}
+
+proc addChest { } {
+  set ::chest_obj [$::chestRefObj get ref_object]
+  
+  set iy [expr {$::ny - 1}]
+
+  set pos [$::playerPath($iy) get tpos 1.0]
+
+  $::chest_obj set position $pos
 }
 
 proc bboxChanged { } {
@@ -232,14 +346,61 @@ proc bboxChanged { } {
 }
 
 proc tick { } {
+  if {$::game_over} {
+    return
+  }
+
+  # ---
+
   updateBarrelPos
   updatePlayerPos
 
   # ---
 
-  for {set ib 0} {$ib < $::nb} {incr ib} {
+  for {set ib 0} {$ib < $::max_barrels} {incr ib} {
+    if {! [isActiveBarrel $ib]} {
+      continue
+    }
+
     if {[$::barrel_obj($ib) exec intersect $::playerObj]} {
-      echo "Hit Barrel"
+      if {! $::player_dead} {
+        echo "Hit Barrel"
+        $::playerObj set anim.name   "Death_A"
+        $::playerObj set anim.repeat 0
+
+        set ::player_dead  1
+        set ::player_dying 100
+      }
+    }
+  }
+
+  # ---
+
+  incr ::barrel_add_ticks -1
+
+  if {$::barrel_add_ticks == 0} {
+    addBarrel
+
+    set ::barrel_add_ticks [irandIn 100 300]
+  }
+
+  # ---
+
+  if {$::player_dead} {
+    incr ::player_dying -1
+
+    if {$::player_dying == 0} {
+      incr $::player_lives -1
+
+      if {$::player_lives == 0} {
+        set ::game_over 1
+      } else {
+        set ::player_dead  0
+        set ::player_dying 0
+
+        $::playerObj set anim.name   "Idle"
+        $::playerObj set anim.repeat 1
+      }
     }
   }
 }
@@ -254,6 +415,9 @@ proc updatePlayerPos { } {
       set ::player_t $::player_t1
 
       $::player_anim_dx exec reset
+
+      $::playerObj set anim.name   "Idle"
+      $::playerObj set anim.repeat 1
     }
 
     applyPlayerPos
@@ -263,15 +427,17 @@ proc updatePlayerPos { } {
     $::player_anim_dy exec step
 
     if {! [$::player_anim_dy get can_step]} {
-      set target [$::player_anim_dy get target]
+      if {[$::player_anim_dy get style] == "one_shot"} {
+        set target [$::player_anim_dy get target]
 
-      if {$target > 0} {
-        set ::player_iy [expr {$::player_iy + 1}]
-      } else {
-        set ::player_iy [expr {$::player_iy - 1}]
+        if {$target > 0} {
+          set ::player_iy [expr {$::player_iy + 1}]
+        } else {
+          set ::player_iy [expr {$::player_iy - 1}]
+        }
+
+        set ::player_t [expr {1.0 - $::player_t}]
       }
-
-      set ::player_t [expr {1.0 - $::player_t}]
 
       $::player_anim_dy exec reset
     }
@@ -315,8 +481,17 @@ proc applyPlayerPos { } {
 }
 
 proc updateBarrelPos { } {
-  for {set ib 0} {$ib < $::nb} {incr ib} {
-    if {$::barrel_t($ib) >   1.0} { set ::barrel_t($ib) 0.0 }
+  for {set ib 0} {$ib < $::max_barrels} {incr ib} {
+    if {! [isActiveBarrel $ib]} {
+      continue
+    }
+
+    if {$::barrel_t($ib) > 1.0} {
+      set ::barrel_t($ib) 0.0
+
+      $::barrel_obj($ib) set visible 0
+    }
+
     if {$::barrel_a($ib) > 360.0} { set ::barrel_a($ib) 0.0 }
 
     set t1 [expr {1.0 - $::barrel_t($ib)}]
@@ -344,91 +519,127 @@ proc updateBarrelPos { } {
   }
 }
 
+proc playerMoveLeft { } {
+  if {$::player_dead} { return }
+
+  if {[isPlayerAnimating]} { return }
+
+  $::playerObj set angles [list 0 -90 0]
+
+  set ::player_t1 $::player_t
+
+  if {$::playerDir($::player_iy) > 0} {
+    if {$::player_t >= $::player_dt} {
+      set ::player_t1 [expr {$::player_t - $::player_dt}]
+    } else {
+      set ::player_t1 0.0
+    }
+  } else {
+    if {$::player_t <= 1.0 - $::player_dt} {
+      set ::player_t1 [expr {$::player_t + $::player_dt}]
+    } else {
+      set ::player_t1 1.0
+    }
+  }
+
+  set pos [$::playerPath($::player_iy) get tpos $::player_t1]
+
+  set dx [expr {[lindex $pos 0] - [lindex $::player_pos 0]}]
+
+  $::playerObj set anim.name   "Walking_A"
+  $::playerObj set anim.repeat 1
+
+  $::player_anim_dx set value  0
+  $::player_anim_dx set target $dx
+  $::player_anim_dx set steps  10
+
+  applyPlayerPos
+}
+
+proc playerMoveRight { } {
+  if {$::player_dead} { return }
+
+  if {[isPlayerAnimating]} { return }
+
+  $::playerObj set angles [list 0 90 0]
+
+  set ::player_t1 $::player_t
+
+  if {$::playerDir($::player_iy) > 0} {
+    if {$::player_t <= 1.0 - $::player_dt} {
+      set ::player_t1 [expr {$::player_t + $::player_dt}]
+    } else {
+      set ::player_t1 1.0
+    }
+  } else {
+    if {$::player_t >= $::player_dt} {
+      set ::player_t1 [expr {$::player_t - $::player_dt}]
+    } else {
+      set ::player_t1 0.0
+    }
+  }
+
+  set pos [$::playerPath($::player_iy) get tpos $::player_t1]
+
+  set dx [expr {[lindex $pos 0] - [lindex $::player_pos 0]}]
+
+  $::playerObj set anim.name   "Walking_A"
+  $::playerObj set anim.repeat 1
+
+  $::player_anim_dx set value  0
+  $::player_anim_dx set target $dx
+  $::player_anim_dx set steps  10
+
+  applyPlayerPos
+}
+
+proc playerJump { } {
+  if {$::player_dead} { return }
+
+  if {[isPlayerAnimating]} { return }
+
+  $::player_anim_dy set value  0
+  $::player_anim_dy set target 4
+  $::player_anim_dy set steps  10
+
+  if {$::player_t1 < 0.9} {
+    $::player_anim_dy set style bounce_once
+  } else {
+    $::player_anim_dy set style one_shot
+  }
+
+  applyPlayerPos
+}
+
+proc playerFall { } {
+  if {$::player_dead} { return }
+
+  if {[isPlayerAnimating]} { return }
+
+  $::player_anim_dy set value  0
+  $::player_anim_dy set target -2
+  $::player_anim_dy set steps  10
+
+  applyPlayerPos
+}
+
 proc keyPress { k } {
-  if {[isAnimating]} {
+  if {$::game_over} {
     return
   }
 
   if       {$k == "left"} {
-    $::playerObj set angles [list 0 -90 0]
-
-    set ::player_t1 $::player_t
-
-    if {$::playerDir($::player_iy) > 0} {
-      if {$::player_t >= $::player_dt} {
-        set ::player_t1 [expr {$::player_t - $::player_dt}]
-      } else {
-        set ::player_t1 0.0
-      }
-    } else {
-      if {$::player_t <= 1.0 - $::player_dt} {
-        set ::player_t1 [expr {$::player_t + $::player_dt}]
-      } else {
-        set ::player_t1 1.0
-      }
-    }
-
-if {0} {
-    set ::player_t $::player_t1
-} else {
-    set pos [$::playerPath($::player_iy) get tpos $::player_t1]
-
-    set dx [expr {[lindex $pos 0] - [lindex $::player_pos 0]}]
-
-    $::player_anim_dx set value  0
-    $::player_anim_dx set target $dx
-    $::player_anim_dx set steps  10
-}
-
-    applyPlayerPos
+    playerMoveLeft
   } elseif {$k == "right"} {
-    $::playerObj set angles [list 0 90 0]
-
-    set ::player_t1 $::player_t
-
-    if {$::playerDir($::player_iy) > 0} {
-      if {$::player_t <= 1.0 - $::player_dt} {
-        set ::player_t1 [expr {$::player_t + $::player_dt}]
-      } else {
-        set ::player_t1 1.0
-      }
-    } else {
-      if {$::player_t >= $::player_dt} {
-        set ::player_t1 [expr {$::player_t - $::player_dt}]
-      } else {
-        set ::player_t1 0.0
-      }
-    }
-
-if {0} {
-    set ::player_t $::player_t1
-} else {
-    set pos [$::playerPath($::player_iy) get tpos $::player_t1]
-
-    set dx [expr {[lindex $pos 0] - [lindex $::player_pos 0]}]
-  
-    $::player_anim_dx set value  0
-    $::player_anim_dx set target $dx
-    $::player_anim_dx set steps  10
-}
-
-    applyPlayerPos
+    playerMoveRight
   } elseif {$k == "up"} {
-    $::player_anim_dy set value  0
-    $::player_anim_dy set target 2
-    $::player_anim_dy set steps  10
-
-    applyPlayerPos
+    playerJump
   } elseif {$k == "down"} {
-    $::player_anim_dy set value  0
-    $::player_anim_dy set target -2
-    $::player_anim_dy set steps  10
-
-    applyPlayerPos
+    playerFall
   }
 }
 
-proc isAnimating { } {
+proc isPlayerAnimating { } {
   if {[$::player_anim_dx get can_step]} {
     return 1
   }

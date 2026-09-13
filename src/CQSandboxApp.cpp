@@ -1,12 +1,15 @@
 #include <CQSandboxApp.h>
-#include <CQSandboxCanvas.h>
-#include <CQSandboxCanvas3D.h>
+
+#include <CQSandboxCanvas2D.h>
 #include <CQSandboxControl2D.h>
 #include <CQSandboxToolbar2D.h>
+
+#include <CQSandboxCanvas3D.h>
 #include <CQSandboxControl3D.h>
 #include <CQSandboxToolbar3D.h>
-#include <CQSandboxStatus.h>
 #include <CQSandboxOverview3D.h>
+
+#include <CQSandboxStatus.h>
 
 #include <CQTclUtil.h>
 #include <CQTabSplit.h>

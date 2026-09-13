@@ -35,7 +35,7 @@ class AnimateData {
   const T &target() const { return target_; }
   void setTarget(const T &t) { target_ = t; init_ = value_; step_ = 0; }
 
-  size_t step() const { return step_; }
+  size_t getStep() const { return step_; }
 
   size_t steps() const { return steps_; }
   void setSteps(size_t n) { steps_ = n; }
@@ -48,7 +48,7 @@ class AnimateData {
   const Style &style() const { return style_; }
   void setStyle(const Style &v) { style_ = v; }
 
-  void reset() { value_ = T(); init_ = T(); target_ = T(); step_ = 0; steps_ = 0; }
+  void reset() { value_ = T(); init_ = T(); target_ = T(); step_ = 0; steps_ = 0; cycle_ = 0; }
 
   //---
 
@@ -58,10 +58,14 @@ class AnimateData {
 
       ++step_;
 
-      if (atEnd() && style_ == Style::BOUNCE_ALWAYS) {
-        std::swap(init_, target_);
+      if (atEnd() && (style_ == Style::BOUNCE_ONCE || style_ == Style::BOUNCE_ALWAYS)) {
+        if (style_ != Style::BOUNCE_ONCE || cycle_ < 1) {
+          ++cycle_;
 
-        step_ = 0;
+          std::swap(init_, target_);
+
+          step_ = 0;
+        }
       }
 
       return canStep();
@@ -86,6 +90,7 @@ class AnimateData {
   size_t step_   { 0 };               // current step number
   size_t steps_  { 0 };               // max steps
   Style  style_  { Style::ONE_SHOT }; // behavior when at end
+  size_t cycle_  { 0 };               // bound cycle
 };
 
 //---
