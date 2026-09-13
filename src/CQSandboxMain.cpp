@@ -8,6 +8,8 @@ main(int argc, char **argv)
 {
   setenv("QT_SCALE_FACTOR", "1", 1);
 
+  QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+
 #ifdef NO_QT_APP
   QApplication qapp(argc, argv);
 #else

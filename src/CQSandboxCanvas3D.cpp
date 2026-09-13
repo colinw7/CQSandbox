@@ -26,6 +26,7 @@
 #include <CQSandboxShader3DObj.h>
 #include <CQSandboxShaderShape3DObj.h>
 #include <CQSandboxShape3DObj.h>
+#include <CQSandboxShlib3DObj.h>
 #include <CQSandboxSkybox3DObj.h>
 #include <CQSandboxSprite3DObj.h>
 #include <CQSandboxSurface3DObj.h>
@@ -518,6 +519,12 @@ addCommands()
 
   tcl->createObjCommand("sb3d::skybox",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Skybox3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  //---
+
+  tcl->createObjCommand("sb3d::shlib",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Shlib3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
@@ -1201,6 +1208,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   }
   else if (name == "model_dir") {
     modelDirs_.push_back(value);
+  }
+  else if (name == "module_dir") {
+    moduleDirs_.push_back(value);
   }
   else if (name == "clip") {
     if (args.size() < 1)
@@ -3669,6 +3679,19 @@ bool
 Canvas3D::
 event(QEvent *e)
 {
+#if 0
+  if (e->type() == QEvent::Show) {
+    auto b = OpenGLWindow::event(e);
+
+    // Explicitly make the context current and mark for an update
+    makeCurrent();
+
+    this->update();
+
+    return b;
+  }
+#endif
+
   if (e->type() == QEvent::KeyPress) {
     auto *ke = static_cast<QKeyEvent *>(e);
 
@@ -3680,6 +3703,20 @@ event(QEvent *e)
 
   return OpenGLWindow::event(e);
 }
+
+#if 0
+void
+Canvas3D::
+showEvent(QShowEvent *e)
+{
+  OpenGLWindow::showEvent(e);
+
+  // Explicitly make the context current and mark for an update
+  makeCurrent();
+
+  this->update();
+}
+#endif
 
 void
 Canvas3D::

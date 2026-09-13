@@ -103,6 +103,7 @@ class Object3D : public QObject {
     SHADER,
     SHADER_SHAPE,
     SHAPE,
+    SHLIB,
     SKYBOX,
     SPRITE,
     SURFACE,

@@ -73,6 +73,11 @@ class App : public QFrame {
 
   //---
 
+  bool hasOverview3D() const;
+  void showOverview3D(bool show);
+
+  //---
+
 #ifdef CQSANDBOX_META_EDIT
   void showMetaEdit();
 #endif
@@ -81,15 +86,20 @@ class App : public QFrame {
 
  private:
   struct Frame3D {
+    QFrame*            frame           { nullptr };
+    QFrame*            canvasFrame     { nullptr };
     Canvas3D*          canvas          { nullptr };
     CanvasToolbar3D*   toolbar         { nullptr };
     Control3D*         control         { nullptr };
+    bool               overlayShown    { false };
+    QFrame*            overviewFrame   { nullptr };
     Overview3D*        overview        { nullptr };
     OverviewToolbar3D* overviewToolbar { nullptr };
     CQTabSplit*        tab             { nullptr };
   };
 
   struct Frame2D {
+    QFrame*    frame   { nullptr };
     Canvas*    canvas  { nullptr };
     Toolbar2D* toolbar { nullptr };
     Control2D* control { nullptr };
@@ -98,6 +108,8 @@ class App : public QFrame {
  private:
   QFrame *add3DFrame(Frame3D &frame3D);
   QFrame *add2DFrame(Frame2D &frame2D);
+
+  void showOverview3DI(Frame3D &frame3D, bool show);
 
  private:
   static QString s_buildDir;

@@ -18,6 +18,7 @@
 #include <CQMetaEdit.h>
 #endif
 #include <CQAppOptions.h>
+#include <CQUtil.h>
 
 #ifdef CQ_PERF_GRAPH
 #include <CQPerfGraph.h>
@@ -45,6 +46,7 @@
 #include <svg/texture_fill_svg.h>
 
 #include <svg/bbox_svg.h>
+#include <svg/overview_svg.h>
 
 #include <svg/settings_svg.h>
 
@@ -63,6 +65,8 @@ App::
 App(QWidget *parent) :
  QFrame(parent)
 {
+  setObjectName("app");
+
   //tcl_ = new CQTcl;
 
   //tcl_->init();
@@ -102,17 +106,16 @@ QFrame *
 App::
 add3DFrame(Frame3D &frame3D)
 {
-  auto *frame  = new QFrame;
+  auto *frame  = CQUtil::makeWidget<QFrame>("frame3D");
   auto *layout = new QHBoxLayout(frame);
 
   //---
 
-  auto *canvasFrame = new QFrame;
+  // canvas and toolbar
+  frame3D.canvasFrame = CQUtil::makeWidget<QFrame>("canvasFrame");
 
-  auto *clayout = new QVBoxLayout(canvasFrame);
+  auto *clayout = new QVBoxLayout(frame3D.canvasFrame);
   clayout->setMargin(0); clayout->setSpacing(0);
-
-  //---
 
   frame3D.canvas  = new Canvas3D(this);
   frame3D.toolbar = new CanvasToolbar3D(frame3D.canvas);
@@ -122,35 +125,21 @@ add3DFrame(Frame3D &frame3D)
 
   //---
 
-  if (isOverview()) {
-    auto *overviewFrame = new QFrame;
+  // view frame
+  frame3D.frame = CQUtil::makeWidget<QFrame>("frame");
 
-    auto *overviewLayout = new QVBoxLayout(overviewFrame);
-    overviewLayout->setMargin(0); overviewLayout->setSpacing(0);
+  auto *flayout = new QHBoxLayout(frame3D.frame);
+  flayout->setMargin(0); flayout->setSpacing(0);
 
-    frame3D.overview        = new Overview3D(this);
-    frame3D.overviewToolbar = new OverviewToolbar3D(frame3D.overview);
+  flayout->addWidget(frame3D.canvasFrame);
 
-    overviewLayout->addWidget(frame3D.overviewToolbar);
-    overviewLayout->addWidget(frame3D.overview);
+  layout->addWidget(frame3D.frame);
 
-    //---
-
-    frame3D.tab = new CQTabSplit;
-
-    frame3D.tab->setState(CQTabSplit::State::TAB);
-
-    frame3D.tab->addWidget(canvasFrame  , "3D");
-    frame3D.tab->addWidget(overviewFrame, "2D");
-
-    layout->addWidget(frame3D.tab);
-  }
-  else {
-    layout->addWidget(canvasFrame);
-  }
+  showOverview3DI(frame3D, isOverview());
 
   //---
 
+  // control frame
   frame3D.control = new Control3D(frame3D.canvas);
 
   layout->addWidget(frame3D.control);
@@ -171,12 +160,94 @@ add3DFrame(Frame3D &frame3D)
   return frame;
 }
 
+bool
+App::
+hasOverview3D() const
+{
+  return frame3D_.overviewFrame;
+}
+
+void
+App::
+showOverview3D(bool show)
+{
+  showOverview3DI(frame3D_, show);
+}
+
+void
+App::
+showOverview3DI(Frame3D &frame3D, bool show)
+{
+  auto *layout = qobject_cast<QBoxLayout *>(frame3D.frame->layout());
+
+  if (show) {
+    if (frame3D.overlayShown)
+      return; // already show
+
+    //---
+
+    if (! frame3D.overviewFrame) {
+      frame3D.overviewFrame = CQUtil::makeWidget<QFrame>("overviewFrame");
+
+      auto *overviewLayout = new QVBoxLayout(frame3D.overviewFrame);
+      overviewLayout->setMargin(0); overviewLayout->setSpacing(0);
+
+      frame3D.overview        = new Overview3D(this);
+      frame3D.overviewToolbar = new OverviewToolbar3D(frame3D.overview);
+
+      overviewLayout->addWidget(frame3D.overviewToolbar);
+      overviewLayout->addWidget(frame3D.overview);
+    }
+
+    //---
+
+    assert(! frame3D.tab);
+
+    frame3D.tab = new CQTabSplit;
+
+    frame3D.tab->setState(CQTabSplit::State::TAB);
+
+    frame3D.tab->addWidget(frame3D.canvasFrame  , "3D");
+    frame3D.tab->addWidget(frame3D.overviewFrame, "2D");
+
+    layout->addWidget(frame3D.tab);
+
+    frame3D.canvasFrame  ->show();
+    frame3D.overviewFrame->show();
+  }
+  else {
+    if (! frame3D.overlayShown)
+      return;
+
+    //---
+
+    assert(frame3D.tab);
+
+    frame3D.tab->removeWidget(frame3D.canvasFrame  , /*delete*/false);
+    frame3D.tab->removeWidget(frame3D.overviewFrame, /*delete*/false);
+
+    delete frame3D.tab;
+
+    frame3D.tab = nullptr;
+
+    //---
+
+    layout->addWidget(frame3D.canvasFrame);
+
+    frame3D.canvasFrame  ->show();
+    frame3D.overviewFrame->hide();
+  }
+
+  frame3D.overlayShown = show;
+}
+
 QFrame *
 App::
 add2DFrame(Frame2D &frame2D)
 {
-  auto *frame  = new QFrame;
-  auto *layout = new QHBoxLayout(frame);
+  frame2D.frame = CQUtil::makeWidget<QFrame>("frame2D");
+
+  auto *layout = new QHBoxLayout(frame2D.frame);
 
   //---
 
@@ -205,7 +276,7 @@ add2DFrame(Frame2D &frame2D)
 
   //---
 
-  return frame;
+  return frame2D.frame;
 }
 
 void

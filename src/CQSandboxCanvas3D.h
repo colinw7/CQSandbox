@@ -427,6 +427,10 @@ class Canvas3D : public OpenGLWindow {
 
   bool event(QEvent *e) override;
 
+#if 0
+  void showEvent(QShowEvent *event) override;
+#endif
+
   void keyPressEvent  (QKeyEvent *e) override;
   void keyReleaseEvent(QKeyEvent *e) override;
 
@@ -498,6 +502,8 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   const QStringList &modelDirs() const { return modelDirs_; }
+
+  const QStringList &moduleDirs() const { return moduleDirs_; }
 
   //---
 
@@ -729,6 +735,7 @@ class Canvas3D : public OpenGLWindow {
   Points intersectPoints_;
 
   QStringList modelDirs_;
+  QStringList moduleDirs_;
 
   bool ignoreChange_ { false };
 

@@ -93,9 +93,11 @@ CanvasToolbar3D(Canvas3D *canvas) :
 
   //---
 
-  bboxButton_ = addCheckButton("bbox", "BBOX", "Show: BBox");
+  bboxButton_     = addCheckButton("bbox"    , "BBOX"    , "Show BBox");
+  overviewButton_ = addCheckButton("overview", "OVERVIEW", "Show Overview");
 
   layout->addWidget(bboxButton_);
+  layout->addWidget(overviewButton_);
 
   layout->addWidget(addSeparator());
 
@@ -214,6 +216,7 @@ connectSlots(bool b)
     connect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
 
     connect(bboxButton_, SIGNAL(clicked()), this, SLOT(bboxSlot()));
+    connect(overviewButton_, SIGNAL(clicked()), this, SLOT(overviewSlot()));
 
     connect(playButton_ , SIGNAL(clicked()), this, SLOT(playSlot()));
   //connect(pauseButton_, SIGNAL(clicked()), this, SLOT(pauseSlot()));
@@ -237,6 +240,7 @@ connectSlots(bool b)
     disconnect(objectSelectButton_, SIGNAL(clicked()), this, SLOT(objectSelectSlot()));
 
     disconnect(bboxButton_, SIGNAL(clicked()), this, SLOT(bboxSlot()));
+    disconnect(overviewButton_, SIGNAL(clicked()), this, SLOT(overviewSlot()));
 
     disconnect(playButton_ , SIGNAL(clicked()), this, SLOT(playSlot()));
   //disconnect(pauseButton_, SIGNAL(clicked()), this, SLOT(pauseSlot()));
@@ -254,7 +258,8 @@ updateInfo()
 
   //---
 
-  auto type = canvas_->type();
+  auto *app  = canvas()->app();
+  auto  type = canvas_->type();
 
   cameraButton_->setChecked(type == Canvas3D::Type::CAMERA);
   modelButton_ ->setChecked(type == Canvas3D::Type::MODEL);
@@ -270,6 +275,8 @@ updateInfo()
   edgeSelectButton_  ->setVisible(type == Canvas3D::Type::MODEL);
   pointSelectButton_ ->setVisible(type == Canvas3D::Type::MODEL);
   selectSep_         ->setVisible(type == Canvas3D::Type::MODEL);
+
+  overviewButton_->setChecked(app->hasOverview3D());
 
   playButton_->setChecked(canvas_->isLooping());
 
@@ -453,6 +460,15 @@ bboxSlot()
   canvas_->setShowBBox(button->isChecked());
 
   canvas_->update();
+}
+
+void
+CanvasToolbar3D::
+overviewSlot()
+{
+  auto *app = canvas()->app();
+
+  app->showOverview3D(! app->hasOverview3D());
 }
 
 void
