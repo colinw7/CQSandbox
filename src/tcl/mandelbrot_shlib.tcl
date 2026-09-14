@@ -1,3 +1,4 @@
+# tcl:  3066898 microseconds per iteration
 # calc: 1214763 microseconds per iteration
 # calc: 1106674 microseconds per iteration
 
@@ -15,21 +16,11 @@ proc init { } {
   $::mandelbrot set xmax  1.2
   $::mandelbrot set ymax  1.2
 
-  set ::max_iter 128
+  set ::max_iter 256
 
   $::mandelbrot set max_iterations $::max_iter
 
-  set ::iter_d1 [expr {($::max_iter - 1.0)/3.0}]
-  set ::iter_d2 [expr {2.0*$::iter_d1}]
-  set ::iter_d3 [expr {255.0/$::iter_d1}]
-
-  for {set i 0} {$i < $::max_iter} {incr i} {
-    set rgb [iterToColor $i]
-
-    set ::colors($i) $rgb
-  }
-
-  set ::colors($::max_iter) [list 0 0 0]
+  initColors
 
   set ::renderer [sb::renderer]
 
@@ -44,6 +35,20 @@ proc resize { w h } {
 
   $::mandelbrot set pixel_xmax $w
   $::mandelbrot set pixel_ymax $h
+}
+
+proc initColors { } {
+  set ::iter_d1 [expr {($::max_iter - 1.0)/3.0}]
+  set ::iter_d2 [expr {2.0*$::iter_d1}]
+  set ::iter_d3 [expr {255.0/$::iter_d1}]
+
+  for {set i 0} {$i < $::max_iter} {incr i} {
+    set rgb [iterToColor $i]
+
+    set ::colors($i) $rgb
+  }
+
+  set ::colors($::max_iter) [list 0 0 0]
 }
 
 proc iterToColor { iter } {

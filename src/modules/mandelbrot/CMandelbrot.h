@@ -27,8 +27,8 @@ class CMandelbrot : public CPointFractalCalc {
 
   int calc(double x, double y, int max_iterations=1000) const override;
 
-  int calc_iterations(double x, double y, int max_iterations) const;
-  int calc_distance(double x, double y, int max_iterations) const;
+  int calcIterations(double x, double y, int max_iterations) const;
+  int calcDistance(double x, double y, int max_iterations) const;
 
   int iterate(double x, double y, int max_iterations) const;
 
@@ -51,6 +51,9 @@ class CMandelbrot : public CPointFractalCalc {
   double ymin_ { -1.2 };
   double xmax_ {  1.2 };
   double ymax_ {  1.2 };
+
+  double xf_ { 1.0 };
+  double yf_ { 1.0 };
 
   bool   distance_ { false };
   double d_        { 0.0 };

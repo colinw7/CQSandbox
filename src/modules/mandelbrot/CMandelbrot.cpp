@@ -47,6 +47,9 @@ initCalc(int pixel_xmin, int pixel_ymin, int pixel_xmax, int pixel_ymax,
   ymin_ = ymin;
   xmax_ = xmax;
   ymax_ = ymax;
+
+  xf_ = (xmax_ - xmin_)/double(pixel_xmax_ - pixel_xmin_);
+  yf_ = (ymin_ - ymax_)/double(pixel_ymax_ - pixel_ymin_);
 }
 
 int
@@ -57,14 +60,14 @@ calc(double x, double y, int max_iterations) const
 
   if (isAutoColor()) {
     if (! distance_)
-      return calc_iterations(x, y, max_iterations_);
+      return calcIterations(x, y, max_iterations_);
     else
-      return calc_distance(x, y, max_iterations_);
+      return calcDistance(x, y, max_iterations_);
   }
   else {
     int num_iterations = iterate(x, y, max_iterations_);
 
-    if (num_iterations >= max_iterations_)
+    if (num_iterations > max_iterations_)
       num_iterations = max_iterations_;
 
     return num_iterations;
@@ -73,13 +76,14 @@ calc(double x, double y, int max_iterations) const
 
 int
 CMandelbrot::
-calc_iterations(double x, double y, int max_iterations) const
+calcIterations(double x, double y, int max_iterations) const
 {
   int num_iterations = iterate(x, y, max_iterations);
 
   if (num_iterations >= max_iterations)
     num_iterations = max_iterations;
 
+  // map interations to color (0 - 255)
   int color = 254*num_iterations/(max_iterations - 1) + 1;
 
   if (getShowVector()) {
@@ -94,13 +98,14 @@ calc_iterations(double x, double y, int max_iterations) const
 
 int
 CMandelbrot::
-calc_distance(double x, double y, int max_iterations) const
+calcDistance(double x, double y, int max_iterations) const
 {
   int num_iterations = iterate(x, y, max_iterations);
 
   if (num_iterations >= max_iterations)
     num_iterations = max_iterations;
 
+  // map interations to color (0 - 255)
   double dist = distance(x, y, num_iterations);
 
   int color = std::min(int(254*fabs(dist)/d_), 254) + 1;
@@ -139,14 +144,18 @@ double
 CMandelbrot::
 distance(double, double, int iterations) const
 {
-  if (iterations == 0) return 0.0;
+  if (iterations == 0)
+    return 0.0;
 
   double x1 = 0;
   double y1 = 0;
 
   for (int i = 0; i < iterations; ++i) {
-    double x2 = 2*(save_x_[size_t(i)]*x1 - save_y_[size_t(i)]*y1) + 1;
-    double y2 = 2*(save_y_[size_t(i)]*x1 + save_x_[size_t(i)]*y1);
+    auto xi = save_x_[size_t(i)];
+    auto yi = save_y_[size_t(i)];
+
+    auto x2 = 2*(xi*x1 - yi*y1) + 1;
+    auto y2 = 2*(yi*x1 + xi*y1);
 
     x1 = x2;
     y1 = y2;
@@ -158,7 +167,7 @@ distance(double, double, int iterations) const
   double zr2 = zr_*zr_;
   double zi2 = zi_*zi_;
 
-  double dist = ::log(zr2 + zi2) * sqrt((zr2 + zi2)/(x1*x1 + y1*y1));
+  auto dist = std::log(zr2 + zi2)*std::sqrt((zr2 + zi2)/(x1*x1 + y1*y1));
 
   return dist;
 }
@@ -167,12 +176,12 @@ double
 CMandelbrot::
 pixelXToUser(int x) const
 {
-  return (double(x - pixel_xmin_)/double(pixel_xmax_ - pixel_xmin_))*(xmax_ - xmin_) + xmin_;
+  return double(x - pixel_xmin_)*xf_ + xmin_;
 }
 
 double
 CMandelbrot::
 pixelYToUser(int y) const
 {
-  return (double(y - pixel_ymin_)/double(pixel_ymax_ - pixel_ymin_))*(ymin_ - ymax_) + ymax_;
+  return double(y - pixel_ymin_)*yf_ + ymax_;
 }

@@ -1,4 +1,5 @@
-CDEBUG = -g
+#CDEBUG = -g
+CDEBUG = -O
 
 PROG = mandelbrot
 

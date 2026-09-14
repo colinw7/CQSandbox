@@ -13,6 +13,12 @@ proc init { } {
   set ::pixelWidth  [sb::canvas get pixel_width]
   set ::pixelHeight [sb::canvas get pixel_height]
 
+  initColors
+
+  set ::renderer [sb::renderer]
+}
+
+proc initColors { } {
   set ::iter_d1 [expr {($::max_iter - 1.0)/3.0}]
   set ::iter_d2 [expr {2.0*$::iter_d1}]
   set ::iter_d3 [expr {255.0/$::iter_d1}]
@@ -24,8 +30,6 @@ proc init { } {
   }
 
   set ::colors($::max_iter) [list 0 0 0]
-
-  set ::renderer [sb::renderer]
 }
 
 proc iterToColor { iter } {
