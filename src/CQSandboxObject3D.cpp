@@ -421,6 +421,60 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   return true;
 }
 
+bool
+Object3D::
+getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res)
+{
+  auto *tcl = canvas()->tcl();
+
+  QStringList args1;
+  for (auto *arg : args)
+    args1.push_back(tcl->variantFromObj(arg).toString());
+
+  QVariant res1;
+  if (! getValue(name, args1, res1))
+    return false;
+
+  res = tcl->variantToObj(res1);
+
+  return true;
+}
+
+bool
+Object3D::
+setTclValue(const QString &name, const QString &value, const TclObjs &args)
+{
+  auto *tcl = canvas()->tcl();
+
+  QStringList args1;
+  for (auto *arg : args)
+    args1.push_back(tcl->variantFromObj(arg).toString());
+
+  if (! setValue(name, value, args1))
+    return false;
+
+  return true;
+}
+
+bool
+Object3D::
+execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res)
+{
+  auto *tcl = canvas()->tcl();
+
+  QStringList args1;
+  for (auto *arg : args)
+    args1.push_back(tcl->variantFromObj(arg).toString());
+
+  QVariant res1;
+  if (! exec(op, args1, res1))
+    return false;
+
+  res = tcl->variantToObj(res1);
+
+  return true;
+}
+
 //---
 
 CQGLBuffer *

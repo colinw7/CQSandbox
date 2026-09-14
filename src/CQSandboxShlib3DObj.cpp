@@ -1,6 +1,7 @@
 #include <CQSandboxShlib3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxApp.h>
+#include <CQSandboxShlib.h>
 
 #define OS_UNIX 1
 #include <CShLib.h>
@@ -91,69 +92,61 @@ init()
 {
   Object3D::init();
 
-  using InitProc = int (*)();
-
   if (initProc_)
-    (void) (*reinterpret_cast<InitProc>(initProc_))();
+    (void) (*reinterpret_cast<CQSandboxShLib::InitProc>(initProc_))();
 }
 
 bool
 Shlib3DObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
+getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res)
 {
-  auto *tcl = canvas()->tcl();
-
-  using GetProc = int (*)(Tcl_Interp *interp, const char *name, Tcl_Obj **res);
-
-  auto name1 = name.toStdString();
-
   if (getProc_) {
-    Tcl_Obj* res { nullptr };
+    auto *tcl = canvas()->tcl();
 
-    if ((*reinterpret_cast<GetProc>(getProc_))(tcl->interp(), name1.c_str(), &res)) {
-      value = tcl->variantFromObj(res);
+    auto name1 = name.toStdString();
+
+    if ((*reinterpret_cast<CQSandboxShLib::GetProc>(getProc_))(
+          tcl->interp(), name1.c_str(), args.size(), const_cast<Tcl_Obj **>(&args[0]), &res))
       return true;
-    }
   }
 
-  return Object3D::getValue(name, args, value);
+  return Object3D::getTclValue(name, args, res);
 }
 
 bool
 Shlib3DObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
+setTclValue(const QString &name, const QString &value, const TclObjs &args)
 {
-  auto *tcl = canvas()->tcl();
-
-  using SetProc = int (*)(Tcl_Interp *interp, const char *name, const char *value);
-
-  auto name1  = name .toStdString();
-  auto value1 = value.toStdString();
-
   if (setProc_) {
-    if ((*reinterpret_cast<SetProc>(setProc_))(tcl->interp(), name1.c_str(), value1.c_str()))
+    auto *tcl = canvas()->tcl();
+
+    auto name1  = name .toStdString();
+    auto value1 = value.toStdString();
+
+    if ((*reinterpret_cast<CQSandboxShLib::SetProc>(setProc_))(
+          tcl->interp(), name1.c_str(), value1.c_str(),
+          args.size(), const_cast<Tcl_Obj **>(&args[0])))
       return true;
   }
 
-  return Object3D::setValue(name, value, args);
+  return Object3D::setTclValue(name, value, args);
 }
 
 bool
 Shlib3DObj::
-exec(const QString &op, const QStringList &args, QVariant &res)
+execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res)
 {
-  auto *tcl = canvas()->tcl();
-
-  using ExecProc = int (*)(Tcl_Interp *interp, const char *op);
-
-  auto op1 = op.toStdString();
-
   if (execProc_) {
-    if ((*reinterpret_cast<ExecProc>(execProc_))(tcl->interp(), op1.c_str()))
+    auto *tcl = canvas()->tcl();
+
+    auto op1 = op.toStdString();
+
+    if ((*reinterpret_cast<CQSandboxShLib::ExecProc>(execProc_))(
+          tcl->interp(), op1.c_str(), args.size(), const_cast<Tcl_Obj **>(&args[0]), &res))
       return true;
   }
 
-  return Object3D::exec(op, args, res);
+  return Object3D::execTcl(op, args, res);
 }
 
 }

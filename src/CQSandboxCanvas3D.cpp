@@ -562,6 +562,19 @@ createObjCommand(Object3D *obj)
     static_cast<CQTcl::ObjCmdData>(obj));
 }
 
+void
+Canvas3D::
+createObjTclCommand(Object3D *obj)
+{
+  auto *tcl = this->tcl();
+
+  auto name = obj->getCommandName();
+
+  tcl->createObjCommand(name,
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::objectTclCommandProc),
+    static_cast<CQTcl::ObjCmdData>(obj));
+}
+
 //---
 
 void
@@ -581,7 +594,10 @@ addNewObject(Object3D *obj)
 
   obj->setInd(++lastInd_);
 
-  createObjCommand(obj);
+  if (obj->isTclCmd())
+    createObjTclCommand(obj);
+  else
+    createObjCommand(obj);
 
   auto id = obj->calcId();
 
@@ -1502,11 +1518,18 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
   auto *canvas = obj->canvas();
   auto *app    = canvas->app();
 
+  if (objc < 2) {
+    (void) app->errorMsg("Missing args for object command");
+    return TCL_ERROR;
+  }
+
   auto *tcl = canvas->tcl();
 
   auto args = app->getArgs(objc, objv);
 
-  if      (args[0] == "get") {
+  auto cmd = args[0];
+
+  if      (cmd == "get") {
     if (args.size() > 1) {
       auto name = args[1];
 
@@ -1525,7 +1548,7 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       return TCL_ERROR;
     }
   }
-  else if (args[0] == "set") {
+  else if (cmd == "set") {
     if (args.size() > 2) {
       auto name  = args[1];
       auto value = args[2];
@@ -1534,7 +1557,7 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       for (int i = 3; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      if (! obj->setValue(args[1], args[2], args1))
+      if (! obj->setValue(name, value, args1))
         return TCL_ERROR;
     }
     else {
@@ -1542,9 +1565,9 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       return TCL_ERROR;
     }
   }
-  else if (args[0] == "exec") {
+  else if (cmd == "exec") {
     if (args.size() > 1) {
-      QString op = args[1];
+      auto op = args[1];
 
       QStringList args1;
       for (int i = 2; i < args.length(); ++i)
@@ -1562,7 +1585,89 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
     }
   }
   else {
-    (void) app->errorMsg(QString("Bad object command '%1'").arg(args[0]));
+    (void) app->errorMsg(QString("Bad object command '%1'").arg(cmd));
+    return TCL_ERROR;
+  }
+
+  return TCL_OK;
+}
+
+int
+Canvas3D::
+objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *obj = static_cast<Object3D *>(clientData);
+  assert(obj);
+
+  auto *canvas = obj->canvas();
+  auto *app    = canvas->app();
+
+  if (objc < 2) {
+    (void) app->errorMsg("Missing args for object command");
+    return TCL_ERROR;
+  }
+
+  auto *tcl = canvas->tcl();
+
+  auto cmd = tcl->qstringFromObj(objv[1]);
+
+  if      (cmd == "get") {
+    if (objc > 2) {
+      auto name = tcl->qstringFromObj(objv[2]);
+
+      Object3D::TclObjs objs;
+      for (int i = 3; i < objc; ++i)
+        objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
+
+      Tcl_Obj *res;
+      if (! obj->getTclValue(name, objs, res))
+        return TCL_ERROR;
+
+      tcl->setResult(res);
+    }
+    else {
+      (void) app->errorMsg("Missing args for get");
+      return TCL_ERROR;
+    }
+  }
+  else if (cmd == "set") {
+    if (objc > 3) {
+      auto name  = tcl->qstringFromObj(objv[2]);
+      auto value = tcl->qstringFromObj(objv[3]);
+
+      Object3D::TclObjs objs;
+      for (int i = 4; i < objc; ++i)
+        objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
+
+      if (! obj->setTclValue(name, value, objs))
+        return TCL_ERROR;
+    }
+    else {
+      (void) app->errorMsg("Missing args for set");
+      return TCL_ERROR;
+    }
+  }
+  else if (cmd == "exec") {
+    if (objc > 2) {
+      auto op = tcl->qstringFromObj(objv[2]);
+
+      Object3D::TclObjs objs;
+      for (int i = 3; i < objc; ++i)
+        objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
+
+      Tcl_Obj *res;
+      if (! obj->execTcl(op, objs, res))
+        return TCL_ERROR;
+
+      tcl->setResult(res);
+    }
+    else {
+      (void) app->errorMsg("Missing args for exec");
+      return TCL_ERROR;
+    }
+  }
+  else {
+    (void) app->errorMsg(QString("Bad object command '%1'").arg(cmd));
     return TCL_ERROR;
   }
 

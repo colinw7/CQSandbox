@@ -151,6 +151,8 @@ class Object3D : public QObject {
   using FaceSet        = std::set<uint>;
   using SelectedFaces  = std::map<uint, FaceSet>;
 
+  using TclObjs = std::vector<Tcl_Obj *>;
+
  public:
   Object3D(Canvas3D *canvas, Type type);
 
@@ -297,10 +299,17 @@ class Object3D : public QObject {
 
   //---
 
-  virtual bool getValue(const QString &name, const QStringList &args, QVariant &value);
+  virtual bool isTclCmd() const { return false; }
+
+  virtual bool getValue(const QString &name, const QStringList &args, QVariant &res);
   virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
 
-  virtual bool exec(const QString &name, const QStringList &args, QVariant &res);
+  virtual bool exec(const QString &op, const QStringList &args, QVariant &res);
+
+  virtual bool getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res);
+  virtual bool setTclValue(const QString &name, const QString &value, const TclObjs &args);
+
+  virtual bool execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res);
 
   //---
 

@@ -20,10 +20,12 @@ class Shlib3DObj : public Object3D {
 
   void init() override;
 
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool isTclCmd() const override { return true; }
 
-  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
+  bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
+  bool setTclValue(const QString &name, const QString &value, const TclObjs &objs) override;
+
+  bool execTcl(const QString &op, const TclObjs &objs, Tcl_Obj* &res) override;
 
  private:
   QString libName_;

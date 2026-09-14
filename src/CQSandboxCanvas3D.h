@@ -377,6 +377,8 @@ class Canvas3D : public OpenGLWindow {
 
   void createObjCommand(Object3D *obj);
 
+  void createObjTclCommand(Object3D *obj);
+
   //--
 
   void addObjectMgr(ObjectMgr3D *mgr);
@@ -553,6 +555,7 @@ class Canvas3D : public OpenGLWindow {
 
  private:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+  static int objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
   static int canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
   static int cameraProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);

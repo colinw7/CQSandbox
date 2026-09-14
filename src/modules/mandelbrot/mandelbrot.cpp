@@ -1,3 +1,5 @@
+#include <CQSandboxShlib.h>
+
 #include <CMandelbrot.h>
 #include <CDisplayRange2D.h>
 #include <CColorRange.h>
@@ -6,30 +8,42 @@
 
 #include <tcl/tcl.h>
 
-class MandelbrotImpl {
- public:
-  MandelbrotImpl() { }
+#define MandelbrotImplInst MandelbrotImpl::getInst()
 
-  int init() {
+class MandelbrotImpl : public CQSandboxShLib::Impl {
+ public:
+  static MandelbrotImpl *getInst() {
+    static MandelbrotImpl *s_inst;
+
+    if (! s_inst)
+      s_inst = new MandelbrotImpl;
+
+    return s_inst;
+  }
+
+  static int init() {
     std::cerr << "init\n";
     return 1;
   }
 
-  int getValue(Tcl_Interp *tcl, const char *name, Tcl_Obj **res) {
+  static int getValue(Tcl_Interp *tcl, const char *name, int argc,
+                      Tcl_Obj **argv, Tcl_Obj **res) {
+    auto *mandelbrot = getInst()->mandelbrot();
+
     std::cerr << "getValue: " << name << "\n";
 
     auto name1 = std::string(name);
     if      (name1 == "xmin") {
-      *res = Tcl_NewDoubleObj(mandelbrot_.getXMin());
+      *res = Tcl_NewDoubleObj(mandelbrot->getXMin());
     }
     else if (name1 == "ymin") {
-      *res = Tcl_NewDoubleObj(mandelbrot_.getYMin());
+      *res = Tcl_NewDoubleObj(mandelbrot->getYMin());
     }
     else if (name1 == "xmax") {
-      *res = Tcl_NewDoubleObj(mandelbrot_.getXMax());
+      *res = Tcl_NewDoubleObj(mandelbrot->getXMax());
     }
     else if (name1 == "ymax") {
-      *res = Tcl_NewDoubleObj(mandelbrot_.getYMax());
+      *res = Tcl_NewDoubleObj(mandelbrot->getYMax());
     }
     else
       return 0;
@@ -37,15 +51,27 @@ class MandelbrotImpl {
     return 1;
   }
 
-  int setValue(Tcl_Interp *tcl, const char *name, const char *value) {
+  static int setValue(Tcl_Interp *tcl, const char *name, const char *value,
+                      int argc, Tcl_Obj **argv) {
     std::cerr << "setValue: " << name << " " << value << "\n";
     return 1;
   }
 
-  int exec(Tcl_Interp *tcl, const char *op) {
+  static int exec(Tcl_Interp *tcl, const char *op, int argc, Tcl_Obj **argv, Tcl_Obj **res) {
     std::cerr << "exec: " << op << "\n";
     return 1;
   }
+
+  //---
+
+  MandelbrotImpl() { }
+
+  CQSandboxShLib::InitProc initProc() override { return init; }
+  CQSandboxShLib::GetProc  getProc () override { return getValue; }
+  CQSandboxShLib::SetProc  setProc () override { return setValue; }
+  CQSandboxShLib::ExecProc execProc() override { return exec; }
+
+  CMandelbrot *mandelbrot() { return &mandelbrot_; }
 
  private:
   CMandelbrot      mandelbrot_;
@@ -56,28 +82,27 @@ class MandelbrotImpl {
   std::vector<int> colors_;
 };
 
-static MandelbrotImpl *s_impl;
-
 //---
 
 extern "C" {
 
 int mandelbrot_init() {
-  s_impl = new MandelbrotImpl;
-
-  return s_impl->init();
+  return (MandelbrotImpl::getInst()->initProc())();
 }
 
-int mandelbrot_get_value(Tcl_Interp *tcl, const char *name, Tcl_Obj **res) {
-  return s_impl->getValue(tcl, name, res);
+int mandelbrot_get_value(Tcl_Interp *tcl, const char *name,
+                         int argc, Tcl_Obj **argv, Tcl_Obj **res) {
+  return (MandelbrotImpl::getInst()->getProc())(tcl, name, argc, argv, res);
 }
 
-int mandelbrot_set_value(Tcl_Interp *tcl, const char *name, const char *value) {
-  return s_impl->setValue(tcl, name, value);
+int mandelbrot_set_value(Tcl_Interp *tcl, const char *name, const char *value,
+                         int argc, Tcl_Obj **argv) {
+  return (MandelbrotImpl::getInst()->setProc())(tcl, name, value, argc, argv);
 }
 
-int mandelbrot_exec(Tcl_Interp *tcl, const char *op) {
-  return s_impl->exec(tcl, op);
+int mandelbrot_exec(Tcl_Interp *tcl, const char *op,
+                    int argc, Tcl_Obj **argv, Tcl_Obj **res) {
+  return (MandelbrotImpl::getInst()->execProc())(tcl, op, argc, argv, res);
 }
 
 }
