@@ -13,7 +13,7 @@ namespace CQSandbox {
 
 bool
 TextObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   auto *tcl = canvas->tcl();
 
@@ -41,8 +41,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 TextObj::
-TextObj(Canvas *canvas, const Point2D &pos, const QString &text) :
- Object(canvas), pos_(pos), text_(text)
+TextObj(Canvas2D *canvas, const Point2D &pos, const QString &text) :
+ Object2D(canvas, Type::TEXT), pos_(pos), text_(text)
 {
   font_ = canvas->font();
 }
@@ -60,7 +60,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "html")
     value = html_;
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -84,7 +84,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "border.color")
     border_.setColor(Util::stringToColor(tcl, value));
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }

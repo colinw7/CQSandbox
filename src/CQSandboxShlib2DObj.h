@@ -1,20 +1,20 @@
 #ifndef CQSandboxShlibObj_H
 #define CQSandboxShlibObj_H
 
-#include <CQSandboxObject3D.h>
+#include <CQSandboxObject2D.h>
 
 class CShLib;
 
 namespace CQSandbox {
 
-class Shlib3DObj : public Object3D {
+class Shlib2DObj : public Object2D {
   Q_OBJECT
 
  public:
-  static Object3D *create(Canvas3D *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  Shlib3DObj(Canvas3D *canvas, const QString &libName);
- ~Shlib3DObj();
+  Shlib2DObj(Canvas2D *canvas, const QString &libName);
+ ~Shlib2DObj();
 
   const char *typeName() const override { return "shlib"; }
 

@@ -7,13 +7,13 @@
 
 namespace CQSandbox {
 
-class PointListObj : public Object {
+class PointListObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  PointListObj(Canvas *canvas, const Coord &radius);
+  PointListObj(Canvas2D *canvas, const Coord &radius);
 
   const char *typeName() const override { return "pointList"; }
 

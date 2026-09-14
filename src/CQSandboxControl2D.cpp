@@ -31,7 +31,7 @@ class Xml2D : public CQXml {
 namespace CQSandbox {
 
 Control2D::
-Control2D(Canvas *canvas) :
+Control2D(Canvas2D *canvas) :
  canvas_(canvas)
 {
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
@@ -70,7 +70,7 @@ Control2D(Canvas *canvas) :
   updateObjects();
 
   if (canvas_)
-    connect(canvas_, &Canvas::objectsChanged, this, &Control2D::updateObjects);
+    connect(canvas_, &Canvas2D::objectsChanged, this, &Control2D::updateObjects);
 
   connect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
           this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));
@@ -141,7 +141,7 @@ visibleSlot(int i)
     obj->setVisible(i);
 }
 
-Object *
+Object2D *
 Control2D::
 getCurrentObject() const
 {

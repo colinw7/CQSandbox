@@ -10,7 +10,7 @@ namespace CQSandbox {
 
 bool
 CsvObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 1)
     return false;
@@ -29,8 +29,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 CsvObj::
-CsvObj(Canvas *canvas, const QString &filename) :
- Object(canvas), filename_(filename)
+CsvObj(Canvas2D *canvas, const QString &filename) :
+ Object2D(canvas, Type::CSV), filename_(filename)
 {
   csv_ = new CQCsvModel;
 }
@@ -66,7 +66,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
       return app->errorMsg("missing row/col for data");
   }
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -84,7 +84,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "first_column_header")
     csv_->setFirstColumnHeader(Util::stringToBool(value));
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -100,7 +100,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     return true;
   }
   else
-    return Object::exec(op, args, res);
+    return Object2D::exec(op, args, res);
 }
 
 }

@@ -9,13 +9,13 @@ class CQTextModel;
 
 namespace CQSandbox {
 
-class TextObj : public Object {
+class TextObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  TextObj(Canvas *canvas, const Point2D &pos, const QString &text);
+  TextObj(Canvas2D *canvas, const Point2D &pos, const QString &text);
 
   const char *typeName() const override { return "text"; }
 

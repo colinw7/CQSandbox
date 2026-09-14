@@ -1828,7 +1828,6 @@ setUiValue(const QString &name, const QVariant &value)
   return true;
 }
 
-
 bool
 Control3D::
 getUiWidgetValue(const QString &widget, const QString &name, QVariant &value) const

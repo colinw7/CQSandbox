@@ -9,7 +9,7 @@ namespace CQSandbox {
 
 bool
 VectorObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() > 1)
     return false;
@@ -26,8 +26,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 VectorObj::
-VectorObj(Canvas *canvas) :
- Object(canvas)
+VectorObj(Canvas2D *canvas) :
+ Object2D(canvas, Type::VECTOR)
 {
 }
 
@@ -40,7 +40,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "y")
     value = v_.y();
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -54,7 +54,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "y")
     v_.setY(Util::stringToReal(value));
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }

@@ -12,7 +12,7 @@ namespace CQSandbox {
 
 bool
 AxisObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
@@ -36,8 +36,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 AxisObj::
-AxisObj(Canvas *canvas, const Point2D &pos, const Coord &len) :
- Object(canvas), pos_(pos), len_(len)
+AxisObj(Canvas2D *canvas, const Point2D &pos, const Coord &len) :
+ Object2D(canvas, Type::AXIS), pos_(pos), len_(len)
 {
   axis_ = new CQAxis;
 }
@@ -51,7 +51,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "p2")
     value = Util::coordToString(len_);
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -79,7 +79,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       axis_->setDirection(CQAxis::DIR_VERTICAL);
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }

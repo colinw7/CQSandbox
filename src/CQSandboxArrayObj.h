@@ -7,14 +7,14 @@
 
 namespace CQSandbox {
 
-class ArrayObj : public Object {
+class ArrayObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  ArrayObj(Canvas *canvas, uint dim0, uint dim1);
-  ArrayObj(Canvas *canvas, const CArray2D<double> &a);
+  ArrayObj(Canvas2D *canvas, uint dim0, uint dim1);
+  ArrayObj(Canvas2D *canvas, const CArray2D<double> &a);
 
   const char *typeName() const override { return "array"; }
 

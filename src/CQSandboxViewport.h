@@ -3,12 +3,12 @@
 
 namespace CQSandbox {
 
-class Canvas;
+class Canvas2D;
 
 struct Viewport {
-  using Objects = std::vector<Object *>;
+  using Objects = std::vector<Object2D *>;
 
-  Canvas*         canvas { nullptr };
+  Canvas2D*       canvas { nullptr };
   QString         name;
   CDisplayRange2D displayRange;
   Rect2D          rect;

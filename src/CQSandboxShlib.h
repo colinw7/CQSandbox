@@ -9,7 +9,7 @@ using InitProc = int (*)();
 
 using GetProc = int (*)(Tcl_Interp *interp, const char *name,
                         int argc, Tcl_Obj **argv, Tcl_Obj **res);
-using SetProc = int (*)(Tcl_Interp *interp, const char *name, const char *value,
+using SetProc = int (*)(Tcl_Interp *interp, const char *name, Tcl_Obj *value,
                         int argc, Tcl_Obj **argv);
 
 using ExecProc = int (*)(Tcl_Interp *interp, const char *op,

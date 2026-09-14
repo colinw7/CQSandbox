@@ -7,13 +7,13 @@
 
 namespace CQSandbox {
 
-class PathObj : public Object {
+class PathObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  PathObj(Canvas *canvas, const QPainterPath &path);
+  PathObj(Canvas2D *canvas, const QPainterPath &path);
 
   const char *typeName() const override { return "path"; }
 

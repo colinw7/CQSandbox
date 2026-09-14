@@ -1584,6 +1584,11 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       return TCL_ERROR;
     }
   }
+  else if (cmd == "delete") {
+    canvas->removeObject(obj);
+
+    delete obj;
+  }
   else {
     (void) app->errorMsg(QString("Bad object command '%1'").arg(cmd));
     return TCL_ERROR;
@@ -1632,14 +1637,13 @@ objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
   }
   else if (cmd == "set") {
     if (objc > 3) {
-      auto name  = tcl->qstringFromObj(objv[2]);
-      auto value = tcl->qstringFromObj(objv[3]);
+      auto name = tcl->qstringFromObj(objv[2]);
 
       Object3D::TclObjs objs;
       for (int i = 4; i < objc; ++i)
         objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
 
-      if (! obj->setTclValue(name, value, objs))
+      if (! obj->setTclValue(name, const_cast<Tcl_Obj *>(objv[3]), objs))
         return TCL_ERROR;
     }
     else {

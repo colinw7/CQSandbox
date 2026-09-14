@@ -11,7 +11,7 @@
 namespace CQSandbox {
 
 Toolbar2D::
-Toolbar2D(Canvas *canvas) :
+Toolbar2D(Canvas2D *canvas) :
  QFrame(canvas), canvas_(canvas)
 {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);

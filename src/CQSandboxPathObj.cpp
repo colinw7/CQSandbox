@@ -11,7 +11,7 @@ namespace CQSandbox {
 
 bool
 PathObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   auto *tcl = canvas->tcl();
 
@@ -30,8 +30,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 PathObj::
-PathObj(Canvas *canvas, const QPainterPath &path) :
- Object(canvas), path_(path)
+PathObj(Canvas2D *canvas, const QPainterPath &path) :
+ Object2D(canvas, Type::PATH), path_(path)
 {
 }
 
@@ -42,7 +42,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   if (name == "path")
     value = Util::pathToString(path_);
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -55,7 +55,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     path_ = Util::stringToPath(value);
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -109,7 +109,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
       path_.quadTo(p1.x, p1.y, p2.x, p2.y);
   }
   else
-    return Object::exec(op, args, res);
+    return Object2D::exec(op, args, res);
 
   return true;
 }

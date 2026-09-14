@@ -1,7 +1,9 @@
-#include <CQSandboxShlib3DObj.h>
-#include <CQSandboxCanvas3D.h>
+#include <CQSandboxShlib2DObj.h>
+#include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxShlib.h>
+
+#include <CQTclUtil.h>
 
 #define OS_UNIX 1
 #include <CShLib.h>
@@ -10,18 +12,18 @@
 
 namespace CQSandbox {
 
-Object3D *
-Shlib3DObj::
-create(Canvas3D *canvas, const QStringList &args)
+bool
+Shlib2DObj::
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() < 1)
-    return nullptr;
+    return false;
 
   auto libName = args[0];
 
   auto *tcl = canvas->tcl();
 
-  auto *obj = new Shlib3DObj(canvas, libName);
+  auto *obj = new Shlib2DObj(canvas, libName);
 
   auto name = canvas->addNewObject(obj);
 
@@ -29,12 +31,12 @@ create(Canvas3D *canvas, const QStringList &args)
 
   tcl->setResult(name);
 
-  return obj;
+  return true;
 }
 
-Shlib3DObj::
-Shlib3DObj(Canvas3D *canvas, const QString &libName) :
- Object3D(canvas, Type::SHLIB), libName_(libName)
+Shlib2DObj::
+Shlib2DObj(Canvas2D *canvas, const QString &libName) :
+ Object2D(canvas, Type::SHLIB), libName_(libName)
 {
   auto *app = canvas_->app();
 
@@ -59,8 +61,10 @@ Shlib3DObj(Canvas3D *canvas, const QString &libName) :
     break;
   }
 
-  if (! shlib_)
+  if (! shlib_) {
+    (void) app->errorMsg("Failed to Find Library '" + libName_ + "'");
     return;
+  }
 
   // get symbols
   auto getProc = [&](const QString &procName) {
@@ -80,24 +84,24 @@ Shlib3DObj(Canvas3D *canvas, const QString &libName) :
   execProc_ = getProc(libName_ + "_exec");
 }
 
-Shlib3DObj::
-~Shlib3DObj()
+Shlib2DObj::
+~Shlib2DObj()
 {
   delete shlib_;
 }
 
 void
-Shlib3DObj::
+Shlib2DObj::
 init()
 {
-  Object3D::init();
+  Object2D::init();
 
   if (initProc_)
     (void) (*reinterpret_cast<CQSandboxShLib::InitProc>(initProc_))();
 }
 
 bool
-Shlib3DObj::
+Shlib2DObj::
 getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res)
 {
   if (getProc_) {
@@ -110,13 +114,13 @@ getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res)
       return true;
   }
   else
-    return Object3D::getTclValue(name, args, res);
+    return Object2D::getTclValue(name, args, res);
 
   return false;
 }
 
 bool
-Shlib3DObj::
+Shlib2DObj::
 setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &args)
 {
   if (setProc_) {
@@ -129,13 +133,13 @@ setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &args)
       return true;
   }
   else
-    return Object3D::setTclValue(name, value, args);
+    return Object2D::setTclValue(name, value, args);
 
   return false;
 }
 
 bool
-Shlib3DObj::
+Shlib2DObj::
 execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res)
 {
   if (execProc_) {
@@ -148,7 +152,7 @@ execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res)
       return true;
   }
   else
-    return Object3D::execTcl(op, args, res);
+    return Object2D::execTcl(op, args, res);
 
   return false;
 }

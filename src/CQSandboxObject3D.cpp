@@ -20,7 +20,7 @@ QString
 Object3D::
 getCommandName() const
 {
-  return QString("object3d.%1").arg(ind_);
+  return QString("sb3d::%1.%2").arg(typeName()).arg(ind_);
 }
 
 QString
@@ -442,7 +442,7 @@ getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res)
 
 bool
 Object3D::
-setTclValue(const QString &name, const QString &value, const TclObjs &args)
+setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &args)
 {
   auto *tcl = canvas()->tcl();
 
@@ -450,7 +450,7 @@ setTclValue(const QString &name, const QString &value, const TclObjs &args)
   for (auto *arg : args)
     args1.push_back(tcl->variantFromObj(arg).toString());
 
-  if (! setValue(name, value, args1))
+  if (! setValue(name, tcl->qstringFromObj(value), args1))
     return false;
 
   return true;

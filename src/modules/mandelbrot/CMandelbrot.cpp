@@ -1,5 +1,7 @@
 #include <CMandelbrot.h>
+
 #include <cmath>
+#include <cassert>
 
 CMandelbrot::
 CMandelbrot()
@@ -16,33 +18,57 @@ CMandelbrot *
 CMandelbrot::
 dup() const
 {
-  CMandelbrot *m = new CMandelbrot(*this);
+  auto *m = new CMandelbrot(*this);
 
   return m;
 }
 
 void
 CMandelbrot::
-initCalc(int /*pixel_xmin*/, int /*pixel_ymin*/, int /*pixel_xmax*/, int /*pixel_ymax*/,
+initCalc(int pixel_xmin, int pixel_ymin, int pixel_xmax, int pixel_ymax,
          double xmin, double ymin, double xmax, double ymax, int max_iterations)
 {
-  save_x_.resize(size_t(max_iterations + 1));
-  save_y_.resize(size_t(max_iterations + 1));
+  if (! initialized_ || max_iterations_ != max_iterations) {
+    save_x_.resize(size_t(max_iterations + 1));
+    save_y_.resize(size_t(max_iterations + 1));
 
-  d_ = std::max(xmax - xmin, ymax - ymin)/4;
+    d_ = std::max(xmax - xmin, ymax - ymin)/4;
+
+    initialized_    = true;
+    max_iterations_ = max_iterations;
+  }
+
+  pixel_xmin_ = pixel_xmin;
+  pixel_ymin_ = pixel_ymin;
+  pixel_xmax_ = pixel_xmax;
+  pixel_ymax_ = pixel_ymax;
+
+  xmin_ = xmin;
+  ymin_ = ymin;
+  xmax_ = xmax;
+  ymax_ = ymax;
 }
 
 int
 CMandelbrot::
 calc(double x, double y, int max_iterations) const
 {
-  save_x_.resize(size_t(max_iterations + 1));
-  save_y_.resize(size_t(max_iterations + 1));
+  assert(initialized_ && max_iterations_ == max_iterations);
 
-  if (! distance_)
-    return calc_iterations(x, y, max_iterations);
-  else
-    return calc_distance(x, y, max_iterations);
+  if (isAutoColor()) {
+    if (! distance_)
+      return calc_iterations(x, y, max_iterations_);
+    else
+      return calc_distance(x, y, max_iterations_);
+  }
+  else {
+    int num_iterations = iterate(x, y, max_iterations_);
+
+    if (num_iterations >= max_iterations_)
+      num_iterations = max_iterations_;
+
+    return num_iterations;
+  }
 }
 
 int
@@ -52,12 +78,12 @@ calc_iterations(double x, double y, int max_iterations) const
   int num_iterations = iterate(x, y, max_iterations);
 
   if (num_iterations >= max_iterations)
-    return max_iterations;
+    num_iterations = max_iterations;
 
   int color = 254*num_iterations/(max_iterations - 1) + 1;
 
-  if (show_vector_) {
-    double angle = atan2(zr_, zi_);
+  if (getShowVector()) {
+    auto angle = std::atan2(zr_, zi_);
 
     if (angle >= M_PI)
       color = 256 - color;
@@ -73,7 +99,7 @@ calc_distance(double x, double y, int max_iterations) const
   int num_iterations = iterate(x, y, max_iterations);
 
   if (num_iterations >= max_iterations)
-    return max_iterations;
+    num_iterations = max_iterations;
 
   double dist = distance(x, y, num_iterations);
 
@@ -135,4 +161,18 @@ distance(double, double, int iterations) const
   double dist = ::log(zr2 + zi2) * sqrt((zr2 + zi2)/(x1*x1 + y1*y1));
 
   return dist;
+}
+
+double
+CMandelbrot::
+pixelXToUser(int x) const
+{
+  return (double(x - pixel_xmin_)/double(pixel_xmax_ - pixel_xmin_))*(xmax_ - xmin_) + xmin_;
+}
+
+double
+CMandelbrot::
+pixelYToUser(int y) const
+{
+  return (double(y - pixel_ymin_)/double(pixel_ymax_ - pixel_ymin_))*(ymin_ - ymax_) + ymax_;
 }

@@ -9,7 +9,7 @@ namespace CQSandbox {
 
 bool
 GroupObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
 
@@ -27,8 +27,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 GroupObj::
-GroupObj(Canvas *canvas, const Rect2D &rect) :
- Object(canvas), rect_(rect)
+GroupObj(Canvas2D *canvas, const Rect2D &rect) :
+ Object2D(canvas, Type::GROUP), rect_(rect)
 {
 }
 
@@ -43,7 +43,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "range")
     value = Util::rangeToString(tcl, displayRange_);
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -59,7 +59,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "range")
     Util::stringToRange(tcl, displayRange_, value);
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -100,7 +100,7 @@ draw(QPainter *painter)
 
 void
 GroupObj::
-addObject(Object *obj)
+addObject(Object2D *obj)
 {
   objects_.push_back(obj);
 
@@ -111,7 +111,7 @@ addObject(Object *obj)
 
 void
 GroupObj::
-removeObject(Object *obj)
+removeObject(Object2D *obj)
 {
   Objects objects;
 

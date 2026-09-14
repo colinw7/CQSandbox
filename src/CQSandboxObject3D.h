@@ -293,13 +293,13 @@ class Object3D : public QObject {
 
   //---
 
-  virtual void init();
-
   virtual void setModelMatrix(uint flags=ModelMatrixFlags::ALL);
 
   //---
 
   virtual bool isTclCmd() const { return false; }
+
+  virtual void init();
 
   virtual bool getValue(const QString &name, const QStringList &args, QVariant &res);
   virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
@@ -307,7 +307,7 @@ class Object3D : public QObject {
   virtual bool exec(const QString &op, const QStringList &args, QVariant &res);
 
   virtual bool getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res);
-  virtual bool setTclValue(const QString &name, const QString &value, const TclObjs &args);
+  virtual bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &args);
 
   virtual bool execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res);
 

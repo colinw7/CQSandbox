@@ -9,13 +9,13 @@ class CQAStarModel;
 
 namespace CQSandbox {
 
-class AStarObj : public Object {
+class AStarObj : public Object2D {
   Q_OBJECT
 
  public:
-  static Object *create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  AStarObj(Canvas *canvas, uint nx, uint ny);
+  AStarObj(Canvas2D *canvas, uint nx, uint ny);
 
   const char *typeName() const override { return "astar"; }
 

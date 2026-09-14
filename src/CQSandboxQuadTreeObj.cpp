@@ -9,7 +9,7 @@ namespace CQSandbox {
 
 bool
 QuadTreeObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 0)
     return false;
@@ -26,7 +26,7 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 QuadTreeObj::
-QuadTreeObj(Canvas *canvas) :
+QuadTreeObj(Canvas2D *canvas) :
  GroupObj(canvas, Rect2D())
 {
 }

@@ -7,13 +7,13 @@ class CQAxis;
 
 namespace CQSandbox {
 
-class AxisObj : public Object {
+class AxisObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  AxisObj(Canvas *canvas, const Point2D &pos, const Coord &len);
+  AxisObj(Canvas2D *canvas, const Point2D &pos, const Coord &len);
 
   const char *typeName() const override { return "axis"; }
 

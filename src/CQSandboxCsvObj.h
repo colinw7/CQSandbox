@@ -7,13 +7,13 @@ class CQCsvModel;
 
 namespace CQSandbox {
 
-class CsvObj : public Object {
+class CsvObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  CsvObj(Canvas *canvas, const QString &filename);
+  CsvObj(Canvas2D *canvas, const QString &filename);
 
   const char *typeName() const override { return "csv"; }
 

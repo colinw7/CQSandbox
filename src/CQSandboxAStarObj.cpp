@@ -7,12 +7,12 @@
 
 namespace CQSandbox {
 
-Object *
+bool
 AStarObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2)
-    return nullptr;
+    return false;
 
   auto *tcl = canvas->tcl();
 
@@ -25,12 +25,12 @@ create(Canvas *canvas, const QStringList &args)
 
   tcl->setResult(name);
 
-  return obj;
+  return true;
 }
 
 AStarObj::
-AStarObj(Canvas *canvas, uint nx, uint ny) :
- Object(canvas), nx_(nx), ny_(ny), searchData_(this)
+AStarObj(Canvas2D *canvas, uint nx, uint ny) :
+ Object2D(canvas, Type::ASTAR), nx_(nx), ny_(ny), searchData_(this)
 {
   nodesArray_.resize(nx_);
 
@@ -128,7 +128,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = Util::point2DToString(CPoint2D(node->loc.col, node->loc.row));
   }
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -194,7 +194,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     node->setEmpty(b);
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }

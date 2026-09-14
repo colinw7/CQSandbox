@@ -9,13 +9,15 @@
 #include <QPen>
 #include <QVariant>
 
+#include <tcl/tcl.h>
+
 namespace CQSandbox {
 
-class Canvas;
+class Canvas2D;
 class GroupObj;
 class AnimateBrush;
 
-class Object : public QObject {
+class Object2D : public QObject {
   Q_OBJECT
 
   Q_PROPERTY(QString id       READ id)
@@ -23,16 +25,46 @@ class Object : public QObject {
   Q_PROPERTY(bool    selected READ isSelected WRITE setSelected)
 
  public:
-  Object(Canvas *canvas, size_t ind=0);
+  enum class Type {
+    NONE,
+    ARRAY,
+    ARROW,
+    ASTAR,
+    AXIS,
+    BUTTON,
+    CIRCLE,
+    CSV,
+    EDIT,
+    GROUP,
+    IMAGE,
+    LINE,
+    PARTICLE,
+    PATH,
+    POINT_LIST,
+    RECT,
+    RENDERER,
+    SHLIB,
+    TEXT,
+    VECTOR
+  };
 
-  Object(const Object &) = delete;
-  Object &operator=(const Object &) = delete;
+  using TclObjs = std::vector<Tcl_Obj *>;
 
-  Canvas *canvas() const { return canvas_; }
+ public:
+  Object2D(Canvas2D *canvas, Type type);
+
+  Object2D(const Object2D &) = delete;
+  Object2D &operator=(const Object2D &) = delete;
+
+  Canvas2D *canvas() const { return canvas_; }
 
   //---
 
   virtual const char *typeName() const = 0;
+
+  QString typeNameStr() const { return QString(typeName()); }
+
+  Type type() const { return type_; }
 
   //---
 
@@ -62,10 +94,19 @@ class Object : public QObject {
 
   //---
 
-  virtual bool getValue(const QString &name,  const QStringList &args, QVariant &value);
+  virtual bool isTclCmd() const { return false; }
+
+  virtual void init();
+
+  virtual bool getValue(const QString &name,  const QStringList &args, QVariant &res);
   virtual bool setValue(const QString &name, const QString &value, const QStringList &args);
 
-  virtual bool exec(const QString &, const QStringList &, QVariant &) { return false; }
+  virtual bool exec(const QString &op, const QStringList &args, QVariant &res);
+
+  virtual bool getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res);
+  virtual bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &args);
+
+  virtual bool execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res);
 
   //---
 
@@ -126,8 +167,9 @@ class Object : public QObject {
  protected:
   using NameValues = std::map<QString, QVariant>;
 
-  Canvas* canvas_  { nullptr };
-  size_t  ind_     { 0 };
+  Canvas2D* canvas_  { nullptr };
+  Type      type_   { Type::NONE };
+  size_t    ind_     { 0 };
 
   QString id_;
   bool    visible_  { true };

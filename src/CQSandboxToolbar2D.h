@@ -8,15 +8,15 @@ class QLabel;
 
 namespace CQSandbox {
 
-class Canvas;
+class Canvas2D;
 
 class Toolbar2D : public QFrame {
   Q_OBJECT
 
  public:
-  Toolbar2D(Canvas *canvas);
+  Toolbar2D(Canvas2D *canvas);
 
-  Canvas *canvas() const { return canvas_; }
+  Canvas2D *canvas() const { return canvas_; }
 
   void setInfo(const QString &label);
 
@@ -30,7 +30,7 @@ class Toolbar2D : public QFrame {
   void settingsSlot();
 
  private:
-  Canvas* canvas_ { nullptr };
+  Canvas2D* canvas_ { nullptr };
 
   QToolButton* playButton_  { nullptr };
   QToolButton* pauseButton_ { nullptr };

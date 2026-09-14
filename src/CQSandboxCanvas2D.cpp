@@ -8,6 +8,7 @@
 #include <CQSandboxGroupObj.h>
 #include <CQSandboxPathObj.h>
 #include <CQSandboxPointListObj.h>
+#include <CQSandboxShlib2DObj.h>
 #include <CQSandboxQuadTreeObj.h>
 #include <CQSandboxTextObj.h>
 #include <CQSandboxVectorObj.h>
@@ -37,7 +38,7 @@ namespace CQSandbox {
 
 template<typename T>
 int createObjectProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv) {
-  auto *th = static_cast<Canvas *>(clientData);
+  auto *th = static_cast<Canvas2D *>(clientData);
   assert(th);
 
   auto args = th->app()->getArgs(objc, objv);
@@ -83,8 +84,8 @@ CRGBA QColorToRGBA(const QColor &c) {
 
 namespace CQSandbox {
 
-Canvas::
-Canvas(App *app) :
+Canvas2D::
+Canvas2D(App *app) :
  QFrame(app), app_(app)
 {
   setFocusPolicy(Qt::StrongFocus);
@@ -103,14 +104,14 @@ Canvas(App *app) :
 }
 
 CQTcl *
-Canvas::
+Canvas2D::
 tcl() const
 {
   return tcl_;
 }
 
 void
-Canvas::
+Canvas2D::
 init()
 {
   if (initialized_)
@@ -137,14 +138,14 @@ init()
   //---
 
   timer_ = new QTimer;
-  connect(timer_, &QTimer::timeout, this, &Canvas::timerSlot);
+  connect(timer_, &QTimer::timeout, this, &Canvas2D::timerSlot);
 
   stepTimer_ = new QTimer;
   stepTimer_->setSingleShot(true);
-  connect(stepTimer_, &QTimer::timeout, this, &Canvas::stepTimerSlot);
+  connect(stepTimer_, &QTimer::timeout, this, &Canvas2D::stepTimerSlot);
 
   drawTimer_ = new QTimer;
-  connect(drawTimer_, &QTimer::timeout, this, &Canvas::drawTimerSlot);
+  connect(drawTimer_, &QTimer::timeout, this, &Canvas2D::drawTimerSlot);
 
   //---
 
@@ -153,7 +154,7 @@ init()
 }
 
 void
-Canvas::
+Canvas2D::
 addCommands()
 {
   auto *tcl = this->tcl();
@@ -162,20 +163,20 @@ addCommands()
 
   // global
   tcl->createObjCommand("sb::canvas",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::canvasProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::canvasProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::palette",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::paletteProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::paletteProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::style",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::styleProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::styleProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   // viewport
   tcl->createObjCommand("sb::viewport",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::viewportProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::viewportProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   // objects
@@ -258,7 +259,7 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::ui",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::uiProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::uiProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
@@ -269,7 +270,7 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::draw_point",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::drawPointProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::drawPointProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
@@ -280,40 +281,62 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<CirclesGroupObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 #endif
+
   tcl->createObjCommand("sb::quad_tree",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<QuadTreeObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
 
+  tcl->createObjCommand("sb::shlib",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Shlib2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  //---
+
   // math
   tcl->createObjCommand("sb::fmul",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::fmulProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::fmulProc),
     static_cast<CQTcl::ObjCmdData>(this));
   tcl->createObjCommand("sb::fma", // fused multiply and add (A*B) + C
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::fmaProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::fmaProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::hypot",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::hypotProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::hypotProc),
     static_cast<CQTcl::ObjCmdData>(this));
 }
 
 void
-Canvas::
-createObjCommand(Object *obj)
+Canvas2D::
+createObjCommand(Object2D *obj)
 {
   auto *tcl = this->tcl();
 
   auto name = obj->getCommandName();
 
   tcl->createObjCommand(name,
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::objectCommandProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::objectCommandProc),
     static_cast<CQTcl::ObjCmdData>(obj));
 }
 
+void
+Canvas2D::
+createObjTclCommand(Object2D *obj)
+{
+  auto *tcl = this->tcl();
+
+  auto name = obj->getCommandName();
+
+  tcl->createObjCommand(name,
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::objectTclCommandProc),
+    static_cast<CQTcl::ObjCmdData>(obj));
+}
+
+//---
+
 Rect2D
-Canvas::
+Canvas2D::
 rectToPixel(const Rect2D &rect) const
 {
   auto p1 = pointToPixel(rect.ll);
@@ -323,7 +346,7 @@ rectToPixel(const Rect2D &rect) const
 }
 
 Point2D
-Canvas::
+Canvas2D::
 pointToPixel(const Point2D &p) const
 {
   if (p.x.units == Units::PIXEL)
@@ -343,7 +366,7 @@ pointToPixel(const Point2D &p) const
 }
 
 Point2D
-Canvas::
+Canvas2D::
 pointToWindow(const Point2D &p) const
 {
   if (p.x.units == Units::WINDOW)
@@ -363,7 +386,7 @@ pointToWindow(const Point2D &p) const
 }
 
 QSizeF
-Canvas::
+Canvas2D::
 pixelSizeToWindow(const QSizeF &psize) const
 {
   auto *viewport = currentViewport();
@@ -380,7 +403,7 @@ pixelSizeToWindow(const QSizeF &psize) const
 }
 
 void
-Canvas::
+Canvas2D::
 play()
 {
   step();
@@ -391,7 +414,7 @@ play()
 }
 
 void
-Canvas::
+Canvas2D::
 pause()
 {
   timer_->stop();
@@ -400,7 +423,7 @@ pause()
 }
 
 void
-Canvas::
+Canvas2D::
 step()
 {
   ++ticks_;
@@ -438,7 +461,7 @@ step()
 }
 
 void
-Canvas::
+Canvas2D::
 stepInit(bool &buffered)
 {
   buffered = false;
@@ -461,7 +484,7 @@ stepInit(bool &buffered)
 }
 
 void
-Canvas::
+Canvas2D::
 drawBuffered()
 {
   if (blend_)
@@ -482,21 +505,21 @@ drawBuffered()
 }
 
 void
-Canvas::
+Canvas2D::
 timerSlot()
 {
   step();
 }
 
 void
-Canvas::
+Canvas2D::
 stepTimerSlot()
 {
   step();
 }
 
 void
-Canvas::
+Canvas2D::
 drawTimerSlot()
 {
   if (drawBufferedNeeded_) {
@@ -507,7 +530,7 @@ drawTimerSlot()
 }
 
 void
-Canvas::
+Canvas2D::
 fadeImage(QImage &image1, QImage &image2, double f)
 {
 #if 1
@@ -555,7 +578,7 @@ fadeImage(QImage &image1, QImage &image2, double f)
 }
 
 void
-Canvas::
+Canvas2D::
 resizeEvent(QResizeEvent *)
 {
   bool running = running_;
@@ -587,7 +610,7 @@ resizeEvent(QResizeEvent *)
 }
 
 void
-Canvas::
+Canvas2D::
 updatePixelRanges()
 {
   auto mapX = [&](double x) { return x*(width () - 1); };
@@ -604,7 +627,7 @@ updatePixelRanges()
 }
 
 void
-Canvas::
+Canvas2D::
 paintEvent(QPaintEvent *)
 {
   if (buffered_) {
@@ -627,7 +650,7 @@ paintEvent(QPaintEvent *)
 }
 
 void
-Canvas::
+Canvas2D::
 drawStep()
 {
   drawing_ = true;
@@ -685,7 +708,7 @@ drawStep()
 }
 
 void
-Canvas::
+Canvas2D::
 drawParticle(QPainter *painter, Particle *particle)
 {
   auto *obj = dynamic_cast<const ParticleObj *>(particle->obj());
@@ -742,7 +765,7 @@ drawParticle(QPainter *painter, Particle *particle)
 }
 
 void
-Canvas::
+Canvas2D::
 mousePressEvent(QMouseEvent *e)
 {
   pressPos_  = e->pos();
@@ -762,7 +785,7 @@ mousePressEvent(QMouseEvent *e)
 }
 
 void
-Canvas::
+Canvas2D::
 mouseMoveEvent(QMouseEvent *e)
 {
   auto p = pointToWindow(Point2D::makePixel(e->pos())).qpoint();
@@ -805,7 +828,7 @@ mouseMoveEvent(QMouseEvent *e)
 }
 
 void
-Canvas::
+Canvas2D::
 mouseReleaseEvent(QMouseEvent *e)
 {
   if (pressObj_) {
@@ -827,7 +850,7 @@ mouseReleaseEvent(QMouseEvent *e)
 }
 
 void
-Canvas::
+Canvas2D::
 keyPressEvent(QKeyEvent *e)
 {
   auto keyStr = getKeyString(e);
@@ -847,7 +870,7 @@ keyPressEvent(QKeyEvent *e)
 }
 
 void
-Canvas::
+Canvas2D::
 keyReleaseEvent(QKeyEvent *e)
 {
   auto keyStr = getKeyString(e);
@@ -856,7 +879,7 @@ keyReleaseEvent(QKeyEvent *e)
 }
 
 bool
-Canvas::
+Canvas2D::
 getKeyPressed(const QString &key) const
 {
   auto p = keyPressed_.find(key);
@@ -868,7 +891,7 @@ getKeyPressed(const QString &key) const
 }
 
 QString
-Canvas::
+Canvas2D::
 getKeyString(QKeyEvent *e) const
 {
   QString keyStr;
@@ -887,8 +910,8 @@ getKeyString(QKeyEvent *e) const
   return keyStr;
 }
 
-Object *
-Canvas::
+Object2D *
+Canvas2D::
 getObjectAtPos(const QPoint &pos) const
 {
   for (auto *viewport : viewports_) {
@@ -904,8 +927,8 @@ getObjectAtPos(const QPoint &pos) const
   return nullptr;
 }
 
-Object *
-Canvas::
+Object2D *
+Canvas2D::
 getObjectByName(const QString &name) const
 {
   for (auto *obj : allObjects_) {
@@ -922,8 +945,8 @@ getObjectByName(const QString &name) const
 }
 
 QString
-Canvas::
-addNewObject(Object *obj)
+Canvas2D::
+addNewObject(Object2D *obj)
 {
   addObject(obj);
 
@@ -931,14 +954,17 @@ addNewObject(Object *obj)
 
   obj->setInd(++lastInd_);
 
-  createObjCommand(obj);
+  if (obj->isTclCmd())
+    createObjTclCommand(obj);
+  else
+    createObjCommand(obj);
 
   return obj->calcId();
 }
 
 void
-Canvas::
-addObject(Object *obj)
+Canvas2D::
+addObject(Object2D *obj)
 {
   auto *viewport = currentViewport();
 
@@ -950,8 +976,8 @@ addObject(Object *obj)
 }
 
 void
-Canvas::
-removeObject(Object *obj)
+Canvas2D::
+removeObject(Object2D *obj)
 {
   auto *viewport = currentViewport();
 
@@ -968,10 +994,10 @@ removeObject(Object *obj)
 }
 
 int
-Canvas::
+Canvas2D::
 canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
-  auto *th = static_cast<Canvas *>(clientData);
+  auto *th = static_cast<Canvas2D *>(clientData);
   assert(th);
 
   auto args = th->app()->getArgs(objc, objv);
@@ -1049,10 +1075,10 @@ canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 }
 
 int
-Canvas::
+Canvas2D::
 paletteProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
-  auto *th = static_cast<Canvas *>(clientData);
+  auto *th = static_cast<Canvas2D *>(clientData);
   assert(th);
 
   auto args = th->app()->getArgs(objc, objv);
@@ -1092,10 +1118,10 @@ paletteProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 }
 
 int
-Canvas::
+Canvas2D::
 viewportProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
-  auto *th = static_cast<Canvas *>(clientData);
+  auto *th = static_cast<Canvas2D *>(clientData);
   assert(th);
 
   auto args = th->app()->getArgs(objc, objv);
@@ -1115,10 +1141,10 @@ viewportProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 }
 
 int
-Canvas::
+Canvas2D::
 styleProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
-  auto *th = static_cast<Canvas *>(clientData);
+  auto *th = static_cast<Canvas2D *>(clientData);
   assert(th);
 
   auto args = th->app()->getArgs(objc, objv);
@@ -1141,7 +1167,7 @@ styleProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 }
 
 bool
-Canvas::
+Canvas2D::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *tcl = this->tcl();
@@ -1239,7 +1265,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-Canvas::
+Canvas2D::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
   auto *tcl = this->tcl();
@@ -1344,6 +1370,9 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     app_->toolbar2D()->showControls(b);
   }
+  else if (name == "module_dir") {
+    moduleDirs_.push_back(value);
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
@@ -1351,7 +1380,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
 }
 
 bool
-Canvas::
+Canvas2D::
 exec(const QString &op, const QStringList &, QVariant &)
 {
   if      (op == "update") {
@@ -1373,7 +1402,7 @@ exec(const QString &op, const QStringList &, QVariant &)
 }
 
 Viewport *
-Canvas::
+Canvas2D::
 currentViewport() const
 {
   if (currentViewport_)
@@ -1388,7 +1417,7 @@ currentViewport() const
 }
 
 Viewport *
-Canvas::
+Canvas2D::
 addViewport()
 {
   auto *viewport = new Viewport;
@@ -1409,7 +1438,7 @@ addViewport()
   auto *tcl = this->tcl();
 
   tcl->createObjCommand(viewport->name,
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas::viewportCommandProc),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::viewportCommandProc),
     static_cast<CQTcl::ObjCmdData>(viewport));
 
   if (currentViewportName_ == "")
@@ -1419,21 +1448,21 @@ addViewport()
 }
 
 QVariant
-Canvas::
+Canvas2D::
 getPaletteValue(const QString &)
 {
   return QVariant();
 }
 
 void
-Canvas::
+Canvas2D::
 setPaletteValue(const QString &name, const QString &)
 {
   app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 }
 
 QVariant
-Canvas::
+Canvas2D::
 getStyleValue(const QString &name)
 {
   if      (name == "pen.color")
@@ -1447,7 +1476,7 @@ getStyleValue(const QString &name)
 }
 
 void
-Canvas::
+Canvas2D::
 setStyleValue(const QString &name, const QString &value)
 {
   auto *tcl = this->tcl();
@@ -1461,10 +1490,10 @@ setStyleValue(const QString &name, const QString &value)
 }
 
 int
-Canvas::
+Canvas2D::
 drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
-  auto *th = static_cast<Canvas *>(clientData);
+  auto *th = static_cast<Canvas2D *>(clientData);
   assert(th);
 
   auto args = th->app()->getArgs(objc, objv);
@@ -1486,20 +1515,27 @@ drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 }
 
 int
-Canvas::
+Canvas2D::
 objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
-  auto *obj = static_cast<Object *>(clientData);
+  auto *obj = static_cast<Object2D *>(clientData);
   assert(obj);
 
   auto *canvas = obj->canvas();
   auto *app    = canvas->app();
 
+  if (objc < 2) {
+    (void) app->errorMsg("Missing args for object command");
+    return TCL_ERROR;
+  }
+
   auto *tcl = canvas->tcl();
 
   auto args = app->getArgs(objc, objv);
 
-  if      (args[0] == "get") {
+  auto cmd = args[0];
+
+  if      (cmd == "get") {
     if (args.size() > 1) {
       auto name = args[1];
 
@@ -1514,11 +1550,11 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       tcl->setResult(res);
     }
     else {
-      app->errorMsg("Missing args for get");
+      (void) app->errorMsg("Missing args for get");
       return TCL_ERROR;
     }
   }
-  else if (args[0] == "set") {
+  else if (cmd == "set") {
     if (args.size() > 2) {
       auto name  = args[1];
       auto value = args[2];
@@ -1527,7 +1563,7 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       for (int i = 3; i < args.length(); ++i)
         args1.push_back(args[i]);
 
-      if (! obj->setValue(args[1], args[2], args1))
+      if (! obj->setValue(name, value, args1))
         return TCL_ERROR;
     }
     else {
@@ -1535,33 +1571,32 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
       return TCL_ERROR;
     }
   }
-  else if (args[0] == "exec") {
+  else if (cmd == "exec") {
     if (args.size() > 1) {
-      QString op = args[1];
+      auto op = args[1];
 
       QStringList args1;
       for (int i = 2; i < args.length(); ++i)
         args1.push_back(args[i]);
 
       QVariant res;
-
       if (! obj->exec(op, args1, res))
         return TCL_ERROR;
 
       tcl->setResult(res);
     }
     else {
-      app->errorMsg("Missing args for exec");
+      (void) app->errorMsg("Missing args for exec");
       return TCL_ERROR;
     }
   }
-  else if (args[0] == "delete") {
+  else if (cmd == "delete") {
     canvas->removeObject(obj);
 
     delete obj;
   }
   else {
-    app->errorMsg(QString("Bad object command '%1'").arg(args[0]));
+    (void) app->errorMsg(QString("Bad object command '%1'").arg(cmd));
     return TCL_ERROR;
   }
 
@@ -1569,7 +1604,88 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
 }
 
 int
-Canvas::
+Canvas2D::
+objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *obj = static_cast<Object2D *>(clientData);
+  assert(obj);
+
+  auto *canvas = obj->canvas();
+  auto *app    = canvas->app();
+
+  if (objc < 2) {
+    (void) app->errorMsg("Missing args for object command");
+    return TCL_ERROR;
+  }
+
+  auto *tcl = canvas->tcl();
+
+  auto cmd = tcl->qstringFromObj(objv[1]);
+
+  if      (cmd == "get") {
+    if (objc > 2) {
+      auto name = tcl->qstringFromObj(objv[2]);
+
+      Object2D::TclObjs objs;
+      for (int i = 3; i < objc; ++i)
+        objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
+
+      Tcl_Obj *res;
+      if (! obj->getTclValue(name, objs, res))
+        return TCL_ERROR;
+
+      tcl->setResult(res);
+    }
+    else {
+      (void) app->errorMsg("Missing args for get");
+      return TCL_ERROR;
+    }
+  }
+  else if (cmd == "set") {
+    if (objc > 3) {
+      auto name = tcl->qstringFromObj(objv[2]);
+
+      Object2D::TclObjs objs;
+      for (int i = 4; i < objc; ++i)
+        objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
+
+      if (! obj->setTclValue(name, const_cast<Tcl_Obj *>(objv[3]), objs))
+        return TCL_ERROR;
+    }
+    else {
+      (void) app->errorMsg("Missing args for set");
+      return TCL_ERROR;
+    }
+  }
+  else if (cmd == "exec") {
+    if (objc > 2) {
+      auto op = tcl->qstringFromObj(objv[2]);
+
+      Object2D::TclObjs objs;
+      for (int i = 3; i < objc; ++i)
+        objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
+
+      Tcl_Obj *res;
+      if (! obj->execTcl(op, objs, res))
+        return TCL_ERROR;
+
+      tcl->setResult(res);
+    }
+    else {
+      (void) app->errorMsg("Missing args for exec");
+      return TCL_ERROR;
+    }
+  }
+  else {
+    (void) app->errorMsg(QString("Bad object command '%1'").arg(cmd));
+    return TCL_ERROR;
+  }
+
+  return TCL_OK;
+}
+
+int
+Canvas2D::
 viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
   auto *viewport = static_cast<Viewport *>(clientData);
@@ -1578,11 +1694,18 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
   auto *canvas = viewport->canvas;
   auto *app    = canvas->app();
 
+  if (objc < 2) {
+    (void) app->errorMsg("Missing args for viewport command");
+    return TCL_ERROR;
+  }
+
   auto *tcl = canvas->tcl();
 
   auto args = app->getArgs(objc, objv);
 
-  if      (args[0] == "get") {
+  auto cmd = args[0];
+
+  if      (cmd == "get") {
     if (args.size() > 1) {
       auto name = args[1];
 
@@ -1592,7 +1715,7 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
       app->errorMsg("Missing args for viewport get");
     }
   }
-  else if (args[0] == "set") {
+  else if (cmd == "set") {
     if (args.size() > 2) {
       auto name  = args[1];
       auto value = args[2];
@@ -1619,7 +1742,7 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
       app->errorMsg("Missing args for viewport set");
     }
   }
-  else if (args[0] == "exec") {
+  else if (cmd == "exec") {
     if (args.size() > 1) {
       QString op = args[1];
 
@@ -1635,18 +1758,18 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
       app->errorMsg("Missing args for viewport exec");
     }
   }
-  else if (args[0] == "delete") {
+  else if (cmd == "delete") {
     app->errorMsg("Invalid viewport delete");
   }
   else {
-    app->errorMsg(QString("Bad viewport command '%1'").arg(args[0]));
+    app->errorMsg(QString("Bad viewport command '%1'").arg(cmd));
   }
 
   return TCL_OK;
 }
 
 int
-Canvas::
+Canvas2D::
 fmulProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
 {
   if (objc != 3) return TCL_ERROR;
@@ -1664,7 +1787,7 @@ fmulProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
 }
 
 int
-Canvas::
+Canvas2D::
 fmaProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
 {
   if (objc != 4) return TCL_ERROR;
@@ -1683,7 +1806,7 @@ fmaProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
 }
 
 int
-Canvas::
+Canvas2D::
 hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
 {
   if (objc != 3) return TCL_ERROR;
@@ -1703,10 +1826,10 @@ hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
 //---
 
 int
-Canvas::
+Canvas2D::
 uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
-  auto *th = static_cast<Canvas *>(clientData);
+  auto *th = static_cast<Canvas2D *>(clientData);
   assert(th);
 
   auto *app = th->app();
@@ -1723,7 +1846,7 @@ uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 //---
 
 bool
-Canvas::
+Canvas2D::
 runTclCmd(const QString &cmd)
 {
   auto rc = tcl_->eval(cmd, /*showError*/true, /*showResult*/false);
@@ -1738,7 +1861,7 @@ runTclCmd(const QString &cmd)
 
 bool
 RendererObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 0)
     return false;
@@ -1755,8 +1878,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 RendererObj::
-RendererObj(Canvas *canvas) :
- Object(canvas)
+RendererObj(Canvas2D *canvas) :
+ Object2D(canvas, Type::RENDERER)
 {
   font_ = canvas->font();
 }
@@ -1779,7 +1902,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = fm.height();
   }
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -1814,7 +1937,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     font_ = font;
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -1885,7 +2008,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     return true;
   }
   else
-    return Object::exec(op, args, res);
+    return Object2D::exec(op, args, res);
 
   return false;
 }
@@ -1977,7 +2100,7 @@ class CirclesMgr : public CCircleFactor::CircleMgr {
 
 bool
 CirclesGroupObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
 
@@ -1995,7 +2118,7 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 CirclesGroupObj::
-CirclesGroupObj(Canvas *canvas, const Rect2D &rect) :
+CirclesGroupObj(Canvas2D *canvas, const Rect2D &rect) :
  GroupObj(canvas, rect)
 {
   mgr_ = new CirclesMgr(this);
@@ -2035,7 +2158,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 bool
 CircleObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
@@ -2059,8 +2182,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 CircleObj::
-CircleObj(Canvas *canvas, const Point2D &center, const Coord &radius) :
- Object(canvas), center_(center), radius_(radius)
+CircleObj(Canvas2D *canvas, const Point2D &center, const Coord &radius) :
+ Object2D(canvas, Type::CIRCLE), center_(center), radius_(radius)
 {
 }
 
@@ -2083,7 +2206,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "radius.steps")
     value = int(radius_.steps());
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -2129,7 +2252,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     radius_.setSteps(Util::stringToInt(value));
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -2165,7 +2288,7 @@ step()
 {
   bool b1 = center_.step();
   bool b2 = radius_.step();
-  bool b3 = Object::step();
+  bool b3 = Object2D::step();
 
   return (b1 || b2 || b3);
 }
@@ -2187,7 +2310,7 @@ draw(QPainter *painter)
 
 bool
 RectObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   auto *tcl = canvas->tcl();
 
@@ -2206,8 +2329,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 RectObj::
-RectObj(Canvas *canvas, const Rect2D &rect) :
- Object(canvas), rect_(rect)
+RectObj(Canvas2D *canvas, const Rect2D &rect) :
+ Object2D(canvas, Type::RECT), rect_(rect)
 {
 }
 
@@ -2218,7 +2341,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   if (name == "rect")
     value = Util::rect2DToString(calcRect());
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -2233,7 +2356,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     rect_ = Util::stringToRect2D(tcl, value);
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -2262,7 +2385,7 @@ draw(QPainter *painter)
 
 bool
 LineObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
@@ -2284,8 +2407,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 LineObj::
-LineObj(Canvas *canvas, const Point2D &p1, const Point2D &p2) :
- Object(canvas), p1_(p1), p2_(p2)
+LineObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2) :
+ Object2D(canvas, Type::LINE), p1_(p1), p2_(p2)
 {
 }
 
@@ -2298,7 +2421,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "p2")
     value = Util::point2DToString(p2_);
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -2318,7 +2441,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return false;
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -2349,8 +2472,8 @@ draw(QPainter *painter)
 //---
 
 EditObj::
-EditObj(Canvas *canvas, const QString &name) :
- Object(canvas), name_(name)
+EditObj(Canvas2D *canvas, const QString &name) :
+ Object2D(canvas, Type::EDIT), name_(name)
 {
 }
 
@@ -2363,7 +2486,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "proc")
     value = proc_;
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -2378,7 +2501,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     proc_ = value;
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -2387,7 +2510,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 bool
 RealEdit::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
@@ -2407,7 +2530,7 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 RealEdit::
-RealEdit(Canvas *canvas, const Point2D &p, const QString &name) :
+RealEdit(Canvas2D *canvas, const Point2D &p, const QString &name) :
  EditObj(canvas, name), p_(p)
 {
 }
@@ -2518,7 +2641,7 @@ move(int dx, int)
 
 bool
 IntegerEdit::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
@@ -2538,7 +2661,7 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 IntegerEdit::
-IntegerEdit(Canvas *canvas, const Point2D &p, const QString &name) :
+IntegerEdit(Canvas2D *canvas, const Point2D &p, const QString &name) :
  EditObj(canvas, name), p_(p)
 {
 }
@@ -2701,7 +2824,7 @@ setIValue(int i)
 
 bool
 ButtonObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   auto *tcl = canvas->tcl();
 
@@ -2728,8 +2851,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 ButtonObj::
-ButtonObj(Canvas *canvas, const Point2D &p, const QString &name) :
- Object(canvas), p_(p), name_(name)
+ButtonObj(Canvas2D *canvas, const Point2D &p, const QString &name) :
+ Object2D(canvas, Type::BUTTON), p_(p), name_(name)
 {
 }
 
@@ -2744,7 +2867,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "proc")
     value = proc_;
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -2764,7 +2887,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "proc")
     proc_ = value;
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -2816,7 +2939,7 @@ click(int, int)
 
 bool
 ImageObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   auto *tcl = canvas->tcl();
 
@@ -2847,8 +2970,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 ImageObj::
-ImageObj(Canvas *canvas, const Point2D &pos, const QImage &image) :
- Object(canvas), pos_(pos), image_(image)
+ImageObj(Canvas2D *canvas, const Point2D &pos, const QImage &image) :
+ Object2D(canvas, Type::IMAGE), pos_(pos), image_(image)
 {
 }
 
@@ -2869,7 +2992,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "image")
     value = imageToString(image_);
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -2926,7 +3049,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     image_ = image_.scaled(image_.width()*size.x.value, image_.height()*size.y.value);
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -2985,7 +3108,7 @@ draw(QPainter *painter)
 
 bool
 ParticleObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
 
@@ -3014,8 +3137,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 ParticleObj::
-ParticleObj(Canvas *canvas, const Point2D &pos) :
- Object(canvas), pos_(pos)
+ParticleObj(Canvas2D *canvas, const Point2D &pos) :
+ Object2D(canvas, Type::PARTICLE), pos_(pos)
 {
 }
 
@@ -3049,7 +3172,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = particle_->age();
   }
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -3121,7 +3244,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     }
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }

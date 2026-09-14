@@ -12,16 +12,16 @@ class QFrame;
 
 namespace CQSandbox {
 
-class Canvas;
-class Object;
+class Canvas2D;
+class Object2D;
 
 class Control2D : public QFrame {
   Q_OBJECT
 
  public:
-  Control2D(Canvas *canvas);
+  Control2D(Canvas2D *canvas);
 
-  Canvas *canvas() const { return canvas_; }
+  Canvas2D *canvas() const { return canvas_; }
 
   QFrame *uiFrame() const { return uiFrame_; }
 
@@ -41,10 +41,10 @@ class Control2D : public QFrame {
  private:
   void updateCurrent();
 
-  Object *getCurrentObject() const;
+  Object2D *getCurrentObject() const;
 
  private:
-  Canvas* canvas_ { nullptr };
+  Canvas2D* canvas_ { nullptr };
 
   QListWidget* list_         { nullptr };
   QCheckBox*   visibleCheck_ { nullptr };

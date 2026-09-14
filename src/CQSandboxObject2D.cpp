@@ -24,23 +24,23 @@ stringToDashes(CQTcl *tcl, const QString &str)
 
 namespace CQSandbox {
 
-Object::
-Object(Canvas *canvas, size_t ind) :
- canvas_(canvas), ind_(ind)
+Object2D::
+Object2D(Canvas2D *canvas, Type type) :
+ canvas_(canvas), type_(type)
 {
   pen_   = canvas->stylePen();
   brush_ = canvas->styleBrush();
 }
 
 QString
-Object::
+Object2D::
 getCommandName() const
 {
-  return QString("sb::%1.%2").arg(typeName()).arg(ind_);
+  return QString("sb2d::%1.%2").arg(typeName()).arg(ind_);
 }
 
 Point2D
-Object::
+Object2D::
 pointToWindow(const Point2D &p) const
 {
   auto p1 = p;
@@ -80,7 +80,7 @@ pointToWindow(const Point2D &p) const
 }
 
 Point2D
-Object::
+Object2D::
 pointToPixel(const Point2D &p) const
 {
   if (group_) {
@@ -94,7 +94,7 @@ pointToPixel(const Point2D &p) const
 }
 
 Rect2D
-Object::
+Object2D::
 rectToWindow(const Rect2D &r) const
 {
   auto p1 = pointToWindow(r.ll);
@@ -104,7 +104,7 @@ rectToWindow(const Rect2D &r) const
 }
 
 QString
-Object::
+Object2D::
 calcId() const
 {
   auto id = this->id();
@@ -115,8 +115,16 @@ calcId() const
   return id;
 }
 
+//---
+
+void
+Object2D::
+init()
+{
+}
+
 bool
-Object::
+Object2D::
 getValue(const QString &name, const QStringList &, QVariant &value)
 {
   auto *app = canvas()->app();
@@ -160,7 +168,7 @@ getValue(const QString &name, const QStringList &, QVariant &value)
 }
 
 bool
-Object::
+Object2D::
 setValue(const QString &name, const QString &value, const QStringList &)
 {
   auto *app = canvas()->app();
@@ -267,21 +275,84 @@ setValue(const QString &name, const QString &value, const QStringList &)
 }
 
 bool
-Object::
+Object2D::
+exec(const QString &, const QStringList &, QVariant &)
+{
+  return false;
+}
+
+bool
+Object2D::
+getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res)
+{
+  auto *tcl = canvas()->tcl();
+
+  QStringList args1;
+  for (auto *arg : args)
+    args1.push_back(tcl->variantFromObj(arg).toString());
+
+  QVariant res1;
+  if (! getValue(name, args1, res1))
+    return false;
+
+  res = tcl->variantToObj(res1);
+
+  return true;
+}
+
+bool
+Object2D::
+setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &args)
+{
+  auto *tcl = canvas()->tcl();
+
+  QStringList args1;
+  for (auto *arg : args)
+    args1.push_back(tcl->variantFromObj(arg).toString());
+
+  if (! setValue(name, tcl->qstringFromObj(value), args1))
+    return false;
+
+  return true;
+}
+
+bool
+Object2D::
+execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res)
+{
+  auto *tcl = canvas()->tcl();
+
+  QStringList args1;
+  for (auto *arg : args)
+    args1.push_back(tcl->variantFromObj(arg).toString());
+
+  QVariant res1;
+  if (! exec(op, args1, res1))
+    return false;
+
+  res = tcl->variantToObj(res1);
+
+  return true;
+}
+
+//---
+
+bool
+Object2D::
 step()
 {
   return brush_.step();
 }
 
 void
-Object::
+Object2D::
 press(int, int)
 {
   //std::cerr << "Press: " << calcId().toStdString() << "\n";
 }
 
 void
-Object::
+Object2D::
 click(int, int)
 {
   //std::cerr << "Click: " << calcId().toStdString() << "\n";

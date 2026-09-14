@@ -14,7 +14,7 @@ class QLabel;
 
 namespace CQSandbox {
 
-class Canvas;
+class Canvas2D;
 class Toolbar2D;
 class Canvas3D;
 class CanvasToolbar3D;
@@ -44,7 +44,7 @@ class App : public QFrame {
 
   //---
 
-  Canvas    *canvas   () const { return frame2D_.canvas; }
+  Canvas2D  *canvas   () const { return frame2D_.canvas; }
   Toolbar2D *toolbar2D() const { return frame2D_.toolbar; }
   Control2D *control2D() const { return frame2D_.control; }
 
@@ -100,7 +100,7 @@ class App : public QFrame {
 
   struct Frame2D {
     QFrame*    frame   { nullptr };
-    Canvas*    canvas  { nullptr };
+    Canvas2D*  canvas  { nullptr };
     Toolbar2D* toolbar { nullptr };
     Control2D* control { nullptr };
   };

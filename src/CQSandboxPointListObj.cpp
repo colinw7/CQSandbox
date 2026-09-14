@@ -9,7 +9,7 @@ namespace CQSandbox {
 
 bool
 PointListObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
 
@@ -29,8 +29,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 PointListObj::
-PointListObj(Canvas *canvas, const Coord &radius) :
- Object(canvas), radius_(radius)
+PointListObj(Canvas2D *canvas, const Coord &radius) :
+ Object2D(canvas, Type::POINT_LIST), radius_(radius)
 {
 }
 
@@ -105,7 +105,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = path1.intersects(path2);
   }
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -186,7 +186,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return app->errorMsg("Missing index for position");
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -224,7 +224,7 @@ PointListObj::
 step()
 {
   bool b1 = radius_.step();
-  bool b2 = Object::step();
+  bool b2 = Object2D::step();
 
   return (b1 || b2);
 }

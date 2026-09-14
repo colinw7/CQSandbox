@@ -9,7 +9,7 @@ namespace CQSandbox {
 
 bool
 ArrayObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2)
     return false;
@@ -29,14 +29,14 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 ArrayObj::
-ArrayObj(Canvas *canvas, uint dim0, uint dim1) :
- Object(canvas), a_(dim0, dim1, 0.0)
+ArrayObj(Canvas2D *canvas, uint dim0, uint dim1) :
+ Object2D(canvas, Type::ARRAY), a_(dim0, dim1, 0.0)
 {
 }
 
 ArrayObj::
-ArrayObj(Canvas *canvas, const CArray2D<double> &a) :
- Object(canvas), a_(a)
+ArrayObj(Canvas2D *canvas, const CArray2D<double> &a) :
+ Object2D(canvas, Type::ARRAY), a_(a)
 {
 }
 
@@ -83,7 +83,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = name;
   }
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -120,7 +120,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     a_.set(dim0, dim1, r);
   }
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }

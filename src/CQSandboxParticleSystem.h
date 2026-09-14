@@ -13,7 +13,7 @@
 
 namespace CQSandbox {
 
-class Object;
+class Object2D;
 
 class ParticleSystem : public CPSysSystem {
  public:
@@ -21,11 +21,11 @@ class ParticleSystem : public CPSysSystem {
 
   CPSysParticle *makeParticle(double mass=1.0, double x=0.0, double y=0.0, double z=0.0) override;
 
-  const Object *particleObj() const { return particleObj_; }
-  void setParticleObj(Object *p) { particleObj_ = p; }
+  const Object2D *particleObj() const { return particleObj_; }
+  void setParticleObj(Object2D *p) { particleObj_ = p; }
 
  private:
-  Object* particleObj_ { nullptr };
+  Object2D* particleObj_ { nullptr };
 };
 
 class Particle : public CPSysParticle {
@@ -61,8 +61,8 @@ class Particle : public CPSysParticle {
   const std::string &meta() const { return meta_; }
   void setMeta(const std::string &s) { meta_ = s; }
 
-  const Object *obj() const { return obj_; }
-  void setObj(Object *p) { obj_ = p; }
+  const Object2D *obj() const { return obj_; }
+  void setObj(Object2D *p) { obj_ = p; }
 
   void updateParticle() override;
 
@@ -76,7 +76,7 @@ class Particle : public CPSysParticle {
   OptSize     tsize_;
   std::string meta_;
 
-  Object *obj_ { nullptr };
+  Object2D *obj_ { nullptr };
 };
 
 }

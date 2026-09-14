@@ -12,7 +12,7 @@ namespace CQSandbox {
 
 bool
 ArrowObj::
-create(Canvas *canvas, const QStringList &args)
+create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
 
@@ -33,8 +33,8 @@ create(Canvas *canvas, const QStringList &args)
 }
 
 ArrowObj::
-ArrowObj(Canvas *canvas, const Point2D &p1, const Point2D &p2) :
- Object(canvas), p1_(p1), p2_(p2)
+ArrowObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2) :
+ Object2D(canvas, Type::ARROW), p1_(p1), p2_(p2)
 {
   arrow_ = new CQArrow;
 }
@@ -48,7 +48,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "p2")
     value = Util::point2DToString(p2_);
   else
-    return Object::getValue(name, args, value);
+    return Object2D::getValue(name, args, value);
 
   return true;
 }
@@ -94,7 +94,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "stroked")
     arrow_->setStroked(Util::stringToBool(value));
   else
-    return Object::setValue(name, value, args);
+    return Object2D::setValue(name, value, args);
 
   return true;
 }
@@ -115,7 +115,7 @@ draw(QPainter *painter)
 
   class Device : public CQArrowDevice {
    public:
-    Device(Canvas *canvas) :
+    Device(Canvas2D *canvas) :
      canvas_(canvas) {
     }
 
@@ -128,7 +128,7 @@ draw(QPainter *painter)
     }
 
    private:
-    Canvas *canvas_ { nullptr };
+    Canvas2D *canvas_ { nullptr };
   };
 
   Device device(canvas());

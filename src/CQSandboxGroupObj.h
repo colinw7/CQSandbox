@@ -7,16 +7,16 @@
 
 namespace CQSandbox {
 
-class GroupObj : public Object {
+class GroupObj : public Object2D {
   Q_OBJECT
 
  public:
-  using Objects = std::vector<Object *>;
+  using Objects = std::vector<Object2D *>;
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  GroupObj(Canvas *canvas, const Rect2D &rect);
+  GroupObj(Canvas2D *canvas, const Rect2D &rect);
 
   const char *typeName() const override { return "group"; }
 
@@ -31,8 +31,8 @@ class GroupObj : public Object {
 
   void draw(QPainter *) override;
 
-  void addObject(Object *obj);
-  void removeObject(Object *obj);
+  void addObject(Object2D *obj);
+  void removeObject(Object2D *obj);
 
   Rect2D rectToPixel(const Rect2D &p) const;
   Point2D pointToPixel(const Point2D &p) const;

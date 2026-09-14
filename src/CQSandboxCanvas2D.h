@@ -23,20 +23,20 @@ class QTimer;
 namespace CQSandbox {
 
 class App;
-class Canvas;
+class Canvas2D;
 class ParticleSystem;
 class Particle;
 class Viewport;
 
 //---
 
-class RendererObj : public Object {
+class RendererObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  RendererObj(Canvas *canvas);
+  RendererObj(Canvas2D *canvas);
 
   const char *typeName() const override { return "renderer"; }
 
@@ -60,9 +60,9 @@ class CirclesGroupObj : public GroupObj {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  CirclesGroupObj(Canvas *canvas, const Rect2D &rect);
+  CirclesGroupObj(Canvas2D *canvas, const Rect2D &rect);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -74,13 +74,13 @@ class CirclesGroupObj : public GroupObj {
 
 //---
 
-class RectObj : public Object {
+class RectObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  RectObj(Canvas *canvas, const Rect2D &rect);
+  RectObj(Canvas2D *canvas, const Rect2D &rect);
 
   const char *typeName() const override { return "rect"; }
 
@@ -97,13 +97,13 @@ class RectObj : public Object {
 
 //---
 
-class CircleObj : public Object {
+class CircleObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  CircleObj(Canvas *canvas, const Point2D &center, const Coord &radius);
+  CircleObj(Canvas2D *canvas, const Point2D &center, const Coord &radius);
 
   const char *typeName() const override { return "circle"; }
 
@@ -131,13 +131,13 @@ class CircleObj : public Object {
 
 //---
 
-class LineObj : public Object {
+class LineObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  LineObj(Canvas *canvas, const Point2D &p1, const Point2D &p2);
+  LineObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2);
 
   const char *typeName() const override { return "line"; }
 
@@ -155,7 +155,7 @@ class LineObj : public Object {
 
 //---
 
-class ImageObj : public Object {
+class ImageObj : public Object2D {
   Q_OBJECT
 
  public:
@@ -165,9 +165,9 @@ class ImageObj : public Object {
     RECT
   };
 
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  ImageObj(Canvas *canvas, const Point2D &pos, const QImage &image);
+  ImageObj(Canvas2D *canvas, const Point2D &pos, const QImage &image);
 
   const char *typeName() const override { return "image"; }
 
@@ -189,13 +189,13 @@ class ImageObj : public Object {
 
 //---
 
-class ParticleObj : public Object {
+class ParticleObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  ParticleObj(Canvas *canvas, const Point2D &pos);
+  ParticleObj(Canvas2D *canvas, const Point2D &pos);
 
   const char *typeName() const override { return "particle"; }
 
@@ -216,11 +216,11 @@ class ParticleObj : public Object {
 
 //---
 
-class EditObj : public Object {
+class EditObj : public Object2D {
   Q_OBJECT
 
  public:
-  EditObj(Canvas *canvas, const QString &name);
+  EditObj(Canvas2D *canvas, const QString &name);
 
   const char *typeName() const override { return "edit"; }
 
@@ -238,9 +238,9 @@ class RealEdit : public EditObj {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  RealEdit(Canvas *canvas, const Point2D &p, const QString &name);
+  RealEdit(Canvas2D *canvas, const Point2D &p, const QString &name);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -263,9 +263,9 @@ class IntegerEdit : public EditObj {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  IntegerEdit(Canvas *canvas, const Point2D &p, const QString &name);
+  IntegerEdit(Canvas2D *canvas, const Point2D &p, const QString &name);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -292,13 +292,13 @@ class IntegerEdit : public EditObj {
 
 //---
 
-class ButtonObj : public Object {
+class ButtonObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  ButtonObj(Canvas *canvas, const Point2D &p, const QString &name);
+  ButtonObj(Canvas2D *canvas, const Point2D &p, const QString &name);
 
   const char *typeName() const override { return "button"; }
 
@@ -319,14 +319,14 @@ class ButtonObj : public Object {
 
 //---
 
-class Canvas : public QFrame {
+class Canvas2D : public QFrame {
   Q_OBJECT
 
  public:
   using Viewports = std::vector<Viewport *>;
 
  public:
-  Canvas(App *app);
+  Canvas2D(App *app);
 
   App* app() const { return app_; }
 
@@ -362,8 +362,14 @@ class Canvas : public QFrame {
 
   //---
 
-  Object *getObjectAtPos(const QPoint &pos) const;
-  Object *getObjectByName(const QString &name) const;
+  Object2D *getObjectAtPos(const QPoint &pos) const;
+  Object2D *getObjectByName(const QString &name) const;
+
+  //---
+
+  const QStringList &moduleDirs() const { return moduleDirs_; }
+
+  //---
 
   void init();
 
@@ -376,12 +382,13 @@ class Canvas : public QFrame {
 
   void drawBuffered();
 
-  QString addNewObject(Object *obj);
+  QString addNewObject(Object2D *obj);
 
-  void addObject(Object *obj);
-  void removeObject(Object *obj);
+  void addObject(Object2D *obj);
+  void removeObject(Object2D *obj);
 
-  void createObjCommand(Object *obj);
+  void createObjCommand(Object2D *obj);
+  void createObjTclCommand(Object2D *obj);
 
   Point2D pointToWindow(const Point2D &p) const;
 
@@ -413,6 +420,7 @@ class Canvas : public QFrame {
 
  protected:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+  static int objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
   static int viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
@@ -432,7 +440,6 @@ class Canvas : public QFrame {
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value);
   bool setValue(const QString &, const QString &, const QStringList &);
-
   bool exec(const QString &, const QStringList &, QVariant &);
 
   void updatePixelRanges();
@@ -446,7 +453,7 @@ class Canvas : public QFrame {
   void drawTimerSlot();
 
  protected:
-  using Objects = std::vector<Object *>;
+  using Objects = std::vector<Object2D *>;
 
   App* app_ { nullptr };
 
@@ -470,10 +477,10 @@ class Canvas : public QFrame {
   QPen   stylePen_;
   QBrush styleBrush_;
 
-  QPoint  pressPos_;
-  Object* pressObj_ { nullptr };
-  QPoint  motionPos_;
-  bool    pressed_  { false };
+  QPoint    pressPos_;
+  Object2D* pressObj_ { nullptr };
+  QPoint    motionPos_;
+  bool      pressed_  { false };
 
   QPainter *painter_            { nullptr };
   bool      drawing_            { false };
@@ -494,6 +501,8 @@ class Canvas : public QFrame {
   QString   currentViewportName_;
 
   Objects allObjects_;
+
+  QStringList moduleDirs_;
 
   //---
 

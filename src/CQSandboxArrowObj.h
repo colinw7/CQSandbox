@@ -7,13 +7,13 @@ class CQArrow;
 
 namespace CQSandbox {
 
-class ArrowObj : public Object {
+class ArrowObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  ArrowObj(Canvas *canvas, const Point2D &p1, const Point2D &p2);
+  ArrowObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2);
 
   const char *typeName() const override { return "arrow"; }
 

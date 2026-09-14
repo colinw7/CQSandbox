@@ -7,13 +7,13 @@
 
 namespace CQSandbox {
 
-class VectorObj : public Object {
+class VectorObj : public Object2D {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  VectorObj(Canvas *canvas);
+  VectorObj(Canvas2D *canvas);
 
   const char *typeName() const override { return "vector"; }
 

@@ -148,7 +148,6 @@ class CGLPath3D {
 
         auto t = dt;
 
-
         for (uint i = 0; i < numLines; ++i) {
           auto pt = quad.calc(t);
 

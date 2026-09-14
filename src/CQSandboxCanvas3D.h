@@ -376,7 +376,6 @@ class Canvas3D : public OpenGLWindow {
   void addCommands();
 
   void createObjCommand(Object3D *obj);
-
   void createObjTclCommand(Object3D *obj);
 
   //--

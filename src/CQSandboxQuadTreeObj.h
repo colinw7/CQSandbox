@@ -11,15 +11,15 @@ class QuadTreeObj : public GroupObj {
   Q_OBJECT
 
  public:
-  static bool create(Canvas *canvas, const QStringList &args);
+  static bool create(Canvas2D *canvas, const QStringList &args);
 
-  QuadTreeObj(Canvas *canvas);
+  QuadTreeObj(Canvas2D *canvas);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
  private:
-  using QuadTree = CQuadTree<Object, Rect2D>;
+  using QuadTree = CQuadTree<Object2D, Rect2D>;
 
   QuadTree quadTree_;
 };
