@@ -404,20 +404,13 @@ render()
 
   //---
 
-  setScales(CPoint3D(size(), size(), 1.0));
-
-  auto matrixFlags = ModelMatrixFlags::TRANSLATE | ModelMatrixFlags::SCALE;
-
-  if (isRotated())
-    matrixFlags |= ModelMatrixFlags::ROTATE;
-
-  setModelMatrix(matrixFlags);
+  setModelMatrix();
 
   //------
 
   canvas_->bindProgram(s_program);
 
-  canvas_->setProgramMatrices(s_program, isIgnoreCamera());
+  canvas_->setProgramMatrices(s_program, programMatrixData());
 
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
@@ -471,17 +464,10 @@ render()
 
   //---
 
-  //matrix1.translate(pos_.x, pos_.y, pos_.z - 2);
-  //matrix1.rotate(rotation_, rotation_, rotation_, 0);
-  //matrix1.scale(size(), size(), 1.0);
-
-  //---
-
   bindTexture();
 
   //---
 
-//s_program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
   s_program->setUniformValue(s_program->textureUniform, 0);
 
   canvas_->glBindVertexArray(glData_.vao);
@@ -528,6 +514,40 @@ render()
     bbox_ += modelMatrix()*p1;
     bbox_ += modelMatrix()*p2;
   }
+}
+
+void
+Text3DObj::
+setModelMatrix(uint)
+{
+  modelMatrix_ = CMatrix3DH::identity();
+
+  if (isRotated()) {
+    auto o = origin();
+
+    modelMatrix_.translated(float(o.getX()), float(o.getY()), float(o.getZ()));
+
+    modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
+    modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
+    modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
+
+    modelMatrix_.translated(-float(o.getX()), -float(o.getY()), -float(o.getZ()));
+  }
+
+  auto pos = this->position();
+
+  double x = pos.getX();
+  double y = pos.getY();
+
+  if      (align_ & Qt::AlignRight  ) x -= bbox_.getXSize();
+  else if (align_ & Qt::AlignHCenter) x -= bbox_.getXSize()/2.0;
+
+  if      (align_ & Qt::AlignBottom ) y -= bbox_.getYSize();
+  else if (align_ & Qt::AlignVCenter) y -= bbox_.getYSize()/2.0;
+
+  modelMatrix_.translated(x, y, pos.getZ());
+
+  modelMatrix_.scaled(size(), size(), 1.0);
 }
 
 }

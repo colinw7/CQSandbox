@@ -30,6 +30,15 @@ class BBox3DObj;
 
 //---
 
+struct ProgramMatrixData {
+  ProgramMatrixData() { }
+
+  bool ignoreCamera { false };
+  bool ignoreWorld  { false };
+};
+
+//---
+
 class ObjectMgr3D {
  public:
   ObjectMgr3D() { }
@@ -207,8 +216,15 @@ class Object3D : public QObject {
   bool isFrontFace() { return frontFace_; }
   void setFrontFace(bool b) { frontFace_ = b; }
 
-  bool isIgnoreCamera() const { return ignoreCamera_; }
-  void setIgnoreCamera(bool b) { ignoreCamera_ = b; }
+  //---
+
+  bool isIgnoreCamera() const { return programMatrixData_.ignoreCamera; }
+  void setIgnoreCamera(bool b) { programMatrixData_.ignoreCamera = b; }
+
+  bool isIgnoreWorld() const { return programMatrixData_.ignoreWorld; }
+  void setIgnoreWorld(bool b) { programMatrixData_.ignoreWorld = b; }
+
+  const ProgramMatrixData &programMatrixData() const { return programMatrixData_; }
 
   //---
 
@@ -403,7 +419,8 @@ class Object3D : public QObject {
   bool    pseudo_       { false };
   bool    cullFace_     { true };
   bool    frontFace_    { true };
-  bool    ignoreCamera_ { false };
+
+  ProgramMatrixData programMatrixData_;
 
   CPoint3D       angles_   { 0.0, 0.0, 0.0 };
   AnimatePoint3D position_ { CPoint3D::makeZero() };

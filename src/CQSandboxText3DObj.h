@@ -86,6 +86,8 @@ class Text3DObj : public Object3D {
 
   int textureId() const;
 
+  void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
+
  private:
   struct GLData {
     GLuint   vao = 0;

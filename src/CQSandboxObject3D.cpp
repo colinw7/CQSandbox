@@ -405,6 +405,13 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     setIgnoreCamera(b);
   }
+  else if (name == "ignore_world") {
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setIgnoreWorld(b);
+  }
   else
     return app->errorMsg(QString("Invalid set name '%1'").arg(name));
 

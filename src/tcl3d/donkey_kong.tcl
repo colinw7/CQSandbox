@@ -1,7 +1,6 @@
 # TODO:
 # . hit and die
 # . treasure at top
-# . lives, score ...
 # . backdrop (plane)
 # . random barrel add (max num)
 # . move camera to follow player (up/down)
@@ -52,6 +51,14 @@ proc loadBarrel { } {
     setModelDir "tcl3d/Dungeon_Assets/obj"
 
     set ::barrelRefObj [loadRefModel "barrel_large"]
+  }
+
+  # ---
+
+  set ::max_barrels 4
+
+  for {set ib 0} {$ib < $::max_barrels} {incr ib} {
+    set ::barrel_obj($ib) ""
   }
 }
 
@@ -195,6 +202,7 @@ proc initPlayer { } {
   set ::player_dying 0
 
   set ::player_lives 5
+  set ::player_score 0
 }
 
 proc initPlatforms { } {
@@ -280,14 +288,6 @@ proc initPlatforms { } {
 }
 
 proc addBarrel { } {
-  if {! [info exists ::max_barrels]} {
-    set ::max_barrels 4
-
-    for {set ib 0} {$ib < $::max_barrels} {incr ib} {
-      set ::barrel_obj($ib) ""
-    }
-  }
-
   for {set ib 0} {$ib < $::max_barrels} {incr ib} {
     if {! [isActiveBarrel $ib]} {
       break
@@ -295,10 +295,13 @@ proc addBarrel { } {
   }
 
   if {$ib >= $::max_barrels} {
+    echo "No inactive barrels"
     return
   }
 
   if {$::barrel_obj($ib) == ""} {
+    echo "Create barrel $ib"
+
     set ::barrel_obj($ib) [$::barrelRefObj get ref_object]
 
     $::barrel_obj($ib) set id "barrel.${ib}"
@@ -309,6 +312,8 @@ proc addBarrel { } {
     $::barrel_obj($ib) set visible 1
   }
 
+  echo "Init barrel $ib"
+
   set ::barrel_t($ib) [randIn 0 0.2]
   set ::barrel_a($ib) [randIn 0 360]
 
@@ -316,6 +321,8 @@ proc addBarrel { } {
 
   set ::barrel_dt($ib) [randIn 0.002 0.005]
   set ::barrel_da($ib) [randIn 0.2 0.6]
+
+  $::barrel_obj($ib) set visible 1
 }
 
 proc isActiveBarrel { ib } {
@@ -365,21 +372,30 @@ proc addBackdrop { } {
 proc addTexts { } {
   set ::score_text [sb3d::text]
 
-  $::score_text set position      [list -28 17 -30]
+  $::score_text set position      [list -0.99 0.92 0]
   $::score_text set color         white
   $::score_text set text          "Score: 0"
-  $::score_text set size          4
+  $::score_text set size          0.1
   $::score_text set align         left
   $::score_text set ignore_camera 1
+  $::score_text set ignore_world  1
 
   set ::lives_text [sb3d::text]
   
-  $::lives_text set position      [list 18 17 -30]
+  $::lives_text set position      [list 0.99 0.92 0]
   $::lives_text set color         white
   $::lives_text set text          "Lives: 0"
-  $::lives_text set size          4
+  $::lives_text set size          0.1
   $::lives_text set align         right
   $::lives_text set ignore_camera 1
+  $::lives_text set ignore_world  1
+
+  updateTexts
+}
+
+proc updateTexts { } {
+  $::score_text set text "Score: $::player_score"
+  $::lives_text set text "Lives: $::player_lives"
 }
 
 proc bboxChanged { } {
@@ -414,24 +430,43 @@ proc tick { } {
 
   # ---
 
-if {0} {
-  for {set ib 0} {$ib < $::max_barrels} {incr ib} {
-    if {! [isActiveBarrel $ib]} {
-      continue
-    }
+  if {! $::player_dead} {
+    # check barrel intersect
+    for {set ib 0} {$ib < $::max_barrels} {incr ib} {
+      if {! [isActiveBarrel $ib]} {
+        continue
+      }
 
-    if {[$::barrel_obj($ib) exec intersect $::playerObj]} {
-      if {! $::player_dead} {
+      if {[$::barrel_obj($ib) exec intersect $::playerObj]} {
         echo "Hit Barrel"
         $::playerObj set anim.name   "Death_A"
         $::playerObj set anim.repeat 0
 
         set ::player_dead  1
         set ::player_dying 100
+
+        $::player_anim_dx exec reset
+        $::player_anim_dy exec reset
+
+        $::barrel_obj($ib) set visible 0
+
+        applyPlayerPos
+      }
+    }
+
+    # ---
+
+    # check chest (gold) intersect
+    if {[$::chest_obj exec intersect $::playerObj]} {
+      if {[$::chest_obj get visible]} {
+        echo "Hit Chest"
+        set ::player_score [expr {$::player_score + 1000}]
+        $::chest_obj set visible 0
+
+        # Next level
       }
     }
   }
-}
 
   # ---
 
@@ -449,7 +484,7 @@ if {0} {
     incr ::player_dying -1
 
     if {$::player_dying == 0} {
-      incr $::player_lives -1
+      incr ::player_lives -1
 
       if {$::player_lives == 0} {
         set ::game_over 1
@@ -460,6 +495,8 @@ if {0} {
         $::playerObj set anim.name   "Idle"
         $::playerObj set anim.repeat 1
       }
+
+      updateTexts
     }
   }
 }
@@ -565,6 +602,8 @@ proc updateBarrelPos { } {
       set ::barrel_t($ib) 0.0
 
       $::barrel_obj($ib) set visible 0
+
+      continue
     }
 
     if {$::barrel_a($ib) > 360.0} { set ::barrel_a($ib) 0.0 }

@@ -1843,13 +1843,16 @@ setRedrawTimeOut(int t)
 
 void
 Canvas3D::
-setProgramMatrices(ShaderProgram *program, bool ignoreCamera)
+setProgramMatrices(ShaderProgram *program, const ProgramMatrixData &data)
 {
   // camera projection
-  program->setUniformValue("projection", CQGLUtil::toQMatrix(projectionMatrix()));
+  if (! data.ignoreWorld)
+    program->setUniformValue("projection", CQGLUtil::toQMatrix(projectionMatrix()));
+  else
+    program->setUniformValue("projection", CQGLUtil::toQMatrix(CMatrix3DH::identity()));
 
   // camera/view transformation
-  if (! ignoreCamera)
+  if (! data.ignoreCamera)
     program->setUniformValue("view", CQGLUtil::toQMatrix(viewMatrix()));
   else
     program->setUniformValue("view", CQGLUtil::toQMatrix(CMatrix3DH::identity()));

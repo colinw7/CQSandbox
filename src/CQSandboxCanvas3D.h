@@ -264,7 +264,8 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  void setProgramMatrices(ShaderProgram *program, bool ignoreCamera=false);
+  void setProgramMatrices(ShaderProgram *program,
+         const ProgramMatrixData &programMatrixData=ProgramMatrixData());
 
   //---
 
