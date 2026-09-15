@@ -391,6 +391,20 @@ setValue(const QString &name, const QString &value, const QStringList &)
         canvas()->addObject(this);
     }
   }
+  else if (name == "cull_face") {
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setCullFace(b);
+  }
+  else if (name == "ignore_camera") {
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setIgnoreCamera(b);
+  }
   else
     return app->errorMsg(QString("Invalid set name '%1'").arg(name));
 

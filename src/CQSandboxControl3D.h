@@ -158,10 +158,11 @@ class Control3D : public QFrame {
   QTabWidget* tab_ { nullptr };
 
   struct ControlData {
-    QCheckBox*   depthTestCheck      { nullptr };
-    QCheckBox*   cullFaceCheck       { nullptr };
-    QCheckBox*   frontFaceCheck      { nullptr };
-    CQColorEdit* bgColorEdit         { nullptr };
+    QCheckBox*    depthTestCheck { nullptr };
+    QCheckBox*    cullFaceCheck  { nullptr };
+    QCheckBox*    frontFaceCheck { nullptr };
+    CQColorEdit*  bgColorEdit    { nullptr };
+    CQBBox3DEdit* bboxEdit       { nullptr };
   };
 
   ControlData controlData_;

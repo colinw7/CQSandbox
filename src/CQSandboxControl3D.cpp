@@ -105,7 +105,7 @@ Control3D(CQSandbox::Canvas3D *canvas) :
 
   uiFrame_ = new QFrame;
 
-  tab_->addTab(controlFrame , "Control");
+  tab_->addTab(controlFrame , "General");
   tab_->addTab(cameraFrame  , "Camera");
   tab_->addTab(lightFrame   , "Lights");
   tab_->addTab(objectsFrame , "Objects");
@@ -201,9 +201,18 @@ addControlFrame()
 
   //---
 
-  layout->setRowStretch(row, 1);
+  layout->setRowStretch(row++, 1);
 
   //---
+
+  auto *bboxFrame  = new QGroupBox("BBox");
+  auto *bboxLayout = new QVBoxLayout(bboxFrame);
+
+  layout->addWidget(bboxFrame, row, 0, 1, 2);
+
+  controlData_.bboxEdit = new CQBBox3DEdit;
+
+  bboxLayout->addWidget(controlData_.bboxEdit);
 
   return frame;
 }
@@ -757,6 +766,8 @@ updateControl()
   controlData_.cullFaceCheck ->setChecked(canvas_->isCullFace());
   controlData_.frontFaceCheck->setChecked(canvas_->isFrontFace());
   controlData_.bgColorEdit   ->setColor(canvas_->bgColor());
+
+  controlData_.bboxEdit->setValue(canvas_->bbox());
 
   connect(controlData_.depthTestCheck, &QCheckBox::stateChanged,
           this, &Control3D::depthTestSlot);

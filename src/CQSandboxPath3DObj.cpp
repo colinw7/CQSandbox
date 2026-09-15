@@ -269,7 +269,7 @@ void
 Path3DObj::
 updatePoints()
 {
-  bbox_ = CBBox3D();
+  bboxValid_ = false;
 
   points_.clear();
 

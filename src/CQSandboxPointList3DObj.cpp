@@ -35,6 +35,7 @@ PointList3DObj::
 PointList3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::POINT_LIST)
 {
+  setCullFace(false);
 }
 
 bool
@@ -175,9 +176,13 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (args.size() > 0) {
       int pos;
       if (! getColorPos(pos))
-        return app->errorMsg("Invalid index for color");
+        return app->errorMsg("Invalid index for point.color");
 
-      colors_[pos] = Util::stringToGLColor(tcl, value);
+      CGLColor c;
+      if (! Util::stringToGLColor(tcl, value, c))
+        return app->errorMsg("Invalid point.color");
+
+      colors_[pos] = c;
     }
     else
       return app->errorMsg("Missing index for color");
@@ -191,13 +196,6 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return false;
 
     setPointSize(r);
-  }
-  else if (name == "cull_face") {
-    bool b;
-    if (! Util::stringToBool(value, b))
-      return false;
-
-    setCullFace(b);
   }
   else
     return Object3D::setValue(name, value, args);

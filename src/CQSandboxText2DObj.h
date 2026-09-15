@@ -1,0 +1,55 @@
+#ifndef CQSandboxText2DObj_H
+#define CQSandboxText2DObj_H
+
+#include <CQSandboxObject2D.h>
+
+#include <QFont>
+
+class CQTextModel;
+
+namespace CQSandbox {
+
+class Text2DObj : public Object2D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas2D *canvas, const QStringList &args);
+
+  Text2DObj(Canvas2D *canvas, const Point2D &pos, const QString &text);
+
+  const char *typeName() const override { return "text"; }
+
+  const Point2D &position() const { return pos_; }
+  void setPosition(const Point2D &v) { pos_ = v; }
+
+  const QString &text() const { return text_; }
+  void setText(const QString &s) { text_ = s; }
+
+  const QFont &font() const { return font_; }
+  void setFont(const QFont &f) { font_ = f; }
+
+  bool isHtml() const { return html_; }
+  void setHtml(bool b) { html_ = b; }
+
+  const Qt::Alignment &align() const { return align_; }
+  void setAlign(const Qt::Alignment &v) { align_ = v; }
+
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  Rect2D calcRect() const override;
+
+  void draw(QPainter *) override;
+
+ protected:
+  Point2D       pos_;
+  QString       text_;
+  QFont         font_;
+  QPen          border_;
+  Qt::Alignment align_ { Qt::AlignCenter };
+  bool          html_  { false };
+};
+
+}
+
+#endif

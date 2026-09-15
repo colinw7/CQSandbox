@@ -4,7 +4,8 @@
 # . lives, score ...
 # . backdrop (plane)
 # . random barrel add (max num)
-# . monitor keys on tick (allow run, jump forward)
+# . move camera to follow player (up/down)
+# . better lighting
 
 proc randIn { min max } {
   return [expr {rand()*($max - $min) + $min}]
@@ -141,6 +142,10 @@ proc init { } {
 
   addChest
 
+  addBackdrop
+
+  addTexts
+
   # ---
 
   addBarrel
@@ -149,15 +154,15 @@ proc init { } {
 
   # ---
 
-  applyPlayerPos
-
-  # ---
-
   sb3d::canvas set camera.type first_person
 
   sb3d::camera set pitch    -90
   sb3d::camera set distance 18
   sb3d::camera set position {0 12 18}
+
+  # ---
+
+  applyPlayerPos
 
   # ---
 
@@ -182,6 +187,9 @@ proc initPlayer { } {
 
   set ::player_anim_dy [sb3d::anim_real 0]
   $::player_anim_dy set id "player_anim_dy"
+
+  set ::player_anim_xstate "idle"
+  set ::player_anim_ystate "idle"
 
   set ::player_dead  0
   set ::player_dying 0
@@ -234,6 +242,8 @@ proc initPlatforms { } {
 
     for {set ix 0} {$ix < $::nx} {incr ix} {
       set ::floor($ix,$iy) [$::floorRefObj get ref_object]
+
+      $::floor($ix,$iy) set cull_face 0
 
       $::floor($ix,$iy) set id "floor.${ix}.${iy}"
 
@@ -341,6 +351,37 @@ proc addChest { } {
   $::chest_obj set position $pos
 }
 
+proc addBackdrop { } {
+  set ::backdrop [sb3d::plane]
+
+  $::backdrop set texture images/castle.jpg
+
+  $::backdrop set position [list 0 10 -50]
+  $::backdrop set scale 120
+
+  $::backdrop set ignore_camera 1
+}
+
+proc addTexts { } {
+  set ::score_text [sb3d::text]
+
+  $::score_text set position      [list -28 17 -30]
+  $::score_text set color         white
+  $::score_text set text          "Score: 0"
+  $::score_text set size          4
+  $::score_text set align         left
+  $::score_text set ignore_camera 1
+
+  set ::lives_text [sb3d::text]
+  
+  $::lives_text set position      [list 18 17 -30]
+  $::lives_text set color         white
+  $::lives_text set text          "Lives: 0"
+  $::lives_text set size          4
+  $::lives_text set align         right
+  $::lives_text set ignore_camera 1
+}
+
 proc bboxChanged { } {
   sb3d::light exec reset 1
 }
@@ -352,16 +393,18 @@ proc tick { } {
 
   # ---
 
-  if       {[sb3d::canvas get key "left"]} {
+  if       {[sb3d::canvas get key "a"]} {
     playerMoveLeft
-  } elseif {[sb3d::canvas get key "right"]} {
+  } elseif {[sb3d::canvas get key "d"]} {
     playerMoveRight
   }
 
-  if       {[sb3d::canvas get key "up"]} {
+  if       {[sb3d::canvas get key "w"]} {
+    playerClimbUp
+  } elseif {[sb3d::canvas get key "s"]} {
+    playerClimbDown
+  } elseif {[sb3d::canvas get key "space"]} {
     playerJump
-  } elseif {[sb3d::canvas get key "down"]} {
-    playerFall
   }
 
   # ---
@@ -371,6 +414,7 @@ proc tick { } {
 
   # ---
 
+if {0} {
   for {set ib 0} {$ib < $::max_barrels} {incr ib} {
     if {! [isActiveBarrel $ib]} {
       continue
@@ -387,6 +431,7 @@ proc tick { } {
       }
     }
   }
+}
 
   # ---
 
@@ -432,6 +477,8 @@ proc updatePlayerPos { } {
 
       $::playerObj set anim.name   "Idle"
       $::playerObj set anim.repeat 1
+
+      set ::player_anim_xstate "idle"
     }
 
     applyPlayerPos
@@ -441,7 +488,7 @@ proc updatePlayerPos { } {
     $::player_anim_dy exec step
 
     if {! [$::player_anim_dy get can_step]} {
-      if {[$::player_anim_dy get style] == "one_shot"} {
+      if {$::player_anim_ystate == "climb"} {
         set target [$::player_anim_dy get target]
 
         if {$target > 0} {
@@ -460,6 +507,8 @@ proc updatePlayerPos { } {
       }
 
       $::player_anim_dy exec reset
+
+      set ::player_anim_ystate "idle"
     }
 
     applyPlayerPos
@@ -486,18 +535,24 @@ proc applyPlayerPos { } {
   if {[$::player_anim_dx get can_step]} {
     set dx [$::player_anim_dx get value]
 
-    set ::player_pos [list [expr {$x + $dx}] $y $z]
+    set x [expr {$x + $dx}]
   }
 
   if {[$::player_anim_dy get can_step]} {
     set dy [$::player_anim_dy get value]
 
-    set ::player_pos [list $x [expr {$y + $dy}] $z]
+    set y [expr {$y + $dy}]
   }
+
+  set ::player_pos [list $x $y $z]
 
   # echo "Pos: $::player_pos"
 
   $::playerObj set position $::player_pos
+
+  set camera_y [expr {$y + 8}]
+
+  sb3d::camera set position [list 0 $camera_y 18]
 }
 
 proc updateBarrelPos { } {
@@ -572,6 +627,9 @@ proc playerMoveLeft { } {
   $::player_anim_dx set value  0
   $::player_anim_dx set target $dx
   $::player_anim_dx set steps  10
+  $::player_anim_dx set style  one_shot
+
+  set ::player_anim_xstate "walk_left"
 
   applyPlayerPos
 }
@@ -609,6 +667,9 @@ proc playerMoveRight { } {
   $::player_anim_dx set value  0
   $::player_anim_dx set target $dx
   $::player_anim_dx set steps  10
+  $::player_anim_dx set style  one_shot
+
+  set ::player_anim_xstate "walk_right"
 
   applyPlayerPos
 }
@@ -621,26 +682,51 @@ proc playerJump { } {
   $::player_anim_dy set value  0
   $::player_anim_dy set target 4
   $::player_anim_dy set steps  10
+  $::player_anim_dy set style  bounce_once
 
-  if {$::player_t1 < 0.9} {
-    $::player_anim_dy set style bounce_once
-  } else {
-    $::player_anim_dy set style one_shot
-  }
+  set ::player_anim_ystate "jump"
 
   applyPlayerPos
 }
 
-proc playerFall { } {
+proc playerClimbUp { } {
   if {$::player_dead} { return }
 
-  if {[isPlayerAnimatingY]} { return }
+  if {[isPlayerAnimatingX] || [isPlayerAnimatingY]} { return }
 
-  $::player_anim_dy set value  0
-  $::player_anim_dy set target -2
-  $::player_anim_dy set steps  10
+  if {$::player_t > 0.9} {
+    $::playerObj set anim.name   "Walking_A"
+    $::playerObj set anim.repeat 1
 
-  applyPlayerPos
+    $::player_anim_dy set value  0
+    $::player_anim_dy set target 4
+    $::player_anim_dy set steps  10
+    $::player_anim_dy set style  one_shot
+
+    set ::player_anim_ystate "climb"
+
+    applyPlayerPos
+  }
+}
+
+proc playerClimbDown { } {
+  if {$::player_dead} { return }
+
+  if {[isPlayerAnimatingX] || [isPlayerAnimatingY]} { return }
+
+  if {$::player_t > 0.9} {
+    $::playerObj set anim.name   "Walking_A"
+    $::playerObj set anim.repeat 1
+
+    $::player_anim_dy set value  0
+    $::player_anim_dy set target -2
+    $::player_anim_dy set steps  10
+    $::player_anim_dy set style  one_shot
+
+    set ::player_anim_ystate "climb"
+
+    applyPlayerPos
+  }
 }
 
 proc keyPress { k } {

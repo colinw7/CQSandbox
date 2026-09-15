@@ -201,6 +201,15 @@ class Object3D : public QObject {
   bool isPseudo() const { return pseudo_; }
   void setPseudo(bool b) { pseudo_ = b; }
 
+  bool isCullFace() const { return cullFace_; }
+  void setCullFace(bool b) { cullFace_ = b; }
+
+  bool isFrontFace() { return frontFace_; }
+  void setFrontFace(bool b) { frontFace_ = b; }
+
+  bool isIgnoreCamera() const { return ignoreCamera_; }
+  void setIgnoreCamera(bool b) { ignoreCamera_ = b; }
+
   //---
 
   double xAngle() const { return angles().x; }
@@ -388,10 +397,13 @@ class Object3D : public QObject {
   size_t    ind_    { 0 };
 
   QString id_;
-  bool    visible_  { true };
-  bool    selected_ { false };
-  bool    inside_   { false };
-  bool    pseudo_   { false };
+  bool    visible_      { true };
+  bool    selected_     { false };
+  bool    inside_       { false };
+  bool    pseudo_       { false };
+  bool    cullFace_     { true };
+  bool    frontFace_    { true };
+  bool    ignoreCamera_ { false };
 
   CPoint3D       angles_   { 0.0, 0.0, 0.0 };
   AnimatePoint3D position_ { CPoint3D::makeZero() };

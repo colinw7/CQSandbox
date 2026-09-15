@@ -564,16 +564,20 @@ inline bool stringToGLColor(CQTcl *tcl, const QString &str, CGLColor &c) {
   return true;
 }
 
+#if 0
 inline CGLColor stringToGLColor(CQTcl *tcl, const QString &str) {
   CGLColor c;
   (void) stringToGLColor(tcl, str, c);
   return c;
 }
+#endif
 
 inline QColor stringToQColor(CQTcl *tcl, const QString &str) {
-  auto c = stringToGLColor(tcl, str);
-
   QColor c1;
+
+  CGLColor c;
+  if (! stringToGLColor(tcl, str, c))
+    return c1;
 
   c1.setRgbF(c.r, c.g, c.b, c.a);
 
@@ -587,9 +591,9 @@ inline std::vector<CGLColor> stringToColors(CQTcl *tcl, const QString &str) {
   std::vector<CGLColor> colors;
 
   for (const auto &str : strs) {
-    auto c = stringToGLColor(tcl, str);
-
-    colors.push_back(c);
+    CGLColor c;
+    if (stringToGLColor(tcl, str, c))
+      colors.push_back(c);
   }
 
   return colors;

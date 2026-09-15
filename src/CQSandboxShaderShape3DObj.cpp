@@ -108,7 +108,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else if (name == "color") {
-    setColor(Util::stringToGLColor(tcl, value));
+    CGLColor c;
+    if (! Util::stringToGLColor(tcl, value, c))
+      return false;
+
+    setColor(c);
 
     setNeedsUpdate();
   }

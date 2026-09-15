@@ -10,7 +10,7 @@
 #include <CQSandboxPointListObj.h>
 #include <CQSandboxShlib2DObj.h>
 #include <CQSandboxQuadTreeObj.h>
-#include <CQSandboxTextObj.h>
+#include <CQSandboxText2DObj.h>
 #include <CQSandboxVectorObj.h>
 
 #include <CQSandboxParticleSystem.h>
@@ -193,7 +193,7 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::text",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<TextObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Text2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::line",

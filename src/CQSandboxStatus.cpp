@@ -9,6 +9,8 @@ Status::
 Status(App *app) :
  app_(app)
 {
+  setObjectName("status");
+
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
   auto *layout = new QHBoxLayout(this);

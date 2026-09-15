@@ -67,9 +67,6 @@ class ParticleList3DObj : public Object3D {
   const QString &textureFile() const { return textureFile_; }
   void setTextureFile(const QString &filename);
 
-  bool isCullFace() const { return cullFace_; }
-  void setCullFace(bool b) { cullFace_ = b; }
-
   void init() override;
 
   void initShader();
@@ -136,7 +133,6 @@ class ParticleList3DObj : public Object3D {
 
   double particleSize_  { 0.05 };
   double particleAlpha_ { 0.5 };
-  bool   cullFace_      { false };
 
   Shape         shape_ { Shape::CUBE };
   ParticleShape particleShape_;

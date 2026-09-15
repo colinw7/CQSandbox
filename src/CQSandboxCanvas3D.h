@@ -264,7 +264,7 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  void setProgramMatrices(ShaderProgram *program);
+  void setProgramMatrices(ShaderProgram *program, bool ignoreCamera=false);
 
   //---
 
@@ -340,11 +340,11 @@ class Canvas3D : public OpenGLWindow {
   bool isCullFace() { return cullFace_; }
   void setCullFace(bool b) { cullFace_ = b; }
 
-  bool isLighting() { return lighting_; }
-  void setLighting(bool b) { lighting_ = b; }
-
   bool isFrontFace() { return frontFace_; }
   void setFrontFace(bool b) { frontFace_ = b; }
+
+  bool isLighting() { return lighting_; }
+  void setLighting(bool b) { lighting_ = b; }
 
   bool isSmoothShade() { return smoothShade_; }
   void setSmoothShade(bool b) { smoothShade_ = b; }
@@ -683,8 +683,8 @@ class Canvas3D : public OpenGLWindow {
 
   bool depthTest_   { true };
   bool cullFace_    { true };
-  bool lighting_    { true };
   bool frontFace_   { true };
+  bool lighting_    { true };
   bool smoothShade_ { true };
   bool outline_     { false };
 

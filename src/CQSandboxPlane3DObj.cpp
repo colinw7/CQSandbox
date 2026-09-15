@@ -232,7 +232,7 @@ render()
   setModelMatrix();
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
-  canvas_->setProgramMatrices(s_program);
+  canvas_->setProgramMatrices(s_program, isIgnoreCamera());
 
   //---
 

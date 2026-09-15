@@ -16,6 +16,7 @@ class Text3DObj : public Object3D {
   Q_OBJECT
 
   Q_PROPERTY(QString text READ text WRITE setText)
+  Q_PROPERTY(double  size READ size WRITE setSize)
 
  public:
   struct GlyphInfo {
@@ -50,6 +51,12 @@ class Text3DObj : public Object3D {
   const CGLColor &color() const { return color_; }
   void setColor(const CGLColor &c) { color_ = c; }
 
+  double size() const { return size_; }
+  void setSize(double r) { size_ = r; }
+
+  const Qt::Alignment &align() const { return align_; }
+  void setAlign(const Qt::Alignment &v) { align_ = v; }
+
   bool isRotated() const { return rotated_; }
   void setRotated(bool b) { rotated_ = b; }
 
@@ -64,15 +71,20 @@ class Text3DObj : public Object3D {
 
  private:
   void initShader();
-  void initFont();
 
-  std::vector<uint8_t> readFile(const char *path) const;
+  bool initFont();
+
+  bool readFile(const char *path, std::vector<uint8_t> &bytes) const;
 
   void updateTextData();
 
   void initGLData();
 
   GlyphInfo makeGlyphInfo(uint32_t character, float offsetX, float offsetY) const;
+
+  bool bindTexture();
+
+  int textureId() const;
 
  private:
   struct GLData {
@@ -88,10 +100,13 @@ class Text3DObj : public Object3D {
   static TextShaderProgram* s_program;
   static FontData*          s_fontData;
 
-  QString  text_;
-  CGLColor color_ { 1.0, 1.0, 1.0 };
-  double   size_ { 0.05 };
-  bool     textDataValid_ { false };
+  QString       text_;
+  CGLColor      color_   { 1.0, 1.0, 1.0 };
+  double        size_    { 0.05 };
+  Qt::Alignment align_   { Qt::AlignCenter };
+  bool          rotated_ { false };
+
+  bool textDataValid_ { false };
 
   std::vector<CGLVector3D> vertices_;
   std::vector<CGLVector2D> uvs_;
@@ -99,8 +114,6 @@ class Text3DObj : public Object3D {
   std::vector<uint16_t>    indexes_;
 
   GLData glData_;
-
-  bool rotated_ { false };
 };
 
 }

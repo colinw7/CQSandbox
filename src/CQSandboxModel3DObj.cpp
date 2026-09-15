@@ -705,7 +705,11 @@ render()
 
   //---
 
+  bool oldCullFace = CQGLStateInst->setCullFace(isCullFace());
+
   drawObject(object_);
+
+  CQGLStateInst->setCullFace(oldCullFace);
 }
 
 void

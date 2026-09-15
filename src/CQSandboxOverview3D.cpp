@@ -549,9 +549,9 @@ void
 Overview3D::
 updateText(Text3DObj *obj)
 {
-  auto pos = obj->position();
+  auto bbox = obj->bbox();
 
-  drawData_.bbox += pos;
+  drawData_.bbox += bbox;
 }
 
 void

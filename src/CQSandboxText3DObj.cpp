@@ -49,6 +49,8 @@ Text3DObj::
 Text3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::TEXT)
 {
+  setCullFace (false);
+  setFrontFace(false);
 }
 
 void
@@ -61,7 +63,7 @@ init()
 
   initShader();
 
-  initFont();
+  (void) initFont();
 }
 
 void
@@ -84,7 +86,7 @@ initShader()
     Q_ASSERT(s_program->posAttr != -1);
 
     s_program->colAttr = s_program->attributeLocation("color");
-  //Q_ASSERT(s_program->colAttr != -1);
+    Q_ASSERT(s_program->colAttr != -1);
 
     s_program->texPosAttr = s_program->attributeLocation("texCoord0");
     Q_ASSERT(s_program->texPosAttr != -1);
@@ -97,18 +99,27 @@ initShader()
   }
 }
 
-void
+bool
 Text3DObj::
 initFont()
 {
   if (s_fontData)
-    return;
+    return true;
 
   s_fontData = new FontData;
 
   //---
 
-  auto fontData = readFile("fonts/OpenSans-Regular.ttf");
+  auto *app = canvas_->app();
+
+  auto name = QString("OpenSans-Regular.ttf");
+
+  auto path = app->buildDir() + "/fonts/" + name;
+
+  std::vector<uint8_t> fontData;
+  if (! readFile(path.toLatin1().constData(), fontData))
+    return false;
+
   auto atlasData = std::make_unique<uint8_t[]>(s_fontData->atlasWidth*s_fontData->atlasHeight);
 
   s_fontData->charInfo = std::make_unique<stbtt_packedchar[]>(s_fontData->charCount);
@@ -126,34 +137,85 @@ initFont()
 
   stbtt_PackEnd(&context);
 
+  //---
+
+  // allocate texture id
   glGenTextures(1, &s_fontData->texture);
+  //if (! CQGLStateInst->checkError("glGenTextures")) return false;
+
+  // set texture type
   glBindTexture(GL_TEXTURE_2D, s_fontData->texture);
+  //if (! CQGLStateInst->checkError("glBindTexture")) return false;
+
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, s_fontData->atlasWidth, s_fontData->atlasHeight,
-               0, GL_RED, GL_UNSIGNED_BYTE, atlasData.get());
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, s_fontData->atlasWidth, s_fontData->atlasHeight, 0,
+               GL_RED, GL_UNSIGNED_BYTE, atlasData.get());
+
   glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
 
   canvas_->glGenerateMipmap(GL_TEXTURE_2D);
+
+  return true;
 }
 
-std::vector<uint8_t>
+bool
 Text3DObj::
-readFile(const char *path) const
+readFile(const char *path, std::vector<uint8_t> &bytes) const
 {
   std::ifstream file(path, std::ios::binary | std::ios::ate);
 
   if (! file.is_open())
-    assert(false);
+    return false;
 
   const auto size = file.tellg();
 
   file.seekg(0, std::ios::beg);
-  auto bytes = std::vector<uint8_t>(size);
+  bytes = std::vector<uint8_t>(size);
   file.read(reinterpret_cast<char *>(&bytes[0]), size);
   file.close();
 
-  return bytes;
+  return true;
 }
+
+bool
+Text3DObj::
+bindTexture()
+{
+  CQGLStateInst->setEnableTexture(true);
+
+  glBindTexture(GL_TEXTURE_2D, textureId());
+  //if (! CQGLStateInst->checkError("glBindTexture")) return false;
+
+#if 0
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+#else
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+#endif
+  //if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  //if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
+  //if (! CQGLStateInst->checkError("glTexParameterf")) return false;
+
+  CQGLStateInst->setActiveTextureNum(0, true);
+
+  return true;
+}
+
+int
+Text3DObj::
+textureId() const
+{
+  return s_fontData->texture;
+}
+
+//---
 
 void
 Text3DObj::
@@ -168,8 +230,12 @@ bool
 Text3DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  if (name == "text")
+  if (name == "text") {
     value = text();
+  }
+  else if (name == "align") {
+    value = Util::alignToString(align_);
+  }
   else
     return Object3D::getValue(name, args, value);
 
@@ -180,8 +246,28 @@ bool
 Text3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  if (name == "text")
+  auto *tcl = canvas_->tcl();
+
+  if      (name == "text") {
     setText(value);
+  }
+  else if (name == "size") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    setSize(r);
+  }
+  else if (name == "color") {
+    CGLColor c;
+    if (! Util::stringToGLColor(tcl, value, c))
+      return false;
+
+    setColor(c);
+  }
+  else if (name == "align") {
+    align_ = Util::stringToAlign(value);
+  }
   else
     return Object3D::setValue(name, value, args);
 
@@ -313,7 +399,12 @@ render()
 
   //---
 
-  setScales(CPoint3D(size_, size_, 1));
+  auto oldFrontFace = CQGLStateInst->setFrontFaceFlag(isFrontFace());
+  auto oldCullFace  = CQGLStateInst->setCullFace(isCullFace());
+
+  //---
+
+  setScales(CPoint3D(size(), size(), 1.0));
 
   auto matrixFlags = ModelMatrixFlags::TRANSLATE | ModelMatrixFlags::SCALE;
 
@@ -326,7 +417,7 @@ render()
 
   canvas_->bindProgram(s_program);
 
-  canvas_->setProgramMatrices(s_program);
+  canvas_->setProgramMatrices(s_program, isIgnoreCamera());
 
   s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
@@ -378,23 +469,27 @@ render()
   canvas_->glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t)*glData_.indexElementCount,
                         indexes_.data(), GL_STATIC_DRAW);
 
+  //---
+
   //matrix1.translate(pos_.x, pos_.y, pos_.z - 2);
-//matrix1.rotate(rotation_, rotation_, rotation_, 0);
-//matrix1.scale(size_, size_, 1.0f);
+  //matrix1.rotate(rotation_, rotation_, rotation_, 0);
+  //matrix1.scale(size(), size(), 1.0);
 
-  glBindTexture(GL_TEXTURE_2D, s_fontData->texture);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
+  //---
 
-  CQGLStateInst->setActiveTextureNum(0, true);
+  bindTexture();
 
-  s_program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
+  //---
+
+//s_program->setUniformValue(s_program->textureUniform, GL_TEXTURE0);
+  s_program->setUniformValue(s_program->textureUniform, 0);
 
   canvas_->glBindVertexArray(glData_.vao);
   canvas_->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glData_.indexBuffer);
+
+//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
   glDrawElements(GL_TRIANGLES, glData_.indexElementCount, GL_UNSIGNED_SHORT, nullptr);
 
   //---
@@ -414,6 +509,25 @@ render()
   CQGLStateInst->setEnableTexture(oldTexture);
 
   glPopAttrib();
+
+  //---
+
+  CQGLStateInst->setFrontFaceFlag(oldFrontFace);
+  CQGLStateInst->setCullFace(oldCullFace);
+
+  //---
+
+  bbox_ = CBBox3D();
+
+  auto db = CPoint3D(0, 0, size()/20.0);
+
+  for (const auto &v : vertices_) {
+    auto p1 = v.point() - db;
+    auto p2 = p1 + db;
+
+    bbox_ += modelMatrix()*p1;
+    bbox_ += modelMatrix()*p2;
+  }
 }
 
 }

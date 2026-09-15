@@ -126,6 +126,11 @@ class CQGLState {
     return frontFace;
   }
 
+  bool setFrontFaceFlag(bool b) {
+    auto oldFrontFace = setFrontFace(b ? GL_CCW : GL_CW);
+    return (oldFrontFace == GL_CCW);
+  }
+
   //---
 
   bool isSmoothShade() const { return smooth_; }

@@ -1843,13 +1843,16 @@ setRedrawTimeOut(int t)
 
 void
 Canvas3D::
-setProgramMatrices(ShaderProgram *program)
+setProgramMatrices(ShaderProgram *program, bool ignoreCamera)
 {
   // camera projection
   program->setUniformValue("projection", CQGLUtil::toQMatrix(projectionMatrix()));
 
   // camera/view transformation
-  program->setUniformValue("view", CQGLUtil::toQMatrix(viewMatrix()));
+  if (! ignoreCamera)
+    program->setUniformValue("view", CQGLUtil::toQMatrix(viewMatrix()));
+  else
+    program->setUniformValue("view", CQGLUtil::toQMatrix(CMatrix3DH::identity()));
 
   // view pos
   program->setUniformValue("viewPos", CQGLUtil::toVector(viewPos()));
@@ -2273,6 +2276,8 @@ render()
 {
   CQPerfTrace trace("Canvas3D::paintGL");
 
+  // (void) CQGLStateInst->checkError("> Canvas3D::render");
+
   //---
 
   if (! objectsValid_) {
@@ -2308,7 +2313,7 @@ render()
 
 //CQGLStateInst->setEnableLighting(isLighting());
 
-  CQGLStateInst->setFrontFace(isFrontFace() ? GL_CCW : GL_CW);
+  CQGLStateInst->setFrontFaceFlag(isFrontFace());
 
   CQGLStateInst->setSmoothShade(isSmoothShade());
 
@@ -2645,6 +2650,10 @@ render()
 
     runTclCmd("bboxChanged");
   }
+
+  //---
+
+  // (void) CQGLStateInst->checkError("< Canvas3D::render");
 }
 
 //---

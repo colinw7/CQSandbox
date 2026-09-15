@@ -9,10 +9,10 @@ uniform highp mat4 view;
 uniform highp mat4 model;
 
 varying highp vec2 uv0;
-varying lowp vec3 col;
+varying lowp  vec3 col;
 
 void main() {
-  gl_Position = projection * view * model * position;
+  gl_Position = projection*view*model*position;
 
   uv0 = texCoord0;
   col = color;

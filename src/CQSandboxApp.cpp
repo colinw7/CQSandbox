@@ -86,20 +86,45 @@ init()
 
   //---
 
-  if (is3D()) {
-    auto *frame = add3DFrame(frame3D_);
+  appFrame_ = new QFrame;
 
-    layout->addWidget(frame);
-  }
-  else {
-    auto *frame = add2DFrame(frame2D_);
+  appFrame_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    layout->addWidget(frame);
-  }
+  auto *layout1 = new QVBoxLayout(appFrame_);
+  layout1->setMargin(0); layout1->setSpacing(0);
+
+  layout->addWidget(appFrame_);
+
+  //---
+
+  if      (is2D())
+    init2DFrame();
+  else if (is3D())
+    init3DFrame();
+
+  //---
 
   status_ = new Status(this);
 
   layout->addWidget(status_);
+}
+
+void
+App::
+init2DFrame()
+{
+  auto *frame = add2DFrame(frame2D_);
+
+  appFrame_->layout()->addWidget(frame);
+}
+
+void
+App::
+init3DFrame()
+{
+  auto *frame = add3DFrame(frame3D_);
+
+  appFrame_->layout()->addWidget(frame);
 }
 
 QFrame *
@@ -283,8 +308,8 @@ void
 App::
 show()
 {
-  if (canvas())
-    canvas()->init();
+  if (canvas2D())
+    canvas2D()->init();
 
   QFrame::show();
 }

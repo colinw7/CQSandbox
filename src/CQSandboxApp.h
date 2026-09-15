@@ -16,13 +16,15 @@ namespace CQSandbox {
 
 class Canvas2D;
 class Toolbar2D;
+class Control2D;
+
 class Canvas3D;
 class CanvasToolbar3D;
-class Control2D;
-class Control3D;
-class Status;
 class Overview3D;
 class OverviewToolbar3D;
+class Control3D;
+
+class Status;
 
 class App : public QFrame {
   Q_OBJECT
@@ -36,6 +38,9 @@ class App : public QFrame {
 
   //---
 
+  bool is2D() const { return is2D_; }
+  void set2D(bool b) { is2D_ = b; }
+
   bool is3D() const { return is3D_; }
   void set3D(bool b) { is3D_ = b; }
 
@@ -44,7 +49,7 @@ class App : public QFrame {
 
   //---
 
-  Canvas2D  *canvas   () const { return frame2D_.canvas; }
+  Canvas2D  *canvas2D () const { return frame2D_.canvas; }
   Toolbar2D *toolbar2D() const { return frame2D_.toolbar; }
   Control2D *control2D() const { return frame2D_.control; }
 
@@ -106,6 +111,9 @@ class App : public QFrame {
   };
 
  private:
+  void init2DFrame();
+  void init3DFrame();
+
   QFrame *add3DFrame(Frame3D &frame3D);
   QFrame *add2DFrame(Frame2D &frame2D);
 
@@ -117,7 +125,10 @@ class App : public QFrame {
   bool initialized_ { false };
 
   bool is3D_       { false };
+  bool is2D_       { false };
   bool isOverview_ { false };
+
+  QFrame* appFrame_ { nullptr };
 
   Frame3D frame3D_;
   Frame2D frame2D_;

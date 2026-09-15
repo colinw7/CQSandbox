@@ -46,6 +46,7 @@ ParticleList3DObj::
 ParticleList3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::PARTICLE_LIST)
 {
+  setCullFace(false);
 }
 
 bool
@@ -144,7 +145,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       if (i < 0 || i >= int(colors_.size()))
         return app->errorMsg("Invalid index for color");
 
-      colors_[i] = Util::stringToGLColor(tcl, value);
+      CGLColor c;
+      if (! Util::stringToGLColor(tcl, value, c))
+        return app->errorMsg("Invalid color");
+
+      colors_[i] = c;
     }
     else
       return app->errorMsg("Missing index for color");
@@ -275,13 +280,6 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return false;
 
     particleShape_.points.clear();
-  }
-  else if (name == "cull_face") {
-    bool b;
-    if (! Util::stringToBool(value, b))
-      return false;
-
-    setCullFace(b);
   }
   else
     return Object3D::setValue(name, value, args);

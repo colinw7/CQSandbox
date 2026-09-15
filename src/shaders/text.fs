@@ -1,6 +1,6 @@
 #version 330 core
 
-varying lowp vec3 col;
+varying lowp  vec3 col;
 varying highp vec2 uv0;
 
 uniform sampler2D textureId;

@@ -3,6 +3,10 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQApp.h>
 
+#include <CFile.h>
+
+bool detectModel(const QString &filename, bool &is2D, bool &is3D);
+
 int
 main(int argc, char **argv)
 {
@@ -24,6 +28,7 @@ main(int argc, char **argv)
 
   QString filename;
   QString modelName;
+  bool    is2D     { false };
   bool    is3D     { false };
   bool    overview { false };
 
@@ -31,8 +36,12 @@ main(int argc, char **argv)
     auto arg = QString(argv[i]);
 
     if (arg.left(1) == '-') {
-      if      (arg == "-3d")
+      if      (arg == "-2d") {
+        is2D = true;
+      }
+      else if (arg == "-3d") {
         is3D = true;
+      }
       else if (arg == "-model") {
         ++i;
 
@@ -52,20 +61,29 @@ main(int argc, char **argv)
       filename = arg;
   }
 
-  if (is3D)
+  if (filename != "") {
+    if (! is2D && ! is3D) {
+      detectModel(filename, is2D, is3D);
+    }
+  }
+
+  if      (is2D)
+    app->set2D(true);
+  else if (is3D) {
     app->set3D(true);
 
-  if (overview)
-    app->setOverview(true);
+    if (overview)
+      app->setOverview(true);
+  }
 
   app->init();
 
   if (filename != "") {
-    if      (app->canvas()) {
-      if (! app->load(app->canvas()->tcl(), filename))
+    if      (is2D) {
+      if (! app->load(app->canvas2D()->tcl(), filename))
         std::cerr << "Failed to load '" << filename.toStdString() << "'\n";
     }
-    else if (app->canvas3D()) {
+    else if (is3D) {
       if (! app->load(app->canvas3D()->tcl(), filename))
         std::cerr << "Failed to load '" << filename.toStdString() << "'\n";
     }
@@ -87,4 +105,34 @@ proc bboxChanged { } {\n\
   app->show();
 
   return qapp.exec();
+}
+
+bool
+detectModel(const QString &filename, bool &is2D, bool &is3D)
+{
+  CFile file(filename.toStdString());
+
+  if (! file.exists() || ! file.isRegular())
+    return false;
+
+  std::vector<std::string> lines;
+  file.toLines(lines);
+
+  for (const auto &line : lines) {
+    auto pos = line.find("sb3d::");
+
+    if (pos != std::string::npos) {
+      is3D = true;
+      return true;
+    }
+
+    pos = line.find("sb::");
+
+    if (pos != std::string::npos) {
+      is2D = true;
+      return true;
+    }
+  }
+
+  return false;
 }

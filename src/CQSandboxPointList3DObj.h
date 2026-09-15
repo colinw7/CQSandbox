@@ -41,9 +41,6 @@ class PointList3DObj : public Object3D {
   const QString &textureFile() const { return textureFile_; }
   void setTextureFile(const QString &filename);
 
-  bool isCullFace() const { return cullFace_; }
-  void setCullFace(bool b) { cullFace_ = b; }
-
   void init() override;
 
   void initData();
@@ -84,7 +81,6 @@ class PointList3DObj : public Object3D {
   CQGLTexture *texture_ { nullptr };
 
   double pointSize_ { 0.05 };
-  bool   cullFace_  { false };
 };
 
 }
