@@ -312,7 +312,7 @@ proc isActiveBarrel { ib } {
   if {$::barrel_obj($ib) == ""} {
     return 0
   }
-  
+
   if {! [$::barrel_obj($ib) get visible]} {
     return 0
   }
@@ -333,7 +333,7 @@ proc addLadders { } {
 
 proc addChest { } {
   set ::chest_obj [$::chestRefObj get ref_object]
-  
+
   set iy [expr {$::ny - 1}]
 
   set pos [$::playerPath($iy) get tpos 1.0]
@@ -348,6 +348,20 @@ proc bboxChanged { } {
 proc tick { } {
   if {$::game_over} {
     return
+  }
+
+  # ---
+
+  if       {[sb3d::canvas get key "left"]} {
+    playerMoveLeft
+  } elseif {[sb3d::canvas get key "right"]} {
+    playerMoveRight
+  }
+
+  if       {[sb3d::canvas get key "up"]} {
+    playerJump
+  } elseif {[sb3d::canvas get key "down"]} {
+    playerFall
   }
 
   # ---
@@ -431,12 +445,18 @@ proc updatePlayerPos { } {
         set target [$::player_anim_dy get target]
 
         if {$target > 0} {
-          set ::player_iy [expr {$::player_iy + 1}]
-        } else {
-          set ::player_iy [expr {$::player_iy - 1}]
-        }
+          if {$::player_iy < [expr {$::ny - 1}]} {
+            set ::player_iy [expr {$::player_iy + 1}]
 
-        set ::player_t [expr {1.0 - $::player_t}]
+            set ::player_t [expr {1.0 - $::player_t}]
+          }
+        } else {
+          if {$::player_iy > 0} {
+            set ::player_iy [expr {$::player_iy - 1}]
+
+            set ::player_t [expr {1.0 - $::player_t}]
+          }
+        }
       }
 
       $::player_anim_dy exec reset
@@ -522,7 +542,7 @@ proc updateBarrelPos { } {
 proc playerMoveLeft { } {
   if {$::player_dead} { return }
 
-  if {[isPlayerAnimating]} { return }
+  if {[isPlayerAnimatingX]} { return }
 
   $::playerObj set angles [list 0 -90 0]
 
@@ -559,7 +579,7 @@ proc playerMoveLeft { } {
 proc playerMoveRight { } {
   if {$::player_dead} { return }
 
-  if {[isPlayerAnimating]} { return }
+  if {[isPlayerAnimatingX]} { return }
 
   $::playerObj set angles [list 0 90 0]
 
@@ -596,7 +616,7 @@ proc playerMoveRight { } {
 proc playerJump { } {
   if {$::player_dead} { return }
 
-  if {[isPlayerAnimating]} { return }
+  if {[isPlayerAnimatingY]} { return }
 
   $::player_anim_dy set value  0
   $::player_anim_dy set target 4
@@ -614,7 +634,7 @@ proc playerJump { } {
 proc playerFall { } {
   if {$::player_dead} { return }
 
-  if {[isPlayerAnimating]} { return }
+  if {[isPlayerAnimatingY]} { return }
 
   $::player_anim_dy set value  0
   $::player_anim_dy set target -2
@@ -624,6 +644,7 @@ proc playerFall { } {
 }
 
 proc keyPress { k } {
+if {0} {
   if {$::game_over} {
     return
   }
@@ -638,12 +659,17 @@ proc keyPress { k } {
     playerFall
   }
 }
+}
 
-proc isPlayerAnimating { } {
+proc isPlayerAnimatingX { } {
   if {[$::player_anim_dx get can_step]} {
     return 1
   }
 
+  return 0
+}
+
+proc isPlayerAnimatingY { } {
   if {[$::player_anim_dy get can_step]} {
     return 1
   }

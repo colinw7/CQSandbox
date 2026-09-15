@@ -992,8 +992,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 {
 //auto *tcl = this->tcl();
 
-  if      (name == "bg")
+  if      (name == "bg") {
     value = Util::colorToString(bgColor());
+  }
   else if (name == "mode") {
     if      (type_ == Type::CAMERA)
       value = "camera";
@@ -1004,12 +1005,14 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     else if (type_ == Type::GAME)
       value = "game";
   }
+  // animation
   else if (name == "loop.enabled") {
     value = QVariant(isLooping());
   }
   else if (name == "loop.timeout") {
     value = QVariant(redrawTimeOut());
   }
+  // range
   else if (name == "xmap") {
     if (args.size() >= 1) {
       auto x = Util::stringToReal(args[0]);
@@ -1061,6 +1064,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "smooth_shade") {
     value = QVariant(isSmoothShade());
   }
+  // camera
   else if (name == "camera.type") {
     if      (cameraType_ == CameraType::FIRST_PERSON)
       value = "first_person";
@@ -1093,6 +1097,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = names;
   }
+  // bbox
   else if (name == "bbox.center") {
     auto center = bbox_.getCenter();
 
@@ -1107,6 +1112,13 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     auto maxSize = bbox_.getMaxSize();
 
     value = Util::realToString(maxSize);
+  }
+  // key state
+  else if (name == "key") {
+    if (args.size() < 1)
+      return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+
+    value = getKeyPressed(args[0]);
   }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
@@ -1136,12 +1148,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       setFocus();
     }
   }
+  // animation
   else if (name == "loop.enabled") {
     setLooping(Util::stringToBool(value));
   }
   else if (name == "loop.timeout") {
     setRedrawTimeOut(Util::stringToInt(value));
   }
+  // range
   else if (name == "xrange") {
     QStringList strs;
     (void) tcl->splitList(value, strs);
@@ -1178,9 +1192,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     zrange_ = CRMinMax(xmin, xmax);
   }
+  // lights
   else if (name == "lights.simple") {
     setSimpleLights(true);
   }
+  // camera
   else if (name == "camera.type") {
     auto lvalue = value.toLower();
 
@@ -1207,6 +1223,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else if (lvalue == "back")
       orthoCamera_->setOrthoType(OrthoCamera::OthroType::BACK);
   }
+  // open gl state
   else if (name == "depth_test") {
     setDepthTest(Util::stringToBool(value));
   }
@@ -1222,12 +1239,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "smooth_shade") {
     setSmoothShade(Util::stringToBool(value));
   }
-  else if (name == "model_dir") {
-    modelDirs_.push_back(value);
-  }
-  else if (name == "module_dir") {
-    moduleDirs_.push_back(value);
-  }
+  // clip
   else if (name == "clip") {
     if (args.size() < 1)
       return app_->errorMsg("Invalid args");
@@ -1241,6 +1253,13 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return app_->errorMsg("Invalid clip distance '" + args[0] + "'");
 
     clips_.push_back(CPlane3D(n, d));
+  }
+  // directories
+  else if (name == "model_dir") {
+    modelDirs_.push_back(value);
+  }
+  else if (name == "module_dir") {
+    moduleDirs_.push_back(value);
   }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));

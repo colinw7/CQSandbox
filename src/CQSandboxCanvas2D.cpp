@@ -1166,6 +1166,8 @@ styleProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   return TCL_OK;
 }
 
+//---
+
 bool
 Canvas2D::
 getValue(const QString &name, const QStringList &args, QVariant &value)
@@ -1174,6 +1176,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
   auto *viewport = currentViewport();
 
+  // brush (TODO: gradient, ...)
   if      (name == "brush.color") {
     value = Util::colorToString(viewport->brush.value().color());
   }
@@ -1183,12 +1186,14 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   else if (name == "brush.steps") {
     value = Util::colorToString(viewport->brush.steps());
   }
+  // pen (TODO: dash)
   else if (name == "pen.color") {
     value = Util::colorToString(viewport->pen.color());
   }
   else if (name == "pen.width") {
     value = Util::realToString(viewport->pen.widthF());
   }
+  // window range
   else if (name == "range") {
     value = Util::rangeToString(tcl, viewport->displayRange);
   }
@@ -1217,6 +1222,14 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = Util::boolToString(b);
   }
+  // pixel range
+  else if (name == "pixel_width") {
+    value = pixelWidth_;
+  }
+  else if (name == "pixel_height") {
+    value = pixelHeight_;
+  }
+  // particles (TODO: use particle system object)
   else if (name == "particles") {
     QStringList ids;
 
@@ -1232,26 +1245,23 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = ids;
   }
-  else if (name == "ticks") {
-    value = Util::intToString(ticks_);
-  }
+  // key state
   else if (name == "key") {
     if (args.size() < 1)
       return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
     value = getKeyPressed(args[0]);
   }
+  // animation state
+  else if (name == "ticks") {
+    value = Util::intToString(ticks_);
+  }
   else if (name == "play") {
     value = running_;
   }
+  // renderer
   else if (name == "buffered") {
     value = buffered_;
-  }
-  else if (name == "pixel_width") {
-    value = pixelWidth_;
-  }
-  else if (name == "pixel_height") {
-    value = pixelHeight_;
   }
   else if (name == "font.height") {
     QFontMetrics fm(font());

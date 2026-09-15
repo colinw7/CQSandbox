@@ -105,9 +105,9 @@ proc addAlien { } {
     if {! [info exists ::alien($ii)]} {
       set meta ""
 
-      set alien1_obj [loadAlien "defender/alien1.png" "alien1"]
-      set alien2_obj [loadAlien "defender/alien2.png" "alien2"]
-      set alien3_obj [loadAlien "defender/alien3.png" "alien3"]
+      set alien1_obj [loadAlien "tcl/defender/alien1.png" "alien1"]
+      set alien2_obj [loadAlien "tcl/defender/alien2.png" "alien2"]
+      set alien3_obj [loadAlien "tcl/defender/alien3.png" "alien3"]
 
       set ::alien1($ii) $alien1_obj
       set ::alien2($ii) $alien2_obj
@@ -410,7 +410,7 @@ proc alienShoot { ind } {
   if {! [info exists ::alien_bullet($ind)]} {
     set ::alien_bullet($ind) [sb::particle [list $x $y]]
 
-    $::alien_bullet($ind) set image     "defender/particle1.png"
+    $::alien_bullet($ind) set image     "tcl/defender/particle1.png"
     $::alien_bullet($ind) set pen.color "white"
     $::alien_bullet($ind) set meta      "alien $ind"
   } else {
@@ -450,7 +450,7 @@ proc positionAlien { ind } {
 
 proc addShip { } {
   if {! [info exists ::ship_obj]} {
-    set ::ship_obj [sb::image {0 0 px} "defender/ship.png"]
+    set ::ship_obj [sb::image {0 0 px} "tcl/defender/ship.png"]
 
     $::ship_obj set scale {0.2 0.2}
 
@@ -734,7 +734,7 @@ proc shipShoot { } {
   if {$::ship_bullet($bullet_num) == ""} {
     set ::ship_bullet($bullet_num) [sb::particle [list $::ship_bullet_x1 $::ship_bullet_y1]]
 
-    $::ship_bullet($bullet_num) set image     "defender/particle1.png"
+    $::ship_bullet($bullet_num) set image     "tcl/defender/particle1.png"
     $::ship_bullet($bullet_num) set pen.color "white"
     $::ship_bullet($bullet_num) set meta      "ship"
   }
@@ -762,7 +762,7 @@ proc shipShoot { } {
 # Ground
 
 proc addGround { x } {
-  set ground_obj [sb::image {0 0 px} "defender/ground.png"]
+  set ground_obj [sb::image {0 0 px} "tcl/defender/ground.png"]
 
   $ground_obj set scale {0.5 0.5}
 
@@ -802,7 +802,7 @@ proc addHuman { i x } {
   set ::human_y($i) $::ground_y
 
   if {! [info exists ::humans($i)]} {
-    set ::humans($i) [sb::image {0 0 px} "defender/human.png"]
+    set ::humans($i) [sb::image {0 0 px} "tcl/defender/human.png"]
 
     $::humans($i) set scale {0.2 0.2}
 

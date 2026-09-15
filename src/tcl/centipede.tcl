@@ -511,19 +511,19 @@ proc init { } {
 
   set ::MAX_SEGMENTS 12
 
-  set ::centipede_image(0) [loadImage "centipede/centipede1.gif"]
-  set ::centipede_image(1) [loadImage "centipede/centipede2.gif"]
+  set ::centipede_image(0) [loadImage "tcl/centipede/centipede1.gif"]
+  set ::centipede_image(1) [loadImage "tcl/centipede/centipede2.gif"]
 
-  set ::mushroom_image(0) [loadImage "centipede/mushroom_1.gif"]
-  set ::mushroom_image(1) [loadImage "centipede/mushroom_2.gif"]
-  set ::mushroom_image(2) [loadImage "centipede/mushroom_3.gif"]
-  set ::mushroom_image(3) [loadImage "centipede/mushroom_4.gif"]
+  set ::mushroom_image(0) [loadImage "tcl/centipede/mushroom_1.gif"]
+  set ::mushroom_image(1) [loadImage "tcl/centipede/mushroom_2.gif"]
+  set ::mushroom_image(2) [loadImage "tcl/centipede/mushroom_3.gif"]
+  set ::mushroom_image(3) [loadImage "tcl/centipede/mushroom_4.gif"]
 
-  set ::player_obj [loadImage "centipede/player.gif"]
+  set ::player_obj [loadImage "tcl/centipede/player.gif"]
 
-  set ::bullet_obj [loadImage "centipede/bullet.gif"]
+  set ::bullet_obj [loadImage "tcl/centipede/bullet.gif"]
 
-  set ::spider_obj [loadImage "centipede/spider.gif"]
+  set ::spider_obj [loadImage "tcl/centipede/spider.gif"]
 
   #---
 
@@ -596,7 +596,7 @@ proc keyPress { args } {
 }
 
 proc update { } {
-  echo "::update"
+  # echo "::update"
 
   set ::ticks [sb::canvas get ticks]
 
