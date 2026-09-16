@@ -1,4 +1,10 @@
 proc init { } {
+  # initMandelbrot
+
+  initLorenz
+}
+
+proc initMandelbrot { } {
   sb3d::canvas set module_dir modules/mandelbrot
 
   set mandelbrot [sb3d::shlib mandelbrot]
@@ -10,6 +16,12 @@ proc init { } {
 
   $mandelbrot set a 1
   $mandelbrot exec a
+}
 
-  exit
+proc initLorenz { } {
+  sb3d::canvas set module_dir modules/lorenz
+
+  set lorenz [sb3d::shlib lorenz]
+
+  echo [$lorenz exec calc]
 }

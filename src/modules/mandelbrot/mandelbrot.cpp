@@ -161,7 +161,7 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
     else if (name1 == "xmin") {
       double r;
       if (Tcl_GetDoubleFromObj(interp, value, &r) != TCL_OK) {
-        std::cerr << "Invalid arguments for pixel_xmin\n";
+        std::cerr << "Invalid arguments for xmin\n";
         return 0;
       }
 
@@ -172,7 +172,7 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
     else if (name1 == "ymin") {
       double r;
       if (Tcl_GetDoubleFromObj(interp, value, &r) != TCL_OK) {
-        std::cerr << "Invalid arguments for pixel_ymin\n";
+        std::cerr << "Invalid arguments for ymin\n";
         return 0;
       }
 
@@ -183,7 +183,7 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
     else if (name1 == "xmax") {
       double r;
       if (Tcl_GetDoubleFromObj(interp, value, &r) != TCL_OK) {
-        std::cerr << "Invalid arguments for pixel_xmax\n";
+        std::cerr << "Invalid arguments for xmax\n";
         return 0;
       }
 
@@ -194,7 +194,7 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
     else if (name1 == "ymax") {
       double r;
       if (Tcl_GetDoubleFromObj(interp, value, &r) != TCL_OK) {
-        std::cerr << "Invalid arguments for pixel_ymax\n";
+        std::cerr << "Invalid arguments for ymax\n";
         return 0;
       }
 
@@ -226,12 +226,12 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
         return 0;
       }
 
-       auto *impl       = getInst();
-       auto *mandelbrot = impl->mandelbrot();
+      auto *impl       = getInst();
+      auto *mandelbrot = impl->mandelbrot();
 
-       auto n = mandelbrot->calc(x, y, impl->max_iterations_);
+      auto n = mandelbrot->calc(x, y, impl->max_iterations_);
 
-       *res = Tcl_NewIntObj(n);
+      *res = Tcl_NewIntObj(n);
     }
     else {
       std::cerr << "Invalid op '" << op << "'\n";

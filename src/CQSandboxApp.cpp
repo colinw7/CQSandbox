@@ -131,8 +131,10 @@ QFrame *
 App::
 add3DFrame(Frame3D &frame3D)
 {
-  auto *frame  = CQUtil::makeWidget<QFrame>("frame3D");
+  auto *frame = CQUtil::makeWidget<QFrame>("frame3D");
+
   auto *layout = new QHBoxLayout(frame);
+  layout->setMargin(0); layout->setSpacing(0);
 
   //---
 
@@ -204,6 +206,7 @@ App::
 showOverview3DI(Frame3D &frame3D, bool show)
 {
   auto *layout = qobject_cast<QBoxLayout *>(frame3D.frame->layout());
+  layout->setMargin(0); layout->setSpacing(0);
 
   if (show) {
     if (frame3D.overlayShown)
@@ -273,6 +276,7 @@ add2DFrame(Frame2D &frame2D)
   frame2D.frame = CQUtil::makeWidget<QFrame>("frame2D");
 
   auto *layout = new QHBoxLayout(frame2D.frame);
+  layout->setMargin(0); layout->setSpacing(0);
 
   //---
 

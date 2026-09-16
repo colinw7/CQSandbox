@@ -17,6 +17,7 @@ Toolbar2D(Canvas2D *canvas) :
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
   auto *layout = new QHBoxLayout(this);
+  layout->setMargin(0); layout->setSpacing(2);
 
   auto addToolButton = [&](const QString &name, const QString &iconName,
                            const QString &tip, const char *slotName) {

@@ -8,6 +8,7 @@
 #include <CGLVector2D.h>
 #include <CGLVector3D.h>
 #include <CBBox3D.h>
+#include <CBBox2D.h>
 #include <CGLColor.h>
 #include <CWindowRange2D.h>
 #include <CMathGeom2D.h>
@@ -486,6 +487,15 @@ inline bool stringToVectors3D(CQTcl *tcl, const QString &str, std::vector<CVecto
 }
 
 //---
+
+inline QString bbox2DToString(const CBBox2D &bbox) {
+  auto x1str = QString::number(bbox.getXMin());
+  auto y1str = QString::number(bbox.getYMin());
+  auto x2str = QString::number(bbox.getXMax());
+  auto y2str = QString::number(bbox.getYMax());
+
+  return x1str + " " + y1str + " " + x2str + " " + y2str;
+}
 
 inline QString bbox3DToString(const CBBox3D &bbox) {
   auto x1str = QString::number(bbox.getXMin());

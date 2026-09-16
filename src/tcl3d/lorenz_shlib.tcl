@@ -1,61 +1,3 @@
-proc calcX { t x y z } {
-  return [expr {$::A*($y - $x)}]
-}
-
-proc calcY { t x y z } {
-  return [expr {$x*($::B - $z) - $y}]
-}
-
-proc calcZ { t x y z } {
-  return [expr {$x*$y - $::C*$z}]
-}
-
-proc RungeKuttaStep { } {
-  set kx1 [calcX $::rk_t $::rk_x $::rk_y $::rk_z]
-  set ky1 [calcY $::rk_t $::rk_x $::rk_y $::rk_z]
-  set kz1 [calcZ $::rk_t $::rk_x $::rk_y $::rk_z]
-
-  set dt2 [expr {$::rk_dt/2.0}]
-  set dt6 [expr {$::rk_dt/6.0}]
-
-  set dt [expr {$::rk_t + $dt2}]
-
-  set xt [expr {$::rk_x + $::rk_dt*$kx1/2.0}]
-  set yt [expr {$::rk_y + $::rk_dt*$ky1/2.0}]
-  set zt [expr {$::rk_z + $::rk_dt*$kz1/2.0}]
-
-  set kx2 [calcX $dt $xt $yt $zt]
-  set ky2 [calcY $dt $xt $yt $zt]
-  set kz2 [calcZ $dt $xt $yt $zt]
-
-  set xt [expr {$::rk_x + $::rk_dt*$kx2/2.0}]
-  set yt [expr {$::rk_y + $::rk_dt*$ky2/2.0}]
-  set zt [expr {$::rk_z + $::rk_dt*$kz2/2.0}]
-
-  set kx3 [calcX $dt $xt $yt $zt]
-  set ky3 [calcY $dt $xt $yt $zt]
-  set kz3 [calcZ $dt $xt $yt $zt]
-
-  set xt [expr {$::rk_x + $::rk_dt*$kx3}]
-  set yt [expr {$::rk_y + $::rk_dt*$ky3}]
-  set zt [expr {$::rk_z + $::rk_dt*$kz3}]
-
-  set kx4 [calcX $dt $xt $yt $zt]
-  set ky4 [calcY $dt $xt $yt $zt]
-  set kz4 [calcZ $dt $xt $yt $zt]
-
-  set ::rk_x [expr {$::rk_x + $dt6*($kx1 + 2.0*$kx2 + 2.0*$kx3 + $kx4)}]
-  set ::rk_y [expr {$::rk_y + $dt6*($ky1 + 2.0*$ky2 + 2.0*$ky3 + $ky4)}]
-  set ::rk_z [expr {$::rk_z + $dt6*($kz1 + 2.0*$kz2 + 2.0*$kz3 + $kz4)}]
-  set ::rk_t [expr {$::rk_t + $::rk_dt}]
-}
-
-proc nextValue { } {
-  RungeKuttaStep
-
-  return [list $::rk_x $::rk_y $::rk_z]
-}
-
 proc remap { v vmin vmax } {
   return [expr {($v - $vmin)/($vmax - $vmin) - 0.5}]
 }
@@ -69,6 +11,12 @@ proc nextColor { } {
 }
 
 proc init { } {
+  sb3d::canvas set module_dir modules/lorenz
+
+  set ::lorenz [sb3d::shlib lorenz]
+
+  #---
+
   set ::in 0
 
   set ::n 50000
@@ -158,7 +106,7 @@ proc calcNext { } {
   set z1 0.0
 
   for {set i 0} {$i < $::n} {incr i} {
-    set pos [nextValue]
+    set pos [$::lorenz exec calc]
 
     if {$i >= $::in} {
       set x [remap [lindex $pos 0] $::xmin $::xmax]

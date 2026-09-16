@@ -20,6 +20,7 @@ CanvasToolbar3D(Canvas3D *canvas) :
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
   auto *layout = new QHBoxLayout(this);
+  layout->setMargin(0); layout->setSpacing(2);
 
   //---
 

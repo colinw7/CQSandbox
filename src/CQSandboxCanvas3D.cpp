@@ -1445,11 +1445,20 @@ getLightValue(const QString &name, const QStringList &, QVariant &res)
 
 bool
 Canvas3D::
-setLightValue(const QString &name, const QString &value, const QStringList &)
+setLightValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = this->tcl();
 
   auto *light = currentLight();
+
+  if (args.size() > 0) {
+    int n;
+    if (! Util::stringToInt(args[0], n))
+      return false;
+
+    light = getLight(n);
+    if (! light) return false;
+  }
 
   if      (name == "type") {
     auto lvalue = value.toLower();

@@ -27,7 +27,7 @@ proc pixelYToUser { y } {
   return [expr {$y*$::yf + $::ymax}]
 }
 
-proc drawBg { } {
+proc drawBg { args } {
   set ::pixelWidth  [sb::canvas get pixel_width]
   set ::pixelHeight [sb::canvas get pixel_height]
 

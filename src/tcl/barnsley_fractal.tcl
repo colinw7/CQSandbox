@@ -276,7 +276,7 @@ proc resize { args } {
   # sb::canvas exec step
 }
 
-proc drawBg { } {
+proc drawBg { args } {
   echo "> drawBg $::type_ind"
 
   for {set y 0} {$y < $::canvasSize} {incr y} {

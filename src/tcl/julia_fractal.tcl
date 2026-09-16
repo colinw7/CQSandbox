@@ -104,7 +104,7 @@ proc pixelYToUser { y } {
   return [expr {$y*$::yf + $::ymax}]
 }
 
-proc drawBg { } {
+proc drawBg { args } {
   # echo "drawBg"
 
   for {set y 0} {$y < $::pixelHeight} {incr y} {

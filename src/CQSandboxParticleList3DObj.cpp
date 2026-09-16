@@ -9,7 +9,9 @@
 #include <CQTclUtil.h>
 #include <CQGLState.h>
 
+#ifdef CQSANDBOX_LORENZ
 #include <CLorenzCalc.h>
+#endif
 
 #ifdef CQSANDBOX_FLOCKING
 #include <CFlocking.h>
@@ -58,7 +60,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   }
   else if (name == "position") {
     if (args.size() > 0) {
-      auto i = Util::stringToInt(args[0]);
+      int i;
+      if (! Util::stringToInt(args[0], i))
+        return false;
 
       if (i < 0 || i >= int(points_.size()))
         return false;
@@ -70,7 +74,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   }
   else if (name == "color") {
     if (args.size() > 0) {
-      auto i = Util::stringToInt(args[0]);
+      int i;
+      if (! Util::stringToInt(args[0], i))
+        return false;
 
       if (i < 0 || i >= int(colors_.size()))
         return false;
@@ -114,14 +120,18 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "size") {
-    auto n = Util::stringToInt(value);
+    int n;
+    if (! Util::stringToInt(value, n))
+      return false;
 
     setNumPoints(n);
   }
   else if (name == "position") {
     // get index from args
     if (args.size() > 0) {
-      auto i = Util::stringToInt(args[0]);
+      int i;
+      if (! Util::stringToInt(args[0], i))
+        return false;
 
       if (i < 0 || i >= int(points_.size()))
         return false;
@@ -140,7 +150,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "color") {
     // get index from args
     if (args.size() > 0) {
-      auto i = Util::stringToInt(args[0]);
+      int i;
+      if (! Util::stringToInt(args[0], i))
+        return false;
 
       if (i < 0 || i >= int(colors_.size()))
         return app->errorMsg("Invalid index for color");
@@ -157,9 +169,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "generator") {
     int n = 10000;
 
-    if (args.size() > 0)
-      n = Util::stringToInt(args[0]);
+    if (args.size() > 0) {
+      if (! Util::stringToInt(args[0], n))
+        return false;
+    }
 
+#ifdef CQSANDBOX_LORENZ
     if (value == "lorenz") {
       CRMinMax xrange, yrange, zrange;
 
@@ -217,6 +232,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
         points_[i] = CGLVector3D(x1, y1, z1);
       }
     }
+#endif
 
     bboxValid_ = false;
   }

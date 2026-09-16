@@ -22,36 +22,14 @@ class QTimer;
 
 namespace CQSandbox {
 
-class App;
-class Canvas2D;
-class ParticleSystem;
-class Particle;
-class Viewport;
+class  App;
+class  Canvas2D;
+class  ParticleSystem;
+class  Particle;
+struct Viewport;
 
 //---
 
-class RendererObj : public Object2D {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas2D *canvas, const QStringList &args);
-
-  RendererObj(Canvas2D *canvas);
-
-  const char *typeName() const override { return "renderer"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
-
- private:
-  QBrush brush_;
-  QPen   pen_;
-  QFont  font_;
-};
-
-//---
 
 #ifdef CQSANDBOX_CIRCLES
 class CirclesMgr;
@@ -435,6 +413,8 @@ class Canvas2D : public QFrame {
   static int fmulProc (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
   static int fmaProc  (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
   static int hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+
+  static int helpProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
   static int uiProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 

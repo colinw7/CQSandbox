@@ -1,9 +1,4 @@
 # TODO:
-# . hit and die
-# . treasure at top
-# . backdrop (plane)
-# . random barrel add (max num)
-# . move camera to follow player (up/down)
 # . better lighting
 
 proc randIn { min max } {
@@ -12,6 +7,15 @@ proc randIn { min max } {
 
 proc irandIn { min max } {
   return [expr {int(rand()*($max - $min) + $min + 0.5)}]
+}
+
+proc clamp { r rmin rmax } {
+  upvar $r r1
+  
+  if {$r1 > $rmax} { set r1 $rmax }
+  if {$r1 < $rmin} { set r1 $rmin }
+  
+  return $r1
 }
 
 proc loadModel { filename name { s 1.0 } } {
@@ -186,11 +190,10 @@ proc initPlayer { } {
 
   set ::player_iy 0
   set ::player_t  0
-  set ::player_t1 0
   set ::player_dt 0.1
 
-  set ::player_anim_dx [sb3d::anim_real 0]
-  $::player_anim_dx set id "player_anim_dx"
+  set ::player_anim_dt [sb3d::anim_real 0]
+  $::player_anim_dt set id "player_anim_dt"
 
   set ::player_anim_dy [sb3d::anim_real 0]
   $::player_anim_dy set id "player_anim_dy"
@@ -295,12 +298,12 @@ proc addBarrel { } {
   }
 
   if {$ib >= $::max_barrels} {
-    echo "No inactive barrels"
+    # echo "No inactive barrels"
     return
   }
 
   if {$::barrel_obj($ib) == ""} {
-    echo "Create barrel $ib"
+    # echo "Create barrel $ib"
 
     set ::barrel_obj($ib) [$::barrelRefObj get ref_object]
 
@@ -308,11 +311,9 @@ proc addBarrel { } {
 
     $::barrel_obj($ib) set position [list 0 0 0]
     $::barrel_obj($ib) set angles   [list 90 0 0]
-
-    $::barrel_obj($ib) set visible 1
   }
 
-  echo "Init barrel $ib"
+  # echo "Init barrel $ib"
 
   set ::barrel_t($ib) [randIn 0 0.2]
   set ::barrel_a($ib) [randIn 0 360]
@@ -390,16 +391,31 @@ proc addTexts { } {
   $::lives_text set ignore_camera 1
   $::lives_text set ignore_world  1
 
+  set ::game_over_text [sb3d::text]
+
+  $::game_over_text set position      [list 0 0 0]
+  $::game_over_text set color         red
+  $::game_over_text set text          "GAME OVER"
+  $::game_over_text set size          0.4
+  $::game_over_text set align         center
+  $::game_over_text set ignore_camera 1
+  $::game_over_text set ignore_world  1
+  $::game_over_text set visible       0
+
   updateTexts
 }
 
 proc updateTexts { } {
   $::score_text set text "Score: $::player_score"
   $::lives_text set text "Lives: $::player_lives"
+
+  $::game_over_text set visible $::game_over
 }
 
 proc bboxChanged { } {
   sb3d::light exec reset 1
+
+  applyPlayerPos
 }
 
 proc tick { } {
@@ -439,18 +455,21 @@ proc tick { } {
 
       if {[$::barrel_obj($ib) exec intersect $::playerObj]} {
         echo "Hit Barrel"
+
+if {0} {
         $::playerObj set anim.name   "Death_A"
         $::playerObj set anim.repeat 0
 
         set ::player_dead  1
         set ::player_dying 100
 
-        $::player_anim_dx exec reset
+        $::player_anim_dt exec reset
         $::player_anim_dy exec reset
 
         $::barrel_obj($ib) set visible 0
 
         applyPlayerPos
+}
       }
     }
 
@@ -502,15 +521,13 @@ proc tick { } {
 }
 
 proc updatePlayerPos { } {
-  if {[$::player_anim_dx get can_step]} {
-    $::player_anim_dx exec step
+  if {[$::player_anim_dt get can_step]} {
+    $::player_anim_dt exec step
 
-    if {! [$::player_anim_dx get can_step]} {
-      set target [$::player_anim_dx get target]
+    if {! [$::player_anim_dt get can_step]} {
+      set ::player_t [expr {$::player_t + [$::player_anim_dt get target]}]
 
-      set ::player_t $::player_t1
-
-      $::player_anim_dx exec reset
+      $::player_anim_dt exec reset
 
       $::playerObj set anim.name   "Idle"
       $::playerObj set anim.repeat 1
@@ -569,10 +586,12 @@ proc applyPlayerPos { } {
   set y [lindex $::player_pos 1]
   set z [lindex $::player_pos 2]
 
-  if {[$::player_anim_dx get can_step]} {
-    set dx [$::player_anim_dx get value]
+  if {[$::player_anim_dt get can_step]} {
+    set t1 [$::player_anim_dt get value]
 
-    set x [expr {$x + $dx}]
+    set t [expr {$::player_t + $t1}]
+
+    set x [lindex [$::playerPath($::player_iy) get tpos $t] 0]
   }
 
   if {[$::player_anim_dy get can_step]} {
@@ -590,6 +609,8 @@ proc applyPlayerPos { } {
   set camera_y [expr {$y + 8}]
 
   sb3d::camera set position [list 0 $camera_y 18]
+
+  sb3d::light set position [list 0 $camera_y 4] 1
 }
 
 proc updateBarrelPos { } {
@@ -640,33 +661,33 @@ proc playerMoveLeft { } {
 
   $::playerObj set angles [list 0 -90 0]
 
-  set ::player_t1 $::player_t
+  set t1 $::player_t
 
   if {$::playerDir($::player_iy) > 0} {
     if {$::player_t >= $::player_dt} {
-      set ::player_t1 [expr {$::player_t - $::player_dt}]
+      set t1 [expr {$::player_t - $::player_dt}]
     } else {
-      set ::player_t1 0.0
+      set t1 0.0
     }
   } else {
     if {$::player_t <= 1.0 - $::player_dt} {
-      set ::player_t1 [expr {$::player_t + $::player_dt}]
+      set t1 [expr {$::player_t + $::player_dt}]
     } else {
-      set ::player_t1 1.0
+      set t1 1.0
     }
   }
 
-  set pos [$::playerPath($::player_iy) get tpos $::player_t1]
+  set pos [$::playerPath($::player_iy) get tpos $t1]
 
   set dx [expr {[lindex $pos 0] - [lindex $::player_pos 0]}]
 
   $::playerObj set anim.name   "Walking_A"
   $::playerObj set anim.repeat 1
 
-  $::player_anim_dx set value  0
-  $::player_anim_dx set target $dx
-  $::player_anim_dx set steps  10
-  $::player_anim_dx set style  one_shot
+  $::player_anim_dt set value  0
+  $::player_anim_dt set target [expr {$t1 - $::player_t}]
+  $::player_anim_dt set steps  10
+  $::player_anim_dt set style  one_shot
 
   set ::player_anim_xstate "walk_left"
 
@@ -680,33 +701,33 @@ proc playerMoveRight { } {
 
   $::playerObj set angles [list 0 90 0]
 
-  set ::player_t1 $::player_t
+  set t1 $::player_t
 
   if {$::playerDir($::player_iy) > 0} {
     if {$::player_t <= 1.0 - $::player_dt} {
-      set ::player_t1 [expr {$::player_t + $::player_dt}]
+      set t1 [expr {$::player_t + $::player_dt}]
     } else {
-      set ::player_t1 1.0
+      set t1 1.0
     }
   } else {
     if {$::player_t >= $::player_dt} {
-      set ::player_t1 [expr {$::player_t - $::player_dt}]
+      set t1 [expr {$::player_t - $::player_dt}]
     } else {
-      set ::player_t1 0.0
+      set t1 0.0
     }
   }
 
-  set pos [$::playerPath($::player_iy) get tpos $::player_t1]
+  set pos [$::playerPath($::player_iy) get tpos $t1]
 
   set dx [expr {[lindex $pos 0] - [lindex $::player_pos 0]}]
 
   $::playerObj set anim.name   "Walking_A"
   $::playerObj set anim.repeat 1
 
-  $::player_anim_dx set value  0
-  $::player_anim_dx set target $dx
-  $::player_anim_dx set steps  10
-  $::player_anim_dx set style  one_shot
+  $::player_anim_dt set value  0
+  $::player_anim_dt set target [expr {$t1 - $::player_t}]
+  $::player_anim_dt set steps  10
+  $::player_anim_dt set style  one_shot
 
   set ::player_anim_xstate "walk_right"
 
@@ -724,6 +745,24 @@ proc playerJump { } {
   $::player_anim_dy set style  bounce_once
 
   set ::player_anim_ystate "jump"
+
+  if {[isPlayerAnimatingX]} {
+    set lpos [lindex [$::playerPath($::player_iy) get tpos 0] 0]
+    set rpos [lindex [$::playerPath($::player_iy) get tpos 1] 0]
+
+    set t1 [$::player_anim_dt get target]
+    echo "$t1 $lpos $rpos"
+
+    set t2 [expr {2*$t1}]
+
+    set t [expr {$::player_t + $t2}]
+    clamp t 0 1
+    set t2 [expr {$t - $::player_t}]
+
+    echo "$t2 $lpos $rpos"
+
+    $::player_anim_dt set target $t2
+  }
 
   applyPlayerPos
 }
@@ -787,7 +826,7 @@ if {0} {
 }
 
 proc isPlayerAnimatingX { } {
-  if {[$::player_anim_dx get can_step]} {
+  if {[$::player_anim_dt get can_step]} {
     return 1
   }
 

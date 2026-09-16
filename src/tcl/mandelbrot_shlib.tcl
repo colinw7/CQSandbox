@@ -16,7 +16,7 @@ proc init { } {
   $::mandelbrot set xmax  1.2
   $::mandelbrot set ymax  1.2
 
-  set ::max_iter 256
+  set ::max_iter 512
 
   $::mandelbrot set max_iterations $::max_iter
 
@@ -38,6 +38,7 @@ proc resize { w h } {
 }
 
 proc initColors { } {
+if {0} {
   set ::iter_d1 [expr {($::max_iter - 1.0)/3.0}]
   set ::iter_d2 [expr {2.0*$::iter_d1}]
   set ::iter_d3 [expr {255.0/$::iter_d1}]
@@ -49,11 +50,15 @@ proc initColors { } {
   }
 
   set ::colors($::max_iter) [list 0 0 0]
+} else {
+  set ::pal [sb::color_range]
+}
 }
 
 proc iterToColor { iter } {
   #echo "iterToColor $iter"
 
+if {0} {
   set r 0
   set g 0
   set b 0
@@ -68,28 +73,42 @@ proc iterToColor { iter } {
   }
 
   return [list $r $g $b]
+} else {
+  if {$iter == $::max_iter} {
+    return "#000000"
+  }
+
+  set r [expr {$iter/($::max_iter - 1.0)}]
+
+  return [$::pal get interp $r]
 }
 
-proc drawBg { } {
+}
+
+proc drawBg { args } {
   # echo "drawBg"
 
   echo [time drawMandelbrot]
 }
 
 proc drawMandelbrot { } {
-  for {set y 0} {$y < $::pixelHeight} {incr y} {
-    set yy [$::mandelbrot get user_y $y]
+  for {set iy 0} {$iy < $::pixelHeight} {incr iy} {
+    set y [$::mandelbrot get user_y $iy]
 
-    for {set x 0} {$x < $::pixelWidth} {incr x} {
-      set xx [$::mandelbrot get user_x $x]
+    for {set ix 0} {$ix < $::pixelWidth} {incr ix} {
+      set x [$::mandelbrot get user_x $ix]
 
-      set iter [$::mandelbrot exec calc $xx $yy]
+      set iter [$::mandelbrot exec calc $x $y]
 
+if {0} {
       set rgb $::colors($iter)
+} else {
+      set rgb [iterToColor $iter]
+}
 
       $::renderer set pen.color $rgb
 
-      $::renderer exec draw.point [list $x $y]
+      $::renderer exec draw.point [list $ix $iy]
     }
   }
 }

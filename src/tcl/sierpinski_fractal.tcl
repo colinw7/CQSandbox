@@ -16,7 +16,7 @@ proc init { } {
   set ::renderer [sb::renderer]
 }
 
-proc drawBg { } {
+proc drawBg { args } {
   # echo "drawBg"
 
   $::renderer set pen.color black

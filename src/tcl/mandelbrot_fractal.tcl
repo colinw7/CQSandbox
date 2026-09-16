@@ -82,7 +82,7 @@ proc pixelYToUser { y } {
   return [expr {(($y*1.0)/($::pixelHeight - 1))*($::ymin - $::ymax) + $::ymax}]
 }
 
-proc drawBg { } {
+proc drawBg { args } {
   # echo "drawBg"
 
   echo [time drawMandelbrot]

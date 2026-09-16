@@ -45,7 +45,7 @@ proc resize { args } {
   set ::num_chars [string length $::chars]
 }
 
-proc drawBg { } {
+proc drawBg { args } {
   # echo "drawBg"
 
   for {set i 0} {$i < $::columns} {incr i} {

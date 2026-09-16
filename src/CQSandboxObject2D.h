@@ -38,6 +38,7 @@ class Object2D : public QObject {
     GROUP,
     IMAGE,
     LINE,
+    PALETTE,
     PARTICLE,
     PATH,
     POINT_LIST,

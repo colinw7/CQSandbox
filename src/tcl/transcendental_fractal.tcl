@@ -263,7 +263,7 @@ proc pixelYToUser { y } {
   return [expr {$y*$::yf + $::ymax}]
 }
 
-proc drawBg { } {
+proc drawBg { args } {
   echo "> drawBg $::type"
 
   for {set y 0} {$y < $::canvasSize} {incr y} {
