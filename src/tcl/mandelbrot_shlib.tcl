@@ -1,8 +1,11 @@
-# TODO: palette change, zoom, iter change, tcl var widget
+proc swap { a b } {
+  upvar $a a1
+  upvar $b b1
 
-# tcl:  3066898 microseconds per iteration
-# calc: 1214763 microseconds per iteration
-# calc: 1106674 microseconds per iteration
+  set t  $a1
+  set a1 $b1
+  set b1 $t
+}
 
 proc init { } {
   #echo "init"
@@ -10,6 +13,8 @@ proc init { } {
   sb::canvas set window.size [list 512 512]
 
   sb::canvas set module_dir modules/mandelbrot
+
+  sb::canvas set buffered 1
 
   set ::mandelbrot [sb::shlib mandelbrot]
 
@@ -28,18 +33,23 @@ proc init { } {
 
   resize [sb::canvas get pixel_width] [sb::canvas get pixel_height]
 
-  sb::ui create "\
-<qxml>\n\
-<QComboBox onCurrentIndexChanged=\"paletteChanged\">\n\
-<QComboItem>magma</QComboItem>\n\
-<QComboItem>moreland</QComboItem>\n\
-<QComboItem>plasma</QComboItem>\n\
-<QComboItem>rgb_range</QComboItem>\n\
-<QComboItem>viridis</QComboItem>\n\
-</QComboBox>\n\
-<CQTclIntegerSpin varName=\"max_iterations\" onValueChanged=\"iterationsChanged\"/>\n\
-<QLayoutItem stretch=\"1\"/>\n\
-</qxml>"
+  set uistr "<qxml>\n"
+
+  set pnames [$::pal get palette_names]
+
+  append uistr "<QComboBox onCurrentIndexChanged=\"paletteChanged\">\n"
+  foreach pname $pnames {
+    append uistr "<QComboItem>${pname}</QComboItem>\n"
+  }
+  append uistr "</QComboBox>\n"
+
+  append uistr "\
+<CQTclIntegerSpin varName=\"max_iterations\" onValueChanged=\"iterationsChanged\"/>\n"
+
+  append uistr "<QLayoutItem stretch=\"1\"/>\n"
+  append uistr "</qxml>"
+
+  sb::ui create $uistr
 }
 
 proc resize { w h } {
@@ -48,6 +58,8 @@ proc resize { w h } {
   set ::pixelWidth  $w
   set ::pixelHeight $h
 
+  $::mandelbrot set pixel_xmin 0
+  $::mandelbrot set pixel_ymin 0
   $::mandelbrot set pixel_xmax $w
   $::mandelbrot set pixel_ymax $h
 }
@@ -88,28 +100,54 @@ proc drawMandelbrot { } {
   }
 }
 
+proc rubberBandRelease { px1 py1 px2 py2 } {
+  set x1 [$::mandelbrot get user_x $px1]
+  set y1 [$::mandelbrot get user_y $py1]
+  set x2 [$::mandelbrot get user_x $px2]
+  set y2 [$::mandelbrot get user_y $py2]
+
+  if {$x1 > $x2} { swap x1 x2 }
+  if {$y1 > $y2} { swap y1 y2 }
+
+  echo "zoom $x1 $y1 $x2 $y2"
+
+  $::mandelbrot set xmin $x1
+  $::mandelbrot set ymin $y1
+  $::mandelbrot set xmax $x2
+  $::mandelbrot set ymax $y2
+
+  sb::canvas exec redraw
+}
+
+proc keyPress { args } {
+  set key [lindex $args 0]
+  
+  if {$key == "r" || $key == "R"} {
+    $::mandelbrot set xmin -2.0
+    $::mandelbrot set ymin -1.2
+    $::mandelbrot set xmax  1.2
+    $::mandelbrot set ymax  1.2
+
+    sb::canvas exec redraw 
+  }
+}
+
 proc paletteChanged { args } {
   echo "paletteChanged $args"
 
   set ind [lindex $args 0]
 
-  if       {$ind == 0} {
-    $::pal set mode magma
-  } elseif {$ind == 1} {
-    $::pal set mode moreland
-  } elseif {$ind == 2} {
-    $::pal set mode plasma
-  } elseif {$ind == 3} {
-    $::pal set mode rgb_range
-  } elseif {$ind == 4} {
-    $::pal set mode viridis
-  }
+  set pnames [$::pal get palette_names]
 
-  sb::canvas exec update
+  $::pal set mode [lindex $pnames $ind]
+
+  sb::canvas exec redraw
 }
 
 proc iterationsChanged { args } {
   echo "iterationsChanged $args"
 
-  sb::canvas exec update
+  $::mandelbrot set max_iterations $::max_iterations
+
+  sb::canvas exec redraw
 }

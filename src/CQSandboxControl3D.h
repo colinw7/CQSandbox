@@ -52,6 +52,12 @@ class Control3D : public QFrame {
   void updateWidgets();
 
  private:
+  QFrame *addControlFrame();
+  QFrame *addCameraFrame();
+  QFrame *addLightFrame();
+  QFrame *addObjectsFrame();
+  QFrame *addOverviewFrame();
+
   void connectLights(bool);
   void connectObjects(bool);
 
@@ -62,13 +68,6 @@ class Control3D : public QFrame {
   void updateOverview();
 
   Object3D *getCurrentObject() const;
-
- private:
-  QFrame *addControlFrame();
-  QFrame *addCameraFrame();
-  QFrame *addLightFrame();
-  QFrame *addObjectsFrame();
-  QFrame *addOverviewFrame();
 
  private Q_SLOTS:
   // control

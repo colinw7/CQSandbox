@@ -17,6 +17,7 @@
 
 #include <optional>
 
+class CQRubberBand;
 class CQTcl;
 class QTimer;
 
@@ -300,7 +301,16 @@ class ButtonObj : public Object2D {
 class Canvas2D : public QFrame {
   Q_OBJECT
 
+  Q_PROPERTY(bool running    READ isRunning  WRITE setRunning)
+  Q_PROPERTY(int  timerTicks READ timerTicks WRITE setTimerTicks)
+
  public:
+  enum class Type {
+    CAMERA = 0,
+    MODEL  = 1,
+    GAME   = 2
+  };
+
   using Viewports = std::vector<Viewport *>;
 
  public:
@@ -309,6 +319,19 @@ class Canvas2D : public QFrame {
   App* app() const { return app_; }
 
   CQTcl *tcl() const;
+
+  //---
+
+  const Type &type() const { return type_; }
+  void setType(const Type &type);
+
+  bool isRunning() const { return running_; }
+  void setRunning(bool b) { running_ = b; }
+
+  uint timerTicks() const { return timerTicks_; }
+  void setTimerTicks(uint i) { timerTicks_ = i; }
+
+  //---
 
   void resizeEvent(QResizeEvent *) override;
 
@@ -427,6 +450,10 @@ class Canvas2D : public QFrame {
  Q_SIGNALS:
   void objectsChanged();
 
+  void runStateChanged();
+
+  void typeChanged();
+
  protected Q_SLOTS:
   void timerSlot();
   void stepTimerSlot();
@@ -435,9 +462,27 @@ class Canvas2D : public QFrame {
  protected:
   using Objects = std::vector<Object2D *>;
 
+  //---
+
+  struct MouseData {
+    bool            pressed   { false };
+    bool            isShift   { false };
+    bool            isControl { false };
+    Qt::MouseButton button    { Qt::NoButton };
+    QPoint          press     { 0, 0 };
+    QPoint          move1     { 0, 0 };
+    QPoint          move2     { 0, 0 };
+    int             key       { 0 };
+    QString         keyStr;
+  };
+
+  //---
+
   App* app_ { nullptr };
 
   CQTcl* tcl_ { nullptr };
+
+  Type type_ { Type::CAMERA };
 
   ParticleSystem *psys_ { nullptr };
 
@@ -457,10 +502,9 @@ class Canvas2D : public QFrame {
   QPen   stylePen_;
   QBrush styleBrush_;
 
-  QPoint    pressPos_;
+  MouseData mouseData_;
+
   Object2D* pressObj_ { nullptr };
-  QPoint    motionPos_;
-  bool      pressed_  { false };
 
   QPainter *painter_            { nullptr };
   bool      drawing_            { false };
@@ -473,6 +517,16 @@ class Canvas2D : public QFrame {
   QImage bufferImage2_;
   int    pixelWidth_  { 1 };
   int    pixelHeight_ { 1 };
+
+  //--
+
+  struct TclCallbacks {
+    bool mouseEvent      { true };
+    bool keyEvent        { true };
+    bool rubberBandEvent { true };
+  };
+
+  TclCallbacks tclCallbacks_;
 
   //--
 
@@ -489,6 +543,10 @@ class Canvas2D : public QFrame {
   using KeyPressed = std::map<QString, bool>;
 
   KeyPressed keyPressed_;
+
+  //---
+
+  CQRubberBand* rubberBand_ { nullptr };
 };
 
 }

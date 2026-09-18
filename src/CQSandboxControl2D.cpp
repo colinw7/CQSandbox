@@ -6,6 +6,7 @@
 #include <CQXml.h>
 #include <CQTclUtil.h>
 #include <CQTclIntegerSpin.h>
+#include <CQPropertyViewTree.h>
 #include <CQUtil.h>
 
 #include <QTabWidget>
@@ -73,20 +74,9 @@ Control2D(Canvas2D *canvas) :
 
   //---
 
-  auto *objectsFrame  = new QFrame;
-  auto *objectsLayout = new QVBoxLayout(objectsFrame);
+  auto *controlFrame = addObjectsFrame();
 
-  tab->addTab(objectsFrame, "Objects");
-
-  list_ = new QListWidget;
-
-  list_->setSelectionMode(QAbstractItemView::SingleSelection);
-
-  objectsLayout->addWidget(list_);
-
-  visibleCheck_ = new QCheckBox("Visible");
-
-  objectsLayout->addWidget(visibleCheck_);
+  tab->addTab(controlFrame, "Objects");
 
   //---
 
@@ -102,17 +92,58 @@ Control2D(Canvas2D *canvas) :
 
   if (canvas_)
     connect(canvas_, &Canvas2D::objectsChanged, this, &Control2D::updateWidgets);
-
-  connect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
-          this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));
-
-  connect(visibleCheck_, SIGNAL(stateChanged(int)), this, SLOT(visibleSlot(int)));
 }
 
 Control2D::
 ~Control2D()
 {
   delete xml_;
+}
+
+QFrame *
+Control2D::
+addObjectsFrame()
+{
+  auto *frame  = new QFrame;
+  auto *layout = new QVBoxLayout(frame);
+
+  //---
+
+  objectsData_.list = new QListWidget;
+
+  objectsData_.list->setSelectionMode(QAbstractItemView::SingleSelection);
+
+  layout->addWidget(objectsData_.list);
+
+  //---
+
+  objectsData_.tree = new CQPropertyViewTree(this);
+
+  layout->addWidget(objectsData_.tree);
+
+  //---
+
+  connectObjects(true);
+
+  return frame;
+}
+
+void
+Control2D::
+connectObjects(bool b)
+{
+  if (b) {
+    connect(objectsData_.list, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
+            this, SLOT(objectSelectedSlot(QListWidgetItem *, QListWidgetItem *)));
+    connect(objectsData_.tree, SIGNAL(valueChanged(QObject *, const QString &)),
+            this, SLOT(objectChangedSlot(QObject *, const QString &)));
+  }
+  else {
+    disconnect(objectsData_.list, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
+               this, SLOT(objectSelectedSlot(QListWidgetItem *, QListWidgetItem *)));
+    disconnect(objectsData_.tree, SIGNAL(valueChanged(QObject *, const QString &)),
+               this, SLOT(objectChangedSlot(QObject *, const QString &)));
+  }
 }
 
 void
@@ -174,9 +205,16 @@ setShown(bool shown)
 
 void
 Control2D::
-listItemSlot(QListWidgetItem *, QListWidgetItem *)
+objectSelectedSlot(QListWidgetItem *, QListWidgetItem *)
 {
   updateCurrent();
+}
+
+void
+Control2D::
+objectChangedSlot(QObject *, const QString &)
+{
+  canvas_->update();
 }
 
 void
@@ -186,22 +224,20 @@ updateWidgets()
   if (! active_)
     return;
 
-  disconnect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
-             this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));
+  connectObjects(false);
 
-  list_->clear();
+  objectsData_.list->clear();
 
   if (canvas_) {
     auto *viewport = canvas_->currentViewport();
 
     if (viewport) {
       for (auto *obj : viewport->objects)
-        list_->addItem(obj->calcId());
+        objectsData_.list->addItem(obj->calcId());
     }
   }
 
-  connect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
-          this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));
+  connectObjects(true);
 
   updateCurrent();
 }
@@ -212,27 +248,27 @@ updateCurrent()
 {
   auto *obj = getCurrentObject();
 
-  visibleCheck_->setEnabled(obj);
+  auto skipPropeties = QStringList();
 
-  if (obj)
-    visibleCheck_->setChecked(obj->isVisible());
-}
+  objectsData_.tree->clear();
 
-void
-Control2D::
-visibleSlot(int i)
-{
-  auto *obj = getCurrentObject();
+  if (obj) {
+    auto properties = CQUtil::getPropertyList(obj);
 
-  if (obj)
-    obj->setVisible(i);
+    for (auto &prop : properties) {
+      if (skipPropeties.contains(prop))
+        continue;
+
+      objectsData_.tree->addProperty("", obj, prop);
+    }
+  }
 }
 
 Object2D *
 Control2D::
 getCurrentObject() const
 {
-  auto *item = list_->currentItem();
+  auto *item = objectsData_.list->currentItem();
   if (! item) return nullptr;
 
   auto id = item->text();

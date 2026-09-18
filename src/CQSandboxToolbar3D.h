@@ -57,6 +57,7 @@ class CanvasToolbar3D : public QFrame {
   void metaEditSlot();
 #endif
   void performanceSlot();
+
   void optionsSlot();
 
  private:
@@ -84,7 +85,7 @@ class CanvasToolbar3D : public QFrame {
   QToolButton* overviewButton_ { nullptr };
 
   QToolButton* playButton_  { nullptr };
-  QToolButton* pauseButton_ { nullptr };
+//QToolButton* pauseButton_ { nullptr };
   QToolButton* stepButton_  { nullptr };
 
   QToolButton* settingsButton_ { nullptr };

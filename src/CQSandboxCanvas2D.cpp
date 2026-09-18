@@ -23,6 +23,7 @@
 #include <CQSandboxToolbar2D.h>
 #include <CQSandboxStatus.h>
 
+#include <CQRubberBand.h>
 #include <CQTclUtil.h>
 #include <CQUtil.h>
 
@@ -104,6 +105,10 @@ Canvas2D(App *app) :
   //---
 
   psys_ = new ParticleSystem;
+
+  //---
+
+  rubberBand_ = new CQRubberBand(this);
 }
 
 CQTcl *
@@ -127,12 +132,20 @@ init()
   runTclCmd("proc init { args } { }");
   runTclCmd("proc resize { args } { }");
   runTclCmd("proc update { args } { }");
+
   runTclCmd("proc drawBg { args } { }");
   runTclCmd("proc drawFg { args } { }");
+
   runTclCmd("proc keyPress { args } { }");
+  runTclCmd("proc keyRelease { args } { }");
+
   runTclCmd("proc mousePress { args } { }");
   runTclCmd("proc mouseMove { args } { }");
   runTclCmd("proc mouseRelease { args } { }");
+
+  runTclCmd("proc setMode { args } { }");
+
+  runTclCmd("proc rubberBandRelease { args } { }");
 
   //---
 
@@ -154,6 +167,27 @@ init()
 
   stylePen_   = QPen(Qt::black);
   styleBrush_ = QBrush(Qt::white);
+}
+
+void
+Canvas2D::
+setType(const Type &type)
+{
+  if (type != type_) {
+    type_ = type;
+
+    QString mode;
+
+    switch (type_) {
+      case Type::CAMERA: mode = "camera"; break;
+      case Type::MODEL : mode = "model" ; break;
+      case Type::GAME  : mode = "game"  ; break;
+    }
+
+    runTclCmd(QString("setMode {%1}").arg(mode));
+
+    Q_EMIT typeChanged();
+  }
 }
 
 void
@@ -419,20 +453,28 @@ void
 Canvas2D::
 play()
 {
-  step();
+  if (! running_) {
+    step();
 
-  timer_->start(timerTicks_);
+    timer_->start(timerTicks_);
 
-  running_ = true;
+    running_ = true;
+
+    Q_EMIT runStateChanged();
+  }
 }
 
 void
 Canvas2D::
 pause()
 {
-  timer_->stop();
+  if (running_) {
+    timer_->stop();
 
-  running_ = false;
+    running_ = false;
+
+    Q_EMIT runStateChanged();
+  }
 }
 
 void
@@ -783,18 +825,37 @@ void
 Canvas2D::
 mousePressEvent(QMouseEvent *e)
 {
-  pressPos_  = e->pos();
-  pressObj_  = getObjectAtPos(pressPos_);
-  motionPos_ = pressPos_;
+  mouseData_.pressed = true;
+  mouseData_.button  = e->button();
+  mouseData_.press   = e->pos();
+  mouseData_.move1   = mouseData_.press;
+  mouseData_.move2   = mouseData_.move1;
+
+  mouseData_.isShift   = (e->modifiers() & Qt::ShiftModifier);
+  mouseData_.isControl = (e->modifiers() & Qt::ControlModifier);
+
+  //---
+
+  pressObj_ = getObjectAtPos(mouseData_.press);
 
   if (pressObj_)
     pressObj_->press(e->x(), e->y());
 
-  pressed_ = true;
+  //---
+
+  if (mouseData_.button == Qt::LeftButton) {
+    rubberBand_->setBounds(mouseData_.press, mouseData_.move1);
+    rubberBand_->show();
+  }
+
+  //---
 
   auto p = pointToWindow(Point2D::makePixel(e->x(), e->y())).qpoint();
 
-  runTclCmd(QString("mousePress %1 %2").arg(p.x()).arg(p.y()));
+  if (tclCallbacks_.mouseEvent)
+    runTclCmd(QString("mousePress %1 %2").arg(p.x()).arg(p.y()));
+
+  //---
 
   update();
 }
@@ -803,15 +864,20 @@ void
 Canvas2D::
 mouseMoveEvent(QMouseEvent *e)
 {
+  mouseData_.move2 = e->pos();
+
+  mouseData_.isShift   = (e->modifiers() & Qt::ShiftModifier);
+  mouseData_.isControl = (e->modifiers() & Qt::ControlModifier);
+
+  //---
+
   auto p = pointToWindow(Point2D::makePixel(e->pos())).qpoint();
 
   if (pressObj_) {
-    auto dx = e->x() - motionPos_.x();
-    auto dy = e->y() - motionPos_.y();
+    auto dx = mouseData_.move2.x() - mouseData_.move1.x();
+    auto dy = mouseData_.move2.y() - mouseData_.move1.y();
 
     pressObj_->move(dx, dy);
-
-    motionPos_ = e->pos();
   }
   else {
     auto *group = dynamic_cast<GroupObj *>(getObjectAtPos(e->pos()));
@@ -836,8 +902,21 @@ mouseMoveEvent(QMouseEvent *e)
     app_->setInfo(QString("%1: %2 %3").arg(name).arg(p.x()).arg(p.y()));
   }
 
-  if (pressed_)
-    runTclCmd(QString("mouseMove %1 %2").arg(p.x()).arg(p.y()));
+  //---
+
+  if (mouseData_.pressed) {
+    if (mouseData_.button == Qt::LeftButton) {
+      rubberBand_->setBounds(mouseData_.press, mouseData_.move1);
+      rubberBand_->show();
+    }
+
+    if (tclCallbacks_.mouseEvent)
+      runTclCmd(QString("mouseMove %1 %2").arg(p.x()).arg(p.y()));
+  }
+
+  //---
+
+  mouseData_.move1 = mouseData_.move2;
 
   update();
 }
@@ -846,20 +925,40 @@ void
 Canvas2D::
 mouseReleaseEvent(QMouseEvent *e)
 {
+  mouseData_.move2 = e->pos();
+
+  //---
+
   if (pressObj_) {
     auto *releaseObj = getObjectAtPos(e->pos());
 
     if (pressObj_ == releaseObj)
-      pressObj_->click(pressPos_.x(), pressPos_.y());
+      pressObj_->click(mouseData_.press.x(), mouseData_.press.y());
   }
 
   pressObj_ = nullptr;
 
-  pressed_ = false;
+  //---
+
+  if (tclCallbacks_.rubberBandEvent) {
+    runTclCmd(QString("rubberBandRelease %1 %2 %3 %4").
+      arg(mouseData_.press.x()).arg(mouseData_.press.y()).
+      arg(mouseData_.move2.x()).arg(mouseData_.move2.y()));
+  }
+
+  rubberBand_->hide();
+
+  //---
+
+  mouseData_.pressed = false;
+  mouseData_.button  = Qt::NoButton;
+
+  //---
 
   auto p = pointToWindow(Point2D::makePixel(e->x(), e->y())).qpoint();
 
-  runTclCmd(QString("mouseRelease %1 %2").arg(p.x()).arg(p.y()));
+  if (tclCallbacks_.mouseEvent)
+    runTclCmd(QString("mouseRelease %1 %2").arg(p.x()).arg(p.y()));
 
   update();
 }
@@ -872,16 +971,12 @@ keyPressEvent(QKeyEvent *e)
 
   keyPressed_[keyStr] = true;
 
-//bool isControl = (e->modifiers() & Qt::ControlModifier);
-//bool isShift   = (e->modifiers() & Qt::ShiftModifier);
-
   //---
 
-  runTclCmd(QString("keyPress {%1}").arg(keyStr));
+  if (tclCallbacks_.keyEvent)
+    runTclCmd(QString("keyPress {%1}").arg(keyStr));
 
   update();
-
-  return;
 }
 
 void
@@ -891,6 +986,13 @@ keyReleaseEvent(QKeyEvent *e)
   auto keyStr = getKeyString(e);
 
   keyPressed_[keyStr] = false;
+
+  //---
+
+  if (tclCallbacks_.keyEvent)
+    runTclCmd(QString("keyRelease {%1}").arg(keyStr));
+
+  update();
 }
 
 bool

@@ -46,7 +46,6 @@
 #include <CQSandboxShaderToyProgram.h>
 
 #include <CQRubberBand.h>
-
 #include <CQGLUtil.h>
 #include <CQGLBuffer.h>
 #include <CQGLState.h>
@@ -3074,6 +3073,8 @@ mousePressEvent(QMouseEvent *e)
     }
   }
 
+  //---
+
   update();
 }
 
@@ -3114,8 +3115,7 @@ void
 Canvas3D::
 mouseReleaseEvent(QMouseEvent *e)
 {
-  mouseData_.move2.x = e->x();
-  mouseData_.move2.y = e->y();
+  mouseData_.move2 = CPoint2D(e->x(), e->y());
 
   //---
 

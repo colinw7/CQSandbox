@@ -3,6 +3,7 @@
 
 #include <QFrame>
 
+class CQPropertyViewTree;
 class CQXml;
 
 class QListWidget;
@@ -47,11 +48,14 @@ class Control2D : public QFrame {
   void updateWidgets();
 
  private Q_SLOTS:
-  void listItemSlot(QListWidgetItem *, QListWidgetItem *);
-
-  void visibleSlot(int);
+  void objectSelectedSlot(QListWidgetItem *, QListWidgetItem *);
+  void objectChangedSlot(QObject *object, const QString &name);
 
  private:
+  QFrame *addObjectsFrame();
+
+  void connectObjects(bool);
+
   void updateCurrent();
 
   Object2D *getCurrentObject() const;
@@ -59,8 +63,12 @@ class Control2D : public QFrame {
  private:
   Canvas2D* canvas_ { nullptr };
 
-  QListWidget* list_         { nullptr };
-  QCheckBox*   visibleCheck_ { nullptr };
+  struct ObjectsData {
+    QListWidget*        list { nullptr };
+    CQPropertyViewTree* tree { nullptr };
+  };
+
+  ObjectsData objectsData_;
 
   QFrame* uiFrame_ { nullptr };
   CQXml*  xml_     { nullptr };

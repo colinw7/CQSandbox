@@ -290,7 +290,7 @@ add2DFrame(Frame2D &frame2D)
   //---
 
   frame2D.canvas  = new Canvas2D(this);
-  frame2D.toolbar = new Toolbar2D(frame2D.canvas);
+  frame2D.toolbar = new CanvasToolbar2D(frame2D.canvas);
 
   frame2D.canvas->init();
 
