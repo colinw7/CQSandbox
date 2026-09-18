@@ -196,3 +196,7 @@ winId(unsigned long win)
 
   return Tk_WindowId(win1);
 }
+
+//---
+
+std::string CTclObjProc::cmd_;

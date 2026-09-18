@@ -26,36 +26,6 @@
 
 namespace CQSandbox {
 
-CPoint3D vectorToPoint(const CGLVector3D &v) {
-  return CPoint3D(v.getX(), v.getY(), v.getZ());
-}
-
-CPoint3D vectorToPoint(const CVector3D &v) {
-  return v.point();
-}
-
-QColor vectorToColor(const CVector3D &v) {
-  QColor c;
-  c.setRgbF(v.getX(), v.getY(), v.getZ());
-  return c;
-}
-
-QColor vectorToColor(const CGLVector3D &v) {
-  QColor c;
-  c.setRgbF(v.getX(), v.getY(), v.getZ());
-  return c;
-}
-
-CVector3D colorToVector(const QColor &c) {
-  return CVector3D(c.redF(), c.greenF(), c.blueF());
-}
-
-}
-
-//---
-
-namespace CQSandbox {
-
 class Xml3D : public CQXml {
  public:
   Xml3D(Control3D *control) :
@@ -70,7 +40,12 @@ class Xml3D : public CQXml {
 
     canvas->tcl()->createVar("execArgs", args);
 
-    canvas->runTclCmd(value);
+    auto cmd = value;
+
+    for (const auto &arg : args)
+      cmd += QString(" {%1}").arg(arg);
+
+    canvas->runTclCmd(cmd);
   }
 
  private:
@@ -87,9 +62,11 @@ Control3D::
 Control3D(CQSandbox::Canvas3D *canvas) :
  QFrame(nullptr), canvas_(canvas)
 {
-  auto *layout = new QVBoxLayout(this);
+  setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 
   //---
+
+  auto *layout = new QVBoxLayout(this);
 
   tab_ = new QTabWidget;
 
@@ -103,14 +80,17 @@ Control3D(CQSandbox::Canvas3D *canvas) :
   auto *objectsFrame  = addObjectsFrame();
   auto *overviewFrame = addOverviewFrame();
 
-  uiFrame_ = new QFrame;
-
   tab_->addTab(controlFrame , "General");
   tab_->addTab(cameraFrame  , "Camera");
   tab_->addTab(lightFrame   , "Lights");
   tab_->addTab(objectsFrame , "Objects");
   tab_->addTab(overviewFrame, "Overview");
-  tab_->addTab(uiFrame_     , "UI");
+
+  //---
+
+  uiFrame_ = new QFrame;
+
+  tab_->addTab(uiFrame_, "UI");
 
   //---
 
@@ -849,8 +829,8 @@ updateCamera()
     cameraData_.farEdit ->setValue(camera->far());
     cameraData_.fovEdit ->setValue(camera->fov());
 
-    cameraData_.originEdit  ->setValue(vectorToPoint(camera->origin()));
-    cameraData_.posEdit     ->setValue(vectorToPoint(camera->position()));
+    cameraData_.originEdit  ->setValue(camera->origin().point());
+    cameraData_.posEdit     ->setValue(camera->position().point());
     cameraData_.distanceEdit->setValue(camera->distance());
   }
 
@@ -924,9 +904,9 @@ updateLights()
   lightData_.posEdit     ->setValue(currentLight->getPosition());
 
   if (currentLight->getType() == Light3D::Type::SPOT)
-    lightData_.dirEdit->setValue(vectorToPoint(currentLight->getSpotDirection()));
+    lightData_.dirEdit->setValue(currentLight->getSpotDirection().point());
   else
-    lightData_.dirEdit->setValue(vectorToPoint(currentLight->getDirection()));
+    lightData_.dirEdit->setValue(currentLight->getDirection().point());
 
   lightData_.cutoffEdit->setEnabled(currentLight->getType() == Light3D::Type::SPOT);
   lightData_.cutoffEdit->setValue(currentLight->getSpotCutOffAngle());

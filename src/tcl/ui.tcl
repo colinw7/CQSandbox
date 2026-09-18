@@ -5,7 +5,7 @@ proc init { } {
 
   set ::path [sb::path {M 25 25 L 50 25 L 50 50 L 75 50}]
 
-  sb::ui "\
+  sb::ui create "\
 <qxml>\n\
 <QPushButton text=\"Button 1\" onClicked=\"button1Proc\"/>\n\
 <QPushButton text=\"Button 2\" onClicked=\"button2Proc\"/>\n\

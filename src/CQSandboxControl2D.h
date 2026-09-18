@@ -20,6 +20,7 @@ class Control2D : public QFrame {
 
  public:
   Control2D(Canvas2D *canvas);
+ ~Control2D() override;
 
   Canvas2D *canvas() const { return canvas_; }
 
@@ -28,10 +29,22 @@ class Control2D : public QFrame {
   bool isActive() const { return active_; }
   void setActive(bool b);
 
-  bool setUi(const QString &ui);
+  bool isShown() const { return shown_; }
+  void setShown(bool b);
+
+  bool createUi(const QString &ui);
+  bool getUiValue(const QString &name, QVariant &value) const;
+  bool setUiValue(const QString &name, const QVariant &value);
+  bool getUiWidgetValue(const QString &widget, const QString &name, QVariant &value) const;
+  bool setUiWidgetValue(const QString &widget, const QString &name, const QVariant &value);
+
+  void toggleShown();
+
+ Q_SIGNALS:
+  void shownStateChanged();
 
  public Q_SLOTS:
-  void updateObjects();
+  void updateWidgets();
 
  private Q_SLOTS:
   void listItemSlot(QListWidgetItem *, QListWidgetItem *);
@@ -48,9 +61,12 @@ class Control2D : public QFrame {
 
   QListWidget* list_         { nullptr };
   QCheckBox*   visibleCheck_ { nullptr };
-  QFrame*      uiFrame_      { nullptr };
-  CQXml*       xml_          { nullptr };
-  bool         active_       { true };
+
+  QFrame* uiFrame_ { nullptr };
+  CQXml*  xml_     { nullptr };
+
+  bool active_ { true };
+  bool shown_  { false };
 };
 
 }

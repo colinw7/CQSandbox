@@ -57,12 +57,16 @@ Palette2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if (name == "mode") {
-    if      (value == "rgb_range")
-      colorRange_.setType(CColorRange::Type::RGB_RANGE);
+    if      (value == "magma")
+      colorRange_.setType(CColorRange::Type::MAGMA);
     else if (value == "moreland")
       colorRange_.setType(CColorRange::Type::MORELAND);
     else if (value == "plasma")
       colorRange_.setType(CColorRange::Type::PLASMA);
+    else if (value == "rgb_range")
+      colorRange_.setType(CColorRange::Type::RGB_RANGE);
+    else if (value == "viridis")
+      colorRange_.setType(CColorRange::Type::VIRIDIS);
     else
       return false;
   }

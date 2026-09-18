@@ -17,6 +17,7 @@ namespace CQSandbox {
 class Canvas2D;
 class Toolbar2D;
 class Control2D;
+class Console2D;
 
 class Canvas3D;
 class CanvasToolbar3D;
@@ -49,16 +50,21 @@ class App : public QFrame {
 
   //---
 
+  // 2D
   Canvas2D  *canvas2D () const { return frame2D_.canvas; }
   Toolbar2D *toolbar2D() const { return frame2D_.toolbar; }
   Control2D *control2D() const { return frame2D_.control; }
 
+  Console2D *console2D() const;
+
+  // 3D
   Canvas3D          *canvas3D         () const { return frame3D_.canvas; }
   CanvasToolbar3D   *canvasToolbar3D  () const { return frame3D_.toolbar; }
   Control3D         *control3D        () const { return frame3D_.control; }
   Overview3D        *overview3D       () const { return frame3D_.overview; }
   OverviewToolbar3D *overviewToolbar3D() const { return frame3D_.overviewToolbar; }
 
+  // Common
   Status *status() const { return status_; }
 
   //---
@@ -132,6 +138,8 @@ class App : public QFrame {
 
   Frame3D frame3D_;
   Frame2D frame2D_;
+
+  Console2D* console2D_ { nullptr };
 
   Status* status_ { nullptr };
 };

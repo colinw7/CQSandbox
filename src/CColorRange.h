@@ -9,9 +9,11 @@
 class CColorRange {
  public:
   enum class Type {
-    RGB_RANGE,
+    MAGMA,
     MORELAND,
-    PLASMA
+    PLASMA,
+    RGB_RANGE,
+    VIRIDIS
   };
 
   enum class DataType {
@@ -37,8 +39,10 @@ class CColorRange {
   void init();
 
   void initRGBRange();
+  void initMagma();
   void initMoreland();
   void initPlasma();
+  void initViridis();
 
  private:
   using Colors   = std::vector<CRGBA>;

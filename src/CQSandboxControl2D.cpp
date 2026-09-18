@@ -4,6 +4,9 @@
 #include <CQSandboxViewport.h>
 
 #include <CQXml.h>
+#include <CQTclUtil.h>
+#include <CQTclIntegerSpin.h>
+#include <CQUtil.h>
 
 #include <QTabWidget>
 #include <QListWidget>
@@ -18,8 +21,30 @@ class Xml2D : public CQXml {
    CQXml(), control_(control) {
   }
 
-  void execSlot(const QString &value, const QStringList &) override {
-    control_->canvas()->runTclCmd(value);
+  void createNotify(QWidget *w) override {
+    auto *ispin = qobject_cast<CQTclIntegerSpin *>(w);
+
+    if (ispin) {
+      auto *canvas = control_->canvas();
+
+      ispin->setInterp(canvas->tcl()->interp());
+    }
+  }
+
+  void execSlot(const QString &value, const QStringList &args) override {
+    auto *canvas = control_->canvas();
+
+    auto text = getExecData("text").toString();
+    canvas->tcl()->createVar("execText", text);
+
+    canvas->tcl()->createVar("execArgs", args);
+
+    auto cmd = value;
+
+    for (const auto &arg : args)
+      cmd += QString(" {%1}").arg(arg);
+
+    canvas->runTclCmd(cmd);
   }
 
  private:
@@ -28,6 +53,8 @@ class Xml2D : public CQXml {
 
 }
 
+//---
+
 namespace CQSandbox {
 
 Control2D::
@@ -35,6 +62,8 @@ Control2D(Canvas2D *canvas) :
  canvas_(canvas)
 {
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+
+  //---
 
   auto *layout = new QVBoxLayout(this);
 
@@ -67,15 +96,23 @@ Control2D(Canvas2D *canvas) :
 
   //---
 
-  updateObjects();
+  updateWidgets();
+
+  //---
 
   if (canvas_)
-    connect(canvas_, &Canvas2D::objectsChanged, this, &Control2D::updateObjects);
+    connect(canvas_, &Canvas2D::objectsChanged, this, &Control2D::updateWidgets);
 
   connect(list_, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
           this, SLOT(listItemSlot(QListWidgetItem *, QListWidgetItem *)));
 
   connect(visibleCheck_, SIGNAL(stateChanged(int)), this, SLOT(visibleSlot(int)));
+}
+
+Control2D::
+~Control2D()
+{
+  delete xml_;
 }
 
 void
@@ -87,6 +124,56 @@ setActive(bool b)
 
 void
 Control2D::
+toggleShown()
+{
+  setShown(! isShown());
+}
+
+void
+Control2D::
+setShown(bool shown)
+{
+  if (shown == shown_)
+    return;
+
+  shown_ = ! shown_;
+
+  //---
+
+  auto *app = canvas_->app();
+
+  auto geom = app->geometry();
+
+  int w = this->sizeHint().width();
+
+  QRect geom1;
+
+  if (shown_) {
+    geom1 = QRect(geom.x(), geom.y(), geom.width() + w + 6, geom.height());
+
+    this->updateWidgets();
+    this->show();
+  }
+  else {
+    geom1 = QRect(geom.x(), geom.y(), geom.width() - w - 6, geom.height());
+
+    this->hide();
+  }
+
+  app->setGeometry(geom1);
+
+  if (shown_)
+    this->setFixedWidth(w);
+  else {
+    this->setMinimumWidth(0);
+    this->setMaximumWidth(QWIDGETSIZE_MAX);
+  }
+
+  Q_EMIT shownStateChanged();
+}
+
+void
+Control2D::
 listItemSlot(QListWidgetItem *, QListWidgetItem *)
 {
   updateCurrent();
@@ -94,7 +181,7 @@ listItemSlot(QListWidgetItem *, QListWidgetItem *)
 
 void
 Control2D::
-updateObjects()
+updateWidgets()
 {
   if (! active_)
     return;
@@ -160,12 +247,67 @@ getCurrentObject() const
 
 bool
 Control2D::
-setUi(const QString &ui)
+createUi(const QString &ui)
 {
-  if (! xml_)
+  if (! xml_) {
     xml_ = new Xml2D(this);
 
+    CQXmlAddWidgetFactoryT(xml_, CQTclIntegerSpin);
+  }
+
   return xml_->createWidgetsFromString(uiFrame_, ui.toStdString());
+}
+
+bool
+Control2D::
+getUiValue(const QString &name, QVariant &value) const
+{
+  if (! xml_) return false;
+
+  value = xml_->getExecData(name);
+
+  return true;
+}
+
+bool
+Control2D::
+setUiValue(const QString &name, const QVariant &value)
+{
+  if (! xml_) return false;
+
+  xml_->setExecData(name, value);
+
+  return true;
+}
+
+bool
+Control2D::
+getUiWidgetValue(const QString &widget, const QString &name, QVariant &value) const
+{
+  if (! xml_) return false;
+
+  auto *w = xml_->getWidget(widget);
+  if (! w) return false;
+
+  if (! xml_->getWidgetData(w, name, value))
+    return false;
+
+  return true;
+}
+
+bool
+Control2D::
+setUiWidgetValue(const QString &widget, const QString &name, const QVariant &value)
+{
+  if (! xml_) return false;
+
+  auto *w = xml_->getWidget(widget);
+  if (! w) return false;
+
+  if (! xml_->setWidgetData(w, name, value))
+    return false;
+
+  return true;
 }
 
 }

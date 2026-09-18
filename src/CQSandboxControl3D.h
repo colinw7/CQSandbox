@@ -32,6 +32,9 @@ class Control3D : public QFrame {
 
   QFrame *uiFrame() const { return uiFrame_; }
 
+  bool isShown() const { return shown_; }
+  void setShown(bool b);
+
   void init();
 
   bool createUi(const QString &ui);
@@ -40,15 +43,13 @@ class Control3D : public QFrame {
   bool getUiWidgetValue(const QString &widget, const QString &name, QVariant &value) const;
   bool setUiWidgetValue(const QString &widget, const QString &name, const QVariant &value);
 
-  void updateWidgets();
-
-  bool isShown() const { return shown_; }
-  void setShown(bool b);
-
   void toggleShown();
 
  Q_SIGNALS:
   void shownStateChanged();
+
+ public Q_SLOTS:
+  void updateWidgets();
 
  private:
   void connectLights(bool);

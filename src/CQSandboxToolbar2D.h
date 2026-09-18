@@ -20,14 +20,13 @@ class Toolbar2D : public QFrame {
 
   void setInfo(const QString &label);
 
-  void showControls(bool b);
-
  private Q_SLOTS:
   void playSlot();
   void pauseSlot();
   void stepSlot();
 
   void settingsSlot();
+  void consoleSlot();
 
  private:
   Canvas2D* canvas_ { nullptr };
@@ -37,6 +36,7 @@ class Toolbar2D : public QFrame {
   QToolButton* stepButton_  { nullptr };
 
   QToolButton *settingsButton_ { nullptr };
+  QToolButton *consoleButton_  { nullptr };
 
   QLabel* infoLabel_ { nullptr };
 };

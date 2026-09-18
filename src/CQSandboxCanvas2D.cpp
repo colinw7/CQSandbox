@@ -21,6 +21,7 @@
 #include <CQSandboxControl2D.h>
 #include <CQSandboxViewport.h>
 #include <CQSandboxToolbar2D.h>
+#include <CQSandboxStatus.h>
 
 #include <CQTclUtil.h>
 #include <CQUtil.h>
@@ -1373,6 +1374,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
     int h = size.y.value;
 
     h += app_->toolbar2D()->height();
+    h += app_->status()->height();
 
     app_->resize(w, h);
   }
@@ -1398,7 +1400,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "controls.show") {
     auto b = Util::stringToBool(value);
 
-    app_->toolbar2D()->showControls(b);
+    app_->control2D()->setShown(b);
   }
   else if (name == "module_dir") {
     moduleDirs_.push_back(value);
@@ -1881,10 +1883,56 @@ uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto *app = th->app();
 
   auto args = app->getArgs(objc, objv);
-  if (args.size() != 1) return TCL_ERROR;
+  if (args.size() < 1) return TCL_ERROR;
 
-  if (! app->control2D()->setUi(args[0]))
+  auto *tcl = th->tcl();
+
+  if      (args[0] == "create") {
+    if (args.size() < 2) return TCL_ERROR;
+
+    if (! app->control2D()->createUi(args[1]))
+      return TCL_ERROR;
+  }
+  else if (args[0] == "get") {
+    if (args.size() < 2) return TCL_ERROR;
+
+    QVariant value;
+    if (! app->control2D()->getUiValue(args[1], value))
+      return TCL_ERROR;
+
+    tcl->setResult(value);
+  }
+  else if (args[0] == "set") {
+    if (args.size() < 3) return TCL_ERROR;
+
+    QVariant value;
+    if (! app->control2D()->setUiValue(args[1], args[2]))
+      return TCL_ERROR;
+
+    tcl->setResult(value);
+  }
+  else if (args[0] == "widget.get") {
+    if (args.size() < 3) return TCL_ERROR;
+
+    QVariant value;
+    if (! app->control2D()->getUiWidgetValue(args[1], args[2], value))
+      return TCL_ERROR;
+
+    tcl->setResult(value);
+  }
+  else if (args[0] == "widget.set") {
+    if (args.size() < 4) return TCL_ERROR;
+
+    QVariant value;
+    if (! app->control2D()->setUiWidgetValue(args[1], args[2], args[3]))
+      return TCL_ERROR;
+
+    tcl->setResult(value);
+  }
+  else {
+    (void) th->app()->errorMsg("Invalid ui command '" + args[0] + "'");
     return TCL_ERROR;
+  }
 
   return TCL_OK;
 }

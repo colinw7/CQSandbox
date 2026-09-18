@@ -3,7 +3,7 @@
 
 // TODO: See CTclValue.h
 
-#include <tcl.h>
+#include <tcl/tcl.h>
 
 #include <string>
 #include <vector>
@@ -55,10 +55,10 @@ inline Tcl_Obj *createIntsObj(Tcl_Interp *interp, const std::vector<int> &ivals)
   return obj;
 }
 
-inline std::string stringFromObj(Tcl_Obj *obj) {
+inline std::string stringFromObj(const Tcl_Obj *obj) {
   Tcl_Size len = 0;
 
-  char *str = Tcl_GetStringFromObj(obj, &len);
+  char *str = Tcl_GetStringFromObj(const_cast<Tcl_Obj *>(obj), &len);
 
   return std::string(str, size_t(len));
 }
@@ -112,6 +112,17 @@ inline std::string getVar(Tcl_Interp *interp, const std::string &name) {
     return std::string();
 
   return stringFromObj(obj);
+}
+
+//---
+
+inline StringList getObjArgs(int objc, Tcl_Obj * const *objv) {
+  StringList args;
+
+  for (int i = 1; i < objc; ++i)
+    args.push_back(stringFromObj(const_cast<Tcl_Obj *>(objv[size_t(i)])));
+
+  return args;
 }
 
 //---
@@ -213,6 +224,8 @@ class CTcl {
  public:
   using ObjCmdProc = Tcl_ObjCmdProc *;
   using ObjCmdData = ClientData;
+  using IntList    = std::vector<int>;
+  using RealList   = std::vector<double>;
   using StringList = std::vector<std::string>;
   using Traces     = std::set<std::string>;
 
@@ -258,7 +271,7 @@ class CTcl {
     CTclUtil::createVar(interp(), name, value);
   }
 
-  void createVar(const std::string &name, const std::vector<int> &values) {
+  void createVar(const std::string &name, const IntList &values) {
     CTclUtil::createVar(interp(), name, values);
   }
 
@@ -440,6 +453,10 @@ class CTcl {
     while (Tcl_DoOneEvent(TCL_DONT_WAIT));
   }
 
+  void setResult(Tcl_Obj *obj) {
+    Tcl_SetObjResult(interp(), obj);
+  }
+
   void setResult(int rc) {
     Tcl_SetObjResult(interp(), Tcl_NewIntObj(rc));
   }
@@ -456,13 +473,91 @@ class CTcl {
     Tcl_SetObjResult(interp(), Tcl_NewStringObj(rc.c_str(), int(rc.size())));
   }
 
-  void setResult(const std::vector<int> &rc) {
+  void setResult(const IntList &rc) {
     auto *obj = Tcl_NewListObj(0, nullptr);
 
     for (const auto &i : rc) {
       auto *iobj = Tcl_NewIntObj(i);
 
       Tcl_ListObjAppendElement(interp(), obj, iobj);
+    }
+
+    Tcl_SetObjResult(interp(), obj);
+  }
+
+  void setResult(const RealList &rc) {
+    auto *obj = Tcl_NewListObj(0, nullptr);
+
+    for (const auto &r : rc) {
+      auto *robj = Tcl_NewDoubleObj(r);
+
+      Tcl_ListObjAppendElement(interp(), obj, robj);
+    }
+
+    Tcl_SetObjResult(interp(), obj);
+  }
+
+  void setResult(const StringList &rc) {
+    auto *obj = Tcl_NewListObj(0, nullptr);
+
+    for (const auto &s : rc) {
+      auto *sobj = Tcl_NewStringObj(s.c_str(), int(s.size()));
+
+      Tcl_ListObjAppendElement(interp(), obj, sobj);
+    }
+
+    Tcl_SetObjResult(interp(), obj);
+  }
+
+  void setResult(const std::vector<IntList> &rc) {
+    auto *obj = Tcl_NewListObj(0, nullptr);
+
+    for (const auto &l : rc) {
+      auto *obj1 = Tcl_NewListObj(0, nullptr);
+
+      for (const auto &i : l) {
+        auto *iobj = Tcl_NewIntObj(i);
+
+        Tcl_ListObjAppendElement(interp(), obj1, iobj);
+      }
+
+      Tcl_ListObjAppendElement(interp(), obj, obj1);
+    }
+
+    Tcl_SetObjResult(interp(), obj);
+  }
+
+  void setResult(const std::vector<RealList> &rc) {
+    auto *obj = Tcl_NewListObj(0, nullptr);
+
+    for (const auto &l : rc) {
+      auto *obj1 = Tcl_NewListObj(0, nullptr);
+
+      for (const auto &r : l) {
+        auto *robj = Tcl_NewDoubleObj(r);
+
+        Tcl_ListObjAppendElement(interp(), obj1, robj);
+      }
+
+      Tcl_ListObjAppendElement(interp(), obj, obj1);
+    }
+
+    Tcl_SetObjResult(interp(), obj);
+  }
+
+  void setResult(const std::vector<StringList> &rc) {
+    auto *obj = Tcl_NewListObj(0, nullptr);
+
+    for (const auto &l : rc) {
+      auto *obj1 = Tcl_NewListObj(0, nullptr);
+
+      for (const auto &s : l) {
+        auto *sobj = Tcl_NewStringObj(s.c_str(), int(s.size()));
+
+        Tcl_ListObjAppendElement(interp(), obj1, sobj);
+      }
+
+      Tcl_ListObjAppendElement(interp(), obj, obj1);
     }
 
     Tcl_SetObjResult(interp(), obj);
@@ -525,5 +620,93 @@ class CTcl {
   StringList  commandNames_;
   int         lastError_ { 0 };
 };
+
+//---
+
+class CTclObjectProc {
+ public:
+  CTclObjectProc(CTcl *tcl, const char *name) {
+    tcl->createObjCommand(name, cmdProc, this);
+  }
+
+  virtual ~CTclObjectProc() { }
+
+  static int cmdProc(ClientData clientData, Tcl_Interp* /*interp*/,
+                     int objc, Tcl_Obj * const *objv) {
+    auto *t = reinterpret_cast<CTclObjectProc *>(clientData);
+
+    auto args = CTclUtil::getObjArgs(objc, objv);
+
+    return t->argsProc(args);
+  }
+
+  virtual int argsProc(CTclUtil::StringList &) = 0;
+};
+
+#define CTCL_DCL_OBJECT_PROC(TYPE, NAME, PROC, DATA) \
+template<typename TYPE> \
+class CTcl##NAME##ObjectProc : public CTclObjectProc { \
+ public: \
+  CTcl##NAME##ObjectProc<TYPE>(CTcl *tcl, TYPE *data) : \
+   CTclObjectProc(tcl, #NAME), data_(data) { } \
+\
+  int argsProc(CTclUtil::StringList &args) override { \
+    return data_->PROC(args); \
+  } \
+\
+ private: \
+  TYPE* data_ { nullptr }; \
+};
+
+#define CTCL_OBJECT_PROC(TCL, PROC, TYPE, DATA) \
+static_cast<void *>(new CTcl##PROC##ObjectProc<TYPE>(TCL, DATA));
+
+//---
+
+class CTclObjProc {
+ public:
+  CTclObjProc(CTcl *tcl, const char *name) {
+    tcl->createObjCommand(name, cmdProc, this);
+  }
+
+  virtual ~CTclObjProc() { }
+
+  static int cmdProc(ClientData clientData, Tcl_Interp* /*interp*/,
+                     int objc, Tcl_Obj * const *objv) {
+    auto *t = reinterpret_cast<CTclObjProc *>(clientData);
+
+    cmd_ = CTclUtil::stringFromObj(objv[0]);
+
+    std::vector<Tcl_Obj *> objs;
+
+    for (int i = 1; i < objc; ++i)
+      objs.push_back(objv[i]);
+
+    return t->objProc(objs);
+  }
+
+  virtual int objProc(const std::vector<Tcl_Obj *> &objs) = 0;
+
+ protected:
+  static std::string cmd_;
+};
+
+#define CTCL_DCL_TCL_OBJ_PROC(TYPE, NAME, PROC, DATA) \
+template<typename TYPE> \
+class CTcl##NAME##TclObjProc : public CTclObjProc { \
+ public: \
+  CTcl##NAME##TclObjProc<TYPE>(CTcl *tcl, TYPE *data) : \
+   CTclObjProc(tcl, #NAME), data_(data) { } \
+\
+  int objProc(const std::vector<Tcl_Obj *> &objs) override { \
+    return data_->PROC(objs); \
+  } \
+\
+ private: \
+  TYPE* data_ { nullptr }; \
+};
+
+#define CTCL_TCL_OBJ_PROC(TCL, PROC, TYPE, DATA) \
+static_cast<void *>(new CTcl##PROC##TclObjProc<TYPE>(TCL, DATA));
 
 #endif

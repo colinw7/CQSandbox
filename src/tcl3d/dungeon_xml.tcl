@@ -406,8 +406,8 @@ if {0} {
 </qxml>"
 }
 
-proc followProc { } {
-  # echo "$::execArgs"
+proc followProc { args } {
+  # echo "$::execArgs $args"
 
   set ::follow [lindex $::execArgs 0]
 

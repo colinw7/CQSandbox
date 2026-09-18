@@ -26,7 +26,7 @@ proc init { } {
   set ::type ""
   setType "SIN"
 
-  sb::ui "\
+  sb::ui create "\
 <qxml>\n\
 <QPushButton text=\"COS\"  onClicked=\"setType COS\"/>\n\
 <QPushButton text=\"SIN\"  onClicked=\"setType SIN\"/>\n\

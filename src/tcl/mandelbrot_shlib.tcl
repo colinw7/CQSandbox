@@ -1,3 +1,5 @@
+# TODO: palette change, zoom, iter change, tcl var widget
+
 # tcl:  3066898 microseconds per iteration
 # calc: 1214763 microseconds per iteration
 # calc: 1106674 microseconds per iteration
@@ -16,15 +18,28 @@ proc init { } {
   $::mandelbrot set xmax  1.2
   $::mandelbrot set ymax  1.2
 
-  set ::max_iter 512
+  set ::max_iterations 512
 
-  $::mandelbrot set max_iterations $::max_iter
+  $::mandelbrot set max_iterations $::max_iterations
 
-  initColors
+  set ::pal [sb::color_range]
 
   set ::renderer [sb::renderer]
 
   resize [sb::canvas get pixel_width] [sb::canvas get pixel_height]
+
+  sb::ui create "\
+<qxml>\n\
+<QComboBox onCurrentIndexChanged=\"paletteChanged\">\n\
+<QComboItem>magma</QComboItem>\n\
+<QComboItem>moreland</QComboItem>\n\
+<QComboItem>plasma</QComboItem>\n\
+<QComboItem>rgb_range</QComboItem>\n\
+<QComboItem>viridis</QComboItem>\n\
+</QComboBox>\n\
+<CQTclIntegerSpin varName=\"max_iterations\" onValueChanged=\"iterationsChanged\"/>\n\
+<QLayoutItem stretch=\"1\"/>\n\
+</qxml>"
 }
 
 proc resize { w h } {
@@ -37,52 +52,16 @@ proc resize { w h } {
   $::mandelbrot set pixel_ymax $h
 }
 
-proc initColors { } {
-if {0} {
-  set ::iter_d1 [expr {($::max_iter - 1.0)/3.0}]
-  set ::iter_d2 [expr {2.0*$::iter_d1}]
-  set ::iter_d3 [expr {255.0/$::iter_d1}]
-
-  for {set i 0} {$i < $::max_iter} {incr i} {
-    set rgb [iterToColor $i]
-
-    set ::colors($i) $rgb
-  }
-
-  set ::colors($::max_iter) [list 0 0 0]
-} else {
-  set ::pal [sb::color_range]
-}
-}
-
 proc iterToColor { iter } {
   #echo "iterToColor $iter"
 
-if {0} {
-  set r 0
-  set g 0
-  set b 0
-
-  if       {$iter == $::max_iter} {
-  } elseif {$iter < $::iter_d1} {
-    set r [expr { $::iter_d3* $iter              /255.0}]
-  } elseif {$iter < $::iter_d2} {
-    set g [expr { $::iter_d3*($iter - $::iter_d1)/255.0}]
-  } else {
-    set b [expr { $::iter_d3*($iter - $::iter_d2)/255.0}]
-  }
-
-  return [list $r $g $b]
-} else {
-  if {$iter == $::max_iter} {
+  if {$iter == $::max_iterations} {
     return "#000000"
   }
 
-  set r [expr {$iter/($::max_iter - 1.0)}]
+  set r [expr {$iter/($::max_iterations - 1.0)}]
 
   return [$::pal get interp $r]
-}
-
 }
 
 proc drawBg { args } {
@@ -100,15 +79,37 @@ proc drawMandelbrot { } {
 
       set iter [$::mandelbrot exec calc $x $y]
 
-if {0} {
-      set rgb $::colors($iter)
-} else {
       set rgb [iterToColor $iter]
-}
 
       $::renderer set pen.color $rgb
 
       $::renderer exec draw.point [list $ix $iy]
     }
   }
+}
+
+proc paletteChanged { args } {
+  echo "paletteChanged $args"
+
+  set ind [lindex $args 0]
+
+  if       {$ind == 0} {
+    $::pal set mode magma
+  } elseif {$ind == 1} {
+    $::pal set mode moreland
+  } elseif {$ind == 2} {
+    $::pal set mode plasma
+  } elseif {$ind == 3} {
+    $::pal set mode rgb_range
+  } elseif {$ind == 4} {
+    $::pal set mode viridis
+  }
+
+  sb::canvas exec update
+}
+
+proc iterationsChanged { args } {
+  echo "iterationsChanged $args"
+
+  sb::canvas exec update
 }

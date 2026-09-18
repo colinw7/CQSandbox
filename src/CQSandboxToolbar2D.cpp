@@ -1,5 +1,6 @@
 #include <CQSandboxToolbar2D.h>
 #include <CQSandboxControl2D.h>
+#include <CQSandboxConsole2D.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 
@@ -71,6 +72,10 @@ Toolbar2D(Canvas2D *canvas) :
   settingsButton_ = addCheckButton("settings", "SETTINGS" , "Settings", SLOT(settingsSlot()));
 
   layout->addWidget(settingsButton_);
+
+  consoleButton_ = addCheckButton("console", "CONSOLE" , "Console", SLOT(consoleSlot()));
+
+  layout->addWidget(consoleButton_);
 }
 
 void
@@ -105,18 +110,20 @@ void
 Toolbar2D::
 settingsSlot()
 {
-  auto *button = qobject_cast<CQIconButton *>(sender());
+  auto *app     = canvas()->app();
+  auto *control = app->control2D();
 
-  showControls(button->isChecked());
+  control->toggleShown();
 }
 
 void
 Toolbar2D::
-showControls(bool b)
+consoleSlot()
 {
-  auto *app = canvas()->app();
+  auto *app     = canvas()->app();
+  auto *console = app->console2D();
 
-  app->control2D()->setVisible(b);
+  console->show();
 }
 
 }

@@ -3,6 +3,7 @@
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxControl2D.h>
 #include <CQSandboxToolbar2D.h>
+#include <CQSandboxConsole2D.h>
 
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxControl3D.h>
@@ -49,6 +50,7 @@
 #include <svg/overview_svg.h>
 
 #include <svg/settings_svg.h>
+#include <svg/console_svg.h>
 
 namespace CQSandbox {
 
@@ -324,6 +326,19 @@ setInfo(const QString &label)
 {
   if (toolbar2D())
     toolbar2D()->setInfo(label);
+}
+
+Console2D *
+App::
+console2D() const
+{
+  if (! console2D_) {
+    auto *th = const_cast<App *>(this);
+
+    th->console2D_ = new Console2D(canvas2D());
+  }
+
+  return console2D_;
 }
 
 bool
