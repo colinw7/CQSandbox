@@ -1,7 +1,7 @@
 #ifndef CQSandboxCanvas2D_H
 #define CQSandboxCanvas2D_H
 
-#include <CQSandboxGroupObj.h>
+#include <CQSandboxGroup2DObj.h>
 
 #include <CTclUtil.h>
 #include <CWindowRange2D.h>
@@ -35,7 +35,7 @@ struct Viewport;
 #ifdef CQSANDBOX_CIRCLES
 class CirclesMgr;
 
-class CirclesGroupObj : public GroupObj {
+class CirclesGroupObj : public Group2DObj {
   Q_OBJECT
 
  public:
@@ -50,148 +50,6 @@ class CirclesGroupObj : public GroupObj {
   CirclesMgr *mgr_ { nullptr };
 };
 #endif
-
-//---
-
-class RectObj : public Object2D {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas2D *canvas, const QStringList &args);
-
-  RectObj(Canvas2D *canvas, const Rect2D &rect);
-
-  const char *typeName() const override { return "rect"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect2D calcRect() const override;
-
-  void draw(QPainter *) override;
-
- protected:
-  Rect2D rect_;
-};
-
-//---
-
-class CircleObj : public Object2D {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas2D *canvas, const QStringList &args);
-
-  CircleObj(Canvas2D *canvas, const Point2D &center, const Coord &radius);
-
-  const char *typeName() const override { return "circle"; }
-
-  const AnimatePoint2D &center() const { return center_; }
-  void setCenter(const AnimatePoint2D &c) { center_ = c; }
-  void setTargetCenter(const Point2D &c) { center_.setTarget(c); }
-
-  const AnimateCoord &radius() const { return radius_; }
-  void setRadius(const AnimateCoord &r) { radius_ = r; }
-  void setTargetRadius(const Coord &r) { radius_.setTarget(r); }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect2D calcRect() const override;
-
-  bool step() override;
-
-  void draw(QPainter *) override;
-
- protected:
-  AnimatePoint2D center_;
-  AnimateCoord   radius_;
-};
-
-//---
-
-class LineObj : public Object2D {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas2D *canvas, const QStringList &args);
-
-  LineObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2);
-
-  const char *typeName() const override { return "line"; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect2D calcRect() const override;
-
-  void draw(QPainter *) override;
-
- protected:
-  Point2D p1_;
-  Point2D p2_;
-};
-
-//---
-
-class ImageObj : public Object2D {
-  Q_OBJECT
-
- public:
-  enum Position {
-    TOP_LEFT,
-    CENTER,
-    RECT
-  };
-
-  static bool create(Canvas2D *canvas, const QStringList &args);
-
-  ImageObj(Canvas2D *canvas, const Point2D &pos, const QImage &image);
-
-  const char *typeName() const override { return "image"; }
-
-  const QImage &image() const { return image_; }
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect2D calcRect() const override;
-
-  void draw(QPainter *) override;
-
- protected:
-  Point2D  pos_;
-  Rect2D   rect_;
-  Position posType_ { Position::TOP_LEFT };
-  QImage   image_;
-};
-
-//---
-
-class ParticleObj : public Object2D {
-  Q_OBJECT
-
- public:
-  static bool create(Canvas2D *canvas, const QStringList &args);
-
-  ParticleObj(Canvas2D *canvas, const Point2D &pos);
-
-  const char *typeName() const override { return "particle"; }
-
-  const Particle *particle() const { return particle_; }
-  void setParticle(Particle *p);
-
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  Rect2D calcRect() const override;
-
-  void draw(QPainter *) override;
-
- protected:
-  Point2D   pos_;
-  Particle* particle_ { nullptr };
-};
 
 //---
 
@@ -405,8 +263,8 @@ class Canvas2D : public QFrame {
   QVariant getPaletteValue(const QString &);
   void setPaletteValue(const QString &, const QString &);
 
-  QVariant getStyleValue(const QString &);
-  void setStyleValue(const QString &, const QString &);
+  bool getStyleValue(const QString &, QVariant &res);
+  bool setStyleValue(const QString &, const QString &);
 
   const QPen   &stylePen  () const { return stylePen_  ; }
   const QBrush &styleBrush() const { return styleBrush_; }

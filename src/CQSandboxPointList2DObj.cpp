@@ -1,4 +1,4 @@
-#include <CQSandboxPointListObj.h>
+#include <CQSandboxPointList2DObj.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -8,7 +8,7 @@
 namespace CQSandbox {
 
 bool
-PointListObj::
+PointList2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
@@ -19,7 +19,7 @@ create(Canvas2D *canvas, const QStringList &args)
   if (! Util::stringToCoord(args[0], r))
     return false;
 
-  auto *obj = new PointListObj(canvas, r);
+  auto *obj = new PointList2DObj(canvas, r);
 
   auto name = canvas->addNewObject(obj);
 
@@ -28,14 +28,14 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-PointListObj::
-PointListObj(Canvas2D *canvas, const Coord &radius) :
+PointList2DObj::
+PointList2DObj(Canvas2D *canvas, const Coord &radius) :
  Object2D(canvas, Type::POINT_LIST), radius_(radius)
 {
 }
 
 bool
-PointListObj::
+PointList2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas()->app();
@@ -111,7 +111,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-PointListObj::
+PointList2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas()->app();
@@ -192,7 +192,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 }
 
 Rect2D
-PointListObj::
+PointList2DObj::
 calcRect() const
 {
   QRectF r;
@@ -220,7 +220,7 @@ calcRect() const
 }
 
 bool
-PointListObj::
+PointList2DObj::
 step()
 {
   bool b1 = radius_.step();
@@ -230,7 +230,7 @@ step()
 }
 
 void
-PointListObj::
+PointList2DObj::
 draw(QPainter *painter)
 {
   auto rect  = this->calcRect();

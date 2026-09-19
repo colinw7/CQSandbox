@@ -51,9 +51,9 @@ class App : public QFrame {
   //---
 
   // 2D
-  Canvas2D        *canvas2D () const { return frame2D_.canvas; }
-  CanvasToolbar2D *toolbar2D() const { return frame2D_.toolbar; }
-  Control2D       *control2D() const { return frame2D_.control; }
+  Canvas2D        *canvas2D       () const { return frame2D_.canvas; }
+  CanvasToolbar2D *canvasToolbar2D() const { return frame2D_.toolbar; }
+  Control2D       *control2D      () const { return frame2D_.control; }
 
   Console2D *console2D() const;
 
@@ -73,8 +73,6 @@ class App : public QFrame {
 
   void init();
   void show();
-
-  void setInfo(const QString &label);
 
 //bool runTclCmd(const QString &cmd);
 

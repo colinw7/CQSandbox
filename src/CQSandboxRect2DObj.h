@@ -1,5 +1,5 @@
-#ifndef CQSandboxPathObj_H
-#define CQSandboxPathObj_H
+#ifndef CQSandboxRect2DObj_H
+#define CQSandboxRect2DObj_H
 
 #include <CQSandboxObject2D.h>
 
@@ -7,28 +7,27 @@
 
 namespace CQSandbox {
 
-class PathObj : public Object2D {
+class Rect2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  PathObj(Canvas2D *canvas, const QPainterPath &path);
+  Rect2DObj(Canvas2D *canvas, const Rect2D &rect);
 
-  const char *typeName() const override { return "path"; }
+  const char *typeName() const override { return "rect"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
-
-  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
 
   Rect2D calcRect() const override;
 
   void draw(QPainter *) override;
 
  protected:
-  QPainterPath path_;
+  Rect2D rect_;
 };
 
 }
+
 #endif

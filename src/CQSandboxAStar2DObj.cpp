@@ -1,4 +1,4 @@
-#include <CQSandboxAStarObj.h>
+#include <CQSandboxAStar2DObj.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -8,7 +8,7 @@
 namespace CQSandbox {
 
 bool
-AStarObj::
+AStar2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2)
@@ -19,7 +19,7 @@ create(Canvas2D *canvas, const QStringList &args)
   auto nx = Util::stringToInt(args[0]);
   auto ny = Util::stringToInt(args[1]);
 
-  auto *obj = new AStarObj(canvas, nx, ny);
+  auto *obj = new AStar2DObj(canvas, nx, ny);
 
   auto name = canvas->addNewObject(obj);
 
@@ -28,8 +28,8 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-AStarObj::
-AStarObj(Canvas2D *canvas, uint nx, uint ny) :
+AStar2DObj::
+AStar2DObj(Canvas2D *canvas, uint nx, uint ny) :
  Object2D(canvas, Type::ASTAR), nx_(nx), ny_(ny), searchData_(this)
 {
   nodesArray_.resize(nx_);
@@ -43,7 +43,7 @@ AStarObj(Canvas2D *canvas, uint nx, uint ny) :
 }
 
 bool
-AStarObj::
+AStar2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *tcl = canvas()->tcl();
@@ -134,7 +134,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-AStarObj::
+AStar2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
@@ -201,14 +201,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 //---
 
-AStarObj::SearchData::
-SearchData(AStarObj *obj) :
+AStar2DObj::SearchData::
+SearchData(AStar2DObj *obj) :
  obj_(obj)
 {
 }
 
 double
-AStarObj::SearchData::
+AStar2DObj::SearchData::
 pathCostEstimate(const CellPos &startLoc, const CellPos &endLoc)
 {
   double dx = abs(endLoc.col - startLoc.col);
@@ -218,7 +218,7 @@ pathCostEstimate(const CellPos &startLoc, const CellPos &endLoc)
 }
 
 double
-AStarObj::SearchData::
+AStar2DObj::SearchData::
 traverseCost(const CellPos &loc, const CellPos &newLoc)
 {
   double dx = abs(loc.col - newLoc.col);
@@ -227,8 +227,8 @@ traverseCost(const CellPos &loc, const CellPos &newLoc)
   return dx + dy;
 }
 
-AStarObj::SearchData::NodeList
-AStarObj::SearchData::
+AStar2DObj::SearchData::NodeList
+AStar2DObj::SearchData::
 getNextNodes(Node *node) const
 {
   NodeList nodes;
@@ -259,8 +259,8 @@ getNextNodes(Node *node) const
   return nodes;
 }
 
-AStarObj::SearchData::Node *
-AStarObj::SearchData::
+AStar2DObj::SearchData::Node *
+AStar2DObj::SearchData::
 lookupNode(const CellPos &pos) const
 {
   return obj_->getNode(pos.row, pos.col);

@@ -1,19 +1,19 @@
-#ifndef CQSandboxQuadTreeObj_H
-#define CQSandboxQuadTreeObj_H
+#ifndef CQSandboxQuadTree2DObj_H
+#define CQSandboxQuadTree2DObj_H
 
-#include <CQSandboxGroupObj.h>
+#include <CQSandboxGroup2DObj.h>
 
 #include <CQuadTree.h>
 
 namespace CQSandbox {
 
-class QuadTreeObj : public GroupObj {
+class QuadTree2DObj : public Group2DObj {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  QuadTreeObj(Canvas2D *canvas);
+  QuadTree2DObj(Canvas2D *canvas);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;

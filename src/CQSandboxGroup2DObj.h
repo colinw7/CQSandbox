@@ -1,5 +1,5 @@
-#ifndef CQSandboxGroupObj_H
-#define CQSandboxGroupObj_H
+#ifndef CQSandboxGroup2DObj_H
+#define CQSandboxGroup2DObj_H
 
 #include <CQSandboxObject2D.h>
 
@@ -7,7 +7,7 @@
 
 namespace CQSandbox {
 
-class GroupObj : public Object2D {
+class Group2DObj : public Object2D {
   Q_OBJECT
 
  public:
@@ -16,7 +16,7 @@ class GroupObj : public Object2D {
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  GroupObj(Canvas2D *canvas, const Rect2D &rect);
+  Group2DObj(Canvas2D *canvas, const Rect2D &rect);
 
   const char *typeName() const override { return "group"; }
 

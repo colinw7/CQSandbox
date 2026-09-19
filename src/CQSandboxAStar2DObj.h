@@ -1,5 +1,5 @@
-#ifndef CQSandboxAStarObj_H
-#define CQSandboxAStarObj_H
+#ifndef CQSandboxAStar2DObj_H
+#define CQSandboxAStar2DObj_H
 
 #include <CQSandboxObject2D.h>
 
@@ -9,13 +9,13 @@ class CQAStarModel;
 
 namespace CQSandbox {
 
-class AStarObj : public Object2D {
+class AStar2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  AStarObj(Canvas2D *canvas, uint nx, uint ny);
+  AStar2DObj(Canvas2D *canvas, uint nx, uint ny);
 
   const char *typeName() const override { return "astar"; }
 
@@ -66,7 +66,7 @@ class AStarObj : public Object2D {
     using AStar = CAStar<CellPos>;
 
    public:
-    SearchData(AStarObj *obj);
+    SearchData(AStar2DObj *obj);
 
     // smallest/optimal cost to goal
     double pathCostEstimate(const CellPos &startLoc, const CellPos &goalLoc) override;
@@ -78,7 +78,7 @@ class AStarObj : public Object2D {
     Node *lookupNode(const CellPos &loc) const override;
 
    private:
-    AStarObj* obj_ { nullptr };
+    AStar2DObj* obj_ { nullptr };
   };
 
   class SearchNode : public CAStar<CellPos>::Node {

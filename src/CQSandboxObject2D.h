@@ -14,7 +14,7 @@
 namespace CQSandbox {
 
 class Canvas2D;
-class GroupObj;
+class Group2DObj;
 class AnimateBrush;
 
 class Object2D : public QObject {
@@ -90,8 +90,8 @@ class Object2D : public QObject {
 
   //---
 
-  GroupObj *group() const { return group_; }
-  void setGroup(GroupObj *group) { group_ = group; }
+  Group2DObj *group() const { return group_; }
+  void setGroup(Group2DObj *group) { group_ = group; }
 
   //---
 
@@ -185,7 +185,7 @@ class Object2D : public QObject {
 
   NameValues nameValues_;
 
-  GroupObj *group_ { nullptr };
+  Group2DObj *group_ { nullptr };
 
   QString meta_;
 };

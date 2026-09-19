@@ -48,7 +48,7 @@ bool
 Csv3DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  auto *app = canvas_->app();
+  auto *app = canvas()->app();
 
   if      (name == "filename")
     value = filename_;

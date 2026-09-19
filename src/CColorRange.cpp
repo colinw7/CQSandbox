@@ -22,6 +22,47 @@ init()
     initViridis();
 }
 
+std::vector<std::string>
+CColorRange::
+typeNames() const
+{
+  std::vector<std::string> names;
+  names.push_back("magma");
+  names.push_back("moreland");
+  names.push_back("plasma");
+  names.push_back("rgb_range");
+  names.push_back("viridis");
+  return names;
+}
+
+CColorRange::Type
+CColorRange::
+nameToType(const std::string &name) const
+{
+  auto toLower = [](const std::string &str) {
+    auto str1 = str;
+    for (uint i = 0; i < str1.length(); ++i)
+      if (isupper(str1[i]))
+        str1[i] = char(tolower(str1[i]));
+    return str1;
+  };
+
+  auto lname = toLower(name);
+
+  if      (lname == "magma")
+    return Type::MAGMA;
+  else if (lname == "moreland")
+    return Type::MORELAND;
+  else if (lname == "plasma")
+    return Type::PLASMA;
+  else if (lname == "rgb_range")
+    return Type::RGB_RANGE;
+  else if (lname == "viridis")
+    return Type::VIRIDIS;
+  else
+    return Type::NONE;
+}
+
 void
 CColorRange::
 initRGBRange()
@@ -326,6 +367,8 @@ initMagma()
   addRGBColor(0.987691, 0.977154, 0.734536);
   addRGBColor(0.987387, 0.984288, 0.742002);
   addRGBColor(0.987053, 0.991438, 0.749504);
+
+  dataType_ = DataType::MAP;
 }
 
 void
@@ -1948,48 +1991,6 @@ class CQColorsPaletteDistinct2 : public CQColorsDefinedPalette {
     addDefinedColor(n++, QColor("#E85EBE"));
 
     setDistinct(true);
-  }
-};
-
-class CQColorsPaletteRGBRange : public CQColorsDefinedPalette {
- public:
-  CQColorsPaletteRGBRange() {
-    std::vector<QColor> colors;
-
-    colors.resize(256);
-
-    int i1 = 0;
-    int i2 = 0;
-    int i3 = 0;
-
-    colors[0] = QColor(i1, i2, i3);
-
-    /* We want Blues, Greens then Reds in our Palette */
-
-    for (size_t i = 1; i < 85; ++i) {
-      i1 = 0;
-      i2 = int(3*i);
-      i3 = int(3*(86 - i));
-
-      colors[i +   0] = QColor(i1, i2, i3);
-      colors[i +  85] = QColor(i2, i3, i1);
-      colors[i + 170] = QColor(i3, i1, i2);
-    }
-
-    i1 = 0;
-    i2 = 255;
-    i3 = 3;
-
-    colors[ 85] = QColor(i1, i2, i3);
-    colors[170] = QColor(i2, i3, i1);
-    colors[255] = QColor(i3, i1, i2);
-
-    //---
-
-    int n = 0;
-
-    for (size_t i = 1; i < 256; ++i)
-      addDefinedColor(n++, colors[i]);
   }
 };
 #endif

@@ -1,4 +1,4 @@
-#include <CQSandboxArrowObj.h>
+#include <CQSandboxArrow2DObj.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -11,7 +11,7 @@
 namespace CQSandbox {
 
 bool
-ArrowObj::
+Arrow2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
@@ -23,7 +23,7 @@ create(Canvas2D *canvas, const QStringList &args)
       ! Util::stringToPoint2D(tcl, args[1], p2))
     return false;
 
-  auto *obj = new ArrowObj(canvas, p1, p2);
+  auto *obj = new Arrow2DObj(canvas, p1, p2);
 
   auto name = canvas->addNewObject(obj);
 
@@ -32,15 +32,15 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-ArrowObj::
-ArrowObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2) :
+Arrow2DObj::
+Arrow2DObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2) :
  Object2D(canvas, Type::ARROW), p1_(p1), p2_(p2)
 {
   arrow_ = new CQArrow;
 }
 
 bool
-ArrowObj::
+Arrow2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "p1")
@@ -54,7 +54,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-ArrowObj::
+Arrow2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
@@ -100,14 +100,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 }
 
 Rect2D
-ArrowObj::
+Arrow2DObj::
 calcRect() const
 {
   return Rect2D(p1_, p2_);
 }
 
 void
-ArrowObj::
+Arrow2DObj::
 draw(QPainter *painter)
 {
   painter->setPen(pen_);

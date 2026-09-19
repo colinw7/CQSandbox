@@ -1,4 +1,4 @@
-#include <CQSandboxAxisObj.h>
+#include <CQSandboxAxis2DObj.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -11,7 +11,7 @@
 namespace CQSandbox {
 
 bool
-AxisObj::
+Axis2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2) return false;
@@ -26,7 +26,7 @@ create(Canvas2D *canvas, const QStringList &args)
   if (! Util::stringToCoord(args[1], len))
     return false;
 
-  auto *obj = new AxisObj(canvas, pos, len);
+  auto *obj = new Axis2DObj(canvas, pos, len);
 
   auto name = canvas->addNewObject(obj);
 
@@ -35,15 +35,15 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-AxisObj::
-AxisObj(Canvas2D *canvas, const Point2D &pos, const Coord &len) :
+Axis2DObj::
+Axis2DObj(Canvas2D *canvas, const Point2D &pos, const Coord &len) :
  Object2D(canvas, Type::AXIS), pos_(pos), len_(len)
 {
   axis_ = new CQAxis;
 }
 
 bool
-AxisObj::
+Axis2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "pos")
@@ -57,7 +57,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-AxisObj::
+Axis2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
@@ -85,7 +85,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 }
 
 Rect2D
-AxisObj::
+Axis2DObj::
 calcRect() const
 {
   auto pos1 = pointToWindow(pos_);
@@ -115,7 +115,7 @@ calcRect() const
 }
 
 void
-AxisObj::
+Axis2DObj::
 draw(QPainter *painter)
 {
   painter->setPen(pen_);

@@ -1,4 +1,4 @@
-#include <CQSandboxGeomObject.h>
+#include <CQSandboxGeomObject3D.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxModel3DObj.h>
 
@@ -6,34 +6,34 @@
 
 namespace CQSandbox {
 
-GeomObject::
-GeomObject(CGeomScene3D *pscene, const std::string &name) :
+GeomObject3D::
+GeomObject3D(CGeomScene3D *pscene, const std::string &name) :
  CGeomObject3D(pscene, name)
 {
 }
 
-GeomObject::
-GeomObject(const GeomObject &object) :
+GeomObject3D::
+GeomObject3D(const GeomObject3D &object) :
  CGeomObject3D(object)
 {
 }
 
-GeomObject::
-~GeomObject()
+GeomObject3D::
+~GeomObject3D()
 {
 }
 
-GeomObject *
-GeomObject::
+GeomObject3D *
+GeomObject3D::
 dup() const
 {
-  return new GeomObject(*this);
+  return new GeomObject3D(*this);
 }
 
 //---
 
 CQGLBuffer *
-GeomObject::
+GeomObject3D::
 initBuffer(Canvas3D * /*canvas*/)
 {
   auto *program = Model3DObj::shaderProgram();
@@ -50,7 +50,7 @@ initBuffer(Canvas3D * /*canvas*/)
 }
 
 void
-GeomObject::
+GeomObject3D::
 addFaceData(const FaceData &faceData)
 {
   faceDatas_.push_back(faceData);

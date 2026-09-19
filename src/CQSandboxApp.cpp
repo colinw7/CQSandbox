@@ -320,14 +320,6 @@ show()
   QFrame::show();
 }
 
-void
-App::
-setInfo(const QString &label)
-{
-  if (toolbar2D())
-    toolbar2D()->setInfo(label);
-}
-
 Console2D *
 App::
 console2D() const

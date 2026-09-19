@@ -14,9 +14,11 @@
 #include <CMathGeom2D.h>
 #include <CPoint3D.h>
 #include <CPolygonOrientation.h>
+#include <CFile.h>
 #include <CRGBA.h>
 
 #include <QPainterPath>
+#include <QImage>
 #include <QString>
 #include <QVector3D>
 
@@ -312,6 +314,22 @@ inline QString point3DToString(const CPoint3D &p) {
   return xstr + " " + ystr + " " + zstr;
 }
 
+inline bool stringToQPoint(CQTcl *tcl, const QString &str, QPoint &p) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  if (strs.size() < 2)
+    return false;
+
+  int x, y;
+  if (! stringToInt(strs[0], x) || ! stringToInt(strs[1], y))
+    return false;
+
+  p = QPoint(x, y);
+
+  return true;
+}
+
 inline bool stringToPoint2D(CQTcl *tcl, const QString &str, CPoint2D &p) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
@@ -323,8 +341,7 @@ inline bool stringToPoint2D(CQTcl *tcl, const QString &str, CPoint2D &p) {
   if (! stringToReal(strs[0], x) || ! stringToReal(strs[1], y))
     return false;
 
-  p.x = x;
-  p.y = y;
+  p = CPoint2D(x, y);
 
   return true;
 }
@@ -419,8 +436,6 @@ inline bool stringToVector3D(CQTcl *tcl, const QString &str, CVector3D &v) {
   if (strs.size() < 3)
     return false;
 
-  CVector3D p;
-
   double x, y, z;
   if (! stringToReal(strs[0], x) || ! stringToReal(strs[1], y) || ! stringToReal(strs[2], z))
     return false;
@@ -438,21 +453,20 @@ inline CVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
 }
 #endif
 
-inline CGLVector3D stringToGLVector3D(CQTcl *tcl, const QString &str) {
+inline bool stringToGLVector3D(CQTcl *tcl, const QString &str, CGLVector3D &v) {
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
-  CGLVector3D p;
+  if (strs.size() < 3)
+    return false;
 
-  if (strs.size() >= 3) {
-    auto x = stringToReal(strs[0]);
-    auto y = stringToReal(strs[1]);
-    auto z = stringToReal(strs[2]);
+  double x, y, z;
+  if (! stringToReal(strs[0], x) || ! stringToReal(strs[1], y) || ! stringToReal(strs[2], z))
+    return false;
 
-    p = CGLVector3D(x, y, z);
-  }
+  v = CGLVector3D(x, y, z);
 
-  return p;
+  return true;
 }
 
 inline QString vector3DToString(const CVector3D &p) {
@@ -488,6 +502,62 @@ inline bool stringToVectors3D(CQTcl *tcl, const QString &str, std::vector<CVecto
 
 //---
 
+inline bool stringToQRect(CQTcl *tcl, const QString &str, QRect &rect) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  QPoint p1, p2;
+
+  if      (strs.size() == 4) {
+    int x1, y1, x2, y2;
+    if (! Util::stringToInt(strs[0], x1) || ! Util::stringToInt(strs[1], y1) ||
+        ! Util::stringToInt(strs[2], x2) || ! Util::stringToInt(strs[3], y2))
+      return false;
+
+    p1 = QPoint(x1, y1);
+    p2 = QPoint(x2, y2);
+  }
+  else if (strs.size() == 2) {
+    if (! stringToQPoint(tcl, strs[0], p1) || ! stringToQPoint(tcl, strs[1], p2))
+      return false;
+  }
+  else
+    return false;
+
+  rect = QRect(p1, p2);
+
+  return true;
+}
+
+//---
+
+inline bool stringToBBox2D(CQTcl *tcl, const QString &str, CBBox2D &bbox) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  CPoint2D p1, p2;
+
+  if      (strs.size() == 4) {
+    double x1, y1, x2, y2;
+    if (! Util::stringToReal(strs[0], x1) || ! Util::stringToReal(strs[1], y1) ||
+        ! Util::stringToReal(strs[2], x2) || ! Util::stringToReal(strs[3], y2))
+      return false;
+
+    p1 = CPoint2D(x1, y1);
+    p2 = CPoint2D(x2, y2);
+  }
+  else if (strs.size() == 2) {
+    if (! stringToPoint2D(tcl, strs[0], p1) || ! stringToPoint2D(tcl, strs[1], p2))
+      return false;
+  }
+  else
+    return false;
+
+  bbox = CBBox2D(p1, p2);
+
+  return true;
+}
+
 inline QString bbox2DToString(const CBBox2D &bbox) {
   auto x1str = QString::number(bbox.getXMin());
   auto y1str = QString::number(bbox.getYMin());
@@ -495,6 +565,37 @@ inline QString bbox2DToString(const CBBox2D &bbox) {
   auto y2str = QString::number(bbox.getYMax());
 
   return x1str + " " + y1str + " " + x2str + " " + y2str;
+}
+
+inline bool stringToBBox3D(CQTcl *tcl, const QString &str, CBBox3D &bbox) {
+  QStringList strs;
+  (void) tcl->splitList(str, strs);
+
+  CPoint3D p1, p2;
+
+  if      (strs.size() == 6) {
+    double x1, y1, z1, x2, y2, z2;
+    if (! Util::stringToReal(strs[0], x1) ||
+        ! Util::stringToReal(strs[1], y1) ||
+        ! Util::stringToReal(strs[2], z1) ||
+        ! Util::stringToReal(strs[3], x2) ||
+        ! Util::stringToReal(strs[4], y2) ||
+        ! Util::stringToReal(strs[5], z2))
+      return false;
+
+    p1 = CPoint3D(x1, y1, z1);
+    p2 = CPoint3D(x2, y2, z2);
+  }
+  else if (strs.size() == 2) {
+    if (! stringToPoint3D(tcl, strs[0], p1) || ! stringToPoint3D(tcl, strs[1], p2))
+      return false;
+  }
+  else
+    return false;
+
+  bbox = CBBox3D(p1, p2);
+
+  return true;
 }
 
 inline QString bbox3DToString(const CBBox3D &bbox) {
@@ -740,6 +841,25 @@ inline CPolygonOrientation pointsOrientation(const std::vector<CPoint3D> &points
 }
 
 //---
+
+inline bool stringToImage(const QString &str, QImage &image) {
+  auto cstr = str.toStdString();
+
+  CFile file(cstr);
+
+  if (! file.exists())
+    return false;
+
+  image = QImage(str);
+
+  image.setText("name", str);
+
+  return true;
+}
+
+inline QString imageToString(const QImage &image) {
+  return image.text("name");
+}
 
 }
 

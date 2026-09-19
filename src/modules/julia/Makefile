@@ -1,11 +1,11 @@
 #CDEBUG = -g
 CDEBUG = -O
 
-PROG = mandelbrot
+PROG = julia
 
 CPP_SRC = \
-CMandelbrot.cpp \
-mandelbrot.cpp \
+CJulia.cpp \
+julia.cpp \
 
 EXTRA_CFLAGS = \
 

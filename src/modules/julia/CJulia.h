@@ -1,14 +1,11 @@
-#ifndef CMANDELBROT_H
-#define CMANDELBROT_H
+#ifndef CJulia_H
+#define CJulia_H
 
 #include <vector>
 
-class CMandelbrot {
+class CJulia {
  public:
-  CMandelbrot();
-//CMandelbrot(const CMandelbrot &m);
-
-//CMandelbrot *dup() const;
+  CJulia(double cr = 0.238498, double ci = 0.519198);
 
   bool isAutoColor() const { return autoColor_; }
   void setAutoColor(bool b) { autoColor_ = b; }
@@ -19,10 +16,12 @@ class CMandelbrot {
   bool getDistance() const { return distance_; }
   void setDistance(bool distance) { distance_ = distance; }
 
-  double getXMin() const { return -2.0; }
+  double getXMin() const { return -1.6; }
   double getYMin() const { return -1.2; }
-  double getXMax() const { return  1.2; }
+  double getXMax() const { return  1.6; }
   double getYMax() const { return  1.2; }
+
+  void setTime(double t);
 
   void initCalc(int pixel_xmin, int pixel_ymin, int pixel_xmax, int pixel_ymax,
                 double xmin=-2.0, double ymin=-1.2, double xmax=1.2, double ymax=1.2,
@@ -63,7 +62,11 @@ class CMandelbrot {
 
   double d_ { 0.0 };
 
-  mutable double zr_ { 0.0 }, zi_ { 0.0 };
+  double cr_ { 0.0 };
+  double ci_ { 0.0 };
+
+  mutable double zr_ { 0.0 };
+  mutable double zi_ { 0.0 };
 
   mutable std::vector<double> save_x_;
   mutable std::vector<double> save_y_;

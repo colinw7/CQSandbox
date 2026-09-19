@@ -1,34 +1,26 @@
-#include <CMandelbrot.h>
+#include <CJulia.h>
 
 #include <cmath>
 #include <cassert>
 
-CMandelbrot::
-CMandelbrot()
+CJulia::
+CJulia(double cr, double ci) :
+ cr_(cr), ci_(ci)
 {
 }
-
-#if 0
-CMandelbrot::
-CMandelbrot(const CMandelbrot &m) :
- distance_(m.distance_), d_(m.d_)
-{
-}
-#endif
-
-#if 0
-CMandelbrot *
-CMandelbrot::
-dup() const
-{
-  auto *m = new CMandelbrot(*this);
-
-  return m;
-}
-#endif
 
 void
-CMandelbrot::
+CJulia::
+setTime(double t)
+{
+  double a = 2.0*t*M_PI;
+
+  cr_ = 0.5*(1.0 + std::cos(a));
+  ci_ = 0.5*(1.0 + std::sin(a));
+}
+
+void
+CJulia::
 initCalc(int pixel_xmin, int pixel_ymin, int pixel_xmax, int pixel_ymax,
          double xmin, double ymin, double xmax, double ymax, int max_iterations)
 {
@@ -57,7 +49,7 @@ initCalc(int pixel_xmin, int pixel_ymin, int pixel_xmax, int pixel_ymax,
 }
 
 int
-CMandelbrot::
+CJulia::
 calc(double x, double y) const
 {
   if (isAutoColor()) {
@@ -77,7 +69,7 @@ calc(double x, double y) const
 }
 
 int
-CMandelbrot::
+CJulia::
 calcIterations(double x, double y) const
 {
   int num_iterations = iterate(x, y);
@@ -99,7 +91,7 @@ calcIterations(double x, double y) const
 }
 
 int
-CMandelbrot::
+CJulia::
 calcDistance(double x, double y) const
 {
   int num_iterations = iterate(x, y);
@@ -116,22 +108,27 @@ calcDistance(double x, double y) const
 }
 
 int
-CMandelbrot::
+CJulia::
 iterate(double x, double y) const
 {
-  double zr2 = 0.0;
-  double zi2 = 0.0;
-  double zri = 0.0;
-
   int num_iterations = -1;
 
+  zr_ = x;
+  zi_ = y;
+
+  double zr2 = zr_*zr_;
+  double zi2 = zi_*zi_;
+
+  double zri;
+
   while (zi2 + zr2 < 4.0 && num_iterations < max_iterations_) {
-    zr_ = zr2 - zi2 + x;
-    zi_ = zri + zri + y;
+    zri = zr_*zi_;
+
+    zr_ = zr2 - zi2 + cr_;
+    zi_ = zri + zri + ci_;
 
     zr2 = zr_*zr_;
     zi2 = zi_*zi_;
-    zri = zr_*zi_;
 
     ++num_iterations;
 
@@ -143,7 +140,7 @@ iterate(double x, double y) const
 }
 
 double
-CMandelbrot::
+CJulia::
 calcDistance(double, double, int iterations) const
 {
   if (iterations == 0)
@@ -175,14 +172,14 @@ calcDistance(double, double, int iterations) const
 }
 
 double
-CMandelbrot::
+CJulia::
 pixelXToUser(int x) const
 {
   return double(x - pixel_xmin_)*xf_ + xmin_;
 }
 
 double
-CMandelbrot::
+CJulia::
 pixelYToUser(int y) const
 {
   return double(y - pixel_ymin_)*yf_ + ymax_;

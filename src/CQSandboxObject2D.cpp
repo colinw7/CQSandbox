@@ -237,7 +237,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "pen.dash")
     pen_.setDashPattern(stringToDashes(tcl, value));
   else if (name == "group") {
-    auto *group = dynamic_cast<GroupObj *>(canvas()->getObjectByName(value));
+    auto *group = dynamic_cast<Group2DObj *>(canvas()->getObjectByName(value));
     if (! group) return app->errorMsg(QString("Failed to find group '%1'").arg(value));
 
     if (group != group_) {

@@ -29,15 +29,20 @@ CQSandboxParticleSystem.cpp \
 CQSandboxLight3D.cpp \
 \
 CQSandboxArray2DObj.cpp \
-CQSandboxArrowObj.cpp \
-CQSandboxAStarObj.cpp \
-CQSandboxAxisObj.cpp \
-CQSandboxCsvObj.cpp \
-CQSandboxGroupObj.cpp \
+CQSandboxArrow2DObj.cpp \
+CQSandboxAStar2DObj.cpp \
+CQSandboxAxis2DObj.cpp \
+CQSandboxCircle2DObj.cpp \
+CQSandboxCsv2DObj.cpp \
+CQSandboxGroup2DObj.cpp \
+CQSandboxImage2DObj.cpp \
+CQSandboxLine2DObj.cpp \
 CQSandboxPalette2DObj.cpp \
-CQSandboxPathObj.cpp \
-CQSandboxPointListObj.cpp \
-CQSandboxQuadTreeObj.cpp \
+CQSandboxParticle2DObj.cpp \
+CQSandboxPath2DObj.cpp \
+CQSandboxPointList2DObj.cpp \
+CQSandboxQuadTree2DObj.cpp \
+CQSandboxRect2DObj.cpp \
 CQSandboxRenderer2DObj.cpp \
 CQSandboxShlib2DObj.cpp \
 CQSandboxText2DObj.cpp \
@@ -76,7 +81,7 @@ CQSandboxText3DObj.cpp \
 CQSandboxVector3DObj.cpp \
 CQSandboxXML3DObj.cpp \
 \
-CQSandboxGeomObject.cpp \
+CQSandboxGeomObject3D.cpp \
 \
 CQSandboxToolbar2D.cpp \
 CQSandboxControl2D.cpp \
@@ -156,15 +161,20 @@ CQSandboxParticleSystem.h \
 CQSandboxLight3D.h \
 \
 CQSandboxArray2DObj.h \
-CQSandboxArrowObj.h \
-CQSandboxAStarObj.h \
-CQSandboxAxisObj.h \
-CQSandboxCsvObj.h \
-CQSandboxGroupObj.h \
+CQSandboxArrow2DObj.h \
+CQSandboxAStar2DObj.h \
+CQSandboxAxis2DObj.h \
+CQSandboxCircle2DObj.h \
+CQSandboxCsv2DObj.h \
+CQSandboxGroup2DObj.h \
+CQSandboxImage2DObj.h \
+CQSandboxLine2DObj.h \
 CQSandboxPalette2DObj.h \
-CQSandboxPathObj.h \
-CQSandboxPointListObj.h \
-CQSandboxQuadTreeObj.h \
+CQSandboxParticle2DObj.h \
+CQSandboxPath2DObj.h \
+CQSandboxPointList2DObj.h \
+CQSandboxQuadTree2DObj.h \
+CQSandboxRect2DObj.h \
 CQSandboxRenderer2DObj.h \
 CQSandboxShlib2DObj.h \
 CQSandboxText2DObj.h \
@@ -203,7 +213,7 @@ CQSandboxText3DObj.h \
 CQSandboxVector3DObj.h \
 CQSandboxXML3DObj.h \
 \
-CQSandboxGeomObject.h \
+CQSandboxGeomObject3D.h \
 \
 CQSandboxControl2D.h \
 CQSandboxToolbar2D.h \

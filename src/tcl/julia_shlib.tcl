@@ -1,0 +1,153 @@
+proc swap { a b } {
+  upvar $a a1
+  upvar $b b1
+
+  set t  $a1
+  set a1 $b1
+  set b1 $t
+}
+
+proc init { } {
+  #echo "init"
+
+  sb::canvas set window.size [list 512 512]
+
+  sb::canvas set module_dir modules/julia
+
+  sb::canvas set buffered 1
+
+  set ::julia [sb::shlib julia]
+
+  $::julia set xmin -1.6
+  $::julia set ymin -1.2
+  $::julia set xmax  1.6
+  $::julia set ymax  1.2
+
+  set ::max_iterations 512
+
+  $::julia set max_iterations $::max_iterations
+
+  set ::pal [sb::color_range]
+
+  set ::renderer [sb::renderer]
+
+  resize [sb::canvas get pixel_width] [sb::canvas get pixel_height]
+
+  set uistr "<qxml>\n"
+
+  set pnames [$::pal get palette_names]
+
+  append uistr "<QComboBox onCurrentIndexChanged=\"paletteChanged\">\n"
+  foreach pname $pnames {
+    append uistr "<QComboItem>${pname}</QComboItem>\n"
+  }
+  append uistr "</QComboBox>\n"
+
+  append uistr "\
+<CQTclIntegerSpin varName=\"max_iterations\" onValueChanged=\"iterationsChanged\"/>\n"
+
+  append uistr "<QLayoutItem stretch=\"1\"/>\n"
+  append uistr "</qxml>"
+
+  sb::ui create $uistr
+}
+
+proc resize { w h } {
+  echo "resize $w $h"
+
+  set ::pixelWidth  $w
+  set ::pixelHeight $h
+
+  $::julia set pixel_xmin 0
+  $::julia set pixel_ymin 0
+  $::julia set pixel_xmax $w
+  $::julia set pixel_ymax $h
+}
+
+proc iterToColor { iter } {
+  #echo "iterToColor $iter"
+
+  if {$iter == $::max_iterations} {
+    return "#000000"
+  }
+
+  set r [expr {$iter/($::max_iterations - 1.0)}]
+
+  return [$::pal get interp $r]
+}
+
+proc drawBg { args } {
+  # echo "drawBg"
+
+  echo [time drawMandelbrot]
+}
+
+proc drawMandelbrot { } {
+  for {set iy 0} {$iy < $::pixelHeight} {incr iy} {
+    set y [$::julia get user_y $iy]
+
+    for {set ix 0} {$ix < $::pixelWidth} {incr ix} {
+      set x [$::julia get user_x $ix]
+
+      set iter [$::julia exec calc $x $y]
+
+      set rgb [iterToColor $iter]
+
+      $::renderer set pen.color $rgb
+
+      $::renderer exec draw.point [list $ix $iy]
+    }
+  }
+}
+
+proc rubberBandRelease { px1 py1 px2 py2 } {
+  set x1 [$::julia get user_x $px1]
+  set y1 [$::julia get user_y $py1]
+  set x2 [$::julia get user_x $px2]
+  set y2 [$::julia get user_y $py2]
+
+  if {$x1 > $x2} { swap x1 x2 }
+  if {$y1 > $y2} { swap y1 y2 }
+
+  echo "zoom $x1 $y1 $x2 $y2"
+
+  $::julia set xmin $x1
+  $::julia set ymin $y1
+  $::julia set xmax $x2
+  $::julia set ymax $y2
+
+  sb::canvas exec redraw
+}
+
+proc keyPress { args } {
+  set key [lindex $args 0]
+  
+  if {$key == "r" || $key == "R"} {
+    $::julia set xmin -1.6
+    $::julia set ymin -1.2
+    $::julia set xmax  1.6
+    $::julia set ymax  1.2
+
+    sb::canvas exec redraw 
+  }
+}
+
+proc paletteChanged { args } {
+  echo "paletteChanged $args"
+
+  set ind [lindex $args 0]
+
+  set pnames [$::pal get palette_names]
+
+  $::pal set mode [lindex $pnames $ind]
+
+  sb::canvas exec redraw
+}
+
+proc iterationsChanged { args } {
+  echo "iterationsChanged $args"
+
+  $::julia set max_iterations $::max_iterations
+
+  sb::canvas exec redraw
+}

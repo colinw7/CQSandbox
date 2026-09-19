@@ -40,7 +40,7 @@
 #include <CQSandboxOrthoCamera.h>
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxControl3D.h>
-#include <CQSandboxGeomObject.h>
+#include <CQSandboxGeomObject3D.h>
 #include <CQSandboxTexture.h>
 #include <CQSandboxUtil.h>
 #include <CQSandboxShaderToyProgram.h>
@@ -75,7 +75,7 @@ class GeomFactory : public CGeometryFactory {
  ~GeomFactory() override { }
 
   CGeomObject3D *createObject3D(CGeomScene3D *pscene, const std::string &name) const override {
-    return new GeomObject(pscene, name);
+    return new GeomObject3D(pscene, name);
   }
 
 #if 0

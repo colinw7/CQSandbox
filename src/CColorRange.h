@@ -9,6 +9,7 @@
 class CColorRange {
  public:
   enum class Type {
+    NONE,
     MAGMA,
     MORELAND,
     PLASMA,
@@ -34,6 +35,10 @@ class CColorRange {
   }
 
   CRGBA interpColor(double r) const;
+
+  std::vector<std::string> typeNames() const;
+
+  Type nameToType(const std::string &name) const;
 
  private:
   void init();

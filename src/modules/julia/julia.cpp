@@ -1,21 +1,21 @@
 #include <CQSandboxShlib.h>
 
-#include <CMandelbrot.h>
+#include <CJulia.h>
 #include <CDisplayRange2D.h>
 
 #include <iostream>
 
 #include <tcl/tcl.h>
 
-#define MandelbrotImplInst MandelbrotImpl::getInst()
+#define JuliaImplInst JuliaImpl::getInst()
 
-class MandelbrotImpl : public CQSandboxShLib::Impl {
+class JuliaImpl : public CQSandboxShLib::Impl {
  public:
-  static MandelbrotImpl *getInst() {
-    static MandelbrotImpl *s_inst;
+  static JuliaImpl *getInst() {
+    static JuliaImpl *s_inst;
 
     if (! s_inst)
-      s_inst = new MandelbrotImpl;
+      s_inst = new JuliaImpl;
 
     return s_inst;
   }
@@ -24,7 +24,7 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
     // std::cerr << "init\n";
 
     auto *impl       = getInst();
-    auto *mandelbrot = impl->mandelbrot();
+    auto *julia = impl->julia();
 
     impl->initCalc();
 
@@ -36,21 +36,21 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
     // std::cerr << "getValue: " << name << "\n";
 
     auto *impl       = getInst();
-    auto *mandelbrot = impl->mandelbrot();
+    auto *julia = impl->julia();
 
     auto name1 = std::string(name);
 
     if      (name1 == "xmin") {
-      *res = Tcl_NewDoubleObj(mandelbrot->getXMin());
+      *res = Tcl_NewDoubleObj(julia->getXMin());
     }
     else if (name1 == "ymin") {
-      *res = Tcl_NewDoubleObj(mandelbrot->getYMin());
+      *res = Tcl_NewDoubleObj(julia->getYMin());
     }
     else if (name1 == "xmax") {
-      *res = Tcl_NewDoubleObj(mandelbrot->getXMax());
+      *res = Tcl_NewDoubleObj(julia->getXMax());
     }
     else if (name1 == "ymax") {
-      *res = Tcl_NewDoubleObj(mandelbrot->getYMax());
+      *res = Tcl_NewDoubleObj(julia->getYMax());
     }
     else if (name1 == "max_iterations") {
       *res = Tcl_NewIntObj(impl->max_iterations_);
@@ -67,7 +67,7 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
         return 0;
       }
 
-      auto x = mandelbrot->pixelXToUser(ix);
+      auto x = julia->pixelXToUser(ix);
 
       *res = Tcl_NewDoubleObj(x);
     }
@@ -83,7 +83,7 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
         return 0;
       }
 
-      auto y = mandelbrot->pixelYToUser(iy);
+      auto y = julia->pixelYToUser(iy);
 
       *res = Tcl_NewDoubleObj(y);
     }
@@ -98,7 +98,7 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
     // std::cerr << "setValue: " << name << " " << value << "\n";
 
     auto *impl       = getInst();
-    auto *mandelbrot = impl->mandelbrot();
+    auto *julia = impl->julia();
 
     auto name1 = std::string(name);
 
@@ -226,9 +226,9 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
       }
 
       auto *impl       = getInst();
-      auto *mandelbrot = impl->mandelbrot();
+      auto *julia = impl->julia();
 
-      auto n = mandelbrot->calc(x, y);
+      auto n = julia->calc(x, y);
 
       *res = Tcl_NewIntObj(n);
     }
@@ -242,22 +242,22 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
 
   //---
 
-  MandelbrotImpl() { }
+  JuliaImpl() { }
 
   CQSandboxShLib::InitProc initProc() override { return init; }
   CQSandboxShLib::GetProc  getProc () override { return getValue; }
   CQSandboxShLib::SetProc  setProc () override { return setValue; }
   CQSandboxShLib::ExecProc execProc() override { return exec; }
 
-  CMandelbrot *mandelbrot() { return &mandelbrot_; }
+  CJulia *julia() { return &julia_; }
 
   void initCalc() {
-    mandelbrot_.initCalc(pixel_xmin_, pixel_ymin_, pixel_xmax_, pixel_ymax_,
+    julia_.initCalc(pixel_xmin_, pixel_ymin_, pixel_xmax_, pixel_ymax_,
                          xmin_, ymin_, xmax_, ymax_, max_iterations_);
   }
 
  private:
-  CMandelbrot mandelbrot_;
+  CJulia julia_;
 
   uint iterations_     { 256 };
   uint max_iterations_ { 256 };
@@ -279,23 +279,23 @@ class MandelbrotImpl : public CQSandboxShLib::Impl {
 
 extern "C" {
 
-int mandelbrot_init() {
-  return (MandelbrotImpl::getInst()->initProc())();
+int julia_init() {
+  return (JuliaImpl::getInst()->initProc())();
 }
 
-int mandelbrot_get_value(Tcl_Interp *interp, const char *name,
+int julia_get_value(Tcl_Interp *interp, const char *name,
                          int argc, Tcl_Obj **argv, Tcl_Obj **res) {
-  return (MandelbrotImpl::getInst()->getProc())(interp, name, argc, argv, res);
+  return (JuliaImpl::getInst()->getProc())(interp, name, argc, argv, res);
 }
 
-int mandelbrot_set_value(Tcl_Interp *interp, const char *name, Tcl_Obj *value,
+int julia_set_value(Tcl_Interp *interp, const char *name, Tcl_Obj *value,
                          int argc, Tcl_Obj **argv) {
-  return (MandelbrotImpl::getInst()->setProc())(interp, name, value, argc, argv);
+  return (JuliaImpl::getInst()->setProc())(interp, name, value, argc, argv);
 }
 
-int mandelbrot_exec(Tcl_Interp *interp, const char *op,
+int julia_exec(Tcl_Interp *interp, const char *op,
                     int argc, Tcl_Obj **argv, Tcl_Obj **res) {
-  return (MandelbrotImpl::getInst()->execProc())(interp, op, argc, argv, res);
+  return (JuliaImpl::getInst()->execProc())(interp, op, argc, argv, res);
 }
 
 }

@@ -1,6 +1,6 @@
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxCanvas3D.h>
-#include <CQSandboxGeomObject.h>
+#include <CQSandboxGeomObject3D.h>
 
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxModel3DObj.h>
@@ -567,13 +567,13 @@ updateGeomObject(CGeomObject3D *object)
 
   auto *canvas = app_->canvas3D();
 
-  auto *geomObject = dynamic_cast<GeomObject *>(object);
+  auto *geomObject = dynamic_cast<GeomObject3D *>(object);
   assert(geomObject);
 
   auto *geomObject1 = geomObject;
 
   if (object->refObject()) {
-    geomObject1 = dynamic_cast<GeomObject *>(object->refObject());
+    geomObject1 = dynamic_cast<GeomObject3D *>(object->refObject());
     assert(geomObject1);
 
     updateGeomObject(geomObject1);

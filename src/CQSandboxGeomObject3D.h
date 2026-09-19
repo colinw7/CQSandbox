@@ -1,5 +1,5 @@
-#ifndef CQSandboxGeomObject_H
-#define CQSandboxGeomObject_H
+#ifndef CQSandboxGeomObject3D_H
+#define CQSandboxGeomObject3D_H
 
 #include <CQSandboxFaceData.h>
 
@@ -13,18 +13,18 @@ namespace CQSandbox {
 class Canvas3D;
 class ShaderProgram;
 
-class GeomObject : public CGeomObject3D {
+class GeomObject3D : public CGeomObject3D {
  public:
   using FaceDatas = std::vector<FaceData>;
 
  public:
-  GeomObject(CGeomScene3D *pscene, const std::string &name);
+  GeomObject3D(CGeomScene3D *pscene, const std::string &name);
 
-  GeomObject(const GeomObject &object);
+  GeomObject3D(const GeomObject3D &object);
 
- ~GeomObject();
+ ~GeomObject3D();
 
-  GeomObject *dup() const override;
+  GeomObject3D *dup() const override;
 
   //---
 

@@ -1,21 +1,26 @@
-#ifndef CQSandboxArrowObj_H
-#define CQSandboxArrowObj_H
+#ifndef CQSandboxParticle2DObj_H
+#define CQSandboxParticle2DObj_H
 
 #include <CQSandboxObject2D.h>
 
-class CQArrow;
+#include <QPainterPath>
 
 namespace CQSandbox {
 
-class ArrowObj : public Object2D {
+class Particle;
+
+class Particle2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  ArrowObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2);
+  Particle2DObj(Canvas2D *canvas, const Point2D &pos);
 
-  const char *typeName() const override { return "arrow"; }
+  const char *typeName() const override { return "particle"; }
+
+  const Particle *particle() const { return particle_; }
+  void setParticle(Particle *p);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -25,10 +30,8 @@ class ArrowObj : public Object2D {
   void draw(QPainter *) override;
 
  protected:
-  Point2D p1_;
-  Point2D p2_;
-
-  CQArrow *arrow_ { nullptr };
+  Point2D   pos_;
+  Particle* particle_ { nullptr };
 };
 
 }

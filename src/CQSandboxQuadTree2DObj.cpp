@@ -1,4 +1,4 @@
-#include <CQSandboxQuadTreeObj.h>
+#include <CQSandboxQuadTree2DObj.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -8,7 +8,7 @@
 namespace CQSandbox {
 
 bool
-QuadTreeObj::
+QuadTree2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 0)
@@ -16,7 +16,7 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  auto *obj = new QuadTreeObj(canvas);
+  auto *obj = new QuadTree2DObj(canvas);
 
   auto name = canvas->addNewObject(obj);
 
@@ -25,14 +25,14 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-QuadTreeObj::
-QuadTreeObj(Canvas2D *canvas) :
- GroupObj(canvas, Rect2D())
+QuadTree2DObj::
+QuadTree2DObj(Canvas2D *canvas) :
+ Group2DObj(canvas, Rect2D())
 {
 }
 
 bool
-QuadTreeObj::
+QuadTree2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *tcl = canvas()->tcl();
@@ -72,13 +72,13 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = names;
   }
   else
-    return GroupObj::getValue(name, args, value);
+    return Group2DObj::getValue(name, args, value);
 
   return true;
 }
 
 bool
-QuadTreeObj::
+QuadTree2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas()->app();
@@ -105,7 +105,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     quadTree_.remove(obj);
   }
   else
-    return GroupObj::setValue(name, value, args);
+    return Group2DObj::setValue(name, value, args);
 
   return true;
 }

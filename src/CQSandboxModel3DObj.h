@@ -13,7 +13,7 @@ namespace CQSandbox {
 
 class Texture;
 class ShaderProgram;
-class GeomObject;
+class GeomObject3D;
 
 //---
 
@@ -40,11 +40,11 @@ class Model3DObj : public Object3D {
 
  public:
   struct ObjectData {
-    CQGLBuffer*               buffer { nullptr };
-    CMatrix3DH                modelMatrix;
-    CMatrix3DH                meshMatrix;
-    CBBox3D                   bbox;
-    std::vector<GeomObject *> geomObjects;
+    CQGLBuffer*                 buffer { nullptr };
+    CMatrix3DH                  modelMatrix;
+    CMatrix3DH                  meshMatrix;
+    CBBox3D                     bbox;
+    std::vector<GeomObject3D *> geomObjects;
   };
 
  public:
@@ -162,7 +162,7 @@ class Model3DObj : public Object3D {
   CVector3D sceneSize_   { 1, 1, 1 };
   CPoint3D  sceneCenter_ { 0, 0, 0 };
 
-  std::vector<GeomObject *> geomObjects_;
+  std::vector<GeomObject3D *> geomObjects_;
 
   bool faceDatasValid_ { false };
 

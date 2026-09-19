@@ -1,4 +1,4 @@
-#include <CQSandboxPathObj.h>
+#include <CQSandboxPath2DObj.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -10,7 +10,7 @@
 namespace CQSandbox {
 
 bool
-PathObj::
+Path2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   auto *tcl = canvas->tcl();
@@ -20,7 +20,7 @@ create(Canvas2D *canvas, const QStringList &args)
   if (args.size() >= 1)
     path = Util::stringToPath(args[0]);
 
-  auto *obj = new PathObj(canvas, path);
+  auto *obj = new Path2DObj(canvas, path);
 
   auto name = canvas->addNewObject(obj);
 
@@ -29,14 +29,14 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-PathObj::
-PathObj(Canvas2D *canvas, const QPainterPath &path) :
+Path2DObj::
+Path2DObj(Canvas2D *canvas, const QPainterPath &path) :
  Object2D(canvas, Type::PATH), path_(path)
 {
 }
 
 bool
-PathObj::
+Path2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if (name == "path")
@@ -48,7 +48,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-PathObj::
+Path2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if (name == "path") {
@@ -61,7 +61,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 }
 
 bool
-PathObj::
+Path2DObj::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
   auto *tcl = canvas()->tcl();
@@ -115,7 +115,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 }
 
 Rect2D
-PathObj::
+Path2DObj::
 calcRect() const
 {
   auto r = path_.boundingRect();
@@ -128,7 +128,7 @@ calcRect() const
 }
 
 void
-PathObj::
+Path2DObj::
 draw(QPainter *painter)
 {
   auto pointToPixel = [&](const QPointF &p) {

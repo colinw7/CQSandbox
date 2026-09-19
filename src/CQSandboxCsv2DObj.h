@@ -1,5 +1,5 @@
-#ifndef CQSandboxCsvObj_H
-#define CQSandboxCsvObj_H
+#ifndef CQSandboxCsv2DObj_H
+#define CQSandboxCsv2DObj_H
 
 #include <CQSandboxObject2D.h>
 
@@ -7,13 +7,13 @@ class CQCsvModel;
 
 namespace CQSandbox {
 
-class CsvObj : public Object2D {
+class Csv2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  CsvObj(Canvas2D *canvas, const QString &filename);
+  Csv2DObj(Canvas2D *canvas, const QString &filename);
 
   const char *typeName() const override { return "csv"; }
 

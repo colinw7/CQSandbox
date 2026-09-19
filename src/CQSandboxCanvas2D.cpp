@@ -1,27 +1,32 @@
 #include <CQSandboxCanvas2D.h>
 
 #include <CQSandboxArray2DObj.h>
-#include <CQSandboxArrowObj.h>
-#include <CQSandboxAStarObj.h>
-#include <CQSandboxAxisObj.h>
-#include <CQSandboxCsvObj.h>
-#include <CQSandboxGroupObj.h>
+#include <CQSandboxArrow2DObj.h>
+#include <CQSandboxAStar2DObj.h>
+#include <CQSandboxAxis2DObj.h>
+#include <CQSandboxCircle2DObj.h>
+#include <CQSandboxCsv2DObj.h>
+#include <CQSandboxGroup2DObj.h>
+#include <CQSandboxImage2DObj.h>
+#include <CQSandboxLine2DObj.h>
 #include <CQSandboxPalette2DObj.h>
-#include <CQSandboxPathObj.h>
-#include <CQSandboxPointListObj.h>
+#include <CQSandboxParticle2DObj.h>
+#include <CQSandboxPath2DObj.h>
+#include <CQSandboxPointList2DObj.h>
+#include <CQSandboxRect2DObj.h>
 #include <CQSandboxShlib2DObj.h>
-#include <CQSandboxQuadTreeObj.h>
+#include <CQSandboxQuadTree2DObj.h>
 #include <CQSandboxRenderer2DObj.h>
 #include <CQSandboxText2DObj.h>
 #include <CQSandboxVector2DObj.h>
 
 #include <CQSandboxParticleSystem.h>
-#include <CQSandboxApp.h>
-#include <CQSandboxUtil.h>
 #include <CQSandboxControl2D.h>
 #include <CQSandboxViewport.h>
 #include <CQSandboxToolbar2D.h>
 #include <CQSandboxStatus.h>
+#include <CQSandboxApp.h>
+#include <CQSandboxUtil.h>
 
 #include <CQRubberBand.h>
 #include <CQTclUtil.h>
@@ -51,35 +56,6 @@ int createObjectProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
     return TCL_ERROR;
 
   return TCL_OK;
-}
-
-bool
-stringToImage(const QString &str, QImage &image) {
-  auto cstr = str.toStdString();
-
-  CFile file(cstr);
-
-  if (! file.exists())
-    return false;
-
-  image = QImage(str);
-
-  image.setText("name", str);
-
-  return true;
-}
-
-QString
-imageToString(const QImage &image) {
-  return image.text("name");
-}
-
-QColor RGBAToQColor(const CRGBA &c) {
-  return QColor(c.getRed()*255, c.getGreen()*255, c.getBlue()*255, c.getAlpha()*255);
-}
-
-CRGBA QColorToRGBA(const QColor &c) {
-  return CRGBA(c.redF(), c.greenF(), c.blueF(), c.alphaF());
 }
 
 }
@@ -218,15 +194,15 @@ addCommands()
 
   // objects
   tcl->createObjCommand("sb::group",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<GroupObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Group2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::circle",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<CircleObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Circle2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::rect",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<RectObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Rect2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::text",
@@ -234,31 +210,31 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::line",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<LineObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Line2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::image",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ImageObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Image2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::path",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<PathObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Path2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::point_list",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<PointListObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<PointList2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::arrow",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ArrowObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Arrow2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::axis",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<AxisObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Axis2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::particle",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ParticleObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Particle2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
@@ -273,11 +249,11 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::csv",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<CsvObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Csv2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::astar",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<AStarObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<AStar2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::color_range",
@@ -324,7 +300,7 @@ addCommands()
 #endif
 
   tcl->createObjCommand("sb::quad_tree",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<QuadTreeObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<QuadTree2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
@@ -768,7 +744,7 @@ void
 Canvas2D::
 drawParticle(QPainter *painter, Particle *particle)
 {
-  auto *obj = dynamic_cast<const ParticleObj *>(particle->obj());
+  auto *obj = dynamic_cast<const Particle2DObj *>(particle->obj());
 
   painter->setPen(obj->pen());
 
@@ -807,7 +783,7 @@ drawParticle(QPainter *painter, Particle *particle)
     }
 
     if (particle->color()) {
-      auto fg = RGBAToQColor(particle->color().value());
+      auto fg = Util::RGBAToQColor(particle->color().value());
 
       CQUtil::recolorImage(image1, fg, fg);
     }
@@ -880,7 +856,7 @@ mouseMoveEvent(QMouseEvent *e)
     pressObj_->move(dx, dy);
   }
   else {
-    auto *group = dynamic_cast<GroupObj *>(getObjectAtPos(e->pos()));
+    auto *group = dynamic_cast<Group2DObj *>(getObjectAtPos(e->pos()));
 
     QString name;
 
@@ -899,7 +875,7 @@ mouseMoveEvent(QMouseEvent *e)
       name = "canvas";
     }
 
-    app_->setInfo(QString("%1: %2 %3").arg(name).arg(p.x()).arg(p.y()));
+    app_->canvasToolbar2D()->setPos(QString("%1: %2 %3").arg(name).arg(p.x()).arg(p.y()));
   }
 
   //---
@@ -1270,12 +1246,21 @@ styleProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   auto *tcl = th->tcl();
 
   if (args[0] == "get") {
-    if (args.size() >= 2)
-      tcl->setResult(th->getStyleValue(args[1]));
+    if (args.size() < 2)
+      return TCL_ERROR;
+
+    QVariant res;
+    if (! th->getStyleValue(args[1], res))
+      return TCL_ERROR;
+
+    tcl->setResult(res);
   }
   else if (args[0] == "set") {
-    if (args.size() >= 3)
-      th->setStyleValue(args[1], args[2]);
+    if (args.size() < 3)
+      return TCL_ERROR;
+
+    if (! th->setStyleValue(args[1], args[2]))
+      return TCL_ERROR;
   }
   else
     return TCL_ERROR;
@@ -1408,23 +1393,38 @@ setValue(const QString &name, const QString &value, const QStringList &)
   if      (name == "brush.color") {
     auto b = viewport->brush.value();
 
-    b.setColor(Util::stringToColor(tcl, value));
+    QColor c;
+    if (! Util::stringToColor(tcl, value, c))
+      return false;
+
+    b.setColor(c);
 
     viewport->brush = b;
   }
   else if (name == "brush.target.color") {
     auto b = viewport->brush.target();
 
-    b.setColor(Util::stringToColor(tcl, value));
+    QColor c;
+    if (! Util::stringToColor(tcl, value, c))
+      return false;
+
+    b.setColor(c);
 
     viewport->brush.setTarget(b);
   }
-  else if (name == "brush.steps")
+  else if (name == "brush.steps") {
     viewport->brush.setSteps(Util::stringToInt(value));
-  else if (name == "pen.color")
-    viewport->pen.setColor(Util::stringToColor(tcl, value));
-  else if (name == "pen.width")
+  }
+  else if (name == "pen.color") {
+    QColor c;
+    if (! Util::stringToColor(tcl, value, c))
+      return false;
+
+    viewport->pen.setColor(c);
+  }
+  else if (name == "pen.width") {
     viewport->pen.setWidthF(Util::stringToReal(value));
+  }
   else if (name == "range") {
     Util::stringToRange(tcl, viewport->displayRange, value);
 
@@ -1475,7 +1475,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
     int w = size.x.value;
     int h = size.y.value;
 
-    h += app_->toolbar2D()->height();
+    h += app_->canvasToolbar2D()->height();
     h += app_->status()->height();
 
     app_->resize(w, h);
@@ -1595,32 +1595,45 @@ setPaletteValue(const QString &name, const QString &)
   app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 }
 
-QVariant
+bool
 Canvas2D::
-getStyleValue(const QString &name)
+getStyleValue(const QString &name, QVariant &res)
 {
   if      (name == "pen.color")
-    return Util::colorToString(stylePen_.color());
+    res = Util::colorToString(stylePen_.color());
   else if (name == "pen.width")
-    return Util::realToString(stylePen_.widthF());
-  else {
-    app_->errorMsg(QString("Invalid value name '%1'").arg(name));
-    return QVariant();
-  }
+    res = Util::realToString(stylePen_.widthF());
+  else
+    return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
+
+  return true;
 }
 
-void
+bool
 Canvas2D::
 setStyleValue(const QString &name, const QString &value)
 {
   auto *tcl = this->tcl();
 
-  if      (name == "brush.color")
-    styleBrush_.setColor(Util::stringToColor(tcl, value));
-  else if (name == "pen.color")
-    stylePen_.setColor(Util::stringToColor(tcl, value));
-  else if (name == "pen.width")
+  if      (name == "brush.color") {
+    QColor c;
+    if (! Util::stringToColor(tcl, value, c))
+      return false;
+
+    styleBrush_.setColor(c);
+  }
+  else if (name == "pen.color") {
+    QColor c;
+    if (! Util::stringToColor(tcl, value, c))
+      return false;
+
+    stylePen_.setColor(c);
+  }
+  else if (name == "pen.width") {
     stylePen_.setWidthF(Util::stringToReal(value));
+  }
+
+  return true;
 }
 
 int
@@ -1857,7 +1870,11 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
       if      (name == "brush.color") {
         auto b = viewport->brush.value();
 
-        b.setColor(Util::stringToColor(tcl, value));
+        QColor c;
+        if (! Util::stringToColor(tcl, value, c))
+          return false;
+
+        b.setColor(c);
 
         viewport->brush = b;
       }
@@ -2067,7 +2084,7 @@ class CirclesMgr : public CCircleFactor::CircleMgr {
       Point2D center(0.5, 0.5);
       Coord   radius(0.01);
 
-      auto *circle = new CircleObj(group_->canvas(), center, radius);
+      auto *circle = new Circle2DObj(group_->canvas(), center, radius);
 
       circles_.push_back(circle);
 
@@ -2131,7 +2148,7 @@ class CirclesMgr : public CCircleFactor::CircleMgr {
   }
 
  private:
-  using Circles = std::vector<CircleObj *>;
+  using Circles = std::vector<Circle2DObj *>;
 
   CirclesGroupObj *group_ { nullptr };
   Circles          circles_;
@@ -2159,7 +2176,7 @@ create(Canvas2D *canvas, const QStringList &args)
 
 CirclesGroupObj::
 CirclesGroupObj(Canvas2D *canvas, const Rect2D &rect) :
- GroupObj(canvas, rect)
+ Group2DObj(canvas, rect)
 {
   mgr_ = new CirclesMgr(this);
 
@@ -2173,7 +2190,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   if (name == "n")
     value = mgr_->factor();
   else
-    return GroupObj::getValue(name, args, value);
+    return Group2DObj::getValue(name, args, value);
 
   return true;
 }
@@ -2188,326 +2205,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     mgr_->place();
   }
   else
-    return GroupObj::setValue(name, value, args);
+    return Group2DObj::setValue(name, value, args);
 
   return true;
 }
 #endif
-
-//---
-
-bool
-CircleObj::
-create(Canvas2D *canvas, const QStringList &args)
-{
-  if (args.size() != 2) return false;
-
-  auto *tcl = canvas->tcl();
-
-  Point2D center;
-  if (! Util::stringToPoint2D(tcl, args[0], center))
-    return false;
-
-  Coord r;
-  if (! Util::stringToCoord(args[1], r))
-    return false;
-
-  auto *obj = new CircleObj(canvas, center, r);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-CircleObj::
-CircleObj(Canvas2D *canvas, const Point2D &center, const Coord &radius) :
- Object2D(canvas, Type::CIRCLE), center_(center), radius_(radius)
-{
-}
-
-bool
-CircleObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if      (name == "rect")
-    value = Util::rect2DToString(calcRect());
-  else if (name == "center")
-    value = Util::point2DToString(center_.value());
-  else if (name == "center.target")
-    value = Util::point2DToString(center_.target());
-  else if (name == "center.steps")
-    value = int(center_.steps());
-  else if (name == "radius")
-    value = Util::coordToString(radius_.value());
-  else if (name == "radius.target")
-    value = Util::coordToString(radius_.target());
-  else if (name == "radius.steps")
-    value = int(radius_.steps());
-  else
-    return Object2D::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-CircleObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *tcl = canvas()->tcl();
-
-  if      (name == "center") {
-    Point2D p;
-    if (! Util::stringToPoint2D(tcl, value, p))
-      return false;
-
-    center_.setValue(p);
-  }
-  else if (name == "center.target") {
-    Point2D p;
-    if (! Util::stringToPoint2D(tcl, value, p))
-      return false;
-
-    center_.setTarget(p);
-  }
-  else if (name == "center.steps") {
-    center_.setSteps(Util::stringToInt(value));
-  }
-  else if (name == "radius") {
-    Coord c;
-    if (! Util::stringToCoord(value, c))
-      return false;
-
-    radius_.setValue(c);
-  }
-  else if (name == "radius.target") {
-    Coord c;
-    if (! Util::stringToCoord(value, c))
-      return false;
-
-    radius_.setTarget(c);
-  }
-  else if (name == "radius.steps") {
-    radius_.setSteps(Util::stringToInt(value));
-  }
-  else
-    return Object2D::setValue(name, value, args);
-
-  return true;
-}
-
-Rect2D
-CircleObj::
-calcRect() const
-{
-  auto c = pointToWindow(center_.value());
-
-  auto radius = radius_.value();
-
-  double xr = radius.value;
-  double yr = xr;
-
-  if (radius.units == Units::PIXEL) {
-    auto p1 = canvas()->pointToWindow(Point2D::makePixel(0.0, 0.0));
-    auto p2 = canvas()->pointToWindow(Point2D::makePixel(xr, yr));
-
-    xr = std::abs(p2.x.value - p1.x.value);
-    yr = std::abs(p2.y.value - p1.y.value);
-  }
-
-  auto ll = Point2D::makeWindow(c.x.value - xr, c.y.value - yr);
-  auto ur = Point2D::makeWindow(c.x.value + xr, c.y.value + yr);
-
-  return Rect2D(ll, ur);
-}
-
-bool
-CircleObj::
-step()
-{
-  bool b1 = center_.step();
-  bool b2 = radius_.step();
-  bool b3 = Object2D::step();
-
-  return (b1 || b2 || b3);
-}
-
-void
-CircleObj::
-draw(QPainter *painter)
-{
-  auto rect  = this->calcRect();
-  auto prect = canvas()->rectToPixel(rect).qrect();
-
-  painter->setPen(pen_);
-  painter->setBrush(brush_.value());
-
-  painter->drawEllipse(prect);
-}
-
-//---
-
-bool
-RectObj::
-create(Canvas2D *canvas, const QStringList &args)
-{
-  auto *tcl = canvas->tcl();
-
-  auto rect = Rect2D(Point2D(0, 0), Point2D(1, 1));
-
-  if (args.size() >= 1)
-    rect = Util::stringToRect2D(tcl, args[0]);
-
-  auto *obj = new RectObj(canvas, rect);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-RectObj::
-RectObj(Canvas2D *canvas, const Rect2D &rect) :
- Object2D(canvas, Type::RECT), rect_(rect)
-{
-}
-
-bool
-RectObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if (name == "rect")
-    value = Util::rect2DToString(calcRect());
-  else
-    return Object2D::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-RectObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *tcl = canvas()->tcl();
-
-  if (name == "rect") {
-    rect_ = Util::stringToRect2D(tcl, value);
-  }
-  else
-    return Object2D::setValue(name, value, args);
-
-  return true;
-}
-
-Rect2D
-RectObj::
-calcRect() const
-{
-  return rectToWindow(rect_);
-}
-
-void
-RectObj::
-draw(QPainter *painter)
-{
-  auto rect  = this->calcRect();
-  auto prect = canvas()->rectToPixel(rect).qrect();
-
-  painter->setPen(pen_);
-  painter->setBrush(brush_.value());
-
-  painter->drawRect(prect);
-}
-
-//---
-
-bool
-LineObj::
-create(Canvas2D *canvas, const QStringList &args)
-{
-  if (args.size() != 2) return false;
-
-  auto *tcl = canvas->tcl();
-
-  Point2D p1, p2;
-
-  if (! Util::stringToPoint2D(tcl, args[0], p1) ||
-      ! Util::stringToPoint2D(tcl, args[1], p2))
-    return false;
-
-  auto *obj = new LineObj(canvas, p1, p2);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-LineObj::
-LineObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2) :
- Object2D(canvas, Type::LINE), p1_(p1), p2_(p2)
-{
-}
-
-bool
-LineObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if      (name == "p1")
-    value = Util::point2DToString(p1_);
-  else if (name == "p2")
-    value = Util::point2DToString(p2_);
-  else
-    return Object2D::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-LineObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *tcl = canvas()->tcl();
-
-  if      (name == "p1") {
-    if (! Util::stringToPoint2D(tcl, value, p1_))
-      return false;
-  }
-  else if (name == "p2") {
-    if (! Util::stringToPoint2D(tcl, value, p2_))
-      return false;
-  }
-  else
-    return Object2D::setValue(name, value, args);
-
-  return true;
-}
-
-Rect2D
-LineObj::
-calcRect() const
-{
-  auto p1 = pointToWindow(p1_);
-  auto p2 = pointToWindow(p2_);
-
-  return Rect2D(p1, p2);
-}
-
-void
-LineObj::
-draw(QPainter *painter)
-{
-  painter->setPen(pen_);
-  painter->setBrush(brush_.value());
-
-  auto p1 = pointToPixel(p1_).qpoint();
-  auto p2 = pointToPixel(p2_).qpoint();
-
-  painter->drawLine(p1, p2);
-}
 
 //---
 
@@ -2973,337 +2675,6 @@ click(int, int)
 {
   if (proc_ != "")
     canvas()->runTclCmd(proc_);
-}
-
-//---
-
-bool
-ImageObj::
-create(Canvas2D *canvas, const QStringList &args)
-{
-  auto *tcl = canvas->tcl();
-
-  Point2D pos;
-  QImage  image;
-
-  if (args.size() >= 1) {
-    if (! Util::stringToPoint2D(tcl, args[0], pos))
-      return false;
-  }
-
-  if (args.size() >= 2) {
-    if (args[1] != "") {
-      if (! stringToImage(args[1], image))
-        return false;
-    }
-  }
-
-  //---
-
-  auto *obj = new ImageObj(canvas, pos, image);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-ImageObj::
-ImageObj(Canvas2D *canvas, const Point2D &pos, const QImage &image) :
- Object2D(canvas, Type::IMAGE), pos_(pos), image_(image)
-{
-}
-
-bool
-ImageObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if      (name == "position")
-    value = Util::point2DToString(pos_);
-  else if (name == "center") {
-    auto ppos = pointToPixel(pos_);
-
-    ppos.x.value += image_.width ()/2;
-    ppos.y.value += image_.height()/2;
-
-    value = Util::point2DToString(ppos);
-  }
-  else if (name == "image")
-    value = imageToString(image_);
-  else
-    return Object2D::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-ImageObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *app = canvas()->app();
-  auto *tcl = canvas()->tcl();
-
-  if      (name == "position") {
-    if (! Util::stringToPoint2D(tcl, value, pos_))
-      return false;
-
-    posType_ = Position::TOP_LEFT;
-  }
-  else if (name == "center") {
-    if (! Util::stringToPoint2D(tcl, value, pos_))
-      return false;
-
-    posType_ = Position::CENTER;
-  }
-  else if (name == "rect") {
-    rect_    = Util::stringToRect2D(tcl, value);
-    posType_ = Position::RECT;
-  }
-  else if (name == "image") {
-    if (value != "") {
-      if (! stringToImage(value, image_)) {
-        auto *obj = canvas()->getObjectByName(value);
-        if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
-
-        auto *imageObj = dynamic_cast<ImageObj *>(obj);
-        if (! obj) return false;
-
-        image_ = imageObj->image();
-      }
-    }
-    else
-      image_ = QImage();
-  }
-  else if (name == "flip_x") {
-    image_ = image_.mirrored(true, false);
-  }
-  else if (name == "flip_y") {
-    image_ = image_.mirrored(false, true);
-  }
-  else if (name == "scale") {
-    Point2D size;
-    if (! Util::stringToPoint2D(tcl, value, size))
-      return false;
-
-    image_ = image_.scaled(image_.width()*size.x.value, image_.height()*size.y.value);
-  }
-  else
-    return Object2D::setValue(name, value, args);
-
-  return true;
-}
-
-Rect2D
-ImageObj::
-calcRect() const
-{
-  if (posType_ == Position::RECT)
-    return rect_;
-
-  int w = image_.width ();
-  int h = image_.height();
-
-  auto s = canvas()->pixelSizeToWindow(QSizeF(w, h));
-
-  auto pos = pointToPixel(pos_);
-
-  pos.x.value -= w/2;
-  pos.y.value -= h/2;
-
-  auto p = pointToWindow(pos);
-
-  auto ll = Point2D(p.x.value            , p.y.value             );
-  auto ur = Point2D(p.x.value + s.width(), p.y.value + s.height());
-
-  return Rect2D(ll, ur);
-}
-
-void
-ImageObj::
-draw(QPainter *painter)
-{
-  if (posType_ == Position::RECT) {
-    auto prect = canvas()->rectToPixel(rect_).qrect();
-
-    painter->drawImage(prect, image_);
-  }
-  else {
-    auto pos = pointToPixel(pos_).qpoint();
-
-    if (posType_ == Position::CENTER) {
-      int w = image_.width ();
-      int h = image_.height();
-
-      pos.setX(pos.x() - w/2);
-      pos.setY(pos.y() - h/2);
-    }
-
-    if (! image_.isNull())
-      painter->drawImage(pos, image_);
-  }
-}
-
-//---
-
-bool
-ParticleObj::
-create(Canvas2D *canvas, const QStringList &args)
-{
-  if (args.size() != 1) return false;
-
-  auto *tcl = canvas->tcl();
-
-  Point2D pos;
-  if (! Util::stringToPoint2D(tcl, args[0], pos))
-    return false;
-
-  auto *obj = new ParticleObj(canvas, pos);
-
-  double mass = 1.0;
-
-  auto *particle = dynamic_cast<Particle *>(
-    canvas->psys()->makeParticle(mass, pos.x.value, pos.y.value));
-
-  particle->setObj(obj);
-
-  obj->setParticle(particle);
-
-  auto name = canvas->addNewObject(obj);
-
-  tcl->setResult(name);
-
-  return true;
-}
-
-ParticleObj::
-ParticleObj(Canvas2D *canvas, const Point2D &pos) :
- Object2D(canvas, Type::PARTICLE), pos_(pos)
-{
-}
-
-void
-ParticleObj::
-setParticle(Particle *p)
-{
-  particle_ = p;
-
-  particle_->setPosition(pos_.x.value, pos_.y.value, 0);
-}
-
-bool
-ParticleObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
-{
-  if      (name == "position") {
-    auto *position = particle_->position();
-
-    value = Util::point2DToString(Point2D(position->x(), position->y()));
-  }
-  else if (name == "velocity") {
-    auto *velocity = particle_->velocity();
-
-    value = Util::point2DToString(Point2D(velocity->x(), velocity->y()));
-  }
-  else if (name == "dead") {
-    value = Util::boolToString(particle_->isDead());
-  }
-  else if (name == "age") {
-    value = particle_->age();
-  }
-  else
-    return Object2D::getValue(name, args, value);
-
-  return true;
-}
-
-bool
-ParticleObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
-{
-  auto *app = canvas()->app();
-  auto *tcl = canvas()->tcl();
-
-  if      (name == "position") {
-    Point2D p;
-    if (! Util::stringToPoint2D(tcl, value, p))
-      return false;
-
-    particle_->setPosition(p.x.value, p.y.value, 0);
-  }
-  else if (name == "velocity") {
-    Point2D p;
-    if (! Util::stringToPoint2D(tcl, value, p))
-      return false;
-
-    particle_->setVelocity(p.x.value, p.y.value, 0);
-  }
-  else if (name == "dead") {
-    particle_->setDead(Util::stringToBool(value));
-  }
-  else if (name == "age") {
-    particle_->setAge(Util::stringToReal(value));
-  }
-  else if (name == "size") {
-    particle_->setSize(Util::stringToReal(value));
-  }
-  else if (name == "tpos") {
-    Point2D p;
-    if (! Util::stringToPoint2D(tcl, value, p))
-      return false;
-
-    particle_->setTPos(CPoint2D(p.x.value, p.y.value));
-  }
-  else if (name == "tsize") {
-    Point2D p;
-    if (! Util::stringToPoint2D(tcl, value, p))
-      return false;
-
-    particle_->setTSize(CSize2D(p.x.value, p.y.value));
-  }
-  else if (name == "angle") {
-    particle_->setAngle(Util::stringToReal(value));
-  }
-  else if (name == "color") {
-    particle_->setColor(QColorToRGBA(Util::stringToColor(tcl, value)));
-  }
-  else if (name == "alpha") {
-    particle_->setAlpha(Util::stringToReal(value));
-  }
-  else if (name == "image") {
-    QImage image;
-
-    if (! stringToImage(value, image)) {
-      auto *obj = canvas()->getObjectByName(value);
-      if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
-
-      auto *imageObj = dynamic_cast<ImageObj *>(obj);
-      if (! obj) return false;
-
-      particle_->setImage(imageObj->image());
-    }
-  }
-  else
-    return Object2D::setValue(name, value, args);
-
-  return true;
-}
-
-Rect2D
-ParticleObj::
-calcRect() const
-{
-  auto *position = particle_->position();
-
-  auto p = Point2D(position->x(), position->y());
-
-  return Rect2D(p, p);
-}
-
-void
-ParticleObj::
-draw(QPainter *)
-{
 }
 
 //---

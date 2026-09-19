@@ -1,8 +1,8 @@
 #include <CQSandboxModel3DObj.h>
 #include <CQSandboxCanvas3D.h>
-#include <CQSandboxApp.h>
-#include <CQSandboxGeomObject.h>
+#include <CQSandboxGeomObject3D.h>
 #include <CQSandboxTexture.h>
+#include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
 #include <CQGLTexture.h>
@@ -339,12 +339,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     resetShader();
   }
   else if (name == "anim.name") {
-    auto *geomObject = dynamic_cast<GeomObject *>(object_);
+    auto *geomObject = dynamic_cast<GeomObject3D *>(object_);
 
     auto *geomObject1 = geomObject;
 
     if (geomObject->refObject()) {
-      geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+      geomObject1 = dynamic_cast<GeomObject3D *>(geomObject->refObject());
       assert(geomObject1);
     }
 
@@ -355,24 +355,24 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     canvas_->invalidateNodeMatrices();
   }
   else if (name == "anim.repeat") {
-    auto *geomObject = dynamic_cast<GeomObject *>(object_);
+    auto *geomObject = dynamic_cast<GeomObject3D *>(object_);
 
     auto *geomObject1 = geomObject;
 
     if (geomObject->refObject()) {
-      geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+      geomObject1 = dynamic_cast<GeomObject3D *>(geomObject->refObject());
       assert(geomObject1);
     }
 
     geomObject1->setAnimRepeat(Util::stringToBool(value));
   }
   else if (name == "anim.step") {
-    auto *geomObject = dynamic_cast<GeomObject *>(object_);
+    auto *geomObject = dynamic_cast<GeomObject3D *>(object_);
 
     auto *geomObject1 = geomObject;
 
     if (geomObject->refObject()) {
-      geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+      geomObject1 = dynamic_cast<GeomObject3D *>(geomObject->refObject());
       assert(geomObject1);
     }
 
@@ -630,11 +630,11 @@ void
 Model3DObj::
 updateBuffer()
 {
-  auto *geomObject  = dynamic_cast<GeomObject *>(object_);
+  auto *geomObject  = dynamic_cast<GeomObject3D *>(object_);
   auto *geomObject1 = geomObject;
 
   if (geomObject->refObject()) {
-    geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+    geomObject1 = dynamic_cast<GeomObject3D *>(geomObject->refObject());
     assert(geomObject1);
   }
 
@@ -757,11 +757,11 @@ drawObject(CGeomObject3D *object)
 
   //---
 
-  auto *geomObject  = dynamic_cast<GeomObject *>(object);
+  auto *geomObject  = dynamic_cast<GeomObject3D *>(object);
   auto *geomObject1 = geomObject;
 
   if (geomObject->refObject()) {
-    geomObject1 = dynamic_cast<GeomObject *>(geomObject->refObject());
+    geomObject1 = dynamic_cast<GeomObject3D *>(geomObject->refObject());
     assert(geomObject1);
   }
 
@@ -990,13 +990,13 @@ void
 Model3DObj::
 updateObject(CGeomObject3D *object, ObjectData &objectData)
 {
-  auto *geomObject = dynamic_cast<GeomObject *>(object);
+  auto *geomObject = dynamic_cast<GeomObject3D *>(object);
   assert(geomObject);
 
   auto *geomObject1 = geomObject;
 
   if (object->refObject()) {
-    geomObject1 = dynamic_cast<GeomObject *>(object->refObject());
+    geomObject1 = dynamic_cast<GeomObject3D *>(object->refObject());
     assert(geomObject1);
 
     ObjectData objectData1;

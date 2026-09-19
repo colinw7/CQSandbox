@@ -1,4 +1,4 @@
-#include <CQSandboxCsvObj.h>
+#include <CQSandboxCsv2DObj.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -9,7 +9,7 @@
 namespace CQSandbox {
 
 bool
-CsvObj::
+Csv2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 1)
@@ -19,7 +19,7 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto filename = args[0];
 
-  auto *obj = new CsvObj(canvas, filename);
+  auto *obj = new Csv2DObj(canvas, filename);
 
   auto name = canvas->addNewObject(obj);
 
@@ -28,15 +28,15 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-CsvObj::
-CsvObj(Canvas2D *canvas, const QString &filename) :
+Csv2DObj::
+Csv2DObj(Canvas2D *canvas, const QString &filename) :
  Object2D(canvas, Type::CSV), filename_(filename)
 {
   csv_ = new CQCsvModel;
 }
 
 bool
-CsvObj::
+Csv2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *app = canvas()->app();
@@ -72,7 +72,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-CsvObj::
+Csv2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if      (name == "filename")
@@ -90,17 +90,18 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 }
 
 bool
-CsvObj::
+Csv2DObj::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
   if (op == "load") {
-    if (! csv_->load(filename_))
-      return false;
+    bool b = csv_->load(filename_);
 
-    return true;
+    res = QVariant(b);
   }
   else
     return Object2D::exec(op, args, res);
+
+  return true;
 }
 
 }

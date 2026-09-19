@@ -1,4 +1,4 @@
-#include <CQSandboxGroupObj.h>
+#include <CQSandboxGroup2DObj.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -8,7 +8,7 @@
 namespace CQSandbox {
 
 bool
-GroupObj::
+Group2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 1) return false;
@@ -17,7 +17,7 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto rect = Util::stringToRect2D(tcl, args[0]);
 
-  auto *obj = new GroupObj(canvas, rect);
+  auto *obj = new Group2DObj(canvas, rect);
 
   auto name = canvas->addNewObject(obj);
 
@@ -26,14 +26,14 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-GroupObj::
-GroupObj(Canvas2D *canvas, const Rect2D &rect) :
+Group2DObj::
+Group2DObj(Canvas2D *canvas, const Rect2D &rect) :
  Object2D(canvas, Type::GROUP), rect_(rect)
 {
 }
 
 bool
-GroupObj::
+Group2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *tcl = canvas()->tcl();
@@ -49,7 +49,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-GroupObj::
+Group2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
@@ -65,14 +65,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 }
 
 Rect2D
-GroupObj::
+Group2DObj::
 calcRect() const
 {
   return rect_;
 }
 
 void
-GroupObj::
+Group2DObj::
 draw(QPainter *painter)
 {
   auto rect  = rectToWindow(rect_);
@@ -99,7 +99,7 @@ draw(QPainter *painter)
 }
 
 void
-GroupObj::
+Group2DObj::
 addObject(Object2D *obj)
 {
   objects_.push_back(obj);
@@ -110,7 +110,7 @@ addObject(Object2D *obj)
 }
 
 void
-GroupObj::
+Group2DObj::
 removeObject(Object2D *obj)
 {
   Objects objects;
@@ -126,7 +126,7 @@ removeObject(Object2D *obj)
 }
 
 Rect2D
-GroupObj::
+Group2DObj::
 rectToPixel(const Rect2D &r) const
 {
   auto p1 = pointToPixel(r.ll);
@@ -136,7 +136,7 @@ rectToPixel(const Rect2D &r) const
 }
 
 Point2D
-GroupObj::
+Group2DObj::
 pointToPixel(const Point2D &p) const
 {
   if (p.x.units == Units::PIXEL)

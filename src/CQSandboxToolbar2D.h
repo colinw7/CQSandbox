@@ -19,6 +19,7 @@ class CanvasToolbar2D : public QFrame {
   Canvas2D *canvas() const { return canvas_; }
 
   void setInfo(const QString &label);
+  void setPos(const QString &label);
 
   void connectSlots(bool b);
 
@@ -56,6 +57,7 @@ class CanvasToolbar2D : public QFrame {
   QToolButton *consoleButton_  { nullptr };
 
   QLabel* infoLabel_ { nullptr };
+  QLabel* posLabel_ { nullptr };
 };
 
 //---

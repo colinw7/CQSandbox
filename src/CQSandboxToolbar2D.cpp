@@ -79,6 +79,10 @@ CanvasToolbar2D(Canvas2D *canvas) :
 
   layout->addWidget(infoLabel_);
 
+  posLabel_ = new QLabel(" ");
+
+  layout->addWidget(posLabel_);
+
   layout->addStretch(1);
 
   //---
@@ -108,6 +112,13 @@ CanvasToolbar2D::
 setInfo(const QString &label)
 {
   infoLabel_->setText(label);
+}
+
+void
+CanvasToolbar2D::
+setPos(const QString &label)
+{
+  posLabel_->setText(label);
 }
 
 void

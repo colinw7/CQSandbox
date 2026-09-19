@@ -1,5 +1,5 @@
-#ifndef CQSandboxPointListObj_H
-#define CQSandboxPointListObj_H
+#ifndef CQSandboxPointList2DObj_H
+#define CQSandboxPointList2DObj_H
 
 #include <CQSandboxObject2D.h>
 
@@ -7,13 +7,13 @@
 
 namespace CQSandbox {
 
-class PointListObj : public Object2D {
+class PointList2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  PointListObj(Canvas2D *canvas, const Coord &radius);
+  PointList2DObj(Canvas2D *canvas, const Coord &radius);
 
   const char *typeName() const override { return "pointList"; }
 

@@ -1,21 +1,21 @@
-#ifndef CQSandboxAxisObj_H
-#define CQSandboxAxisObj_H
+#ifndef CQSandboxArrow2DObj_H
+#define CQSandboxArrow2DObj_H
 
 #include <CQSandboxObject2D.h>
 
-class CQAxis;
+class CQArrow;
 
 namespace CQSandbox {
 
-class AxisObj : public Object2D {
+class Arrow2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  AxisObj(Canvas2D *canvas, const Point2D &pos, const Coord &len);
+  Arrow2DObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2);
 
-  const char *typeName() const override { return "axis"; }
+  const char *typeName() const override { return "arrow"; }
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -25,10 +25,10 @@ class AxisObj : public Object2D {
   void draw(QPainter *) override;
 
  protected:
-  Point2D pos_;
-  Coord   len_;
+  Point2D p1_;
+  Point2D p2_;
 
-  CQAxis *axis_ { nullptr };
+  CQArrow *arrow_ { nullptr };
 };
 
 }
