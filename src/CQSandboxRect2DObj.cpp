@@ -35,6 +35,26 @@ Rect2DObj(Canvas2D *canvas, const Rect2D &rect) :
 {
 }
 
+const AnimatePoint2D &
+Rect2DObj::
+position() const
+{
+  auto *th = const_cast<Rect2DObj *>(this);
+
+  th->position_ = rect_.center().point();
+
+  return position_;
+}
+
+void
+Rect2DObj::
+setPosition(const AnimatePoint2D &p)
+{
+  auto d = p.value() - rect_.center().point();
+
+  rect_.moveBy(Point2D::makeWindow(d));
+}
+
 bool
 Rect2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)

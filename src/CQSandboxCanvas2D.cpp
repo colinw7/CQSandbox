@@ -864,34 +864,38 @@ mouseMoveEvent(QMouseEvent *e)
 
   auto p = pointToWindow(Point2D::makePixel(e->pos())).qpoint();
 
-  if (pressObj_) {
-    auto dx = mouseData_.move2.x() - mouseData_.move1.x();
-    auto dy = mouseData_.move2.y() - mouseData_.move1.y();
+  if (mouseData_.button == Qt::MiddleButton) {
+    if (pressObj_) {
+      auto dx = mouseData_.move2.x() - mouseData_.move1.x();
+      auto dy = mouseData_.move2.y() - mouseData_.move1.y();
 
-    pressObj_->move(dx, dy);
+      if (pressObj_->isSelected())
+        pressObj_->move(dx, dy);
+     }
+  }
+
+  //---
+
+  auto *group = dynamic_cast<Group2DObj *>(getObjectAtPos(e->pos()));
+
+  QString name;
+
+  if (group) {
+    auto p1 = pointToWindow(Point2D::makePixel(e->pos())).qpoint();
+
+    auto groupRange = group->displayRange();
+
+    double x, y;
+    groupRange.pixelToWindow(p1.x(), p1.y(), &x, &y);
+
+    p    = QPointF(x, y);
+    name = group->calcId();
   }
   else {
-    auto *group = dynamic_cast<Group2DObj *>(getObjectAtPos(e->pos()));
-
-    QString name;
-
-    if (group) {
-      auto p1 = pointToWindow(Point2D::makePixel(e->pos())).qpoint();
-
-      auto groupRange = group->displayRange();
-
-      double x, y;
-      groupRange.pixelToWindow(p1.x(), p1.y(), &x, &y);
-
-      p    = QPointF(x, y);
-      name = group->calcId();
-    }
-    else {
-      name = "canvas";
-    }
-
-    app_->canvasToolbar2D()->setPos(QString("%1: %2 %3").arg(name).arg(p.x()).arg(p.y()));
+    name = "canvas";
   }
+
+  app_->canvasToolbar2D()->setPos(QString("%1: %2 %3").arg(name).arg(p.x()).arg(p.y()));
 
   //---
 

@@ -57,7 +57,7 @@ Text2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "position") {
-    value = Util::point2DToString(Point2D::makeWindow(position_));
+    value = Util::point2DToString(Point2D::makeWindow(position_.value()));
   }
   else if (name == "text") {
     value = text_;
@@ -99,6 +99,20 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "border.color") {
     border_.setColor(Util::stringToColor(tcl, value));
   }
+  else if (name == "size") {
+    double s;
+    if (! Util::stringToReal(value, s))
+      return false;
+
+    font_.setPointSizeF(s);
+  }
+  else if (name == "weight") {
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    font_.setWeight(i);
+  }
   else
     return Object2D::setValue(name, value, args);
 
@@ -130,7 +144,7 @@ calcRect() const
     s = canvas()->pixelSizeToWindow(QSizeF(w, h));
   }
 
-  auto p = pointToWindow(Point2D::makeWindow(position_));
+  auto p = pointToWindow(Point2D::makeWindow(position_.value()));
 
   double x = p.x.value;
   double y = p.y.value;
@@ -181,6 +195,12 @@ draw(QPainter *painter)
     painter->setFont(font_);
 
     painter->drawText(prect.left(), prect.top() + fm.ascent(), text_);
+  }
+
+  if (isSelected()) {
+    painter->setBrush(canvas()->selectedColor());
+
+    painter->drawRect(prect);
   }
 }
 

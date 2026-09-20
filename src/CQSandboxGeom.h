@@ -36,8 +36,10 @@ struct Point2D {
   static Point2D makePixel(double x, double y) {
     Point2D p;
 
-    p.x.value = x; p.x.units = Units::PIXEL;
-    p.y.value = y; p.y.units = Units::PIXEL;
+    p.x.value = x;
+    p.y.value = y;
+
+    p.setUnits(Units::PIXEL);
 
     return p;
   }
@@ -46,11 +48,17 @@ struct Point2D {
     return makePixel(p.x(), p.y());
   }
 
+  static Point2D makePixel(const CPoint2D &p) {
+    return makePixel(p.x, p.y);
+  }
+
   static Point2D makeWindow(double x, double y) {
     Point2D p;
 
-    p.x.value = x; p.x.units = Units::WINDOW;
-    p.y.value = y; p.y.units = Units::WINDOW;
+    p.x.value = x;
+    p.y.value = y;
+
+    p.setUnits(Units::WINDOW);
 
     return p;
   }
@@ -67,6 +75,7 @@ struct Point2D {
 
   Point2D(const Coord &c1, const Coord &c2) :
    x(c1), y(c2) {
+     assert(c1.units == c2.units);
   }
 
   QPointF qpoint() const {
@@ -75,6 +84,35 @@ struct Point2D {
 
   CPoint2D point() const {
     return CPoint2D(x.value, y.value);
+  }
+
+  friend Point2D operator+(const Point2D &lhs, const Point2D &rhs) {
+    assert(lhs.x.units == rhs.x.units);
+
+    Point2D p;
+
+    p.x.value = lhs.x.value + rhs.x.value;
+    p.y.value = lhs.y.value + rhs.y.value;
+
+    p.setUnits(lhs.x.units);
+
+    return p;
+  }
+
+  Point2D &operator+=(const Point2D &rhs) {
+    assert(x.units == rhs.x.units);
+
+    x.value += rhs.x.value;
+    y.value += rhs.y.value;
+
+    return *this;
+  }
+
+  const Units &units() const { return x.units; }
+
+  void setUnits(const Units &units) {
+    x.units = units;
+    y.units = units;
   }
 
   Coord x;
@@ -109,13 +147,27 @@ struct Rect2D {
   }
 
   Point2D center() const {
-    return Point2D((ll.x.value + ur.x.value)/2.0, (ll.y.value + ur.y.value)/2.0);
+    Point2D c;
+
+    c.x = (ll.x.value + ur.x.value)/2.0;
+    c.y = (ll.y.value + ur.y.value)/2.0;
+
+    c.setUnits(ll.units());
+
+    return c;
   }
 
   double getLeft  () const { return ll.x.value; }
   double getRight () const { return ur.x.value; }
   double getBottom() const { return ll.y.value; }
   double getTop   () const { return ur.y.value; }
+
+  void moveBy(const Point2D &d) {
+    ll += d;
+    ur += d;
+  }
+
+  const Units &units() const { return ll.units(); }
 
   Point2D ll;
   Point2D ur;

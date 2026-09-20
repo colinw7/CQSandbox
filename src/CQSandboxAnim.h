@@ -192,9 +192,9 @@ class AnimateBrush : public AnimateData<QBrush> {
 
 //---
 
-class AnimatePoint2D : public AnimateData<Point2D> {
+class AnimatePoint2D : public AnimateData<CPoint2D> {
  public:
-  AnimatePoint2D(const Point2D &init, const Point2D &target=Point2D()) :
+  AnimatePoint2D(const CPoint2D &init=CPoint2D(), const CPoint2D &target=CPoint2D()) :
    AnimateData(init, target) {
     value_ = init;
     init_  = init;
@@ -204,17 +204,17 @@ class AnimatePoint2D : public AnimateData<Point2D> {
     value_ = interpPoint(init_, target_, delta());
   }
 
-  static Point2D interpPoint(const Point2D &p1, Point2D &p2, double d) {
-    auto x1 = p1.x.value;
-    auto y1 = p1.y.value;
+  static CPoint2D interpPoint(const CPoint2D &p1, CPoint2D &p2, double d) {
+    auto x1 = p1.x;
+    auto y1 = p1.y;
 
-    auto x2 = p2.x.value;
-    auto y2 = p2.y.value;
+    auto x2 = p2.x;
+    auto y2 = p2.y;
 
-    Point2D p;
+    CPoint2D p;
 
-    p.x.value = CMathUtil::map(d, 0.0, 1.0, x1, x2);
-    p.y.value = CMathUtil::map(d, 0.0, 1.0, y1, y2);
+    p.x = CMathUtil::map(d, 0.0, 1.0, x1, x2);
+    p.y = CMathUtil::map(d, 0.0, 1.0, y1, y2);
 
     return p;
   }
@@ -224,7 +224,7 @@ class AnimatePoint2D : public AnimateData<Point2D> {
 
 class AnimatePoint3D : public AnimateData<CPoint3D> {
  public:
-  AnimatePoint3D(const CPoint3D &init, const CPoint3D &target=CPoint3D()) :
+  AnimatePoint3D(const CPoint3D &init=CPoint3D(), const CPoint3D &target=CPoint3D()) :
    AnimateData(init, target) {
     value_ = init;
     init_  = init;

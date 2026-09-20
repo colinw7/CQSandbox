@@ -64,10 +64,10 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   auto *tcl = canvas()->tcl();
 
   if      (name == "position") {
-    value = Util::point2DToString(Point2D::makeWindow(position_));
+    value = Util::point2DToString(Point2D::makeWindow(position_.value()));
   }
   else if (name == "center") {
-    auto ppos = pointToPixel(Point2D::makeWindow(position_));
+    auto ppos = pointToPixel(Point2D::makeWindow(position_.value()));
 
     ppos.x.value += image_.width ()/2;
     ppos.y.value += image_.height()/2;
@@ -93,7 +93,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     auto image1 = image_.copy(bbox.getXMin(), bbox.getYMin(), bbox.getWidth(), bbox.getHeight());
 
-    auto *obj = new Image2DObj(canvas(), position_, image1);
+    auto *obj = new Image2DObj(canvas(), position().value(), image1);
 
     auto name = canvas()->addNewObject(obj);
 
@@ -319,7 +319,7 @@ calcRect() const
 
   auto s = canvas()->pixelSizeToWindow(QSizeF(w, h));
 
-  auto pos = pointToPixel(Point2D::makeWindow(position_));
+  auto pos = pointToPixel(Point2D::makeWindow(position_.value()));
 
   if (posType_ == Position::CENTER) {
     pos.x.value -= w/2;
@@ -350,7 +350,7 @@ draw(QPainter *painter)
     int w = image_.width ();
     int h = image_.height();
 
-    auto pos = pointToPixel(Point2D::makeWindow(position_)).qpoint();
+    auto pos = pointToPixel(Point2D::makeWindow(position_.value())).qpoint();
 
     if (posType_ == Position::CENTER) {
       pos.setX(pos.x() - w/2);
@@ -374,6 +374,9 @@ draw(QPainter *painter)
     painter->drawImage(prect, image_);
 
     painter->restore();
+  }
+  else {
+    painter->drawImage(prect, image_);
   }
 
   if (isSelected()) {

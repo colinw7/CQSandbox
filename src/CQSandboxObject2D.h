@@ -142,14 +142,14 @@ class Object2D : public QObject {
 
   //---
 
-  double xPos() const { return position().x; }
-  void setXPos(double x) { setPosition(CPoint2D(x, yPos())); }
+  double xPos() const { return position().value().x; }
+  void setXPos(double x) { setPosition(AnimatePoint2D(CPoint2D(x, yPos()))); }
 
-  double yPos() const { return position().y; }
-  void setYPos(double y) { setPosition(CPoint2D(xPos(), y)); }
+  double yPos() const { return position().value().y; }
+  void setYPos(double y) { setPosition(AnimatePoint2D(CPoint2D(xPos(), y))); }
 
-  virtual const CPoint2D &position() const;
-  virtual void setPosition(const CPoint2D &p);
+  virtual const AnimatePoint2D &position() const;
+  virtual void setPosition(const AnimatePoint2D &p);
 
   //---
 
@@ -163,9 +163,11 @@ class Object2D : public QObject {
 
   virtual void draw(QPainter *) { }
 
+  //---
+
   virtual bool step();
 
-  virtual void move(int, int) { }
+  virtual void move(int dx, int dy);
 
   virtual void press(int x, int y);
   virtual void click(int x, int y);
@@ -181,9 +183,9 @@ class Object2D : public QObject {
  protected:
   using NameValues = std::map<QString, QVariant>;
 
-  Canvas2D* canvas_  { nullptr };
+  Canvas2D* canvas_ { nullptr };
   Type      type_   { Type::NONE };
-  size_t    ind_     { 0 };
+  size_t    ind_    { 0 };
 
   QString id_;
   bool    visible_  { true };
@@ -193,7 +195,7 @@ class Object2D : public QObject {
   bool filled_    { true };
   bool animating_ { false };
 
-  CPoint2D position_;
+  AnimatePoint2D position_;
 
   QPen         pen_;
   AnimateBrush brush_;

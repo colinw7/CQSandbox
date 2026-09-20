@@ -41,7 +41,7 @@ getCommandName() const
 
 //---
 
-const CPoint2D &
+const AnimatePoint2D &
 Object2D::
 position() const
 {
@@ -50,7 +50,7 @@ position() const
 
 void
 Object2D::
-setPosition(const CPoint2D &p)
+setPosition(const AnimatePoint2D &p)
 {
   position_ = p;
 
@@ -96,7 +96,7 @@ pointToWindow(const Point2D &p) const
     return Point2D::makeWindow(x, y);
   }
   else
-    return Point2D::makeWindow(p1.x.value, p1.y.value);
+    return Point2D::makeWindow(p1.point());
 }
 
 Point2D
@@ -153,6 +153,8 @@ getValue(const QString &name, const QStringList &, QVariant &value)
     value = id();
   else if (name == "visible")
     value = isVisible();
+
+  // brush/pen
   else if (name == "brush.color")
     value = Util::colorToString(brush_.value().color());
   else if (name == "brush.target.color")
@@ -165,10 +167,16 @@ getValue(const QString &name, const QStringList &, QVariant &value)
     value = Util::colorToString(pen_.color());
   else if (name == "pen.width")
     value = Util::realToString(pen_.widthF());
+
   else if (name == "group")
     value = (group() ? group()->calcId() : "");
+
+  else if (name == "meta")
+    value = meta_;
   else if (name.left(5) == "user.")
     value = nameValue(name.mid(5));
+
+  // animate
   else if (name.left(8) == "animate.") {
     auto name1 = name.mid(8);
 
@@ -178,8 +186,11 @@ getValue(const QString &name, const QStringList &, QVariant &value)
       return app->errorMsg(QString("Invalid get name '%1' for '%2'").
                arg(name).arg(getCommandName()));
   }
-  else if (name == "meta")
-    value = meta_;
+
+  else if (name == "position") {
+    value = Util::point2DToString(Point2D::makeWindow(position().value()));
+  }
+
   else
     return app->errorMsg(QString("Invalid get name '%1' for '%2'").
              arg(name).arg(getCommandName()));
@@ -198,10 +209,13 @@ setValue(const QString &name, const QString &value, const QStringList &)
     setId(value);
   else if (name == "visible")
     setVisible(Util::stringToBool(value));
+
   else if (name == "stroked")
     setStroked(Util::stringToBool(value));
   else if (name == "filled")
     setFilled(Util::stringToBool(value));
+
+  // brush/pen
   else if (name == "brush.color" || name == "fill.color") {
     auto b = brush_.value();
 
@@ -256,6 +270,7 @@ setValue(const QString &name, const QString &value, const QStringList &)
     pen_.setWidthF(Util::stringToReal(value));
   else if (name == "pen.dash")
     pen_.setDashPattern(stringToDashes(tcl, value));
+
   else if (name == "group") {
     auto *group = dynamic_cast<Group2DObj *>(canvas()->getObjectByName(value));
     if (! group) return app->errorMsg(QString("Failed to find group '%1'").arg(value));
@@ -272,9 +287,14 @@ setValue(const QString &name, const QString &value, const QStringList &)
         canvas()->addObject(this);
     }
   }
+
+  else if (name == "meta") {
+    meta_ = value;
+  }
   else if (name.left(5) == "user.") {
     setNameValue(name.mid(5), value);
   }
+
   else if (name.left(8) == "animate.") {
     auto name1 = name.mid(8);
 
@@ -284,9 +304,15 @@ setValue(const QString &name, const QString &value, const QStringList &)
       return app->errorMsg(QString("Invalid set name '%1' for '%2'").
                arg(name).arg(getCommandName()));
   }
-  else if (name == "meta") {
-    meta_ = value;
+
+  else if (name == "position") {
+    Point2D p;
+    if (! Util::stringToPoint2D(tcl, value, p))
+      return false;
+
+    setPosition(canvas()->pointToWindow(p).point());
   }
+
   else
     return app->errorMsg(QString("Invalid set name '%1' for '%2'").
                arg(name).arg(getCommandName()));
@@ -362,6 +388,17 @@ Object2D::
 step()
 {
   return brush_.step();
+}
+
+void
+Object2D::
+move(int dx, int dy)
+{
+  auto ppos = canvas()->pointToPixel(Point2D::makeWindow(position().value())).point();
+
+  ppos += CPoint2D(dx, dy);
+
+  setPosition(canvas()->pointToWindow(Point2D::makePixel(ppos)).point());
 }
 
 void

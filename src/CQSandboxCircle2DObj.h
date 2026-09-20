@@ -13,13 +13,14 @@ class Circle2DObj : public Object2D {
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  Circle2DObj(Canvas2D *canvas, const Point2D &center, const Coord &radius);
+  Circle2DObj(Canvas2D *canvas, const CPoint2D &center, const Coord &radius);
 
   const char *typeName() const override { return "circle"; }
 
-  const AnimatePoint2D &center() const { return center_; }
-  void setCenter(const AnimatePoint2D &c) { center_ = c; }
-  void setTargetCenter(const Point2D &c) { center_.setTarget(c); }
+  const AnimatePoint2D &center() const { return position(); }
+  void setCenter(const AnimatePoint2D &c) { setPosition(c); }
+
+  void setTargetCenter(const CPoint2D &c) { position_.setTarget(c); }
 
   const AnimateCoord &radius() const { return radius_; }
   void setRadius(const AnimateCoord &r) { radius_ = r; }
@@ -35,7 +36,6 @@ class Circle2DObj : public Object2D {
   void draw(QPainter *) override;
 
  protected:
-  AnimatePoint2D center_;
   AnimateCoord   radius_;
 };
 

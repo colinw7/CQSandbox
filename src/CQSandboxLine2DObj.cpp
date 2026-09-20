@@ -13,15 +13,15 @@ bool
 Line2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
-  if (args.size() != 2) return false;
-
   auto *tcl = canvas->tcl();
 
   Point2D p1, p2;
 
-  if (! Util::stringToPoint2D(tcl, args[0], p1) ||
-      ! Util::stringToPoint2D(tcl, args[1], p2))
-    return false;
+  if (args.size() == 2) {
+    if (! Util::stringToPoint2D(tcl, args[0], p1) ||
+        ! Util::stringToPoint2D(tcl, args[1], p2))
+      return false;
+  }
 
   auto *obj = new Line2DObj(canvas, p1, p2);
 
@@ -36,6 +36,27 @@ Line2DObj::
 Line2DObj(Canvas2D *canvas, const Point2D &p1, const Point2D &p2) :
  Object2D(canvas, Type::LINE), p1_(p1), p2_(p2)
 {
+}
+
+const AnimatePoint2D &
+Line2DObj::
+position() const
+{
+  auto *th = const_cast<Line2DObj *>(this);
+
+  th->position_ = p1_.point();
+
+  return position_;
+}
+
+void
+Line2DObj::
+setPosition(const AnimatePoint2D &p)
+{
+  auto d = p.value() - p1_.point();
+
+  p1_ += Point2D::makeWindow(d);
+  p2_ += Point2D::makeWindow(d);
 }
 
 bool
@@ -93,6 +114,14 @@ draw(QPainter *painter)
   auto p2 = pointToPixel(p2_).qpoint();
 
   painter->drawLine(p1, p2);
+
+  if (isSelected()) {
+    auto prect = QRectF(p1, p2);
+
+    painter->setBrush(canvas()->selectedColor());
+
+    painter->drawRect(prect);
+  }
 }
 
 }

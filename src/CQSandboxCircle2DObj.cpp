@@ -25,7 +25,11 @@ create(Canvas2D *canvas, const QStringList &args)
   if (! Util::stringToCoord(args[1], r))
     return false;
 
-  auto *obj = new Circle2DObj(canvas, center, r);
+  //---
+
+  auto center1 = canvas->pointToWindow(center).point();
+
+  auto *obj = new Circle2DObj(canvas, center1, r);
 
   auto name = canvas->addNewObject(obj);
 
@@ -35,9 +39,10 @@ create(Canvas2D *canvas, const QStringList &args)
 }
 
 Circle2DObj::
-Circle2DObj(Canvas2D *canvas, const Point2D &center, const Coord &radius) :
- Object2D(canvas, Type::CIRCLE), center_(center), radius_(radius)
+Circle2DObj(Canvas2D *canvas, const CPoint2D &center, const Coord &radius) :
+ Object2D(canvas, Type::CIRCLE), radius_(radius)
 {
+  position_ = center;
 }
 
 bool
@@ -47,11 +52,11 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   if      (name == "rect")
     value = Util::rect2DToString(calcRect());
   else if (name == "center")
-    value = Util::point2DToString(center_.value());
+    value = Util::point2DToString(Point2D::makeWindow(position_.value()));
   else if (name == "center.target")
-    value = Util::point2DToString(center_.target());
+    value = Util::point2DToString(position_.target());
   else if (name == "center.steps")
-    value = int(center_.steps());
+    value = int(position_.steps());
   else if (name == "radius")
     value = Util::coordToString(radius_.value());
   else if (name == "radius.target")
@@ -75,17 +80,17 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToPoint2D(tcl, value, p))
       return false;
 
-    center_.setValue(p);
+    position_.setValue(canvas()->pointToWindow(p).point());
   }
   else if (name == "center.target") {
     Point2D p;
     if (! Util::stringToPoint2D(tcl, value, p))
       return false;
 
-    center_.setTarget(p);
+    position_.setTarget(canvas()->pointToWindow(p).point());
   }
   else if (name == "center.steps") {
-    center_.setSteps(Util::stringToInt(value));
+    position_.setSteps(Util::stringToInt(value));
   }
   else if (name == "radius") {
     Coord c;
@@ -114,7 +119,7 @@ Rect2D
 Circle2DObj::
 calcRect() const
 {
-  auto c = pointToWindow(center_.value());
+  auto c = pointToWindow(Point2D::makeWindow(position_.value())).point();
 
   auto radius = radius_.value();
 
@@ -129,8 +134,8 @@ calcRect() const
     yr = std::abs(p2.y.value - p1.y.value);
   }
 
-  auto ll = Point2D::makeWindow(c.x.value - xr, c.y.value - yr);
-  auto ur = Point2D::makeWindow(c.x.value + xr, c.y.value + yr);
+  auto ll = Point2D::makeWindow(c.x - xr, c.y - yr);
+  auto ur = Point2D::makeWindow(c.x + xr, c.y + yr);
 
   return Rect2D(ll, ur);
 }
@@ -139,7 +144,7 @@ bool
 Circle2DObj::
 step()
 {
-  bool b1 = center_.step();
+  bool b1 = position_.step();
   bool b2 = radius_.step();
   bool b3 = Object2D::step();
 
