@@ -15,12 +15,9 @@ class Text2DObj : public Object2D {
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  Text2DObj(Canvas2D *canvas, const Point2D &pos, const QString &text);
+  Text2DObj(Canvas2D *canvas, const CPoint2D &pos, const QString &text);
 
   const char *typeName() const override { return "text"; }
-
-  const Point2D &position() const { return pos_; }
-  void setPosition(const Point2D &v) { pos_ = v; }
 
   const QString &text() const { return text_; }
   void setText(const QString &s) { text_ = s; }
@@ -42,7 +39,6 @@ class Text2DObj : public Object2D {
   void draw(QPainter *) override;
 
  protected:
-  Point2D       pos_;
   QString       text_;
   QFont         font_;
   QPen          border_;

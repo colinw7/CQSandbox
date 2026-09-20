@@ -6,6 +6,7 @@
 #include <CQTclUtil.h>
 
 #include <QPainter>
+#include <QBitmap>
 
 namespace CQSandbox {
 
@@ -38,7 +39,9 @@ create(Canvas2D *canvas, const QStringList &args)
 
   //---
 
-  auto *obj = new Image2DObj(canvas, pos, image);
+  auto pos1 = canvas->pointToWindow(pos).point();
+
+  auto *obj = new Image2DObj(canvas, pos1, image);
 
   auto name = canvas->addNewObject(obj);
 
@@ -48,9 +51,10 @@ create(Canvas2D *canvas, const QStringList &args)
 }
 
 Image2DObj::
-Image2DObj(Canvas2D *canvas, const Point2D &pos, const QImage &image) :
- Object2D(canvas, Type::IMAGE), pos_(pos), image_(image)
+Image2DObj(Canvas2D *canvas, const CPoint2D &pos, const QImage &image) :
+ Object2D(canvas, Type::IMAGE), image_(image)
 {
+  position_ = pos;
 }
 
 bool
@@ -59,20 +63,27 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *tcl = canvas()->tcl();
 
-  if      (name == "position")
-    value = Util::point2DToString(pos_);
+  if      (name == "position") {
+    value = Util::point2DToString(Point2D::makeWindow(position_));
+  }
   else if (name == "center") {
-    auto ppos = pointToPixel(pos_);
+    auto ppos = pointToPixel(Point2D::makeWindow(position_));
 
     ppos.x.value += image_.width ()/2;
     ppos.y.value += image_.height()/2;
 
     value = Util::point2DToString(ppos);
   }
+  else if (name == "size") {
+    auto p = CPoint2D(image_.width(), image_.height());
+
+    value = Util::point2DToString(p);
+  }
   else if (name == "image") {
     value = Util::imageToString(image_);
   }
   else if (name == "sub_image") {
+    // get new image from part of this this
     if (args.size() < 1)
       return false;
 
@@ -82,7 +93,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     auto image1 = image_.copy(bbox.getXMin(), bbox.getYMin(), bbox.getWidth(), bbox.getHeight());
 
-    auto *obj = new Image2DObj(canvas(), pos_, image1);
+    auto *obj = new Image2DObj(canvas(), position_, image1);
 
     auto name = canvas()->addNewObject(obj);
 
@@ -94,7 +105,6 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   return true;
 }
 
-
 bool
 Image2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
@@ -103,16 +113,20 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "position") {
-    if (! Util::stringToPoint2D(tcl, value, pos_))
+    Point2D p;
+    if (! Util::stringToPoint2D(tcl, value, p))
       return false;
 
-    posType_ = Position::TOP_LEFT;
+    position_ = canvas()->pointToWindow(p).point();
+    posType_  = Position::TOP_LEFT;
   }
   else if (name == "center") {
-    if (! Util::stringToPoint2D(tcl, value, pos_))
+    Point2D p;
+    if (! Util::stringToPoint2D(tcl, value, p))
       return false;
 
-    posType_ = Position::CENTER;
+    position_ = canvas()->pointToWindow(p).point();
+    posType_  = Position::CENTER;
   }
   else if (name == "rect") {
     rect_    = Util::stringToRect2D(tcl, value);
@@ -121,11 +135,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "image") {
     if (value != "") {
       if (! Util::stringToImage(value, image_)) {
-        auto *obj = canvas()->getObjectByName(value);
-        if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
-
-        auto *imageObj = dynamic_cast<Image2DObj *>(obj);
-        if (! obj) return false;
+        auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(value));
+        if (! imageObj)
+          return app->errorMsg(QString("Failed to find object '%1'").arg(value));
 
         image_ = imageObj->image();
       }
@@ -154,6 +166,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     image_ = QImage(p.x, p.y, QImage::Format_ARGB32);
   }
   else if (name == "sub_image") {
+    // draw specified image from at point in this image
     if (args.size() < 1)
       return false;
 
@@ -161,16 +174,28 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToPoint2D(tcl, value, p))
       return false;
 
-    auto *obj = canvas()->getObjectByName(args[0]);
-
-    auto *imageObj = dynamic_cast<Image2DObj *>(obj);
-
+    auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(args[0]));
     if (! imageObj)
-      return false;
+      return app->errorMsg(QString("Failed to find object '%1'").arg(args[0]));
 
     QPainter painter(&image_);
 
     painter.drawImage(p.x, p.y, imageObj->image_);
+  }
+  else if (name == "image_mask") {
+    auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(value));
+
+    if (! imageObj)
+      return app->errorMsg(QString("Failed to find image '%1'").arg(value));
+
+    imageMask_ = imageObj->image_;
+  }
+  else if (name == "stroke.width") {
+    double w;
+    if (! Util::stringToReal(value, w))
+      return false;
+
+    pen_.setWidthF(w);
   }
   else
     return Object2D::setValue(name, value, args);
@@ -211,18 +236,41 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 
       if (! Util::stringToColor(tcl, args[1], c))
         return false;
-
-      QPainter painter(&image_);
-
     }
     else
       return false;
 
     QPainter painter(&image_);
 
-    painter.setPen(c);
+    pen_.setColor(c);
+
+    painter.setPen(pen_);
 
     painter.drawRect(rect);
+  }
+  else if (op == "stroke.line") {
+    QPoint p1, p2;
+    QColor c;
+
+    if (args.size() != 3)
+      return false;
+
+    if (! Util::stringToQPoint(tcl, args[0], p1))
+      return false;
+
+    if (! Util::stringToQPoint(tcl, args[1], p2))
+      return false;
+
+    if (! Util::stringToColor(tcl, args[2], c))
+      return false;
+
+    QPainter painter(&image_);
+
+    pen_.setColor(c);
+
+    painter.setPen(pen_);
+
+    painter.drawLine(p1, p2);
   }
   else if (op == "fill.rect") {
     QRect  rect;
@@ -249,7 +297,9 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 
     QPainter painter(&image_);
 
-    painter.fillRect(rect, QBrush(c));
+    brush_ = QBrush(c);
+
+    painter.fillRect(rect, brush_);
   }
   else
     return Object2D::exec(op, args, res);
@@ -269,10 +319,12 @@ calcRect() const
 
   auto s = canvas()->pixelSizeToWindow(QSizeF(w, h));
 
-  auto pos = pointToPixel(pos_);
+  auto pos = pointToPixel(Point2D::makeWindow(position_));
 
-  pos.x.value -= w/2;
-  pos.y.value -= h/2;
+  if (posType_ == Position::CENTER) {
+    pos.x.value -= w/2;
+    pos.y.value -= h/2;
+  }
 
   auto p = pointToWindow(pos);
 
@@ -286,24 +338,48 @@ void
 Image2DObj::
 draw(QPainter *painter)
 {
-  if (posType_ == Position::RECT) {
-    auto prect = canvas()->rectToPixel(rect_).qrect();
+  if (image_.isNull())
+    return;
 
-    painter->drawImage(prect, image_);
+  QRectF prect;
+
+  if (posType_ == Position::RECT) {
+    prect = canvas()->rectToPixel(rect_).qrect();
   }
   else {
-    auto pos = pointToPixel(pos_).qpoint();
+    int w = image_.width ();
+    int h = image_.height();
+
+    auto pos = pointToPixel(Point2D::makeWindow(position_)).qpoint();
 
     if (posType_ == Position::CENTER) {
-      int w = image_.width ();
-      int h = image_.height();
-
       pos.setX(pos.x() - w/2);
       pos.setY(pos.y() - h/2);
     }
 
-    if (! image_.isNull())
-      painter->drawImage(pos, image_);
+    prect = QRectF(pos.x(), pos.y(), w, h);
+  }
+
+  if (! imageMask_.isNull()) {
+    painter->save();
+
+    auto bitmapMask = QBitmap::fromImage(imageMask_.createAlphaMask());
+
+    QRegion clipRegion(bitmapMask);
+
+    clipRegion.translate(prect.left(), prect.top());
+
+    painter->setClipRegion(clipRegion);
+
+    painter->drawImage(prect, image_);
+
+    painter->restore();
+  }
+
+  if (isSelected()) {
+    painter->setBrush(canvas()->selectedColor());
+
+    painter->drawRect(prect);
   }
 }
 

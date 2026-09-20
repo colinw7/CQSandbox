@@ -31,7 +31,11 @@ create(Canvas2D *canvas, const QStringList &args)
       return false;
   }
 
-  auto *obj = new Text2DObj(canvas, pos, text);
+  //---
+
+  auto pos1 = canvas->pointToWindow(pos).point();
+
+  auto *obj = new Text2DObj(canvas, pos1, text);
 
   auto name = canvas->addNewObject(obj);
 
@@ -41,10 +45,11 @@ create(Canvas2D *canvas, const QStringList &args)
 }
 
 Text2DObj::
-Text2DObj(Canvas2D *canvas, const Point2D &pos, const QString &text) :
- Object2D(canvas, Type::TEXT), pos_(pos), text_(text)
+Text2DObj(Canvas2D *canvas, const CPoint2D &pos, const QString &text) :
+ Object2D(canvas, Type::TEXT), text_(text)
 {
-  font_ = canvas->font();
+  position_ = pos;
+  font_     = canvas->font();
 }
 
 bool
@@ -52,7 +57,7 @@ Text2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   if      (name == "position") {
-    value = Util::point2DToString(pos_);
+    value = Util::point2DToString(Point2D::makeWindow(position_));
   }
   else if (name == "text") {
     value = text_;
@@ -76,8 +81,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "position") {
-    if (! Util::stringToPoint2D(tcl, value, pos_))
+    Point2D p;
+    if (! Util::stringToPoint2D(tcl, value, p))
       return false;
+
+    position_ = canvas()->pointToWindow(p).point();
   }
   else if (name == "text") {
     text_ = value;
@@ -122,7 +130,7 @@ calcRect() const
     s = canvas()->pixelSizeToWindow(QSizeF(w, h));
   }
 
-  auto p = pointToWindow(pos_);
+  auto p = pointToWindow(Point2D::makeWindow(position_));
 
   double x = p.x.value;
   double y = p.y.value;

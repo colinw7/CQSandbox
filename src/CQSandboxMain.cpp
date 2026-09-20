@@ -26,14 +26,21 @@ main(int argc, char **argv)
 
   app->resize(2000, 1500);
 
-  QString filename;
-  QString modelName;
-  bool    is2D     { false };
-  bool    is3D     { false };
-  bool    overview { false };
+  QString     filename;
+  QString     modelName;
+  QStringList tclArgs;
+  bool        is2D      { false };
+  bool        is3D      { false };
+  bool        overview  { false };
+  bool        inTclArgs { false };
 
   for (int i = 1; i < argc; ++i) {
     auto arg = QString(argv[i]);
+
+    if (inTclArgs) {
+      tclArgs.push_back(arg);
+      continue;
+    }
 
     if (arg.left(1) == '-') {
       if      (arg == "-2d") {
@@ -52,8 +59,12 @@ main(int argc, char **argv)
         else
           std::cerr << "Missing model\n";
       }
-      else if (arg == "-overview")
+      else if (arg == "-overview") {
         overview = true;
+      }
+      else if (arg == "--tcl") {
+        inTclArgs = true;
+      }
       else
         std::cerr << "Invalid option '" << argv[i] << "\n";
     }
@@ -76,7 +87,7 @@ main(int argc, char **argv)
       app->setOverview(true);
   }
 
-  app->init();
+  app->init(tclArgs);
 
   if (filename != "") {
     if      (is2D) {

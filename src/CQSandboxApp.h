@@ -71,7 +71,7 @@ class App : public QFrame {
 
   bool load(CQTcl *tcl, const QString &filename);
 
-  void init();
+  void init(const QStringList &tclArgs);
   void show();
 
 //bool runTclCmd(const QString &cmd);
@@ -127,6 +127,8 @@ class App : public QFrame {
   static QString s_buildDir;
 
   bool initialized_ { false };
+
+  QStringList tclArgs_;
 
   bool is3D_       { false };
   bool is2D_       { false };

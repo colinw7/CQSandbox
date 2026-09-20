@@ -76,12 +76,17 @@ App(QWidget *parent) :
 
 void
 App::
-init()
+init(const QStringList &tclArgs)
 {
-  if (initialized_)
-    return;
+  assert(! initialized_);
 
   initialized_ = true;
+
+  //---
+
+  tclArgs_ = tclArgs;
+
+  //---
 
   auto *layout = new QVBoxLayout(this);
   layout->setMargin(0); layout->setSpacing(0);
@@ -177,7 +182,7 @@ add3DFrame(Frame3D &frame3D)
 
   //---
 
-  frame3D.canvas->init();
+  frame3D.canvas->init(tclArgs_);
 
   if (frame3D.overview)
     frame3D.overview->init();
@@ -292,7 +297,7 @@ add2DFrame(Frame2D &frame2D)
   frame2D.canvas  = new Canvas2D(this);
   frame2D.toolbar = new CanvasToolbar2D(frame2D.canvas);
 
-  frame2D.canvas->init();
+  frame2D.canvas->init(tclArgs_);
 
   clayout->addWidget(frame2D.toolbar);
   clayout->addWidget(frame2D.canvas);
@@ -314,8 +319,10 @@ void
 App::
 show()
 {
+#if 0
   if (canvas2D())
     canvas2D()->init();
+#endif
 
   QFrame::show();
 }

@@ -96,12 +96,17 @@ tcl() const
 
 void
 Canvas2D::
-init()
+init(const QStringList &tclArgs)
 {
-  if (initialized_)
-    return;
+  assert(! initialized_);
 
   initialized_ = true;
+
+  //---
+
+  tclArgs_ = tclArgs;
+
+  //---
 
   addCommands();
 
@@ -502,7 +507,12 @@ stepInit(bool &buffered)
 
     inited_ = true;
 
-    runTclCmd("init");
+    auto initCmd = QString("init");
+
+    for (const auto &arg : tclArgs_)
+      initCmd += " {" + arg + "}";
+
+    runTclCmd(initCmd);
 
     initRun_ = true;
 
@@ -820,8 +830,13 @@ mousePressEvent(QMouseEvent *e)
   //---
 
   if (mouseData_.button == Qt::LeftButton) {
-    rubberBand_->setBounds(mouseData_.press, mouseData_.move1);
-    rubberBand_->show();
+    auto showRubberBand =
+      (type() == Type::MODEL || (type() == Type::GAME && tclCallbacks_.rubberBandEvent));
+
+    if (showRubberBand) {
+      rubberBand_->setBounds(mouseData_.press, mouseData_.move1);
+      rubberBand_->show();
+    }
   }
 
   //---
@@ -882,8 +897,13 @@ mouseMoveEvent(QMouseEvent *e)
 
   if (mouseData_.pressed) {
     if (mouseData_.button == Qt::LeftButton) {
-      rubberBand_->setBounds(mouseData_.press, mouseData_.move1);
-      rubberBand_->show();
+      auto showRubberBand =
+        (type() == Type::MODEL || (type() == Type::GAME && tclCallbacks_.rubberBandEvent));
+
+      if (showRubberBand) {
+        rubberBand_->setBounds(mouseData_.press, mouseData_.move1);
+        rubberBand_->show();
+      }
     }
 
     if (tclCallbacks_.mouseEvent)
@@ -905,6 +925,22 @@ mouseReleaseEvent(QMouseEvent *e)
 
   //---
 
+  if (type() == Type::MODEL) {
+    bool clear = ! mouseData_.isShift;
+
+    auto dx = std::abs(mouseData_.move2.x() - mouseData_.press.x());
+    auto dy = std::abs(mouseData_.move2.y() - mouseData_.press.y());
+
+    if (dx < 4 && dy < 4) {
+      selectObjectAtPoint(mouseData_.press, clear);
+    }
+    else {
+      selectObjectInsideRect(QRect(mouseData_.press, mouseData_.move2), clear);
+    }
+  }
+
+  //---
+
   if (pressObj_) {
     auto *releaseObj = getObjectAtPos(e->pos());
 
@@ -916,13 +952,19 @@ mouseReleaseEvent(QMouseEvent *e)
 
   //---
 
-  if (tclCallbacks_.rubberBandEvent) {
-    runTclCmd(QString("rubberBandRelease %1 %2 %3 %4").
-      arg(mouseData_.press.x()).arg(mouseData_.press.y()).
-      arg(mouseData_.move2.x()).arg(mouseData_.move2.y()));
-  }
+  if (mouseData_.button == Qt::LeftButton) {
+    auto showRubberBand =
+     (type() == Type::MODEL || (type() == Type::GAME && tclCallbacks_.rubberBandEvent));
 
-  rubberBand_->hide();
+    if (showRubberBand) {
+      rubberBand_->hide();
+
+      if (tclCallbacks_.rubberBandEvent)
+        runTclCmd(QString("rubberBandRelease %1 %2 %3 %4").
+          arg(mouseData_.press.x()).arg(mouseData_.press.y()).
+          arg(mouseData_.move2.x()).arg(mouseData_.move2.y()));
+    }
+  }
 
   //---
 
@@ -1003,12 +1045,61 @@ getKeyString(QKeyEvent *e) const
   return keyStr;
 }
 
+void
+Canvas2D::
+selectObjectAtPoint(const QPoint &p, bool clear)
+{
+  if (clear)
+    deselectAllObjects();
+
+  auto *obj = getObjectAtPos(p);
+
+  if (obj)
+    obj->setSelected(true);
+}
+
+void
+Canvas2D::
+selectObjectInsideRect(const QRect &r, bool clear)
+{
+  if (clear)
+    deselectAllObjects();
+
+  for (auto *viewport : viewports_) {
+    for (auto *obj : viewport->objects) {
+      if (! obj->isVisible())
+        continue;
+
+      auto rect  = obj->calcRect();
+      auto prect = rectToPixel(rect).qrect();
+
+      if (prect.intersects(r))
+        obj->setSelected(true);
+    }
+  }
+}
+
+void
+Canvas2D::
+deselectAllObjects()
+{
+  for (auto *viewport : viewports_) {
+    for (auto *obj : viewport->objects) {
+      if (obj->isSelected())
+        obj->setSelected(false);
+    }
+  }
+}
+
 Object2D *
 Canvas2D::
 getObjectAtPos(const QPoint &pos) const
 {
   for (auto *viewport : viewports_) {
     for (auto *obj : viewport->objects) {
+      if (! obj->isVisible())
+        continue;
+
       auto rect  = obj->calcRect();
       auto prect = rectToPixel(rect).qrect();
 

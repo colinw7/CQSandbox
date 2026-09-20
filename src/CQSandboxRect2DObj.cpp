@@ -82,7 +82,7 @@ draw(QPainter *painter)
   painter->drawRect(prect);
 
   if (isSelected()) {
-    painter->setBrush(QColor(255, 255, 0, 100));
+    painter->setBrush(canvas()->selectedColor());
 
     painter->drawRect(prect);
   }

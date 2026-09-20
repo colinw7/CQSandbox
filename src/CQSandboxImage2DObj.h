@@ -19,7 +19,7 @@ class Image2DObj : public Object2D {
 
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  Image2DObj(Canvas2D *canvas, const Point2D &pos, const QImage &image);
+  Image2DObj(Canvas2D *canvas, const CPoint2D &pos, const QImage &image);
 
   const char *typeName() const override { return "image"; }
 
@@ -35,10 +35,12 @@ class Image2DObj : public Object2D {
   void draw(QPainter *) override;
 
  protected:
-  Point2D  pos_;
   Rect2D   rect_;
   Position posType_ { Position::TOP_LEFT };
   QImage   image_;
+  QImage   imageMask_;
+  QPen     pen_;
+  QBrush   brush_;
 };
 
 }

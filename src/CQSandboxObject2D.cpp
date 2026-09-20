@@ -39,6 +39,26 @@ getCommandName() const
   return QString("sb2d::%1.%2").arg(typeName()).arg(ind_);
 }
 
+//---
+
+const CPoint2D &
+Object2D::
+position() const
+{
+  return position_;
+}
+
+void
+Object2D::
+setPosition(const CPoint2D &p)
+{
+  position_ = p;
+
+  canvas_->update();
+}
+
+//---
+
 Point2D
 Object2D::
 pointToWindow(const Point2D &p) const

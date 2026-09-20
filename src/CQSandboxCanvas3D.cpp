@@ -272,8 +272,16 @@ tcl() const
 
 void
 Canvas3D::
-init()
+init(const QStringList &tclArgs)
 {
+  assert(! initialized_);
+
+  initialized_ = true;
+
+  //---
+
+  tclArgs_ = tclArgs;
+
   addCommands();
 
   //---

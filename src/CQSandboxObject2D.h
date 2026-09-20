@@ -23,6 +23,8 @@ class Object2D : public QObject {
   Q_PROPERTY(QString id       READ id)
   Q_PROPERTY(bool    visible  READ isVisible  WRITE setVisible)
   Q_PROPERTY(bool    selected READ isSelected WRITE setSelected)
+  Q_PROPERTY(double  xPos     READ xPos       WRITE setXPos)
+  Q_PROPERTY(double  yPos     READ yPos       WRITE setYPos)
 
  public:
   enum class Type {
@@ -140,6 +142,17 @@ class Object2D : public QObject {
 
   //---
 
+  double xPos() const { return position().x; }
+  void setXPos(double x) { setPosition(CPoint2D(x, yPos())); }
+
+  double yPos() const { return position().y; }
+  void setYPos(double y) { setPosition(CPoint2D(xPos(), y)); }
+
+  virtual const CPoint2D &position() const;
+  virtual void setPosition(const CPoint2D &p);
+
+  //---
+
   virtual Rect2D calcRect() const { return Rect2D(); }
 
   virtual QPainterPath calcPath() const { return QPainterPath(); }
@@ -179,6 +192,8 @@ class Object2D : public QObject {
   bool stroked_   { true };
   bool filled_    { true };
   bool animating_ { false };
+
+  CPoint2D position_;
 
   QPen         pen_;
   AnimateBrush brush_;

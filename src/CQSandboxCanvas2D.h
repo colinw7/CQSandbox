@@ -31,7 +31,6 @@ struct Viewport;
 
 //---
 
-
 #ifdef CQSANDBOX_CIRCLES
 class CirclesMgr;
 
@@ -221,6 +220,11 @@ class Canvas2D : public QFrame {
 
   //---
 
+  void selectObjectAtPoint(const QPoint &p, bool clear=true);
+  void selectObjectInsideRect(const QRect &r, bool clear=true);
+
+  void deselectAllObjects();
+
   Object2D *getObjectAtPos(const QPoint &pos) const;
   Object2D *getObjectByName(const QString &name) const;
 
@@ -230,7 +234,12 @@ class Canvas2D : public QFrame {
 
   //---
 
-  void init();
+  const QColor &selectedColor() const { return selectedColor_; }
+  void setSelectedColor(const QColor &c) { selectedColor_ = c; }
+
+  //---
+
+  void init(const QStringList &tclArgs);
 
   void addCommands();
 
@@ -357,6 +366,8 @@ class Canvas2D : public QFrame {
   bool inited_      { false };
   bool initRun_     { false };
 
+  QStringList tclArgs_;
+
   QPen   stylePen_;
   QBrush styleBrush_;
 
@@ -381,7 +392,7 @@ class Canvas2D : public QFrame {
   struct TclCallbacks {
     bool mouseEvent      { true };
     bool keyEvent        { true };
-    bool rubberBandEvent { true };
+    bool rubberBandEvent { false };
   };
 
   TclCallbacks tclCallbacks_;
@@ -403,6 +414,8 @@ class Canvas2D : public QFrame {
   KeyPressed keyPressed_;
 
   //---
+
+  QColor selectedColor_ { 255, 255, 0, 100 };
 
   CQRubberBand* rubberBand_ { nullptr };
 };

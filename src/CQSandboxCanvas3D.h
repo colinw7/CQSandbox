@@ -370,7 +370,7 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
-  void init();
+  void init(const QStringList &tclArgs);
 
   void initCamera();
 
@@ -644,11 +644,14 @@ class Canvas3D : public OpenGLWindow {
 
   CQTcl* tcl_ { nullptr };
 
-  bool    looping_        { false };
-  QTimer *timer_          { nullptr };
-  QTimer *uiTimer_        { nullptr };
-  int     redrawTimeOut_  { 100 };
-  uint    ticks_          { 0 };
+  bool    initialized_   { false };
+  bool    looping_       { false };
+  QTimer *timer_         { nullptr };
+  QTimer *uiTimer_       { nullptr };
+  int     redrawTimeOut_ { 100 };
+  uint    ticks_         { 0 };
+
+  QStringList tclArgs_;
 
   bool commandRunning_     { false };
   bool emitObjectsChanged_ { false };

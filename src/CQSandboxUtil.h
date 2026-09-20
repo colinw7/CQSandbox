@@ -86,7 +86,7 @@ inline bool stringToBool(const QString &s) {
 //---
 
 inline bool stringToColor(CQTcl *tcl, const QString &str, QColor &c) {
-  if (str == "none") {
+  if (str == "none" || str == "transparent") {
     c = Qt::transparent;
     return true;
   }

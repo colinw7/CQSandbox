@@ -1,6 +1,8 @@
 #ifndef CQSandboxGeom_H
 #define CQSandboxGeom_H
 
+#include <CPoint2D.h>
+
 #include <QPointF>
 #include <QRectF>
 
@@ -57,6 +59,10 @@ struct Point2D {
     return makeWindow(p.x(), p.y());
   }
 
+  static Point2D makeWindow(const CPoint2D &p) {
+    return makeWindow(p.x, p.y);
+  }
+
   Point2D() { }
 
   Point2D(const Coord &c1, const Coord &c2) :
@@ -65,6 +71,10 @@ struct Point2D {
 
   QPointF qpoint() const {
     return QPointF(x.value, y.value);
+  }
+
+  CPoint2D point() const {
+    return CPoint2D(x.value, y.value);
   }
 
   Coord x;
