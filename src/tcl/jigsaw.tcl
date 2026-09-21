@@ -1,5 +1,15 @@
+# TODO: draw order (layer)
+
+# layer 0 : background (puzzle grid)
+# layer 1 : placed puzzle pieces
+# layer 2 : unplaced puzzle pieces
+
 proc genRect { x y w h } {
   return [list $x $y [expr {$x + $w}] [expr $y + $h]]
+}
+
+proc irandIn { min max } {
+  return [expr {int(rand()*($max - $min) + $min + 0.5)}]
 }
 
 proc randUnit { } {
@@ -39,6 +49,8 @@ proc init { args } {
 
   set ::solveImageWidth  [lindex $size 0]
   set ::solveImageHeight [lindex $size 1]
+
+  $::solveImage set visible 0
 
   # ---
 
@@ -124,10 +136,10 @@ proc init { args } {
   $::tbi_image set position [list $x $y]; incr x $size
   $::bbi_image set position [list $x $y]; incr x $size
 
-  set y 800 ; showSolidPieces $y
-  set y 1100; showBorderPieces $y
+  # set y 800 ; showSolidPieces $y
+  # set y 1100; showBorderPieces $y
 
-  genPuzzle $::solveImageWidth $::solveImageHeight
+  genPuzzle
 }
 
 proc showSolidPieces { y } {
@@ -158,45 +170,45 @@ proc showBorderPieces { y } {
   $piece3 set position [list 600 $y]
 }
 
-proc genPuzzle { iw ih } {
-  set dx [expr {int($iw/$::nx)}]
-  set dy [expr {int($ih/$::ny)}]
+proc genPuzzle { } {
+  set ::imageGridDx [expr {int($::solveImageWidth/$::nx)}]
+  set ::imageGridDy [expr {int($::solveImageHeight/$::ny)}]
 
-  set xscale [expr {(1.0*$dx)/($::w - 2*$::bx)}]
-  set yscale [expr {(1.0*$dy)/($::h - 2*$::by)}]
+  set xscale [expr {(1.0*$::imageGridDx)/($::w - 2*$::bx)}]
+  set yscale [expr {(1.0*$::imageGridDy)/($::h - 2*$::by)}]
 
   set sx [expr {$xscale*$::w}]
   set sy [expr {$yscale*$::h}]
 
-  set bx1 [expr {$xscale*$::bx}]
-  set by1 [expr {$yscale*$::by}]
+  set ::imageGridBx [expr {$xscale*$::bx}]
+  set ::imageGridBy [expr {$yscale*$::by}]
 
   for {set ix 0} {$ix < $::nx} {incr ix} {
     set last_b($ix) 0
   }
 
-  set y1 0
-  set y2 0
+  set y1 8
+  set y2 $y1
 
   for {set iy 0} {$iy < $::ny} {incr iy} {
     set last_r 0
 
-    set y2 [expr {$y1 + $dy}]
+    set y2 [expr {$y1 + $::imageGridDy}]
 
-    set x1 0
-    set x2 0
+    set x1 8
+    set x2 $x1
 
     for {set ix 0} {$ix < $::nx} {incr ix} {
       set ind [expr {$iy*$::nx + $ix}]
 
-      set x2 [expr {$x1 + $dx}]
+      set x2 [expr {$x1 + $::imageGridDx}]
 
       #---
 
-      set xx1 [expr {$x1 - $bx1}]
-      set yy1 [expr {$y1 - $by1}]
-      set xx2 [expr {$x2 + $bx1}]
-      set yy2 [expr {$y2 + $by1}]
+      set xx1 [expr {$x1 - $::imageGridBx}]
+      set yy1 [expr {$y1 - $::imageGridBy}]
+      set xx2 [expr {$x2 + $::imageGridBx}]
+      set yy2 [expr {$y2 + $::imageGridBy}]
 
       #---
 
@@ -213,6 +225,13 @@ proc genPuzzle { iw ih } {
         set b [randUnit]
       }
 
+      #---
+
+      set ::puzzle_grid_x($ind) $xx1
+      set ::puzzle_grid_y($ind) $yy1
+
+      #---
+
       set borderPiece [getBorderJigsawPiece $l $r $t $b]
 
       set ::puzzle_grid_image($ind) [sb::image]
@@ -225,7 +244,8 @@ proc genPuzzle { iw ih } {
 
       $::puzzle_grid_image($ind) exec resize [list $sx $sy]
 
-      $::puzzle_grid_image($ind) set visible 0
+      $::puzzle_grid_image($ind) set layer   0
+      $::puzzle_grid_image($ind) set visible 1
 
       #---
 
@@ -251,6 +271,9 @@ proc genPuzzle { iw ih } {
 
       $::puzzle_piece_image($ind) set image_mask $::puzzle_piece_mask($ind)
 
+      $::puzzle_piece_image($ind) set layer   2
+      $::puzzle_piece_image($ind) set visible 1
+
       #---
 
       set x1 $x2
@@ -261,15 +284,32 @@ proc genPuzzle { iw ih } {
 
     set y1 $y2
   }
+
+  shufflePieces
+}
+
+proc shufflePieces { } {
+  set x1 1024
+  set x2 [expr {$x1 + $::solveImageWidth}]
+  set y1 0
+  set y2 [expr {$y1 + $::solveImageHeight}]
+
+  for {set iy 0} {$iy < $::ny} {incr iy} {
+    for {set ix 0} {$ix < $::nx} {incr ix} {
+      set ind [expr {$iy*$::nx + $ix}]
+
+      set x [irandIn $x1 $x2]
+      set y [irandIn $y1 $y2]
+
+      $::puzzle_piece_image($ind) set position [list $x $y]
+
+      set ::puzzle_piece_solved($ind) 0
+    }
+  }
 }
 
 proc getSolidJigsawPiece { l r t b } {
-  set l1 [expr {$l + 1}]
-  set r1 [expr {$r + 1}]
-  set t1 [expr {$t + 1}]
-  set b1 [expr {$b + 1}]
-
-  set ind [expr {3*(3*(3*$l1 + $r1) + $t1) + $b1}]
+  set ind [getPieceIndex $l $r $t $b]
 
   if {! [info exists ::solid_jigsaw_piece($ind)]} {
     set ::solid_jigsaw_piece($ind) [sb::image]
@@ -340,12 +380,7 @@ proc getSolidJigsawPiece { l r t b } {
 }
 
 proc getBorderJigsawPiece { l r t b } {
-  set l1 [expr {$l + 1}]
-  set r1 [expr {$r + 1}]
-  set t1 [expr {$t + 1}]
-  set b1 [expr {$b + 1}]
-
-  set ind [expr {3*(3*(3*$l1 + $r1) + $t1) + $b1}]
+  set ind [getPieceIndex $l $r $t $b]
 
   if {! [info exists ::border_jigsaw_piece($ind)]} {
     set ::border_jigsaw_piece($ind) [sb::image]
@@ -428,4 +463,110 @@ proc getBorderJigsawPiece { l r t b } {
   }
 
   return $::border_jigsaw_piece($ind)
+}
+
+proc getPieceIndex { l r t b } {
+  set l1 [expr {$l + 1}]
+  set r1 [expr {$r + 1}]
+  set t1 [expr {$t + 1}]
+  set b1 [expr {$b + 1}]
+
+  return [expr {3*(3*(3*$l1 + $r1) + $t1) + $b1}]
+}
+
+proc mousePress { x y } {
+  set minInd -1
+  set minD   0
+
+  for {set iy 0} {$iy < $::ny} {incr iy} {
+    for {set ix 0} {$ix < $::nx} {incr ix} {
+      set ind [expr {$iy*$::nx + $ix}]
+
+      if {$::puzzle_piece_solved($ind)} {
+        continue
+      }
+
+      set pos [$::puzzle_piece_image($ind) get position]
+
+      set xc [expr {[lindex $pos 0] + $::imageGridDx/2 + $::imageGridBx}]
+      set yc [expr {[lindex $pos 1] + $::imageGridDy/2 + $::imageGridBy}]
+
+      set dx [expr {$x - $xc}]
+      set dy [expr {$y - $yc}]
+
+      set d [hypot $dx $dy]
+
+      if {$minInd < 0 || $d < $minD} {
+        set minInd $ind
+        set minD   $d
+      }
+    }
+  }
+
+  if {$minD < $::imageGridDx || $minD < $::imageGridDy} {
+    set ::mouseMoveInd $minInd
+
+    set pos [$::puzzle_piece_image($::mouseMoveInd) get position]
+
+    set ::mouseMoveDx [expr {$x - [lindex $pos 0]}]
+    set ::mouseMoveDy [expr {$y - [lindex $pos 1]}]
+  } else {
+    set ::mouseMoveInd -1
+
+    set ::mouseMoveDx 0
+    set ::mouseMoveDy 0
+  }
+}
+
+proc mouseMove { x y } {
+  if {$::mouseMoveInd >= 0} {
+    set x1 [expr {$x - $::mouseMoveDx}]
+    set y1 [expr {$y - $::mouseMoveDy}]
+
+    $::puzzle_piece_image($::mouseMoveInd) set position [list $x1 $y1]
+  }
+}
+
+proc mouseRelease { x y } {
+  if {$::mouseMoveInd >= 0} {
+    set pos [$::puzzle_piece_image($::mouseMoveInd) get position]
+
+    set dx [expr {$::puzzle_grid_x($::mouseMoveInd) - [lindex $pos 0]}]
+    set dy [expr {$::puzzle_grid_y($::mouseMoveInd) - [lindex $pos 1]}]
+
+    set d [hypot $dx $dy]
+
+    if {$d < $::imageGridDx/4 || $d < $::imageGridDy/4} {
+      $::puzzle_piece_image($::mouseMoveInd) set position \
+        [list $::puzzle_grid_x($::mouseMoveInd) $::puzzle_grid_y($::mouseMoveInd)]
+
+      $::puzzle_piece_image($::mouseMoveInd) set layer 1
+
+      set ::puzzle_piece_solved($::mouseMoveInd) 1
+
+      if {[checkSolved]} {
+        echo "Solved"
+      }
+    }
+
+    set ::mouseMoveInd -1
+  }
+}
+
+proc checkSolved { } {
+  for {set iy 0} {$iy < $::ny} {incr iy} {
+    for {set ix 0} {$ix < $::nx} {incr ix} {
+      set ind [expr {$iy*$::nx + $ix}]
+
+      if {! $::puzzle_piece_solved($ind)} {
+        return 0
+      }
+    }
+  }
+
+  return 1
+}
+
+proc hypot { dx dy } {
+  return [expr {sqrt($dx*$dx + $dy*$dy)}]
 }

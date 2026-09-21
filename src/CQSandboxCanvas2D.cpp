@@ -723,9 +723,19 @@ drawStep()
 
     runTclCmd(QString("drawBg %1").arg(viewport->name));
 
+    std::map<int, Objects> layerObjects;
+
     for (auto *obj : viewport->objects) {
-      if (obj->isVisible())
+      if (! obj->isVisible())
+        continue;
+
+      layerObjects[obj->layer()].push_back(obj);
+    }
+
+    for (const auto &po : layerObjects) {
+      for (auto *obj : po.second) {
         obj->draw(painter_);
+      }
     }
 
     auto np = psys_->numberOfParticles();

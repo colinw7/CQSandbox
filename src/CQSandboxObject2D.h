@@ -23,6 +23,7 @@ class Object2D : public QObject {
   Q_PROPERTY(QString id       READ id)
   Q_PROPERTY(bool    visible  READ isVisible  WRITE setVisible)
   Q_PROPERTY(bool    selected READ isSelected WRITE setSelected)
+  Q_PROPERTY(int     layer    READ layer      WRITE setLayer)
   Q_PROPERTY(double  xPos     READ xPos       WRITE setXPos)
   Q_PROPERTY(double  yPos     READ yPos       WRITE setYPos)
 
@@ -89,6 +90,9 @@ class Object2D : public QObject {
 
   bool isAnimating() const { return animating_; }
   void setAnimating(bool b) { animating_ = b; }
+
+  int layer() const { return layer_; }
+  void setLayer(int i) { layer_ = i; }
 
   //---
 
@@ -197,6 +201,8 @@ class Object2D : public QObject {
   bool stroked_   { true };
   bool filled_    { true };
   bool animating_ { false };
+
+  int layer_ { -1 };
 
   AnimatePoint2D position_;
 

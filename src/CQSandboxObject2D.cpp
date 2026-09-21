@@ -151,8 +151,17 @@ getValue(const QString &name, const QStringList &, QVariant &value)
 
   if      (name == "id")
     value = id();
-  else if (name == "visible")
+
+  // state
+  else if (name == "visible") {
     value = isVisible();
+  }
+  else if (name == "selected") {
+    value = isSelected();
+  }
+  else if (name == "layer") {
+    value = layer();
+  }
 
   // brush/pen
   else if (name == "brush.color")
@@ -207,13 +216,36 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
   if      (name == "id")
     setId(value);
-  else if (name == "visible")
-    setVisible(Util::stringToBool(value));
 
-  else if (name == "stroked")
+  // state
+  else if (name == "visible") {
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setVisible(b);
+  }
+  else if (name == "selected") {
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setSelected(b);
+  }
+  else if (name == "layer") {
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    setLayer(i);
+  }
+
+  else if (name == "stroked") {
     setStroked(Util::stringToBool(value));
-  else if (name == "filled")
+  }
+  else if (name == "filled") {
     setFilled(Util::stringToBool(value));
+  }
 
   // brush/pen
   else if (name == "brush.color" || name == "fill.color") {
