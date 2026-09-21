@@ -24,9 +24,16 @@ class Renderer2DObj : public Object2D {
   bool exec(const QString &op, const QStringList &args, QVariant &res) override;
 
  private:
-  QBrush brush_;
-  QPen   pen_;
-  QFont  font_;
+  QPainter *getPainter() const;
+
+ private:
+  Rect2D    rect_;
+  bool      rectSet_ { false };
+  QBrush    brush_;
+  QPen      pen_;
+  QFont     font_;
+  QImage    image_;
+  QPainter* painter_ { nullptr };
 };
 
 }

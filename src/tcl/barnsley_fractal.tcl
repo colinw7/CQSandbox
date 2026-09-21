@@ -8,7 +8,7 @@ proc init { } {
 
   sb::canvas set window.size [list $::windowWidth $::windowHeight]
 
-  set ::PI 3.1415926535897931
+  # set ::PI 3.1415926535897931
 
   sb::canvas set controls.show 1
 
@@ -28,15 +28,19 @@ proc init { } {
 
   sb::ui create "\
 <qxml>\n\
-<QPushButton text=\"Type 1\" onClicked=\"setType 0\"/>\n\
-<QPushButton text=\"Type 2\" onClicked=\"setType 1\"/>\n\
-<QPushButton text=\"Type 3\" onClicked=\"setType 2\"/>\n\
-<QPushButton text=\"Type 4\" onClicked=\"setType 3\"/>\n\
+<QPushButton text=\"Type 1\" onClicked=\"setType\" onData=\"0\"/>\n\
+<QPushButton text=\"Type 2\" onClicked=\"setType\" onData=\"1\"/>\n\
+<QPushButton text=\"Type 3\" onClicked=\"setType\" onData=\"2\"/>\n\
+<QPushButton text=\"Type 4\" onClicked=\"setType\" onData=\"3\"/>\n\
 <QLayoutItem stretch=\"1\"/>\n\
 </qxml>"
 }
 
-proc setType { ind } {
+proc setType { args } {
+  echo "setType $args"
+
+  set ind [lindex $args 0]
+
   if {$ind == $::type_ind} {
     return
   }
@@ -277,7 +281,7 @@ proc resize { args } {
 }
 
 proc drawBg { args } {
-  echo "> drawBg $::type_ind"
+  # echo "> drawBg $args"
 
   for {set y 0} {$y < $::canvasSize} {incr y} {
     set yy [pixelYToUser $y]

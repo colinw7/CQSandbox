@@ -20,7 +20,7 @@ proc init { } {
 
   set ::renderer [sb::renderer]
 
-  set ::PI 3.1415926535897931
+  # set ::PI 3.1415926535897931
 
   set ::xf [expr {(1.0/($::pixelWidth  - 1))*($::xmax - $::xmin)}]
   set ::yf [expr {(1.0/($::pixelHeight - 1))*($::ymin - $::ymax)}]

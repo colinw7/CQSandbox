@@ -383,6 +383,8 @@ addCommands()
 
   tcl->createAlias("echo", "puts");
 
+  tcl->setVar("PI", M_PI);
+
   // global
   tcl->createObjCommand("sb3d::canvas",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas3D::canvasProc),

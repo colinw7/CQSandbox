@@ -39,8 +39,8 @@ proc init { } {
 
   setMoveColor "White"
 
-  set ::white_image [loadImage "othello/white_piece.png"]
-  set ::black_image [loadImage "othello/black_piece.png"]
+  set ::white_image [loadImage "tcl/othello/white_piece.png"]
+  set ::black_image [loadImage "tcl/othello/black_piece.png"]
 
   sb::canvas set range {0 0 100 100}
 
@@ -611,7 +611,7 @@ proc mousePress { x y } {
 
   set pos [pointToPos $x $y]
 
-  echo "$x $y $pos"
+  # echo "$x $y $pos"
 
   set c [lindex $pos 0]
   set r [lindex $pos 1]

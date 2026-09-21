@@ -179,6 +179,8 @@ addCommands()
 
   tcl->createAlias("echo", "puts");
 
+  tcl->setVar("PI", M_PI);
+
   // global
   tcl->createObjCommand("sb::canvas",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::canvasProc),

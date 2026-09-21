@@ -8,7 +8,7 @@ proc init { } {
 
   sb::canvas set window.size [list $::windowWidth $::windowHeight]
 
-  set ::PI 3.1415926535897931
+  # set ::PI 3.1415926535897931
 
   sb::canvas set controls.show 1
 
@@ -28,16 +28,18 @@ proc init { } {
 
   sb::ui create "\
 <qxml>\n\
-<QPushButton text=\"COS\"  onClicked=\"setType COS\"/>\n\
-<QPushButton text=\"SIN\"  onClicked=\"setType SIN\"/>\n\
-<QPushButton text=\"SINH\" onClicked=\"setType SINH\"/>\n\
-<QPushButton text=\"COSH\" onClicked=\"setType COSH\"/>\n\
-<QPushButton text=\"EXP\" onClicked=\"setType EXP\"/>\n\
+<QPushButton text=\"COS\"  onClicked=\"setType\" onData=\"COS\"/>\n\
+<QPushButton text=\"SIN\"  onClicked=\"setType\" onData=\"SIN\"/>\n\
+<QPushButton text=\"SINH\" onClicked=\"setType\" onData=\"SINH\"/>\n\
+<QPushButton text=\"COSH\" onClicked=\"setType\" onData=\"COSH\"/>\n\
+<QPushButton text=\"EXP\" onClicked=\"setType\" onData=\"EXP\"/>\n\
 <QLayoutItem stretch=\"1\"/>\n\
 </qxml>"
 }
 
-proc setType { type } {
+proc setType { args } {
+  set type [lindex $args 0]
+
   if {$type == $::type} {
     return
   }
@@ -263,7 +265,7 @@ proc pixelYToUser { y } {
   return [expr {$y*$::yf + $::ymax}]
 }
 
-proc drawBg { args } {
+proc drawBg { type } {
   echo "> drawBg $::type"
 
   for {set y 0} {$y < $::canvasSize} {incr y} {

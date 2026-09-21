@@ -30,7 +30,7 @@ proc addToothedWheel { x y r rot t } {
 }
 
 proc init { } {
-  set ::PI 3.1415926535897931
+  # set ::PI 3.1415926535897931
 
   sb::canvas set range {-100 -100 100 100}
 
