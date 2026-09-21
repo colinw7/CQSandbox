@@ -4,6 +4,7 @@
 #include <CQSandboxObject2D.h>
 
 #include <QPainterPath>
+#include <QBitmap>
 
 namespace CQSandbox {
 
@@ -39,6 +40,7 @@ class Image2DObj : public Object2D {
   Position posType_ { Position::TOP_LEFT };
   QImage   image_;
   QImage   imageMask_;
+  QBitmap  bitmapMask_;
   QPen     pen_;
   QBrush   brush_;
 };

@@ -124,18 +124,38 @@ proc init { args } {
   $::tbi_image set position [list $x $y]; incr x $size
   $::bbi_image set position [list $x $y]; incr x $size
 
-  set piece1 [getSolidJigsawPiece -1  1 -1  1]
-  set piece2 [getSolidJigsawPiece  1 -1  1 -1]
+  set y 800 ; showSolidPieces $y
+  set y 1100; showBorderPieces $y
 
-  set y 1024
+  genPuzzle $::solveImageWidth $::solveImageHeight
+}
+
+proc showSolidPieces { y } {
+  set piece1 [getSolidJigsawPiece -1 -1 -1  -1]
+  set piece2 [getSolidJigsawPiece  0  0  0   0]
+  set piece3 [getSolidJigsawPiece  1  1  1   1]
+  
+  $piece1 set visible 1
+  $piece2 set visible 1
+  $piece3 set visible 1
+  
+  $piece1 set position [list   0 $y]
+  $piece2 set position [list 300 $y]
+  $piece3 set position [list 600 $y]
+}
+
+proc showBorderPieces { y } {
+  set piece1 [getBorderJigsawPiece -1 -1 -1  -1]
+  set piece2 [getBorderJigsawPiece  0  0  0   0]
+  set piece3 [getBorderJigsawPiece  1  1  1   1]
 
   $piece1 set visible 1
   $piece2 set visible 1
+  $piece3 set visible 1
 
   $piece1 set position [list   0 $y]
   $piece2 set position [list 300 $y]
-
-  genPuzzle $::solveImageWidth $::solveImageHeight
+  $piece3 set position [list 600 $y]
 }
 
 proc genPuzzle { iw ih } {
@@ -219,6 +239,8 @@ proc genPuzzle { iw ih } {
 
       $::puzzle_piece_mask($ind) exec resize [list $sx $sy]
 
+      $::puzzle_piece_mask($ind) set visible 0
+
       set ::puzzle_piece_image($ind) [$::solveImage get sub_image [list $xx1 $yy1 $xx2 $yy2]]
 
       $::puzzle_piece_image($ind) set id "puzzle_piece_image($ind)"
@@ -242,7 +264,12 @@ proc genPuzzle { iw ih } {
 }
 
 proc getSolidJigsawPiece { l r t b } {
-  set ind [expr {3*(3*(3*$l + $r) + $t) + $b}]
+  set l1 [expr {$l + 1}]
+  set r1 [expr {$r + 1}]
+  set t1 [expr {$t + 1}]
+  set b1 [expr {$b + 1}]
+
+  set ind [expr {3*(3*(3*$l1 + $r1) + $t1) + $b1}]
 
   if {! [info exists ::solid_jigsaw_piece($ind)]} {
     set ::solid_jigsaw_piece($ind) [sb::image]
@@ -255,12 +282,10 @@ proc getSolidJigsawPiece { l r t b } {
 
     $::solid_jigsaw_piece($ind) exec fill.rect transparent
 
-    set x1 [expr {$::bx}]
-    set y1 [expr {$::by}]
-    set x2 [expr {$::w - $::bx}]
-    set y2 [expr {$::h - $::by}]
-
-    $::solid_jigsaw_piece($ind) exec fill.rect [list $x1 $y1 $x2 $y2] black
+    set x1 [expr {2*$::bx}]
+    set y1 [expr {2*$::by}]
+    set x2 [expr {$::w - 2*$::bx}]
+    set y2 [expr {$::h - 2*$::by}]
 
     set x 0
     set y 0
@@ -269,6 +294,8 @@ proc getSolidJigsawPiece { l r t b } {
       $::solid_jigsaw_piece($ind) set sub_image [list $x $y] $::lsi_image
     } elseif {$l > 0} {
       $::solid_jigsaw_piece($ind) set sub_image [list $x $y] $::lso_image
+    } else {
+      set x1 [expr {$::bx}]
     }
 
     set x [expr {$::w - 2*$::bx}]
@@ -278,6 +305,8 @@ proc getSolidJigsawPiece { l r t b } {
       $::solid_jigsaw_piece($ind) set sub_image [list $x $y] $::rsi_image
     } elseif {$r > 0} {
       $::solid_jigsaw_piece($ind) set sub_image [list $x $y] $::rso_image
+    } else {
+      set x2 [expr {$::w - $::bx - 2}]
     }
 
     set x 0
@@ -287,6 +316,8 @@ proc getSolidJigsawPiece { l r t b } {
       $::solid_jigsaw_piece($ind) set sub_image [list $x $y] $::tsi_image
     } elseif {$t > 0} {
       $::solid_jigsaw_piece($ind) set sub_image [list $x $y] $::tso_image
+    } else {
+      set y1 [expr {$::bx}]
     }
 
     set x 0
@@ -296,16 +327,25 @@ proc getSolidJigsawPiece { l r t b } {
       $::solid_jigsaw_piece($ind) set sub_image [list $x $y] $::bsi_image
     } elseif {$b > 0} {
       $::solid_jigsaw_piece($ind) set sub_image [list $x $y] $::bso_image
+    } else {
+      set y2 [expr {$::h - $::by}]
     }
 
-    $::solid_jigsaw_piece($ind) exec stroke.rect blue
+    $::solid_jigsaw_piece($ind) exec fill.rect [list $x1 $y1 $x2 $y2] black
+
+    # $::solid_jigsaw_piece($ind) exec stroke.rect blue
   }
 
   return $::solid_jigsaw_piece($ind)
 }
 
 proc getBorderJigsawPiece { l r t b } {
-  set ind [expr {3*(3*(3*$l + $r) + $t) + $b}]
+  set l1 [expr {$l + 1}]
+  set r1 [expr {$r + 1}]
+  set t1 [expr {$t + 1}]
+  set b1 [expr {$b + 1}]
+
+  set ind [expr {3*(3*(3*$l1 + $r1) + $t1) + $b1}]
 
   if {! [info exists ::border_jigsaw_piece($ind)]} {
     set ::border_jigsaw_piece($ind) [sb::image]
@@ -318,14 +358,10 @@ proc getBorderJigsawPiece { l r t b } {
 
     $::border_jigsaw_piece($ind) exec fill.rect transparent
 
-    set x1 [expr {$::bx}]
-    set y1 [expr {$::by}]
-    set x2 [expr {$::w - $::bx}]
-    set y2 [expr {$::h - $::by}]
-
-    $::border_jigsaw_piece($ind) exec fill.rect [list $x1 $y1 $x2 $y2] white
-
-    $::border_jigsaw_piece($ind) set stroke.width 5
+    set x1 [expr {2*$::bx}]
+    set y1 [expr {2*$::by}]
+    set x2 [expr {$::w - 2*$::bx}]
+    set y2 [expr {$::h - 2*$::by}]
 
     set x 0
     set y 0
@@ -335,7 +371,7 @@ proc getBorderJigsawPiece { l r t b } {
     } elseif {$l > 0} {
       $::border_jigsaw_piece($ind) set sub_image [list $x $y] $::lbo_image
     } else {
-      $::border_jigsaw_piece($ind) exec stroke.line [list $x1 $y1] [list $x1 $y2] black
+      set x1 [expr {$::bx}]
     }
 
     set x [expr {$::w - 2*$::bx}]
@@ -346,7 +382,7 @@ proc getBorderJigsawPiece { l r t b } {
     } elseif {$r > 0} {
       $::border_jigsaw_piece($ind) set sub_image [list $x $y] $::rbo_image
     } else {
-      $::border_jigsaw_piece($ind) exec stroke.line [list $x2 $y1] [list $x2 $y2] black
+      set x2 [expr {$::w - $::bx - 2}]
     }
 
     set x 0
@@ -357,7 +393,7 @@ proc getBorderJigsawPiece { l r t b } {
     } elseif {$t > 0} {
       $::border_jigsaw_piece($ind) set sub_image [list $x $y] $::tbo_image
     } else {
-      $::border_jigsaw_piece($ind) exec stroke.line [list $x1 $y1] [list $x2 $y1] black
+      set y1 [expr {$::bx}]
     }
 
     set x 0
@@ -368,6 +404,23 @@ proc getBorderJigsawPiece { l r t b } {
     } elseif {$b > 0} {
       $::border_jigsaw_piece($ind) set sub_image [list $x $y] $::bbo_image
     } else {
+      set y2 [expr {$::h - $::by}]
+    }
+
+    $::border_jigsaw_piece($ind) exec fill.rect [list $x1 $y1 $x2 $y2] white
+
+    $::border_jigsaw_piece($ind) set stroke.width 5
+
+    if {$l == 0} {
+      $::border_jigsaw_piece($ind) exec stroke.line [list $x1 $y1] [list $x1 $y2] black
+    }
+    if {$r == 0} {
+      $::border_jigsaw_piece($ind) exec stroke.line [list $x2 $y1] [list $x2 $y2] black
+    }
+    if {$t == 0} {
+      $::border_jigsaw_piece($ind) exec stroke.line [list $x1 $y1] [list $x2 $y1] black
+    }
+    if {$b == 0} {
       $::border_jigsaw_piece($ind) exec stroke.line [list $x1 $y2] [list $x2 $y2] black
     }
 

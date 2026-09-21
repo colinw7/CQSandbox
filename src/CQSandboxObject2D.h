@@ -82,10 +82,10 @@ class Object2D : public QObject {
   //---
 
   bool isVisible() const { return visible_; }
-  void setVisible(bool b) { visible_ = b; }
+  void setVisible(bool b) { visible_ = b; Q_EMIT stateChanged(); }
 
   bool isSelected() const { return selected_; }
-  void setSelected(bool b) { selected_ = b; }
+  void setSelected(bool b) { selected_ = b; Q_EMIT stateChanged(); }
 
   bool isAnimating() const { return animating_; }
   void setAnimating(bool b) { animating_ = b; }
@@ -179,6 +179,9 @@ class Object2D : public QObject {
   Point2D pointToPixel(const Point2D &p) const;
 
   Rect2D rectToWindow(const Rect2D &r) const;
+
+ Q_SIGNALS:
+  void stateChanged();
 
  protected:
   using NameValues = std::map<QString, QVariant>;

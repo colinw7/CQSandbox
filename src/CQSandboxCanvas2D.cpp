@@ -929,17 +929,24 @@ mouseReleaseEvent(QMouseEvent *e)
 
   //---
 
-  if (type() == Type::MODEL) {
-    bool clear = ! mouseData_.isShift;
+  auto showRubberBand =
+   (type() == Type::MODEL || (type() == Type::GAME && tclCallbacks_.rubberBandEvent));
 
-    auto dx = std::abs(mouseData_.move2.x() - mouseData_.press.x());
-    auto dy = std::abs(mouseData_.move2.y() - mouseData_.press.y());
+  if (mouseData_.button == Qt::LeftButton) {
+    if (showRubberBand) {
+      if (type() == Type::MODEL) {
+        bool clear = ! mouseData_.isShift;
 
-    if (dx < 4 && dy < 4) {
-      selectObjectAtPoint(mouseData_.press, clear);
-    }
-    else {
-      selectObjectInsideRect(QRect(mouseData_.press, mouseData_.move2), clear);
+        auto dx = std::abs(mouseData_.move2.x() - mouseData_.press.x());
+        auto dy = std::abs(mouseData_.move2.y() - mouseData_.press.y());
+
+        if (dx < 4 && dy < 4) {
+          selectObjectAtPoint(mouseData_.press, clear);
+        }
+        else {
+          selectObjectInsideRect(QRect(mouseData_.press, mouseData_.move2), clear);
+        }
+      }
     }
   }
 
@@ -957,9 +964,6 @@ mouseReleaseEvent(QMouseEvent *e)
   //---
 
   if (mouseData_.button == Qt::LeftButton) {
-    auto showRubberBand =
-     (type() == Type::MODEL || (type() == Type::GAME && tclCallbacks_.rubberBandEvent));
-
     if (showRubberBand) {
       rubberBand_->hide();
 
@@ -1095,6 +1099,18 @@ deselectAllObjects()
   }
 }
 
+void
+Canvas2D::
+getSelectedObjects(std::vector<Object2D *> &objects) const
+{
+  for (auto *viewport : viewports_) {
+    for (auto *obj : viewport->objects) {
+      if (obj->isSelected())
+        objects.push_back(obj);
+    }
+  }
+}
+
 Object2D *
 Canvas2D::
 getObjectAtPos(const QPoint &pos) const
@@ -1146,6 +1162,8 @@ addNewObject(Object2D *obj)
     createObjTclCommand(obj);
   else
     createObjCommand(obj);
+
+  connect(obj, SIGNAL(stateChanged()), this, SLOT(updateStatus()));
 
   return obj->calcId();
 }
@@ -2149,6 +2167,30 @@ uiProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   }
 
   return TCL_OK;
+}
+
+//---
+
+void
+Canvas2D::
+updateStatus()
+{
+  std::vector<Object2D *> objects;
+  getSelectedObjects(objects);
+
+  auto str = QString("Selected: ");
+
+  if      (objects.empty() == 1) {
+    str += "None";
+  }
+  else if (objects.size() == 1) {
+    str += objects[0]->calcId();
+  }
+  else {
+    str += QString::number(objects.size());
+  }
+
+  app_->status()->setText(str);
 }
 
 //---

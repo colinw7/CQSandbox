@@ -6,7 +6,6 @@
 #include <CQTclUtil.h>
 
 #include <QPainter>
-#include <QBitmap>
 
 namespace CQSandbox {
 
@@ -188,7 +187,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! imageObj)
       return app->errorMsg(QString("Failed to find image '%1'").arg(value));
 
-    imageMask_ = imageObj->image_;
+    imageMask_  = imageObj->image_;
+    bitmapMask_ = QBitmap::fromImage(imageMask_.createAlphaMask());
   }
   else if (name == "stroke.width") {
     double w;
@@ -363,9 +363,7 @@ draw(QPainter *painter)
   if (! imageMask_.isNull()) {
     painter->save();
 
-    auto bitmapMask = QBitmap::fromImage(imageMask_.createAlphaMask());
-
-    QRegion clipRegion(bitmapMask);
+    QRegion clipRegion(bitmapMask_);
 
     clipRegion.translate(prect.left(), prect.top());
 
@@ -373,16 +371,22 @@ draw(QPainter *painter)
 
     painter->drawImage(prect, image_);
 
+    if (isSelected()) {
+      painter->setBrush(canvas()->selectedColor());
+
+      painter->drawRect(prect);
+    }
+
     painter->restore();
   }
   else {
     painter->drawImage(prect, image_);
-  }
 
-  if (isSelected()) {
-    painter->setBrush(canvas()->selectedColor());
+    if (isSelected()) {
+      painter->setBrush(canvas()->selectedColor());
 
-    painter->drawRect(prect);
+      painter->drawRect(prect);
+    }
   }
 }
 

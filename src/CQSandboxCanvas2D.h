@@ -225,6 +225,8 @@ class Canvas2D : public QFrame {
 
   void deselectAllObjects();
 
+  void getSelectedObjects(std::vector<Object2D *> &objects) const;
+
   Object2D *getObjectAtPos(const QPoint &pos) const;
   Object2D *getObjectByName(const QString &name) const;
 
@@ -325,6 +327,8 @@ class Canvas2D : public QFrame {
   void timerSlot();
   void stepTimerSlot();
   void drawTimerSlot();
+
+  void updateStatus();
 
  protected:
   using Objects = std::vector<Object2D *>;
