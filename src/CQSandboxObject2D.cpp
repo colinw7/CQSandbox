@@ -137,10 +137,11 @@ calcId() const
 
 //---
 
-void
+bool
 Object2D::
 init()
 {
+  return true;
 }
 
 bool

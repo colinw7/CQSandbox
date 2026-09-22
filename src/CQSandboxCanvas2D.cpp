@@ -20,6 +20,9 @@
 #include <CQSandboxText2DObj.h>
 #include <CQSandboxVector2DObj.h>
 
+#include <CQSandboxClass2DObj.h>
+#include <CQSandboxInstance2DObj.h>
+
 #include <CQSandboxParticleSystem.h>
 #include <CQSandboxControl2D.h>
 #include <CQSandboxViewport.h>
@@ -53,6 +56,17 @@ int createObjectProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
   auto args = th->app()->getArgs(objc, objv);
 
   if (! T::create(th, args))
+    return TCL_ERROR;
+
+  return TCL_OK;
+}
+
+template<typename T>
+int createTclObjectProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv) {
+  auto *th = static_cast<Canvas2D *>(clientData);
+  assert(th);
+
+  if (! T::create(th, objc, objv))
     return TCL_ERROR;
 
   return TCL_OK;
@@ -293,9 +307,12 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Renderer2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+#if 0
+  // TODO: remove
   tcl->createObjCommand("sb::draw_point",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::drawPointProc),
     static_cast<CQTcl::ObjCmdData>(this));
+#endif
 
   //---
 
@@ -319,12 +336,15 @@ addCommands()
   //---
 
   // math
+
+#if 0
   tcl->createObjCommand("sb::fmul",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::fmulProc),
     static_cast<CQTcl::ObjCmdData>(this));
   tcl->createObjCommand("sb::fma", // fused multiply and add (A*B) + C
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::fmaProc),
     static_cast<CQTcl::ObjCmdData>(this));
+#endif
 
   tcl->createObjCommand("sb::hypot",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::hypotProc),
@@ -334,6 +354,21 @@ addCommands()
 
   tcl->createObjCommand("sb::help",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::helpProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  //---
+
+  tcl->createObjCommand("sb::class",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Class2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::method",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::methodProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::instance",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createTclObjectProc<Instance2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::invoke",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::invokeProc),
     static_cast<CQTcl::ObjCmdData>(this));
 }
 
@@ -1211,6 +1246,34 @@ removeObject(Object2D *obj)
   Q_EMIT objectsChanged();
 }
 
+//---
+
+bool
+Canvas2D::
+addClass(Class2DObj *obj)
+{
+  auto pc = classes_.find(obj->name());
+
+  if (pc != classes_.end())
+    return false;
+
+  classes_[obj->name()] = obj;
+
+  return true;
+}
+
+Class2DObj *
+Canvas2D::
+getClass(const QString &name) const
+{
+  auto pc = classes_.find(name);
+  if (pc == classes_.end()) return nullptr;
+
+  return (*pc).second;
+}
+
+//---
+
 int
 Canvas2D::
 canvasProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
@@ -1632,6 +1695,11 @@ setValue(const QString &name, const QString &value, const QStringList &)
   else if (name == "module_dir") {
     moduleDirs_.push_back(value);
   }
+  else if (name == "rubberBandEvent") {
+    auto b = Util::stringToBool(value);
+
+    tclCallbacks_.rubberBandEvent = b;
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
@@ -1761,6 +1829,7 @@ setStyleValue(const QString &name, const QString &value)
   return true;
 }
 
+#if 0
 int
 Canvas2D::
 drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
@@ -1785,6 +1854,7 @@ drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   return TCL_OK;
 }
+#endif
 
 int
 Canvas2D::
@@ -2044,6 +2114,7 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
   return TCL_OK;
 }
 
+#if 0
 int
 Canvas2D::
 fmulProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
@@ -2080,6 +2151,7 @@ fmaProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
 
   return TCL_OK;
 }
+#endif
 
 int
 Canvas2D::
@@ -2111,6 +2183,75 @@ helpProc(void *clientData, Tcl_Interp *, int, const Tcl_Obj **)
   const auto &names = tcl->commandNames();
 
   tcl->setResult(names);
+
+  return TCL_OK;
+}
+
+int
+Canvas2D::
+methodProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas2D *>(clientData);
+  assert(th);
+
+  auto *app = th->app();
+
+  if (objc != 5) {
+    (void) app->errorMsg("Invalid args for method command");
+    return TCL_ERROR;
+  }
+
+  auto args = app->getArgs(objc, objv);
+
+  auto className = args[0];
+
+  auto *classObj = th->getClass(className);
+  if (! classObj) return TCL_ERROR;
+
+  auto methodName = args[1];
+  auto methodArgs = args[2];
+  auto methodBody = args[3];
+
+  classObj->addMethod(methodName, methodArgs, methodBody);
+
+  return TCL_OK;
+}
+
+int
+Canvas2D::
+invokeProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas2D *>(clientData);
+  assert(th);
+
+  auto *app = th->app();
+
+  if (objc < 4) {
+    (void) app->errorMsg("Invalid args for invoke command");
+    return TCL_ERROR;
+  }
+
+  auto args = app->getArgs(objc, objv);
+
+  auto className = args[0];
+
+  auto *classObj = th->getClass(className);
+  if (! classObj) return TCL_ERROR;
+
+  auto methodName   = args[1];
+  auto instanceName = args[2];
+
+  std::vector<Tcl_Obj *> args1;
+  for (int i = 4; i < objc; ++i)
+    args1.push_back(const_cast<Tcl_Obj *>(objv[i]));
+
+  QVariant res;
+  if (! classObj->invokeMethod(methodName, instanceName, args1, res))
+    return TCL_OK;
+
+  auto *tcl = th->tcl();
+
+  tcl->setResult(res);
 
   return TCL_OK;
 }

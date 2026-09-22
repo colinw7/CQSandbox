@@ -18,7 +18,7 @@ class Shlib2DObj : public Object2D {
 
   const char *typeName() const override { return "shlib"; }
 
-  void init() override;
+  bool init() override;
 
   bool isTclCmd() const override { return true; }
 

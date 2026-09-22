@@ -25,6 +25,7 @@ namespace CQSandbox {
 
 class  App;
 class  Canvas2D;
+class  Class2DObj;
 class  ParticleSystem;
 class  Particle;
 struct Viewport;
@@ -257,6 +258,9 @@ class Canvas2D : public QFrame {
   void addObject(Object2D *obj);
   void removeObject(Object2D *obj);
 
+  bool addClass(Class2DObj *obj);
+  Class2DObj *getClass(const QString &name) const;
+
   void createObjCommand(Object2D *obj);
   void createObjTclCommand(Object2D *obj);
 
@@ -300,15 +304,23 @@ class Canvas2D : public QFrame {
 
   static int viewportProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
-  static int drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+  static int uiProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
-  static int fmulProc (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
-  static int fmaProc  (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+#if 0
+  static int drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+#endif
+
+#if 0
+  static int fmulProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int fmaProc (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+#endif
+
   static int hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
   static int helpProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
-  static int uiProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int methodProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int invokeProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value);
   bool setValue(const QString &, const QString &, const QStringList &);
@@ -332,6 +344,7 @@ class Canvas2D : public QFrame {
 
  protected:
   using Objects = std::vector<Object2D *>;
+  using Classes = std::map<QString, Class2DObj *>;
 
   //---
 
@@ -410,6 +423,8 @@ class Canvas2D : public QFrame {
   Objects allObjects_;
 
   QStringList moduleDirs_;
+
+  Classes classes_;
 
   //---
 

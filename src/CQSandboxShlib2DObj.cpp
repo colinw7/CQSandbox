@@ -27,7 +27,8 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto name = canvas->addNewObject(obj);
 
-  obj->init();
+  if (! obj->init())
+    return false;
 
   tcl->setResult(name);
 
@@ -90,7 +91,7 @@ Shlib2DObj::
   delete shlib_;
 }
 
-void
+bool
 Shlib2DObj::
 init()
 {
@@ -98,6 +99,8 @@ init()
 
   if (initProc_)
     (void) (*reinterpret_cast<CQSandboxShLib::InitProc>(initProc_))();
+
+  return true;
 }
 
 bool

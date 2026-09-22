@@ -106,6 +106,20 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     font_ = font;
   }
+  else if (name == "size") {
+    if (value == "" || value == "none") {
+      rectSet_ = false;
+    }
+    else {
+      Point2D size;
+      if (! Util::stringToPoint2D(tcl, value, size))
+        return false;
+
+      rect_ = Rect2D(0, 0, size.x.value, size.y.value);
+
+      rectSet_ = true;
+    }
+  }
   else if (name == "rect") {
     if (value == "" || value == "none") {
       rectSet_ = false;
@@ -132,8 +146,15 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   if      (op == "paint.begin") {
     delete painter_;
 
-    if (image_.isNull()) {
-      image_ = QImage(canvas()->width(), canvas()->height(), QImage::Format_ARGB32);
+    auto r = getRect();
+
+    auto pr = canvas()->rectToPixel(r).qrect();
+
+    int w = pr.width ();
+    int h = pr.height();
+
+    if (image_.isNull() || w != image_.width() || h != image_.height()) {
+      image_ = QImage(w, h, QImage::Format_ARGB32);
 
       image_.fill(Qt::transparent);
     }
@@ -155,7 +176,11 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     auto *painter = getPainter();
     if (! painter) return false;
 
-    painter->drawImage(0, 0, image_);
+    auto r = getRect();
+
+    auto pr = canvas()->rectToPixel(r).qrect();
+
+    painter->drawImage(pr.left(), pr.top(), image_);
   }
   else if (op == "draw.point") {
     if (args.size() != 1)
@@ -184,10 +209,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
         return false;
     }
     else {
-      if (rectSet_)
-        r = rect_;
-      else
-        r = Rect2D(0, 0, canvas()->width(), canvas()->height());;
+      r = getRect();
     }
 
     painter->setPen(pen_);
@@ -206,10 +228,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
         return false;
     }
     else {
-      if (rectSet_)
-        r = rect_;
-      else
-        r = Rect2D(0, 0, canvas()->width(), canvas()->height());;
+      r = getRect();
     }
 
     auto pr = canvas()->rectToPixel(r).qrect();
@@ -226,10 +245,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
         return false;
     }
     else {
-      if (rectSet_)
-        r = rect_;
-      else
-        r = Rect2D(0, 0, canvas()->width(), canvas()->height());;
+      r = getRect();
     }
 
     painter->setPen(pen_);
@@ -264,6 +280,16 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     return Object2D::exec(op, args, res);
 
   return true;
+}
+
+Rect2D
+Renderer2DObj::
+getRect() const
+{
+  if (rectSet_)
+    return rect_;
+  else
+    return Rect2D(0, 0, canvas()->width(), canvas()->height());
 }
 
 QPainter *

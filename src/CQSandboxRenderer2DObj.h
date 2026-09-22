@@ -26,6 +26,8 @@ class Renderer2DObj : public Object2D {
  private:
   QPainter *getPainter() const;
 
+  Rect2D getRect() const;
+
  private:
   Rect2D    rect_;
   bool      rectSet_ { false };

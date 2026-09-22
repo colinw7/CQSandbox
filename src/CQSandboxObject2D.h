@@ -49,7 +49,10 @@ class Object2D : public QObject {
     RENDERER,
     SHLIB,
     TEXT,
-    VECTOR
+    VECTOR,
+
+    CLASS,
+    INSTANCE
   };
 
   using TclObjs = std::vector<Tcl_Obj *>;
@@ -103,7 +106,7 @@ class Object2D : public QObject {
 
   virtual bool isTclCmd() const { return false; }
 
-  virtual void init();
+  virtual bool init();
 
   virtual bool getValue(const QString &name,  const QStringList &args, QVariant &res);
   virtual bool setValue(const QString &name, const QString &value, const QStringList &args);

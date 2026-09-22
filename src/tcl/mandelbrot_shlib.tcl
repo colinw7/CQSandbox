@@ -14,7 +14,9 @@ proc init { } {
 
   sb::canvas set module_dir modules/mandelbrot
 
-  sb::canvas set buffered 1
+  sb::canvas set rubberBandEvent 1
+
+  # sb::canvas set buffered 1
 
   set ::mandelbrot [sb::shlib mandelbrot]
 
@@ -32,6 +34,10 @@ proc init { } {
   set ::renderer [sb::renderer]
 
   resize [sb::canvas get pixel_width] [sb::canvas get pixel_height]
+
+  set ::needsDraw 1
+
+  # ---
 
   set uistr "<qxml>\n"
 
@@ -62,6 +68,8 @@ proc resize { w h } {
   $::mandelbrot set pixel_ymin 0
   $::mandelbrot set pixel_xmax $w
   $::mandelbrot set pixel_ymax $h
+
+  set ::needsDraw 1
 }
 
 proc iterToColor { iter } {
@@ -79,10 +87,20 @@ proc iterToColor { iter } {
 proc drawBg { args } {
   # echo "drawBg"
 
-  echo [time drawMandelbrot]
+  if {$::needsDraw} {
+    set ::needsDraw 0
+
+    drawMandelbrot
+  }
+
+  $::renderer exec paint.draw
 }
 
 proc drawMandelbrot { } {
+  echo "drawMandelbrot"
+
+  $::renderer exec paint.begin
+
   for {set iy 0} {$iy < $::pixelHeight} {incr iy} {
     set y [$::mandelbrot get user_y $iy]
 
@@ -98,6 +116,8 @@ proc drawMandelbrot { } {
       $::renderer exec draw.point [list $ix $iy]
     }
   }
+
+  $::renderer exec paint.end
 }
 
 proc rubberBandRelease { px1 py1 px2 py2 } {
@@ -116,6 +136,8 @@ proc rubberBandRelease { px1 py1 px2 py2 } {
   $::mandelbrot set xmax $x2
   $::mandelbrot set ymax $y2
 
+  set ::needsDraw 1
+
   sb::canvas exec redraw
 }
 
@@ -127,6 +149,8 @@ proc keyPress { args } {
     $::mandelbrot set ymin -1.2
     $::mandelbrot set xmax  1.2
     $::mandelbrot set ymax  1.2
+
+    set ::needsDraw 1
 
     sb::canvas exec redraw 
   }
@@ -141,6 +165,8 @@ proc paletteChanged { args } {
 
   $::pal set mode [lindex $pnames $ind]
 
+  set ::needsDraw 1
+
   sb::canvas exec redraw
 }
 
@@ -148,6 +174,8 @@ proc iterationsChanged { args } {
   echo "iterationsChanged $args"
 
   $::mandelbrot set max_iterations $::max_iterations
+
+  set ::needsDraw 1
 
   sb::canvas exec redraw
 }
