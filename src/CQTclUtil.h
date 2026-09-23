@@ -747,6 +747,10 @@ class CQTcl : public QObject, public CTcl {
     CQTclUtil::createVar(interp(), name, var);
   }
 
+  void createLocalVar(const QString &name, const QVariant &var) {
+    CQTclUtil::createLocalVar(interp(), name, var);
+  }
+
   void deleteVar(const QString &name) {
     CQTclUtil::deleteVar(interp(), name);
   }
@@ -846,6 +850,9 @@ class CQTcl : public QObject, public CTcl {
 
     if (evalData.rc != TCL_OK) {
       evalData.errMsg = errorInfo(evalData.rc);
+
+      if (evalData.errMsg == "")
+        evalData.errMsg = "'" + cmd + "' Failed";
 
       if (evalData.showError)
         outputError(evalData.errMsg);

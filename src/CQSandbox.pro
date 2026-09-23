@@ -48,6 +48,9 @@ CQSandboxShlib2DObj.cpp \
 CQSandboxText2DObj.cpp \
 CQSandboxVector2DObj.cpp \
 \
+CQSandboxClass2DObj.cpp \
+CQSandboxInstance2DObj.cpp \
+\
 CQSandboxAnimReal3DObj.cpp \
 CQSandboxArray3DObj.cpp \
 CQSandboxAStar3DObj.cpp \
@@ -119,6 +122,7 @@ CQTclUtil.cpp \
 CTclUtil.cpp \
 CQRubberBand.cpp \
 CQTclIntegerSpin.cpp \
+CQImageFilter.cpp \
 \
 CForceDirected3D.cpp \
 CFlag.cpp \
@@ -179,6 +183,9 @@ CQSandboxRenderer2DObj.h \
 CQSandboxShlib2DObj.h \
 CQSandboxText2DObj.h \
 CQSandboxVector2DObj.h \
+\
+CQSandboxClass2DObj.h \
+CQSandboxInstance2DObj.h \
 \
 CQSandboxAnimReal3DObj.h \
 CQSandboxArray3DObj.h \

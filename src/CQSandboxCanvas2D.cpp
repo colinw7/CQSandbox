@@ -2245,7 +2245,7 @@ invokeProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
   for (int i = 4; i < objc; ++i)
     args1.push_back(const_cast<Tcl_Obj *>(objv[i]));
 
-  QVariant res;
+  Tcl_Obj *res;
   if (! classObj->invokeMethod(methodName, instanceName, args1, res))
     return TCL_OK;
 

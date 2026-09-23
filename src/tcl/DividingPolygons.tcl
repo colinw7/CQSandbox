@@ -3,11 +3,11 @@ proc randIn { min max } {
 }
 
 proc irandIn { min max } {
-  return [expr {int(rand()*($max - $min) + $min)}]
+  return [expr {int(rand()*($max - $min) + $min + 0.5)}]
 }
 
 proc dist { p1 p2 } {
-  echo "dist $p1 $p2"
+  # echo "dist $p1 $p2"
 
   set x1 [lindex $p1 0]
   set y1 [lindex $p1 1]
@@ -24,8 +24,11 @@ proc init { } {
   set ::ANIMATE_STEPS 50
   set ::MIN_SIDE      30
 
+# set ::renderer_size 500
+  set ::renderer_size 512
+
   set ::renderer [sb::renderer]
-  $::renderer set size [list 500 500]
+  $::renderer set size [list $::renderer_size $::renderer_size]
 
   $::renderer set brush.color black
 
@@ -44,13 +47,22 @@ proc init { } {
 }
 
 proc drawBg { args } {
+  $::renderer exec paint.draw
+}
+
+proc update { } {
   draw
 }
 
 proc draw { } {
+  # echo "draw"
+
+  $::renderer exec image.erode
+  $::renderer exec image.blur
+
+  $::renderer exec paint.begin
+
   # Animate
-  # filter ERODE
-  # filter BLUR
 
   drawPolygons $::activePolygons
   drawPolygons $::splittablePolygons
@@ -60,7 +72,6 @@ proc draw { } {
   set activePolygons1 {}
 
   foreach p $::activePolygons {
-echo "$p"
     if {[sb::invoke Polygon isAnimationDone $p]} {
       if {[sb::invoke Polygon canSplit $p]} {
         lappend ::splittablePolygons $p
@@ -81,7 +92,11 @@ echo "$p"
 
   foreach p $::splittablePolygons {
     if {[randIn 0 1] < $splitProbability} {
-      sb::invoke Polygon splitPolygon $p $::activePolygons
+      set newPolygons [sb::invoke Polygon splitPolygon $p]
+
+      foreach p1 $newPolygons {
+        lappend ::activePolygons $p1
+      }
     } else {
       lappend splittablePolygons1 $p
     }
@@ -93,42 +108,48 @@ echo "$p"
   if {[llength $::activePolygons] == 0 && [llength $::splittablePolygons] == 0} {
     initialize
   }
+
+  $::renderer exec paint.end
 }
 
 proc drawPolygons { polygons } {
+  # echo "drawPolygons $polygons"
+
   foreach p $polygons {
-    sb::invoke Polygon draw $p
+    sb::invoke Polygon drawPolygon $p
   }
 }
 
 proc mousePressed { args } {
+  # echo "mousePressed $args"
+
   initialize
 }
 
 proc keyPressed { args } {
+  # echo "keyPressed $args"
+
   initialize
 }
 
 proc initialize { } {
-echo "initialize"
+  # echo "initialize"
+
   set ::activePolygons     {}
   set ::splittablePolygons {}
   set ::donePolygons       {}
 
-  set width  [sb::canvas get pixel_width]
-  set height [sb::canvas get pixel_height]
-
   set x {}
   lappend x 3
-  lappend x [expr {$width - 3}]
-  lappend x [expr {$width - 3}]
+  lappend x [expr {$::renderer_size - 3}]
+  lappend x [expr {$::renderer_size - 3}]
   lappend x 3
 
   set y {}
   lappend y 3
-  lappend y [expr {$height - 3}]
-  lappend y [expr {$height - 3}]
   lappend y 3
+  lappend y [expr {$::renderer_size - 3}]
+  lappend y [expr {$::renderer_size - 3}]
 
   set hueValue [randIn 0 $::TWO_PI]
   set hueDelta [expr {$::TWO_PI/8}]
@@ -144,7 +165,8 @@ echo "initialize"
 sb::class Polygon
 
 sb::method Polygon init { poly x y hueValue hueDelta } {
-echo "init $poly $x $y $hueValue $hueDelta"
+  # echo "Polygon:init $poly $x $y $hueValue $hueDelta"
+
   $poly set x $x
   $poly set y $y
 
@@ -154,35 +176,40 @@ echo "init $poly $x $y $hueValue $hueDelta"
   $poly set animationStep 0
 }
 
-sb::method Polygon draw { poly } {
-echo "draw $poly"
-  set hueValue [$poly get hueValue]
+sb::method Polygon drawPolygon { poly } {
+  # echo "Polygon:drawPolygon $poly"
 
   # Draws polygon. In order to get rounded corners, polygon is drawn as a bezier curve.
   # Middle points of polygon sides are used as anchor points and polygon
   # vertices as control points.
   # Initially polygon is partially transparent and transparency decreases after each redrawing.
 
-  set animationStep  [$poly get animationStep]
-  set animationStep1 [expr {$animationStep + 1}]
+  set animationStep [$poly get animationStep]
 
-  $poly set animationStep $animationStep1
+  incr animationStep
 
-  set a [expr {0.1 + 0.9*pow($::animationStep1/$::ANIMATE_STEPS, 2)}]
+  $poly set animationStep $animationStep
 
-  $::renderer set brush.color [hsv $hueValue 1 1 $a]
-  $::renderer set pen.color   [hsv 0 1 0 $a]
+  set hueValue [$poly get hueValue]
 
-  $renderer exec path.start
+  set a [expr {0.1 + 0.9*pow($animationStep/$::ANIMATE_STEPS, 2)}]
+
+  $::renderer set brush.color [list hsb $hueValue 1 1 $a]
+  $::renderer set pen.color   [list hsb 0         1 0 $a]
+
+  $::renderer exec path.start
+
+  set x [$poly get x]
+  set y [$poly get y]
 
   set x1 [lindex $x 0]
   set y1 [lindex $y 0]
   set x2 [lindex $x 1]
   set y2 [lindex $y 1]
 
-  $renderer exec path.moveTo [list [expr {($x1 + $x2)/2}] [expr {($y1 + $y2)/2}]]
+  $::renderer exec path.moveTo [list [expr {($x1 + $x2)/2}] [expr {($y1 + $y2)/2}]]
 
-  set n [llength [$poly get x]]
+  set n [llength $x]
 
   for {set i 0} {$i < $n} {incr i} {
     set i1 [expr {$i + 1}]
@@ -200,17 +227,17 @@ echo "draw $poly"
     set cxm [expr {($cx1 + $cx2)/2}]
     set cym [expr {($cy1 + $cy2)/2}]
 
-    $renderer exec path.curveTo [list $cx1 $cy1] [list $cx1 $cy1] [list $cxm $cym]
+    $::renderer exec path.curveTo [list $cx1 $cy1] [list $cx1 $cy1] [list $cxm $cym]
   }
 
-  $renderer exec path.end
+  $::renderer exec path.draw
 }
 
 # Returns true, if polygon animation is complete (if it is no more semi-transparent).
 sb::method Polygon isAnimationDone { poly } {
-echo "isAnimationDone $poly"
+  # echo "Polygon:isAnimationDone $poly"
+
   set animationStep [$poly get animationStep]
-echo "$animationStep $::ANIMATE_STEPS"
 
   if {$animationStep >= $::ANIMATE_STEPS} {
     return 1
@@ -222,7 +249,8 @@ echo "$animationStep $::ANIMATE_STEPS"
 # Returns true, if polygon can be split into two smaller polygons.
 # Polygon can be, split if at least two sides are splitable.
 sb::method Polygon canSplit { poly } {
-echo "canSplit $poly"
+  # echo "Polygon:canSplit $poly"
+
   set splitableSides 0
 
   set n [llength [$poly get x]]
@@ -233,30 +261,31 @@ echo "canSplit $poly"
     }
   }
 
-  return [expr {$splitableSides >= 2}]
+  if {$splitableSides >= 2} {
+    return 1
+  } else {
+    return 0
+  }
 }
 
 # Returns true, if specified side is splitable.
 # Side can be split, if it is longer than two miminum side lengths.
 sb::method Polygon isSplitableSide { poly i } {
-echo "isSplitableSide $poly $i"
+  # echo "Polygon:isSplitableSide $poly $i"
+
   set x [$poly get x]
   set y [$poly get y]
 
-echo $x
   set n [llength $x]
-echo $i
 
   set x1 [lindex $x $i]
   set y1 [lindex $y $i]
-echo "$x1 $y1"
 
   set i1 [expr {$i + 1}]
   if {$i1 >= $n} { set i1 0 }
 
   set x2 [lindex $x $i1]
   set y2 [lindex $y $i1]
-echo "$x2 $y2"
 
   if {[dist [list $x1 $y1] [list $x2 $y2]] >= 2*$::MIN_SIDE} {
     return 1
@@ -266,32 +295,42 @@ echo "$x2 $y2"
 }
 
 # Splits polygon into two. Append resulting polygons to specified list.
-sb::method Polygon splitPolygon { poly targetList } {
+sb::method Polygon splitPolygon { poly } {
   set n [llength [$poly get x]]
 
   # Randomly get first side to be split
   set side1 0
-  do {
-    set side1 [irandIn 0 $n]
-  } while {! [sb::invoke Polygon isSplitableSide $poly $side1]}
+  while {1} {
+    set side1 [irandIn 0 [expr {$n - 1}]]
+    if {[sb::invoke Polygon isSplitableSide $poly $side1]} {
+      break
+    }
+  }
 
   # Randomly get second side to be split
   set side2 0
-  do {
-    set side2 [irandIn 0 $n]
-  } while {$side1 == $side2 || ! [sb::invoke Polygon isSplitableSide $poly $side2]}
+  while {1} {
+    set side2 [irandIn 0 [expr {$n - 1}]]
+    if {$side2 != $side1 && [sb::invoke Polygon isSplitableSide $poly $side2]} {
+      break
+    }
+  }
 
-  # Get randon split points
+  # Get random split points on sides
   set c1 [sb::invoke Polygon getRandomSplitPoint $poly $side1]
   set c2 [sb::invoke Polygon getRandomSplitPoint $poly $side2]
 
   # Do split
-  lappend targetList [createNew $side1 $side2 $c1 $c2  1]
-  lappend targetList [createNew $side2 $side1 $c2 $c1 -1]
+  set poly1 [sb::invoke Polygon createNew $poly $side1 $side2 $c1 $c2  1]
+  set poly2 [sb::invoke Polygon createNew $poly $side2 $side1 $c2 $c1 -1]
+
+  return [list $poly1 $poly2]
 }
 
 # Create new polygon that is splitted half of this one
 sb::method Polygon createNew { poly side1 side2 c1 c2 hueMultiplier } {
+  # echo "Polygon:createNew $poly $side1 $side2 $c1 $c2 $hueMultiplier"
+
   set x [$poly get x]
   set y [$poly get y]
 
@@ -312,8 +351,9 @@ sb::method Polygon createNew { poly side1 side2 c1 c2 hueMultiplier } {
   set xSplit2 [expr {[lindex $x $side2]*$c2 + [lindex $x $side21]*$ic2}]
   set ySplit2 [expr {[lindex $y $side2]*$c2 + [lindex $y $side21]*$ic2}]
 
-  set n1 [expr {($side2 - $side1 + $n) + 2}]
+  set n1 [expr {($side2 - $side1 + $n)}]
   if {$n1 >= $n} { set n1 [expr {$n1 - $n}] }
+  set n1 [expr {$n1 + 2}]
 
   set x1 {}
   set y1 {}
@@ -325,7 +365,7 @@ sb::method Polygon createNew { poly side1 side2 c1 c2 hueMultiplier } {
 
   for {set i 2} {$i < $n1} {incr i} {
     set i1 [expr {$side1 + $i - 1}]
-    if {$i1 >= $n} { set i1 0 }
+    if {$i1 >= $n} { set i1 [expr {$i1 - $n}] }
 
     lappend x1 [lindex $x $i1]
     lappend y1 [lindex $y $i1]
@@ -334,7 +374,15 @@ sb::method Polygon createNew { poly side1 side2 c1 c2 hueMultiplier } {
   set hueValue [$poly get hueValue]
   set hueDelta [$poly get hueDelta]
 
-  set hueValue1 [expr {($hueValue + $hueDelta) % $::TWO_PI*$::hueMultiplier}]
+  set hueValue1 [expr {($hueValue + $hueDelta)*$hueMultiplier}]
+
+  while {$hueValue1 < 0} {
+    set hueValue1 [expr {$hueValue1 + $::TWO_PI}]
+  }
+  while {$hueValue1 >= $::TWO_PI} {
+    set hueValue1 [expr {$hueValue1 - $::TWO_PI}]
+  }
+
   set hueDelta1 [expr {$hueDelta*0.7}]
 
   set poly [sb::instance Polygon $x1 $y1 $hueValue1 $hueDelta1]
@@ -344,6 +392,8 @@ sb::method Polygon createNew { poly side1 side2 c1 c2 hueMultiplier } {
 
 # Returns random split point for specifed side. Split point value is in interval (0,1).
 sb::method Polygon getRandomSplitPoint { poly side } {
+  # echo "Polygon:getRandomSplitPoint $poly $side"
+
   set x [$poly get x]
   set y [$poly get y]
 
@@ -355,7 +405,7 @@ sb::method Polygon getRandomSplitPoint { poly side } {
   incr side
 
   if {$side >= $n} {
-    set n 0
+    set side 0
   }
 
   set x2 [lindex $x $side]

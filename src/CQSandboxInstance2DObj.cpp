@@ -12,8 +12,10 @@ bool
 Instance2DObj::
 create(Canvas2D *canvas, int objc, const Tcl_Obj **objv)
 {
+  auto *app = canvas->app();
+
   if (objc < 2)
-    return false;
+    return app->errorMsg("Invalid number of args for instance create");
 
   auto *tcl = canvas->tcl();
 
@@ -22,7 +24,8 @@ create(Canvas2D *canvas, int objc, const Tcl_Obj **objv)
   auto className = tcl->qstringFromObj(objv[1]);
 
   auto *classObj = canvas->getClass(className);
-  if (! classObj) return false;
+  if (! classObj)
+    return app->errorMsg("No class of name '" + className + "'");
 
   std::vector<Tcl_Obj *> args;
   for (int i = 2; i < objc; ++i)
@@ -55,12 +58,14 @@ bool
 Instance2DObj::
 init()
 {
+  auto *app = canvas_->app();
+
   auto methodName   = QString("init");
   auto instanceName = getCommandName();
 
-  QVariant res;
+  Tcl_Obj *res;
   if (! classObj_->invokeMethod(methodName, instanceName, args_, res))
-    return false;
+    return app->errorMsg("Failed to invoke method '" + methodName + "'");
 
   return true;
 }
@@ -69,11 +74,14 @@ bool
 Instance2DObj::
 getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res)
 {
+  auto *app = canvas_->app();
+
   if (args.size() != 0)
-    return false;
+    return app->errorMsg("Invalid number of args for instance get");
 
   auto pn = nameValue_.find(name);
-  if (pn == nameValue_.end()) return false;
+  if (pn == nameValue_.end())
+    return app->errorMsg("No value of name '" + name + "' in class");
 
   res = (*pn).second;
 
@@ -86,8 +94,10 @@ bool
 Instance2DObj::
 setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &args)
 {
+  auto *app = canvas_->app();
+
   if (args.size() != 0)
-    return false;
+    return app->errorMsg("Invalid number of args for instance set");
 
   auto pn = nameValue_.find(name);
 

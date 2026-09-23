@@ -3,6 +3,7 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
+#include <CQImageFilter.h>
 #include <CQTclUtil.h>
 
 #include <QPainter>
@@ -220,6 +221,31 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     // TODO: keep original image ?
     image_ = image_.scaled(p.x, p.y);
   }
+
+  else if (op == "unsharp_mask") {
+    double strength = 2.0;
+;
+    if (args.size() > 0) {
+      if (! Util::stringToReal(args[0], strength))
+        return false;
+    }
+
+    image_ = CQImageFilter::unsharpMask(image_, strength);
+  }
+  else if (op == "sobel") {
+    image_ = CQImageFilter::sobel(image_);
+  }
+  else if (op == "gaussian_blur") {
+    image_ = CQImageFilter::gaussianBlur(image_, 1, 1, 2, 2);
+  }
+  else if (op == "erode") {
+    image_ = CQImageFilter::erode(image_);
+  }
+  else if (op == "dilate") {
+    image_ = CQImageFilter::dilate(image_);
+  }
+
+  // draw (match rendered)
   else if (op == "stroke.rect") {
     QRect  rect;
     QColor c;

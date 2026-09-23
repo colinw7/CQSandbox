@@ -29,13 +29,14 @@ class Renderer2DObj : public Object2D {
   Rect2D getRect() const;
 
  private:
-  Rect2D    rect_;
-  bool      rectSet_ { false };
-  QBrush    brush_;
-  QPen      pen_;
-  QFont     font_;
-  QImage    image_;
-  QPainter* painter_ { nullptr };
+  Rect2D       rect_;
+  bool         rectSet_ { false };
+  QBrush       brush_;
+  QPen         pen_;
+  QFont        font_;
+  QImage       image_;
+  QPainter*    painter_ { nullptr };
+  QPainterPath path_;
 };
 
 }

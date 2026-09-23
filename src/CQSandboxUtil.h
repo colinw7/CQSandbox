@@ -15,7 +15,7 @@
 #include <CPoint3D.h>
 #include <CPolygonOrientation.h>
 #include <CFile.h>
-#include <CRGBA.h>
+#include <CRGBUtil.h>
 
 #include <QPainterPath>
 #include <QImage>
@@ -91,17 +91,39 @@ inline bool stringToColor(CQTcl *tcl, const QString &str, QColor &c) {
     return true;
   }
 
+  auto mode = QString("rgb");
+
   QStringList strs;
   (void) tcl->splitList(str, strs);
 
+  if (strs.size() == 4 || strs.size() == 5) {
+    if (strs[0] == "hsb" || strs[0] == "rgb") {
+      mode = strs[0];
+    }
+
+    strs.removeFirst();
+  }
+
   if (strs.size() == 3 || strs.size() == 4) {
-    auto r = stringToReal(strs[0]);
-    auto g = stringToReal(strs[1]);
-    auto b = stringToReal(strs[2]);
+    if      (mode == "rgb") {
+      auto r = stringToReal(strs[0]);
+      auto g = stringToReal(strs[1]);
+      auto b = stringToReal(strs[2]);
+      auto a = (strs.size() == 4 ? stringToReal(strs[3]) : 1.0);
 
-    auto a = (strs.size() == 4 ? stringToReal(strs[3]) : 1.0);
+      c = QColor(r*255, g*255, b*255, a*255);
+    }
+    else if (mode == "hsb") {
+      auto h = stringToReal(strs[0]);
+      auto s = stringToReal(strs[1]);
+      auto b = stringToReal(strs[2]);
+      auto a = (strs.size() == 4 ? stringToReal(strs[3]) : 1.0);
 
-    c = QColor(r*255, g*255, b*255, a*255);
+      auto hsb = CHSB(h/(2*M_PI), s, b);
+      auto rgb = CRGBUtil::HSBtoRGB(hsb);
+
+      c = QColor(rgb.getRed()*255, rgb.getGreen()*255, rgb.getBlue()*255, a*255);
+    }
   }
   else
     c = QColor(str);

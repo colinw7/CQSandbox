@@ -3,6 +3,7 @@
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
+#include <CQImageFilter.h>
 #include <CQTclUtil.h>
 
 namespace CQSandbox {
@@ -143,6 +144,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 {
   auto *tcl = canvas()->tcl();
 
+  // image painter
   if      (op == "paint.begin") {
     delete painter_;
 
@@ -156,7 +158,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     if (image_.isNull() || w != image_.width() || h != image_.height()) {
       image_ = QImage(w, h, QImage::Format_ARGB32);
 
-      image_.fill(Qt::transparent);
+      image_.fill(brush_.color());
     }
 
     painter_ = new QPainter(&image_);
@@ -182,6 +184,13 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 
     painter->drawImage(pr.left(), pr.top(), image_);
   }
+  else if (op == "image.blur") {
+    image_ = CQImageFilter::gaussianBlur(image_, 1, 1, 2, 2);
+  }
+  else if (op == "image.erode") {
+    image_ = CQImageFilter::erode(image_);
+  }
+
   else if (op == "draw.point") {
     if (args.size() != 1)
       return false;
@@ -275,6 +284,48 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     painter->setFont(font_);
 
     painter->drawText(pp.x.value, pp.y.value, text);
+  }
+  else if (op == "path.start") {
+    path_ = QPainterPath();
+  }
+  else if (op == "path.moveTo") {
+    if (args.size() != 1)
+      return false;
+
+    Point2D p;
+    if (! Util::stringToPoint2D(tcl, args[0], p))
+      return false;
+
+    auto pp = pointToPixel(p);
+
+    path_.moveTo(pp.x.value, pp.y.value);
+  }
+  else if (op == "path.curveTo") {
+    if (args.size() != 3)
+      return false;
+
+    Point2D p1, p2, p3;
+    if (! Util::stringToPoint2D(tcl, args[0], p1) ||
+        ! Util::stringToPoint2D(tcl, args[1], p2) ||
+        ! Util::stringToPoint2D(tcl, args[2], p3))
+      return false;
+
+    auto pp1 = pointToPixel(p1);
+    auto pp2 = pointToPixel(p2);
+    auto pp3 = pointToPixel(p3);
+
+    path_.cubicTo(pp1.x.value, pp1.y.value,
+                  pp2.x.value, pp2.y.value,
+                  pp3.x.value, pp3.y.value);
+  }
+  else if (op == "path.draw") {
+    auto *painter = getPainter();
+    if (! painter) return false;
+
+    painter->setPen(pen_);
+    painter->setBrush(brush_);
+
+    painter->drawPath(path_);
   }
   else
     return Object2D::exec(op, args, res);

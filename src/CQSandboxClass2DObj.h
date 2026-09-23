@@ -20,7 +20,7 @@ class Class2DObj : public Object2D {
   bool addMethod(const QString &name, const QString &args, const QString &body);
 
   bool invokeMethod(const QString &name, const QString &instanceName,
-                    const std::vector<Tcl_Obj *> &args, QVariant &res);
+                    const std::vector<Tcl_Obj *> &args, Tcl_Obj* &res);
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -29,6 +29,9 @@ class Class2DObj : public Object2D {
   struct MethodData {
     QStringList args;
     QString     body;
+    QString     procName;
+    QString     callCmd;
+    bool        bodySet { false };
 
     MethodData() { }
 
