@@ -99,6 +99,19 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = name;
   }
+  else if (name == "pixel") {
+    if (args.size() < 1)
+      return false;
+
+    CPoint2D p;
+    if (! Util::stringToPoint2D(tcl, args[0], p))
+      return false;
+
+    CRGBA c;
+    CQImageFilter::getPixel(image_, p.x, p.y, c);
+
+    value = Util::rgbaToString(c);
+  }
   else
     return Object2D::getValue(name, args, value);
 
@@ -129,7 +142,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     posType_  = Position::CENTER;
   }
   else if (name == "rect") {
-    rect_    = Util::stringToRect2D(tcl, value);
+    if (! Util::stringToRect2D(tcl, value, rect_))
+      return false;
+
     posType_ = Position::RECT;
   }
   else if (name == "image") {
@@ -198,6 +213,20 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     pen_.setWidthF(w);
   }
+  else if (name == "pixel") {
+    if (args.size() < 1)
+      return false;
+
+    CPoint2D p;
+    if (! Util::stringToPoint2D(tcl, value, p))
+      return false;
+
+    CRGBA c;
+    if (! Util::stringToRGBA(tcl, args[0], c))
+      return false;
+
+    CQImageFilter::setPixel(image_, p.x, p.y, c);
+  }
   else
     return Object2D::setValue(name, value, args);
 
@@ -222,9 +251,10 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     image_ = image_.scaled(p.x, p.y);
   }
 
+  // image filters
   else if (op == "unsharp_mask") {
     double strength = 2.0;
-;
+
     if (args.size() > 0) {
       if (! Util::stringToReal(args[0], strength))
         return false;
@@ -233,16 +263,82 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     image_ = CQImageFilter::unsharpMask(image_, strength);
   }
   else if (op == "sobel") {
-    image_ = CQImageFilter::sobel(image_);
+    bool feldman = false;
+
+    if (args.size() > 0) {
+      if (! Util::stringToBool(args[0], feldman))
+        return false;
+    }
+
+    image_ = CQImageFilter::sobel(image_, feldman);
   }
   else if (op == "gaussian_blur") {
-    image_ = CQImageFilter::gaussianBlur(image_, 1, 1, 2, 2);
+    double bx = 1.0;
+    double by = 1.0;
+    int    nx = 2;
+    int    ny = 2;
+
+    if (args.size() > 0) {
+      if (args.size() != 4)
+        return false;
+
+      if (! Util::stringToReal(args[0], bx) ||
+          ! Util::stringToReal(args[1], by) ||
+          ! Util::stringToInt (args[2], nx) ||
+          ! Util::stringToInt (args[3], ny))
+        return false;
+    }
+
+    image_ = CQImageFilter::gaussianBlur(image_, bx, by, nx, ny);
+  }
+  else if (op == "turbulence") {
+    bool   fractal    = false;
+    double baseFreq   = 0.1;
+    int    numOctaves = 1;
+    int    seed       = 0;
+
+    if (args.size() > 0) {
+      if (args.size() != 4)
+        return false;
+
+      if (! Util::stringToBool(args[0], fractal) ||
+          ! Util::stringToReal(args[1], baseFreq) ||
+          ! Util::stringToInt (args[2], numOctaves) ||
+          ! Util::stringToInt (args[3], seed))
+        return false;
+    }
+
+    image_ = CQImageFilter::turbulence(image_, fractal, baseFreq, numOctaves, seed);
   }
   else if (op == "erode") {
     image_ = CQImageFilter::erode(image_);
   }
   else if (op == "dilate") {
     image_ = CQImageFilter::dilate(image_);
+  }
+  else if (op == "mask") {
+    if (args.size() != 1)
+      return false;
+
+    auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(args[0]));
+
+    image_ = CQImageFilter::mask(image_, imageObj->image_);
+  }
+  else if (op == "tint") {
+    CRGBA c(0.5, 0.5, 0.5);
+
+    if (args.size() > 0) {
+      if (! Util::stringToRGBA(tcl, args[0], c))
+        return false;
+    }
+
+    image_ = CQImageFilter::tint(image_, c);
+  }
+  else if (op == "grayscale") {
+    image_ = CQImageFilter::grayscale(image_);
+  }
+  else if (op == "sepia") {
+    image_ = CQImageFilter::sepia(image_);
   }
 
   // draw (match rendered)

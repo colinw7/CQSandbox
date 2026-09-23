@@ -103,7 +103,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else if (name == "tex_coords") {
-    shapeData_.setTexCoords(Util::stringToVectors2D(tcl, value));
+    std::vector<CVector2D> vectors;
+    if (! Util::stringToVectors2D(tcl, value, vectors))
+      return false;
+
+    shapeData_.setTexCoords(vectors);
 
     setNeedsUpdate();
   }

@@ -5,7 +5,9 @@
 
 #include <CQXml.h>
 #include <CQTclUtil.h>
+#include <CQTclCheckBox.h>
 #include <CQTclIntegerSpin.h>
+#include <CQTclRealSpin.h>
 #include <CQPropertyViewTree.h>
 #include <CQUtil.h>
 
@@ -23,12 +25,18 @@ class Xml2D : public CQXml {
   }
 
   void createNotify(QWidget *w) override {
+    auto *check = qobject_cast<CQTclCheckBox *>(w);
     auto *ispin = qobject_cast<CQTclIntegerSpin *>(w);
+    auto *rspin = qobject_cast<CQTclRealSpin *>(w);
 
-    if (ispin) {
+    if (check || ispin || rspin) {
       auto *canvas = control_->canvas();
 
-      ispin->setInterp(canvas->tcl()->interp());
+      auto *interp = canvas->tcl()->interp();
+
+      if      (check) check->setInterp(interp);
+      else if (ispin) ispin->setInterp(interp);
+      else if (rspin) rspin->setInterp(interp);
     }
   }
 
@@ -288,7 +296,9 @@ createUi(const QString &ui)
   if (! xml_) {
     xml_ = new Xml2D(this);
 
+    CQXmlAddWidgetFactoryT(xml_, CQTclCheckBox);
     CQXmlAddWidgetFactoryT(xml_, CQTclIntegerSpin);
+    CQXmlAddWidgetFactoryT(xml_, CQTclRealSpin);
   }
 
   return xml_->createWidgetsFromString(uiFrame_, ui.toStdString());

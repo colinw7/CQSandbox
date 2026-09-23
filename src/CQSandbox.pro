@@ -121,8 +121,11 @@ CQBBox3DEdit.cpp \
 CQTclUtil.cpp \
 CTclUtil.cpp \
 CQRubberBand.cpp \
-CQTclIntegerSpin.cpp \
 CQImageFilter.cpp \
+\
+CQTclCheckBox.cpp \
+CQTclIntegerSpin.cpp \
+CQTclRealSpin.cpp \
 \
 CForceDirected3D.cpp \
 CFlag.cpp \
@@ -237,11 +240,6 @@ CQSandboxShaderToyProgram.h \
 CQSandboxShape3DData.h \
 \
 CQSandboxUtil.h \
-CQTclIntegerSpin.h \
-\
-CQSandboxCamera.h \
-CQSandboxFPCamera.h \
-CQSandboxOrthoCamera.h \
 \
 CQGLTexture.h \
 CQGLCubemap.h \
@@ -256,6 +254,15 @@ CQSVGUtil.h \
 CQGLBuffer.h \
 CQAxis.h \
 CQRubberBand.h \
+CQImageFilter.cpp \
+\
+CQTclCheckBox.h \
+CQTclIntegerSpin.h \
+CQTclRealSpin.h \
+\
+CQSandboxCamera.h \
+CQSandboxFPCamera.h \
+CQSandboxOrthoCamera.h \
 \
 CQTclCommand.h \
 CQCommand.h \

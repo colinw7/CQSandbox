@@ -17,11 +17,16 @@ namespace CQImageFilter {
   QImage turbulence(const QImage &src, bool fractal, double baseFreq, int numOctaves, int seed);
 
   QImage erode(const QImage &src);
+
   QImage dilate(const QImage &src);
 
-  QImage mask(const QImage &src, const QImage &imask);
+  QImage mask(const QImage &src, const QImage &imask, bool invert=false);
 
   QImage tint(const QImage &src, const CRGBA &rgba);
+
+  QImage grayscale(const QImage &src);
+
+  QImage sepia(const QImage &src);
 
   void getPixel(const QImage &image, int x, int y, CRGBA &rgba);
 

@@ -574,6 +574,25 @@ inline QVariant getVar(Tcl_Interp *interp, const QString &name) {
   return getGlobalVar(interp, name);
 }
 
+inline bool getBoolVar(Tcl_Interp *interp, const QString &name, bool &b) {
+  auto *nameObj = variantToObj(interp, name); Tcl_IncrRefCount(nameObj);
+
+  auto *obj = Tcl_ObjGetVar2(interp, nameObj, nullptr, TCL_GLOBAL_ONLY);
+
+  Tcl_DecrRefCount(nameObj);
+
+  if (! obj)
+    return false;
+
+  int i;
+  if (Tcl_GetIntFromObj(interp, obj, &i) != TCL_OK)
+    return false;
+
+  b = (i ? true : false);
+
+  return true;
+}
+
 inline bool getIntVar(Tcl_Interp *interp, const QString &name, int &i) {
   auto *nameObj = variantToObj(interp, name); Tcl_IncrRefCount(nameObj);
 
@@ -585,6 +604,22 @@ inline bool getIntVar(Tcl_Interp *interp, const QString &name, int &i) {
     return false;
 
   if (Tcl_GetIntFromObj(interp, obj, &i) != TCL_OK)
+    return false;
+
+  return true;
+}
+
+inline bool getRealVar(Tcl_Interp *interp, const QString &name, double &r) {
+  auto *nameObj = variantToObj(interp, name); Tcl_IncrRefCount(nameObj);
+
+  auto *obj = Tcl_ObjGetVar2(interp, nameObj, nullptr, TCL_GLOBAL_ONLY);
+
+  Tcl_DecrRefCount(nameObj);
+
+  if (! obj)
+    return false;
+
+  if (Tcl_GetDoubleFromObj(interp, obj, &r) != TCL_OK)
     return false;
 
   return true;
@@ -759,8 +794,16 @@ class CQTcl : public QObject, public CTcl {
     return CQTclUtil::getVar(interp(), name);
   }
 
+  bool getBoolVar(const QString &name, bool &b) const {
+    return CQTclUtil::getBoolVar(interp(), name, b);
+  }
+
   bool getIntVar(const QString &name, int &i) const {
     return CQTclUtil::getIntVar(interp(), name, i);
+  }
+
+  bool getRealVar(const QString &name, double &r) const {
+    return CQTclUtil::getRealVar(interp(), name, r);
   }
 
   void setVar(const QString &name, const QVariant &value) {

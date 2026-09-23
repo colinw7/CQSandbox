@@ -17,8 +17,10 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto rect = Rect2D(Point2D(0, 0), Point2D(1, 1));
 
-  if (args.size() >= 1)
-    rect = Util::stringToRect2D(tcl, args[0]);
+  if (args.size() >= 1) {
+    if (! Util::stringToRect2D(tcl, args[0], rect))
+      return false;
+  }
 
   auto *obj = new Rect2DObj(canvas, rect);
 
@@ -74,7 +76,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if (name == "rect") {
-    rect_ = Util::stringToRect2D(tcl, value);
+    if (! Util::stringToRect2D(tcl, value, rect_))
+      return false;
   }
   else
     return Object2D::setValue(name, value, args);

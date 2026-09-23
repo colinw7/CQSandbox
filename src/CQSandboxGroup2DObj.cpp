@@ -15,7 +15,9 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  auto rect = Util::stringToRect2D(tcl, args[0]);
+  Rect2D rect;
+  if (! Util::stringToRect2D(tcl, args[0], rect))
+    return false;
 
   auto *obj = new Group2DObj(canvas, rect);
 
@@ -54,10 +56,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
 
-  if      (name == "rect")
-    rect_ = Util::stringToRect2D(tcl, value);
-  else if (name == "range")
-    Util::stringToRange(tcl, displayRange_, value);
+  if      (name == "rect") {
+    if (! Util::stringToRect2D(tcl, value, rect_))
+      return false;
+  }
+  else if (name == "range") {
+    if (! Util::stringToRange(tcl, displayRange_, value))
+      return false;
+  }
   else
     return Object2D::setValue(name, value, args);
 

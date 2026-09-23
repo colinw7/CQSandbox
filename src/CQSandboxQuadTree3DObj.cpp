@@ -50,7 +50,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (args.size() < 1)
       return false;
 
-    auto rect = Util::stringToRect2D(tcl, args[0]);
+    Rect2D rect;
+    if (! Util::stringToRect2D(tcl, args[0], rect))
+      return false;
 
     QuadTree::DataList dataList;
     quadTree_.getDataInsideBBox(rect, dataList);

@@ -152,6 +152,20 @@ inline CRGBA QColorToRGBA(const QColor &c) {
   return CRGBA(c.red()/255.0, c.green()/255.0, c.blue()/255.0, c.alpha()/255.0);
 }
 
+inline QString rgbaToString(const CRGBA &c) {
+  return colorToString(RGBAToQColor(c));
+}
+
+inline bool stringToRGBA(CQTcl *tcl, const QString &s, CRGBA &c) {
+ QColor c1;
+  if (! stringToColor(tcl, s, c1))
+    return false;
+
+  c = QColorToRGBA(c1);
+
+  return true;
+}
+
 //---
 
 inline QString rangeToString(CQTcl *tcl, const CDisplayRange2D &range) {
@@ -167,18 +181,23 @@ inline QString rangeToString(CQTcl *tcl, const CDisplayRange2D &range) {
   return tcl->mergeList(strs);
 }
 
-inline void stringToRange(CQTcl *tcl, CDisplayRange2D &range, const QString &str) {
+inline bool stringToRange(CQTcl *tcl, CDisplayRange2D &range, const QString &str) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
-  if (strs.size() == 4) {
-    auto x1 = Util::stringToReal(strs[0]);
-    auto y1 = Util::stringToReal(strs[1]);
-    auto x2 = Util::stringToReal(strs[2]);
-    auto y2 = Util::stringToReal(strs[3]);
+  if (strs.size() != 4)
+    return false;
 
-    range.setWindowRange(x1, y1, x2, y2);
-  }
+  double x1, y1, x2, y2;
+
+  if (! Util::stringToReal(strs[0], x1) || ! Util::stringToReal(strs[1], y1) ||
+      ! Util::stringToReal(strs[2], x2) || ! Util::stringToReal(strs[3], y2))
+    return false;
+
+  range.setWindowRange(x1, y1, x2, y2);
+
+  return true;
 }
 
 inline bool stringToRect2D(CQTcl *tcl, const QString &str, Rect2D &rect) {
@@ -218,11 +237,13 @@ inline bool stringToRect2D(CQTcl *tcl, const QString &str, Rect2D &rect) {
   return true;
 }
 
+#if 0
 inline Rect2D stringToRect2D(CQTcl *tcl, const QString &str) {
   Rect2D r;
   (void) stringToRect2D(tcl, str, r);
   return r;
 }
+#endif
 
 inline QString rect2DToString(const Rect2D &r) {
   auto x1str = QString::number(r.ll.x.value);
@@ -404,51 +425,53 @@ inline CPoint3D stringToPoint3D(CQTcl *tcl, const QString &str) {
 
 //---
 
-inline CVector2D stringToVector2D(CQTcl *tcl, const QString &str) {
+inline bool stringToVector2D(CQTcl *tcl, const QString &str, CVector2D &v) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
-  CVector2D p;
+  if (strs.size() < 2)
+    return false;
 
-  if (strs.size() >= 2) {
-    auto x = stringToReal(strs[0]);
-    auto y = stringToReal(strs[1]);
+  auto x = stringToReal(strs[0]);
+  auto y = stringToReal(strs[1]);
 
-    p = CVector2D(x, y);
-  }
+  v = CVector2D(x, y);
 
-  return p;
+  return true;
 }
 
-inline CGLVector2D stringToGLVector2D(CQTcl *tcl, const QString &str) {
+inline bool stringToGLVector2D(CQTcl *tcl, const QString &str, CGLVector2D &v) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
-  CGLVector2D p;
+  if (strs.size() < 2)
+    return false;
 
-  if (strs.size() >= 2) {
-    auto x = stringToReal(strs[0]);
-    auto y = stringToReal(strs[1]);
+  double x, y;
+  if (! stringToReal(strs[0], x) || ! stringToReal(strs[1], y))
+    return false;
 
-    p = CGLVector2D(x, y);
-  }
+  v = CGLVector2D(x, y);
 
-  return p;
+  return true;
 }
 
-inline std::vector<CVector2D> stringToVectors2D(CQTcl *tcl, const QString &str) {
+inline bool stringToVectors2D(CQTcl *tcl, const QString &str, std::vector<CVector2D> &vectors) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
-
-  std::vector<CVector2D> points;
+  if (! tcl->splitList(str, strs))
+    return false;
 
   for (const auto &str : strs) {
-    auto p = stringToVector2D(tcl, str);
+    CVector2D v;
+    if (! stringToVector2D(tcl, str, v))
+      return false;
 
-    points.push_back(p);
+    vectors.push_back(v);
   }
 
-  return points;
+  return true;
 }
 
 inline bool stringToVector3D(CQTcl *tcl, const QString &str, CVector3D &v) {

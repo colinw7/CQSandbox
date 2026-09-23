@@ -580,23 +580,38 @@ dilate(const QImage &src)
 
 QImage
 CQImageFilter::
-mask(const QImage &src, const QImage &imask)
+mask(const QImage &src, const QImage &imask, bool invert)
 {
-  QImage dst = QImage(src.width(), src.height(), QImage::Format_ARGB32);
+  auto dst = QImage(src.width(), src.height(), QImage::Format_ARGB32);
 
   int wx1 = 0;
   int wy1 = 0;
   int wx2 = src.width () - 1;
   int wy2 = src.height() - 1;
 
+  int ix1 = 0;
+  int iy1 = 0;
+  int ix2 = imask.width () - 1;
+  int iy2 = imask.height() - 1;
+
   CRGBA rgba1, rgba2;
 
-  for (int y = wy1; y <= wy2; ++y) {
-    for (int x = wx1; x <= wx2; ++x) {
-      getPixel(src  , x, y, rgba1);
-      getPixel(imask, x, y, rgba2);
+  for (int y = wy1, iy = iy1; y <= wy2; ++y, ++iy) {
+    for (int x = wx1, ix = ix1; x <= wx2; ++x, ++ix) {
+      getPixel(src, x, y, rgba1);
 
-      rgba1.setAlpha(rgba2.getBlue());
+      if (ix < ix2 && iy < iy2) {
+        getPixel(imask, ix, iy, rgba2);
+
+        if (! invert)
+          rgba1.setAlpha(1.0 - rgba2.getBlue());
+        else
+          rgba1.setAlpha(rgba2.getBlue());
+      }
+      else {
+        if (! invert)
+          rgba1.setAlpha(0.0);
+      }
 
       setPixel(dst, x, y, rgba1);
     }
@@ -609,7 +624,7 @@ QImage
 CQImageFilter::
 tint(const QImage &src, const CRGBA &rgba)
 {
-  QImage dst = QImage(src.width(), src.height(), QImage::Format_ARGB32);
+  auto dst = QImage(src.width(), src.height(), QImage::Format_ARGB32);
 
   int wx1 = 0;
   int wy1 = 0;
@@ -627,6 +642,58 @@ tint(const QImage &src, const CRGBA &rgba)
       rgba2.clamp();
 
       setPixel(dst, x, y, rgba2);
+    }
+  }
+
+  return dst;
+}
+
+QImage
+CQImageFilter::
+grayscale(const QImage &src)
+{
+  auto dst = QImage(src.width(), src.height(), QImage::Format_ARGB32);
+
+  int wx1 = 0;
+  int wy1 = 0;
+  int wx2 = src.width () - 1;
+  int wy2 = src.height() - 1;
+
+  CRGBA rgba1;
+
+  for (int y = wy1; y <= wy2; ++y) {
+    for (int x = wx1; x <= wx2; ++x) {
+      getPixel(src, x, y, rgba1);
+
+      rgba1.toGray();
+
+      setPixel(dst, x, y, rgba1);
+    }
+  }
+
+  return dst;
+}
+
+QImage
+CQImageFilter::
+sepia(const QImage &src)
+{
+  auto dst = QImage(src.width(), src.height(), QImage::Format_ARGB32);
+
+  int wx1 = 0;
+  int wy1 = 0;
+  int wx2 = src.width () - 1;
+  int wy2 = src.height() - 1;
+
+  CRGBA rgba1;
+
+  for (int y = wy1; y <= wy2; ++y) {
+    for (int x = wx1; x <= wx2; ++x) {
+      getPixel(src, x, y, rgba1);
+
+      rgba1.toSepia();
+
+      setPixel(dst, x, y, rgba1);
     }
   }
 

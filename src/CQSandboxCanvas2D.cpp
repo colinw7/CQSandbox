@@ -1410,7 +1410,9 @@ viewportProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   auto *tcl = th->tcl();
 
-  auto rect = Util::stringToRect2D(tcl, args[0]);
+  Rect2D rect;
+  if (! Util::stringToRect2D(tcl, args[0], rect))
+    return TCL_ERROR;
 
   auto *viewport = th->addViewport();
 
@@ -1614,7 +1616,8 @@ setValue(const QString &name, const QString &value, const QStringList &)
     viewport->pen.setWidthF(Util::stringToReal(value));
   }
   else if (name == "range") {
-    Util::stringToRange(tcl, viewport->displayRange, value);
+    if (! Util::stringToRange(tcl, viewport->displayRange, value))
+      return false;
 
     viewport->hasRange = true;
   }
@@ -1629,7 +1632,8 @@ setValue(const QString &name, const QString &value, const QStringList &)
     currentViewportName_ = value;
   }
   else if (name == "view.rect") {
-    viewport->rect = Util::stringToRect2D(tcl, value);
+    if (! Util::stringToRect2D(tcl, value, viewport->rect))
+      return false;
 
     updatePixelRanges();
   }
@@ -2074,12 +2078,14 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
         viewport->brush = b;
       }
       else if (name == "range") {
-        Util::stringToRange(tcl, viewport->displayRange, value);
+        if (! Util::stringToRange(tcl, viewport->displayRange, value))
+          return false;
 
         viewport->hasRange = true;
       }
       else if (name == "clip") {
-        viewport->clip = Util::stringToRect2D(tcl, value);
+        if (! Util::stringToRect2D(tcl, value, viewport->clip))
+          return false;
       }
       else
         app->errorMsg("Invalid set name '" + name + "' for viewport");
@@ -2453,7 +2459,9 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto *tcl = canvas->tcl();
 
-  auto rect = Util::stringToRect2D(tcl, args[0]);
+  Rect2D rect;
+  if (! Util::stringToRect2D(tcl, args[0], rect))
+    return false;
 
   auto *obj = new CirclesGroupObj(canvas, rect);
 
