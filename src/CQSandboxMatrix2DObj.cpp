@@ -8,7 +8,7 @@
 namespace CQSandbox {
 
 bool
-Matrix2DObj::
+RealMatrix2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   if (args.size() != 2)
@@ -19,7 +19,7 @@ create(Canvas2D *canvas, const QStringList &args)
   auto dim0 = Util::stringToInt(args[0]);
   auto dim1 = Util::stringToInt(args[1]);
 
-  auto *obj = new Matrix2DObj(canvas, dim0, dim1);
+  auto *obj = new RealMatrix2DObj(canvas, dim0, dim1);
 
   auto name = canvas->addNewObject(obj);
 
@@ -28,20 +28,20 @@ create(Canvas2D *canvas, const QStringList &args)
   return true;
 }
 
-Matrix2DObj::
-Matrix2DObj(Canvas2D *canvas, uint dim0, uint dim1) :
+RealMatrix2DObj::
+RealMatrix2DObj(Canvas2D *canvas, uint dim0, uint dim1) :
  Object2D(canvas, Type::MATRIX), a_(dim0, dim1, 0.0)
 {
 }
 
-Matrix2DObj::
-Matrix2DObj(Canvas2D *canvas, const CArray2D<double> &a) :
+RealMatrix2DObj::
+RealMatrix2DObj(Canvas2D *canvas, const CArray2D<double> &a) :
  Object2D(canvas, Type::MATRIX), a_(a)
 {
 }
 
 bool
-Matrix2DObj::
+RealMatrix2DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
   auto *tcl = canvas()->tcl();
@@ -76,7 +76,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = int(a_.dim(1));
   }
   else if (name == "dup") {
-    auto *obj = new Matrix2DObj(canvas(), a_);
+    auto *obj = new RealMatrix2DObj(canvas(), a_);
 
     auto name = canvas()->addNewObject(obj);
 
@@ -89,7 +89,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 }
 
 bool
-Matrix2DObj::
+RealMatrix2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();

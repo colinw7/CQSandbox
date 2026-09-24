@@ -271,7 +271,7 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::matrix",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Matrix2DObj>),
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<RealMatrix2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::csv",
@@ -342,6 +342,10 @@ addCommands()
 
   // math
 
+  tcl->createObjCommand("sb::map",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::mapProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
 #if 0
   tcl->createObjCommand("sb::fmul",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::fmulProc),
@@ -366,15 +370,19 @@ addCommands()
   tcl->createObjCommand("sb::class",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Class2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
+
+#if 0
   tcl->createObjCommand("sb::method",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::methodProc),
     static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb::instance",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createTclObjectProc<Instance2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
   tcl->createObjCommand("sb::invoke",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::invokeProc),
     static_cast<CQTcl::ObjCmdData>(this));
+#endif
 }
 
 //---
@@ -2200,6 +2208,31 @@ viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **ob
   return TCL_OK;
 }
 
+int
+Canvas2D::
+mapProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  if (objc != 6)
+    return TCL_ERROR;
+
+  auto *th = static_cast<Canvas2D *>(clientData);
+  assert(th);
+
+  auto *tcl = th->tcl();
+
+  double r, min1, max1, min2, max2;
+  if (! tcl->getRealFromObj(objv[1], r) ||
+      ! tcl->getRealFromObj(objv[2], min1) || ! tcl->getRealFromObj(objv[3], max1) ||
+      ! tcl->getRealFromObj(objv[4], min2) || ! tcl->getRealFromObj(objv[5], max2))
+    return TCL_ERROR;
+
+  auto r1 = CMathUtil::map(r, min1, max1, min2, max2);
+
+  tcl->setResult(r1);
+
+  return TCL_OK;
+}
+
 #if 0
 int
 Canvas2D::
@@ -2273,6 +2306,7 @@ helpProc(void *clientData, Tcl_Interp *, int, const Tcl_Obj **)
   return TCL_OK;
 }
 
+#if 0
 int
 Canvas2D::
 methodProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
@@ -2302,7 +2336,9 @@ methodProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   return TCL_OK;
 }
+#endif
 
+#if 0
 int
 Canvas2D::
 invokeProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
@@ -2341,6 +2377,7 @@ invokeProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   return TCL_OK;
 }
+#endif
 
 //---
 

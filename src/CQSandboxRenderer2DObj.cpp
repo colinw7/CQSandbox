@@ -222,6 +222,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     }
 
     painter->setPen(pen_);
+    painter->setBrush(brush_);
 
     auto pr = canvas()->rectToPixel(r).qrect();
 
@@ -264,6 +265,26 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 
     painter->drawEllipse(pr);
   }
+  else if (op == "draw.line") {
+    auto *painter = getPainter();
+    if (! painter) return false;
+
+    if (args.size() != 2)
+      return false;
+
+    Point2D p1, p2;
+    if (! Util::stringToPoint2D(tcl, args[0], p1) ||
+        ! Util::stringToPoint2D(tcl, args[1], p2))
+      return false;
+
+    painter->setPen(pen_);
+    painter->setBrush(brush_);
+
+    auto p11 = canvas()->pointToPixel(p1).qpoint();
+    auto p22 = canvas()->pointToPixel(p2).qpoint();
+
+    painter->drawLine(p11, p22);
+  }
   else if (op == "draw.text") {
     if (args.size() != 2)
       return false;
@@ -300,6 +321,18 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 
     path_.moveTo(pp.x.value, pp.y.value);
   }
+  else if (op == "path.lineTo") {
+    if (args.size() != 1)
+      return false;
+
+    Point2D p;
+    if (! Util::stringToPoint2D(tcl, args[0], p))
+      return false;
+
+    auto pp = pointToPixel(p);
+
+    path_.lineTo(pp.x.value, pp.y.value);
+  }
   else if (op == "path.curveTo") {
     if (args.size() != 3)
       return false;
@@ -317,6 +350,9 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     path_.cubicTo(pp1.x.value, pp1.y.value,
                   pp2.x.value, pp2.y.value,
                   pp3.x.value, pp3.y.value);
+  }
+  else if (op == "path.close") {
+    path_.closeSubpath();
   }
   else if (op == "path.draw") {
     auto *painter = getPainter();

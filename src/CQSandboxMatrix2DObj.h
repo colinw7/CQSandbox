@@ -7,14 +7,14 @@
 
 namespace CQSandbox {
 
-class Matrix2DObj : public Object2D {
+class RealMatrix2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  Matrix2DObj(Canvas2D *canvas, uint dim0, uint dim1);
-  Matrix2DObj(Canvas2D *canvas, const CArray2D<double> &a);
+  RealMatrix2DObj(Canvas2D *canvas, uint dim0, uint dim1);
+  RealMatrix2DObj(Canvas2D *canvas, const CArray2D<double> &a);
 
   const char *typeName() const override { return "matrix"; }
 

@@ -319,6 +319,8 @@ class Canvas2D : public QFrame {
   static int drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 #endif
 
+  static int mapProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+
 #if 0
   static int fmulProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
   static int fmaProc (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
@@ -328,8 +330,10 @@ class Canvas2D : public QFrame {
 
   static int helpProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
+#if 0
   static int methodProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
   static int invokeProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+#endif
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value);
   bool setValue(const QString &, const QString &, const QStringList &);
