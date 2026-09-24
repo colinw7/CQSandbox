@@ -258,11 +258,18 @@ class Canvas2D : public QFrame {
   void addObject(Object2D *obj);
   void removeObject(Object2D *obj);
 
-  bool addClass(Class2DObj *obj);
+  //---
+
+  bool hasClass(const QString &name) const;
+  QString addClass(Class2DObj *obj);
   Class2DObj *getClass(const QString &name) const;
+
+  //---
 
   void createObjCommand(Object2D *obj);
   void createObjTclCommand(Object2D *obj);
+
+  //---
 
   Point2D pointToWindow(const Point2D &p) const;
 
@@ -295,6 +302,8 @@ class Canvas2D : public QFrame {
  protected:
   static int objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
   static int objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
+
+  static int classCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 
   static int viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 

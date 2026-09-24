@@ -116,4 +116,14 @@ setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &args)
   return true;
 }
 
+bool
+Instance2DObj::
+execTcl(const QString &op, const TclObjs &objs, Tcl_Obj* &res)
+{
+  if (! classObj_->invokeMethod(op, getCommandName(), objs, res))
+    return false;
+
+  return true;
+}
+
 }

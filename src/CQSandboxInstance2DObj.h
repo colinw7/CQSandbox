@@ -24,6 +24,8 @@ class Instance2DObj : public Object2D {
   bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
   bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
 
+  bool execTcl(const QString &op, const TclObjs &objs, Tcl_Obj* &res) override;
+
  protected:
   using NameValueMap = std::map<QString, Tcl_Obj *>;
 

@@ -5,6 +5,8 @@
 
 namespace CQSandbox {
 
+class Instance2DObj;
+
 class Class2DObj : public Object2D {
   Q_OBJECT
 

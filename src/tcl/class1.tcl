@@ -1,41 +1,41 @@
 set Vector [sb::class Vector]
-echo $Vector
 
-sb::method Vector init { v x y } {
+$Vector proc init { v x y } {
   # echo "init $v $x $y"
 
   $v set x $x
   $v set y $y
 }
 
-sb::method Vector add { v1 v2 } {
+$Vector proc add { v1 v2 } {
   # echo "add $v1 $v2"
 
   $v1 set x [expr {[$v1 get x] + [$v2 get x]}]
   $v1 set y [expr {[$v1 get y] + [$v2 get y]}]
 }
 
-sb::method Vector test { x } {
+$Vector proc test { v x } {
   set x 1
 }
 
-sb::method Vector print { v } {
+$Vector proc print { v } {
   echo "[$v get x] [$v get y]"
 }
 
-set v1 [sb::instance Vector 1 2]
-set v2 [sb::instance Vector 3 4]
+# ---
 
-sb::invoke Vector add $v1 $v2
+set v1 [$Vector create 1 2]
+set v2 [$Vector create 3 4]
+
+$v1 exec add $v2
 $v1 exec print
 
 $v1 exec add $v2
 $v1 exec print
 
 set x 5
-sb::invoke Vector test $x
+$v1 exec test $x
 echo "$x"
 
 set v3 [$Vector create 5 6]
 $v3 exec print
-

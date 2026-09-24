@@ -72,8 +72,8 @@ proc draw { } {
   set activePolygons1 {}
 
   foreach p $::activePolygons {
-    if {[sb::invoke Polygon isAnimationDone $p]} {
-      if {[sb::invoke Polygon canSplit $p]} {
+    if {[$p exec isAnimationDone]} {
+      if {[$p exec canSplit]} {
         lappend ::splittablePolygons $p
       } else {
         lappend ::donePolygons $p
@@ -92,7 +92,7 @@ proc draw { } {
 
   foreach p $::splittablePolygons {
     if {[randIn 0 1] < $splitProbability} {
-      set newPolygons [sb::invoke Polygon splitPolygon $p]
+      set newPolygons [$p exec splitPolygon]
 
       foreach p1 $newPolygons {
         lappend ::activePolygons $p1
@@ -116,7 +116,7 @@ proc drawPolygons { polygons } {
   # echo "drawPolygons $polygons"
 
   foreach p $polygons {
-    sb::invoke Polygon drawPolygon $p
+    $p exec drawPolygon
   }
 }
 
@@ -154,7 +154,7 @@ proc initialize { } {
   set hueValue [randIn 0 $::TWO_PI]
   set hueDelta [expr {$::TWO_PI/8}]
 
-  set poly [sb::instance Polygon $x $y $hueValue $hueDelta]
+  set poly [$::Polygon create $x $y $hueValue $hueDelta]
 
   lappend ::activePolygons $poly
 }
@@ -162,9 +162,9 @@ proc initialize { } {
 # --------------
 
 # Class representing polygon.
-sb::class Polygon
+set ::Polygon [sb::class Polygon]
 
-sb::method Polygon init { poly x y hueValue hueDelta } {
+$::Polygon proc init { poly x y hueValue hueDelta } {
   # echo "Polygon:init $poly $x $y $hueValue $hueDelta"
 
   $poly set x $x
@@ -176,7 +176,7 @@ sb::method Polygon init { poly x y hueValue hueDelta } {
   $poly set animationStep 0
 }
 
-sb::method Polygon drawPolygon { poly } {
+$::Polygon proc drawPolygon { poly } {
   # echo "Polygon:drawPolygon $poly"
 
   # Draws polygon. In order to get rounded corners, polygon is drawn as a bezier curve.
@@ -234,7 +234,7 @@ sb::method Polygon drawPolygon { poly } {
 }
 
 # Returns true, if polygon animation is complete (if it is no more semi-transparent).
-sb::method Polygon isAnimationDone { poly } {
+$::Polygon proc isAnimationDone { poly } {
   # echo "Polygon:isAnimationDone $poly"
 
   set animationStep [$poly get animationStep]
@@ -247,8 +247,8 @@ sb::method Polygon isAnimationDone { poly } {
 }
 
 # Returns true, if polygon can be split into two smaller polygons.
-# Polygon can be, split if at least two sides are splitable.
-sb::method Polygon canSplit { poly } {
+# A polygon can be split if at least two sides are splitable.
+$::Polygon proc canSplit { poly } {
   # echo "Polygon:canSplit $poly"
 
   set splitableSides 0
@@ -256,7 +256,7 @@ sb::method Polygon canSplit { poly } {
   set n [llength [$poly get x]]
 
   for {set i 0} {$i < $n} {incr i} {
-    if {[sb::invoke Polygon isSplitableSide $poly $i]} {
+    if {[$poly exec isSplitableSide $i]} {
       incr splitableSides
     }
   }
@@ -270,7 +270,7 @@ sb::method Polygon canSplit { poly } {
 
 # Returns true, if specified side is splitable.
 # Side can be split, if it is longer than two miminum side lengths.
-sb::method Polygon isSplitableSide { poly i } {
+$::Polygon proc isSplitableSide { poly i } {
   # echo "Polygon:isSplitableSide $poly $i"
 
   set x [$poly get x]
@@ -295,14 +295,14 @@ sb::method Polygon isSplitableSide { poly i } {
 }
 
 # Splits polygon into two. Append resulting polygons to specified list.
-sb::method Polygon splitPolygon { poly } {
+$::Polygon proc splitPolygon { poly } {
   set n [llength [$poly get x]]
 
   # Randomly get first side to be split
   set side1 0
   while {1} {
     set side1 [irandIn 0 [expr {$n - 1}]]
-    if {[sb::invoke Polygon isSplitableSide $poly $side1]} {
+    if {[$poly exec isSplitableSide $side1]} {
       break
     }
   }
@@ -311,24 +311,24 @@ sb::method Polygon splitPolygon { poly } {
   set side2 0
   while {1} {
     set side2 [irandIn 0 [expr {$n - 1}]]
-    if {$side2 != $side1 && [sb::invoke Polygon isSplitableSide $poly $side2]} {
+    if {$side2 != $side1 && [$poly exec isSplitableSide $side2]} {
       break
     }
   }
 
   # Get random split points on sides
-  set c1 [sb::invoke Polygon getRandomSplitPoint $poly $side1]
-  set c2 [sb::invoke Polygon getRandomSplitPoint $poly $side2]
+  set c1 [$poly exec getRandomSplitPoint $side1]
+  set c2 [$poly exec getRandomSplitPoint $side2]
 
   # Do split
-  set poly1 [sb::invoke Polygon createNew $poly $side1 $side2 $c1 $c2  1]
-  set poly2 [sb::invoke Polygon createNew $poly $side2 $side1 $c2 $c1 -1]
+  set poly1 [$poly exec createNew $side1 $side2 $c1 $c2  1]
+  set poly2 [$poly exec createNew $side2 $side1 $c2 $c1 -1]
 
   return [list $poly1 $poly2]
 }
 
 # Create new polygon that is splitted half of this one
-sb::method Polygon createNew { poly side1 side2 c1 c2 hueMultiplier } {
+$::Polygon proc createNew { poly side1 side2 c1 c2 hueMultiplier } {
   # echo "Polygon:createNew $poly $side1 $side2 $c1 $c2 $hueMultiplier"
 
   set x [$poly get x]
@@ -385,13 +385,13 @@ sb::method Polygon createNew { poly side1 side2 c1 c2 hueMultiplier } {
 
   set hueDelta1 [expr {$hueDelta*0.7}]
 
-  set poly [sb::instance Polygon $x1 $y1 $hueValue1 $hueDelta1]
+  set poly [$::Polygon create $x1 $y1 $hueValue1 $hueDelta1]
 
   return $poly
 }
 
 # Returns random split point for specifed side. Split point value is in interval (0,1).
-sb::method Polygon getRandomSplitPoint { poly side } {
+$::Polygon proc getRandomSplitPoint { poly side } {
   # echo "Polygon:getRandomSplitPoint $poly $side"
 
   set x [$poly get x]

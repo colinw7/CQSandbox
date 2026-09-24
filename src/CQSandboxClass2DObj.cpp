@@ -15,15 +15,24 @@ Class2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
   auto *app = canvas->app();
+  auto *tcl = canvas->tcl();
 
   if (args.size() != 1)
     return app->errorMsg("Invalid number of args for class create");
 
   auto name = args[0];
 
+  if (canvas->hasClass(name))
+    return app->errorMsg("Class already exists");
+
   auto *obj = new Class2DObj(canvas, name);
 
-  canvas->addClass(obj);
+  auto objName = canvas->addClass(obj);
+
+  if (! obj->init())
+    return false;
+
+  tcl->setResult(objName);
 
   return true;
 }

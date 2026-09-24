@@ -11,15 +11,14 @@ bool
 Array2DObj::
 create(Canvas2D *canvas, const QStringList &args)
 {
-  if (args.size() != 2)
+  if (args.size() != 1)
     return false;
 
   auto *tcl = canvas->tcl();
 
-  auto dim0 = Util::stringToInt(args[0]);
-  auto dim1 = Util::stringToInt(args[1]);
+  auto dim = Util::stringToInt(args[0]);
 
-  auto *obj = new Array2DObj(canvas, dim0, dim1);
+  auto *obj = new Array2DObj(canvas, dim);
 
   auto name = canvas->addNewObject(obj);
 
@@ -29,98 +28,66 @@ create(Canvas2D *canvas, const QStringList &args)
 }
 
 Array2DObj::
-Array2DObj(Canvas2D *canvas, uint dim0, uint dim1) :
- Object2D(canvas, Type::ARRAY), a_(dim0, dim1, 0.0)
+Array2DObj(Canvas2D *canvas, uint dim) :
+ Object2D(canvas, Type::ARRAY)
 {
-}
-
-Array2DObj::
-Array2DObj(Canvas2D *canvas, const CArray2D<double> &a) :
- Object2D(canvas, Type::ARRAY), a_(a)
-{
+  values_.resize(dim);
 }
 
 bool
 Array2DObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
+getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res)
 {
   auto *tcl = canvas()->tcl();
 
   if      (name == "value") {
-    uint dim0, dim1;
-
-    if      (args.size() == 2) {
-      dim0 = Util::stringToInt(args[0]);
-      dim1 = Util::stringToInt(args[1]);
-    }
-    else if (args.size() == 1) {
-      std::vector<int> a;
-      if (! Util::stringToIntArray(tcl, args[0], a) || a.size() != 2)
-        return false;
-
-      dim0 = a[0];
-      dim1 = a[1];
-    }
-    else
+    if (objs.size() != 1)
       return false;
 
-    if (! a_.validIndex(dim0, dim1))
+    int i;
+    if (! tcl->getIntFromObj(objs[0], i))
       return false;
 
-    value = a_.get(dim0, dim1);
-  }
-  else if (name == "dim0") {
-    value = int(a_.dim(0));
-  }
-  else if (name == "dim1") {
-    value = int(a_.dim(1));
-  }
-  else if (name == "dup") {
-    auto *obj = new Array2DObj(canvas(), a_);
+    if (i < 0 || i >= int(values_.size()))
+      return false;
 
-    auto name = canvas()->addNewObject(obj);
+    if (! values_[i])
+      return false;
 
-    value = name;
+    res = values_[i];
+  }
+  else if (name == "dim") {
+    res = tcl->newIntObj(values_.size());
   }
   else
-    return Object2D::getValue(name, args, value);
+    return Object2D::getTclValue(name, objs, res);
 
   return true;
 }
 
 bool
 Array2DObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
+setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs)
 {
   auto *tcl = canvas()->tcl();
 
   if (name == "value") {
-    uint dim0, dim1;
-
-    if      (args.size() == 2) {
-      dim0 = Util::stringToInt(args[0]);
-      dim1 = Util::stringToInt(args[1]);
-    }
-    else if (args.size() == 1) {
-      std::vector<int> a;
-      if (! Util::stringToIntArray(tcl, args[0], a) || a.size() != 2)
-        return false;
-
-      dim0 = a[0];
-      dim1 = a[1];
-    }
-    else
+    if (objs.size() != 1)
       return false;
 
-    if (! a_.validIndex(dim0, dim1))
+    int i;
+    if (! tcl->getIntFromObj(value, i))
       return false;
 
-    auto r = Util::stringToReal(value);
+    if (i >= int(values_.size()))
+      return false;
 
-    a_.set(dim0, dim1, r);
+    values_[i] = objs[0];
+
+    Tcl_IncrRefCount(values_[i]);
   }
   else
-    return Object2D::setValue(name, value, args);
+    return Object2D::setTclValue(name, value, objs);
 
   return true;
 }

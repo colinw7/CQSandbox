@@ -9,6 +9,7 @@
 #include <CQSandboxGroup2DObj.h>
 #include <CQSandboxImage2DObj.h>
 #include <CQSandboxLine2DObj.h>
+#include <CQSandboxMatrix2DObj.h>
 #include <CQSandboxPalette2DObj.h>
 #include <CQSandboxParticle2DObj.h>
 #include <CQSandboxPath2DObj.h>
@@ -269,6 +270,10 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Array2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
+  tcl->createObjCommand("sb::matrix",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Matrix2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb::csv",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Csv2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
@@ -370,32 +375,6 @@ addCommands()
   tcl->createObjCommand("sb::invoke",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::invokeProc),
     static_cast<CQTcl::ObjCmdData>(this));
-}
-
-void
-Canvas2D::
-createObjCommand(Object2D *obj)
-{
-  auto *tcl = this->tcl();
-
-  auto name = obj->getCommandName();
-
-  tcl->createObjCommand(name,
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::objectCommandProc),
-    static_cast<CQTcl::ObjCmdData>(obj));
-}
-
-void
-Canvas2D::
-createObjTclCommand(Object2D *obj)
-{
-  auto *tcl = this->tcl();
-
-  auto name = obj->getCommandName();
-
-  tcl->createObjCommand(name,
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::objectTclCommandProc),
-    static_cast<CQTcl::ObjCmdData>(obj));
 }
 
 //---
@@ -1217,6 +1196,32 @@ addNewObject(Object2D *obj)
 
 void
 Canvas2D::
+createObjCommand(Object2D *obj)
+{
+  auto *tcl = this->tcl();
+
+  auto name = obj->getCommandName();
+
+  tcl->createObjCommand(name,
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::objectCommandProc),
+    static_cast<CQTcl::ObjCmdData>(obj));
+}
+
+void
+Canvas2D::
+createObjTclCommand(Object2D *obj)
+{
+  auto *tcl = this->tcl();
+
+  auto name = obj->getCommandName();
+
+  tcl->createObjCommand(name,
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::objectTclCommandProc),
+    static_cast<CQTcl::ObjCmdData>(obj));
+}
+
+void
+Canvas2D::
 addObject(Object2D *obj)
 {
   auto *viewport = currentViewport();
@@ -1250,16 +1255,35 @@ removeObject(Object2D *obj)
 
 bool
 Canvas2D::
+hasClass(const QString &name) const
+{
+  auto pc = classes_.find(name);
+
+  return (pc != classes_.end());
+}
+
+QString
+Canvas2D::
 addClass(Class2DObj *obj)
 {
   auto pc = classes_.find(obj->name());
-
-  if (pc != classes_.end())
-    return false;
+  assert(pc == classes_.end());
 
   classes_[obj->name()] = obj;
 
-  return true;
+  obj->setInd(++lastInd_);
+
+  //---
+
+  auto *tcl = this->tcl();
+
+  auto name = obj->getCommandName();
+
+  tcl->createObjCommand(name,
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::classCommandProc),
+    static_cast<CQTcl::ObjCmdData>(obj));
+
+  return obj->calcId();
 }
 
 Class2DObj *
@@ -2030,6 +2054,62 @@ objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
   return TCL_OK;
 }
 
+int
+Canvas2D::
+classCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *classObj = static_cast<Class2DObj *>(clientData);
+  assert(classObj);
+
+  auto *canvas = classObj->canvas();
+  auto *app    = canvas->app();
+
+  if (objc < 2) {
+    (void) app->errorMsg("Missing args for class command");
+    return TCL_ERROR;
+  }
+
+  auto *tcl = canvas->tcl();
+
+  auto cmd = tcl->qstringFromObj(objv[1]);
+
+  if      (cmd == "create") {
+    std::vector<Tcl_Obj *> args;
+    for (int i = 2; i < objc; ++i)
+      args.push_back(const_cast<Tcl_Obj *>(objv[i]));
+
+    auto *obj = new Instance2DObj(canvas, classObj, args);
+
+    auto objName = canvas->addNewObject(obj);
+
+    if (! obj->init())
+      return TCL_ERROR;
+
+    tcl->setResult(objName);
+
+    return TCL_OK;
+  }
+  else if (cmd == "proc") {
+    if (objc != 5) {
+      (void) app->errorMsg("Invalid args for class proc");
+      return TCL_ERROR;
+    }
+
+    auto methodName = tcl->qstringFromObj(objv[2]);
+    auto methodArgs = tcl->qstringFromObj(objv[3]);
+    auto methodBody = tcl->qstringFromObj(objv[4]);
+
+    classObj->addMethod(methodName, methodArgs, methodBody);
+
+    return TCL_OK;
+  }
+  else {
+    (void) app->errorMsg(QString("Bad class command '%1'").arg(cmd));
+    return TCL_ERROR;
+  }
+
+  return TCL_OK;
+}
 int
 Canvas2D::
 viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
