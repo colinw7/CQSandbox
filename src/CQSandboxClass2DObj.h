@@ -19,6 +19,8 @@ class Class2DObj : public Object2D {
 
   const QString &name() const { return name_; }
 
+  QString getCommandName() const override;
+
   bool addMethod(const QString &name, const QString &args, const QString &body);
 
   bool invokeMethod(const QString &name, const QString &instanceName,

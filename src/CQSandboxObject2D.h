@@ -30,7 +30,6 @@ class Object2D : public QObject {
  public:
   enum class Type {
     NONE,
-    ARRAY,
     ARROW,
     ASTAR,
     AXIS,
@@ -42,6 +41,8 @@ class Object2D : public QObject {
     IMAGE,
     LINE,
     MATRIX,
+    OBJ_ARRAY,
+    OBJ_MATRIX,
     PALETTE,
     PARTICLE,
     PATH,
@@ -180,7 +181,7 @@ class Object2D : public QObject {
   virtual void press(int x, int y);
   virtual void click(int x, int y);
 
-  QString getCommandName() const;
+  virtual QString getCommandName() const;
 
   virtual Point2D pointToWindow(const Point2D &p) const;
 

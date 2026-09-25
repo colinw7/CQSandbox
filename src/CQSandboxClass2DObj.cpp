@@ -43,6 +43,13 @@ Class2DObj(Canvas2D *canvas, const QString &name) :
 {
 }
 
+QString
+Class2DObj::
+getCommandName() const
+{
+  return QString("sb2d::C_%1.%2").arg(name()).arg(ind_);
+}
+
 bool
 Class2DObj::
 addMethod(const QString &name, const QString &args, const QString &body)

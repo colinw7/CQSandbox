@@ -266,8 +266,12 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Vector2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
-  tcl->createObjCommand("sb::array",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Array2DObj>),
+  tcl->createObjCommand("sb::obj_array",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ObjArray2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb::obj_matrix",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ObjMatrix2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb::matrix",
@@ -454,6 +458,21 @@ pixelSizeToWindow(const QSizeF &psize) const
     return QSizeF(psize.width(), psize.height());
 }
 
+//---
+
+void
+Canvas2D::
+setTimerTicks(uint i)
+{
+  timerTicks_ = i;
+
+  if (running_) {
+    timer_->stop();
+
+    timer_->start(timerTicks());
+  }
+}
+
 void
 Canvas2D::
 play()
@@ -461,7 +480,7 @@ play()
   if (! running_) {
     step();
 
-    timer_->start(timerTicks_);
+    timer_->start(timerTicks());
 
     running_ = true;
 
@@ -1407,9 +1426,11 @@ paletteProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
       if (strs.size() != 3)
         return TCL_ERROR;
 
-      auto h = Util::stringToReal(strs[0]);
-      auto s = Util::stringToReal(strs[1]);
-      auto v = Util::stringToReal(strs[2]);
+      double h, s, v;
+      if (! Util::stringToReal(strs[0], h) ||
+          ! Util::stringToReal(strs[1], s) ||
+          ! Util::stringToReal(strs[2], v))
+        return TCL_ERROR;
 
       auto c = QColor::fromHsvF(h, s, v);
 
@@ -1635,7 +1656,11 @@ setValue(const QString &name, const QString &value, const QStringList &)
     viewport->brush.setTarget(b);
   }
   else if (name == "brush.steps") {
-    viewport->brush.setSteps(Util::stringToInt(value));
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    viewport->brush.setSteps(i);
   }
   else if (name == "pen.color") {
     QColor c;
@@ -1735,6 +1760,13 @@ setValue(const QString &name, const QString &value, const QStringList &)
     auto b = Util::stringToBool(value);
 
     tclCallbacks_.rubberBandEvent = b;
+  }
+  else if (name == "timeout") {
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    setTimerTicks(i);
   }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
@@ -2615,7 +2647,11 @@ CirclesGroupObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
   if (name == "n") {
-    mgr_->setFactor(Util::stringToInt(value));
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    mgr_->setFactor(i);
 
     mgr_->place();
   }
@@ -2850,10 +2886,18 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return false;
   }
   else if (name == "min_value") {
-    minValue_ = Util::stringToInt(value);
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    minValue_ = i;
   }
   else if (name == "max_value") {
-    maxValue_ = Util::stringToInt(value);
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    maxValue_ = i;
   }
   else
     return EditObj::setValue(name, value, args);

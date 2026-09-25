@@ -187,7 +187,7 @@ class Canvas2D : public QFrame {
   void setRunning(bool b) { running_ = b; }
 
   uint timerTicks() const { return timerTicks_; }
-  void setTimerTicks(uint i) { timerTicks_ = i; }
+  void setTimerTicks(uint i);
 
   //---
 

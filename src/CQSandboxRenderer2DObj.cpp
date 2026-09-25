@@ -143,6 +143,7 @@ Renderer2DObj::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
   auto *tcl = canvas()->tcl();
+  auto *app = canvas()->app();
 
   // image painter
   if      (op == "paint.begin") {
@@ -176,7 +177,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     }
 
     auto *painter = getPainter();
-    if (! painter) return false;
+    if (! painter) return app->errorMsg("No Painter");
 
     auto r = getRect();
 
@@ -193,14 +194,14 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 
   else if (op == "draw.point") {
     if (args.size() != 1)
-      return false;
+      return app->errorMsg("Invalid number of args for " + op);
 
     auto *painter = getPainter();
-    if (! painter) return false;
+    if (! painter) return app->errorMsg("No Painter");
 
     Point2D p;
     if (! Util::stringToPoint2D(tcl, args[0], p))
-      return false;
+      return app->errorMsg("Invalid point for " + op);
 
     painter->setPen(pen_);
 
@@ -210,12 +211,12 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   }
   else if (op == "draw.rect") {
     auto *painter = getPainter();
-    if (! painter) return false;
+    if (! painter) return app->errorMsg("No Painter");
 
     Rect2D r;
     if (args.size() >= 1) {
       if (! Util::stringToRect2D(tcl, args[0], r))
-        return false;
+        return app->errorMsg("Invalid rect for " + op);
     }
     else {
       r = getRect();
@@ -230,12 +231,12 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   }
   else if (op == "fill.rect") {
     auto *painter = getPainter();
-    if (! painter) return false;
+    if (! painter) return app->errorMsg("No Painter");
 
     Rect2D r;
     if (args.size() >= 1) {
       if (! Util::stringToRect2D(tcl, args[0], r))
-        return false;
+        return app->errorMsg("Invalid rect for " + op);
     }
     else {
       r = getRect();
@@ -247,12 +248,12 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   }
   else if (op == "draw.ellipse") {
     auto *painter = getPainter();
-    if (! painter) return false;
+    if (! painter) return app->errorMsg("No Painter");
 
     Rect2D r;
     if (args.size() >= 1) {
       if (! Util::stringToRect2D(tcl, args[0], r))
-        return false;
+        return app->errorMsg("Invalid rect for " + op);
     }
     else {
       r = getRect();
@@ -267,15 +268,15 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   }
   else if (op == "draw.line") {
     auto *painter = getPainter();
-    if (! painter) return false;
+    if (! painter) return app->errorMsg("No Painter");
 
     if (args.size() != 2)
-      return false;
+      return app->errorMsg("Invalid number of args for " + op);
 
     Point2D p1, p2;
     if (! Util::stringToPoint2D(tcl, args[0], p1) ||
         ! Util::stringToPoint2D(tcl, args[1], p2))
-      return false;
+      return app->errorMsg("Invalid points for " + op);
 
     painter->setPen(pen_);
     painter->setBrush(brush_);
@@ -287,14 +288,14 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   }
   else if (op == "draw.text") {
     if (args.size() != 2)
-      return false;
+      return app->errorMsg("Invalid number of args for " + op);
 
     auto *painter = getPainter();
-    if (! painter) return false;
+    if (! painter) return app->errorMsg("No Painter");
 
     Point2D p;
     if (! Util::stringToPoint2D(tcl, args[0], p))
-      return false;
+      return app->errorMsg("Invalid point for " + op);
 
     auto text = args[1];
 
@@ -311,11 +312,11 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   }
   else if (op == "path.moveTo") {
     if (args.size() != 1)
-      return false;
+      return app->errorMsg("Invalid number of args for " + op);
 
     Point2D p;
     if (! Util::stringToPoint2D(tcl, args[0], p))
-      return false;
+      return app->errorMsg("Invalid point for " + op);
 
     auto pp = pointToPixel(p);
 
@@ -323,25 +324,28 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   }
   else if (op == "path.lineTo") {
     if (args.size() != 1)
-      return false;
+      return app->errorMsg("Invalid number of args for " + op);
 
     Point2D p;
     if (! Util::stringToPoint2D(tcl, args[0], p))
-      return false;
+      return app->errorMsg("Invalid point for " + op);
 
     auto pp = pointToPixel(p);
 
-    path_.lineTo(pp.x.value, pp.y.value);
+    if (path_.elementCount() == 0)
+      path_.moveTo(pp.x.value, pp.y.value);
+    else
+      path_.lineTo(pp.x.value, pp.y.value);
   }
   else if (op == "path.curveTo") {
     if (args.size() != 3)
-      return false;
+      return app->errorMsg("Invalid number of args for " + op);
 
     Point2D p1, p2, p3;
     if (! Util::stringToPoint2D(tcl, args[0], p1) ||
         ! Util::stringToPoint2D(tcl, args[1], p2) ||
         ! Util::stringToPoint2D(tcl, args[2], p3))
-      return false;
+      return app->errorMsg("Invalid points for " + op);
 
     auto pp1 = pointToPixel(p1);
     auto pp2 = pointToPixel(p2);
@@ -356,7 +360,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
   }
   else if (op == "path.draw") {
     auto *painter = getPainter();
-    if (! painter) return false;
+    if (! painter) return app->errorMsg("No Painter");
 
     painter->setPen(pen_);
     painter->setBrush(brush_);

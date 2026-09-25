@@ -26,7 +26,7 @@ proc addTextLabel { str pos align } {
 proc init { } {
   set ::game_over 0
 
-  set ::board [sb::array 8 8]
+  set ::board [sb::matrix 8 8]
 
   set ::score_text [addTextLabel "" { 5  5} left ]
   set ::move_text  [addTextLabel "" { 95 5} right]

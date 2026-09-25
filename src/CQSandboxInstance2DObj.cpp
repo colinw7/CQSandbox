@@ -70,6 +70,13 @@ init()
   return true;
 }
 
+QString
+Instance2DObj::
+getCommandName() const
+{
+  return QString("sb2d::I_%1.%2").arg(classObj_->name()).arg(ind_);
+}
+
 bool
 Instance2DObj::
 getTclValue(const QString &name, const TclObjs &args, Tcl_Obj* &res)

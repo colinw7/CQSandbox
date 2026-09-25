@@ -32,15 +32,19 @@ proc init { } {
 proc setup { } {
   set ::renderer [sb::renderer]
 
-  set ::width  [sb::canvas get pixel_width ]
-  set ::height [sb::canvas get pixel_height]
+  set ::width  800
+  set ::height 600
 
-  $::renderer set size {800 600}
+  $::renderer set size [list $::width $::height]
+
 # $::renderer set size {1024 768}
 # $::renderer set size {$::width $::height}
 
   # smooth()
+
   # frameRate(30)
+  sb::canvas set timeout [expr {int(1000.0/30.0)}] ; # 30 frames a second
+
   # colorMode HSB 1
   # ellipseMode(CENTER)
 
@@ -52,24 +56,41 @@ proc setup { } {
   $::renderer set pen.width 2
 
   city
+
+  sb::canvas set play 1
 }
 
 # --
 
+proc drawBg { args } {
+  $::renderer exec paint.draw
+}
+
+proc update { } {
+  draw
+}
+
 proc draw { } {
+  $::renderer exec paint.begin
+
+  set nr [$::lista get nr]
+
   set t 0
-  while {1} {
-    incr t
-    if {$t >= 50 || ($::el0 < [$::lista get nr])} {
-      break
+
+  while {$t < 50} {
+    if {$::el0 < $nr} {
+      $::lista exec draw $::el0
     }
-    $::lista exec draw $::el0
+
+    incr t
     incr ::el0
   }
 
-  if {$::el0 == [$::lista get nr]} {
+  if {$::el0 == $nr} {
     sb::canvas set play 0
   }
+
+  $::renderer exec paint.end
 }
 
 # --
@@ -77,8 +98,11 @@ proc draw { } {
 proc mouseClicked { } {
   $::lista set nr 0
   set ::el0 0
+
   city
+
   $::renderer set brush.color [list hsb 0 0 1]
+
   sb::canvas set play 1
 }
 
@@ -191,13 +215,13 @@ proc palazzo { pt } {
           [$::PVector create [expr {[$pt get x] + 30}] [expr {$h - 4}] [expr {[$pt get z] + 30}]]
 
     for {set fi [expr {30-3}]} {$fi > 0} {incr fi -3} {
-      vlinea [proietta [$::PVector create [expr {[$pt get x]      }] 20
+      vlinea [proietta [$::PVector create [expr {[$pt get x]      }] 20 \
+                                          [expr {[$pt get z] + $fi}]]] \
+             [proietta [$::PVector create [expr {[$pt get x]      }] [expr {$h - 4}] \
                                           [expr {[$pt get z] + $fi}]]]
-             [proietta [$::PVector create [expr {[$pt get x]      }] [expr {$h - 4}]
-                                          [expr {[$pt get z] + $fi}]]]
-      vlinea [proietta [$::PVector create [expr {[$pt get x] + $fi}] 20
-                                          [expr {[$pt get z]}]]]
-             [proietta [$::PVector create [expr {[$pt get x] + $fi}] [expr {$h - 4}]
+      vlinea [proietta [$::PVector create [expr {[$pt get x] + $fi}] 20 \
+                                          [expr {[$pt get z]}]]] \
+             [proietta [$::PVector create [expr {[$pt get x] + $fi}] [expr {$h - 4}] \
                                           [expr {[$pt get z]}]]]
     }
 
@@ -233,7 +257,7 @@ proc palazzo { pt } {
   } elseif {$tipo == 3} {
     box3d [$::PVector create [expr {[$pt get x] + 14.5}] $h \
                              [expr {[$pt get z] + 14.5}]] \
-          [$::PVector create [expr {[$pt get x] + 15.5}] [expr {$h+40}]
+          [$::PVector create [expr {[$pt get x] + 15.5}] [expr {$h + 40}] \
                              [expr {[$pt get z] + 15.5}]]
 
     if {$h > 50} {
@@ -253,22 +277,22 @@ proc palazzo { pt } {
             [$::PVector create [expr {[$pt get x] + 26}] 16 [expr {[$pt get z] + 26}]]
     }
 
-    if {h > 12} {
+    if {$h > 12} {
       basamento $pt 12
     }
 
     set insegne 1
   } elseif {$tipo == 4} {
-    cilindro3d [$::PVector create [$pt get x] 31 [$pt get z] [expr {$h - 16}] 32 13 1]
-    cilindro3d [$::PVector create [$pt get x] 26 [$pt get z]                4 32 13 1]
-    cilindro3d [$::PVector create [$pt get x] 21 [$pt get z]                4 32 13 1]
-    cilindro3d [$::PVector create [$pt get x] 16 [$pt get z]                4 32 13 1]
-    cilindro3d [$::PVector create [$pt get x] 12 [$pt get z]                4 32 11 1]
-    cilindro3d [$::PVector create [$pt get x]  0 [$pt get z]               12 32 15 0]
+    cilindro3d [$::PVector create [$pt get x] 31 [$pt get z]] [expr {$h - 16}] 32 13 1
+    cilindro3d [$::PVector create [$pt get x] 26 [$pt get z]]                4 32 13 1
+    cilindro3d [$::PVector create [$pt get x] 21 [$pt get z]]                4 32 13 1
+    cilindro3d [$::PVector create [$pt get x] 16 [$pt get z]]                4 32 13 1
+    cilindro3d [$::PVector create [$pt get x] 12 [$pt get z]]                4 32 11 1
+    cilindro3d [$::PVector create [$pt get x]  0 [$pt get z]]               12 32 15 0
   } elseif {$tipo == 5} {
-    cilindro3d [$::PVector create [$pt get x] [expr {$h - 2}] [$pt get z]                2 8 13 1]
-    cilindro3d [$::PVector create [$pt get x] [expr {$h - 6}] [$pt get z]                4 8  9 1]
-    cilindro3d [$::PVector create [$pt get x]               8 [$pt get z] [expr {$h - 14}] 8 13 1]
+    cilindro3d [$::PVector create [$pt get x] [expr {$h - 2}] [$pt get z]]                2 8 13 1
+    cilindro3d [$::PVector create [$pt get x] [expr {$h - 6}] [$pt get z]]                4 8  9 1
+    cilindro3d [$::PVector create [$pt get x]               8 [$pt get z]] [expr {$h - 14}] 8 13 1
 
     basamento $pt 8
 
@@ -355,7 +379,7 @@ proc palazzo { pt } {
 
     box3d [$::PVector create [expr {[$pt get x]     }]  0 [expr {[$pt get z] + 15}]] \
           [$::PVector create [expr {[$pt get x] + 4 }] $h [expr {[$pt get z] + 30}]]
-    box3d [$::PVector create [expr {[$pt get x] + 15}]  0 [expr {[$pt get z]     }][ \
+    box3d [$::PVector create [expr {[$pt get x] + 15}]  0 [expr {[$pt get z]     }]] \
           [$::PVector create [expr {[$pt get x] + 30}] $h [expr {[$pt get z] +  4}]]
 
     set insegne 1
@@ -367,13 +391,13 @@ proc palazzo { pt } {
     set ipos [randIn 2 14]
 
     rettangolo_bianco \
-     [$::PVector create [expr {[$pt get x] + $ipos}] 4
+     [$::PVector create [expr {[$pt get x] + $ipos}] 4 \
                         [expr {[$pt get z] - 1     }]] \
-     [$::PVector create [expr {[$pt get x] + $ipos}] expr [{4 + $ih}]
+     [$::PVector create [expr {[$pt get x] + $ipos}] [expr {4 + $ih}] \
                         [expr {[$pt get z] - 1     }]] \
-     [$::PVector create [expr {[$pt get x] + $ipos}] expr [{4 + $ih}]
+     [$::PVector create [expr {[$pt get x] + $ipos}] [expr {4 + $ih}] \
                         [expr {[$pt get z] - 1- $iw}]] \
-     [$::PVector create [expr {[$pt get x] + $ipos}] 4
+     [$::PVector create [expr {[$pt get x] + $ipos}] 4 \
                         [expr {[$pt get z] - 1- $iw}]]
 
     set iw   [randIn 1 1.5]
@@ -382,11 +406,11 @@ proc palazzo { pt } {
 
     rettangolo_bianco \
       [$::PVector create [expr {[$pt get x] + $ipos}] 4 \
-                         [expr {[$pt get z] - 1      }]]
+                         [expr {[$pt get z] - 1      }]] \
       [$::PVector create [expr {[$pt get x] + $ipos}] [expr {4 + $ih}] \
-                         [expr {[$pt get z] - 1      }]]
+                         [expr {[$pt get z] - 1      }]] \
       [$::PVector create [expr {[$pt get x] + $ipos}] [expr {4 + $ih}] \
-                         [expr {[$pt get z] - 1 - $iw}]]
+                         [expr {[$pt get z] - 1 - $iw}]] \
       [$::PVector create [expr {[$pt get x] + $ipos}] 4 \
                          [expr {[$pt get z] - 1 - $iw}]]
 
@@ -396,11 +420,11 @@ proc palazzo { pt } {
 
     rettangolo_bianco \
       [$::PVector create [expr {[$pt get x] - 1      }] 4 \
-                         [expr {[$pt get z] + $ipos}]]
+                         [expr {[$pt get z] + $ipos}]] \
       [$::PVector create [expr {[$pt get x] - 1      }] [expr {4 + $ih}] \
-                         [expr {[$pt get z] + $ipos}]]
+                         [expr {[$pt get z] + $ipos}]] \
       [$::PVector create [expr {[$pt get x] - 1 - $iw}] [expr {4 + $ih}] \
-                         [expr {[$pt get z] + $ipos}]]
+                         [expr {[$pt get z] + $ipos}]] \
       [$::PVector create [expr {[$pt get x] - 1 - $iw}]  4 \
                          [expr {[$pt get z] + $ipos}]]
 
@@ -410,11 +434,11 @@ proc palazzo { pt } {
 
     rettangolo_bianco \
       [$::PVector create [expr {[$pt get x] - 1      }] 4 \
-                         [expr {[$pt get z] + $ipos}]]
+                         [expr {[$pt get z] + $ipos}]] \
       [$::PVector create [expr {[$pt get x] - 1      }] [expr {4 + $ih}] \
-                         [expr {[$pt get z] + $ipos}]]
+                         [expr {[$pt get z] + $ipos}]] \
       [$::PVector create [expr {[$pt get x] - 1 - $iw}] [expr {4 + $ih}] \
-                         [expr {[$pt get z] + $ipos}]]
+                         [expr {[$pt get z] + $ipos}]] \
       [$::PVector create [expr {[$pt get x] - 1 - $iw}] 4 \
                          [expr {[$pt get z] + $ipos}]]
   }
@@ -426,32 +450,36 @@ proc basamento { pt h } {
   set nr1 [irandIn 1 5]
   set nr2 [irandIn 1 5]
 
-  set inter1 [expr {27.0/$nr1}
-  set inter2 [expr {27.0/$nr2}
+  set inter1 [expr {27.0/$nr1}]
+  set inter2 [expr {27.0/$nr2}]
 
   box3d $pt [$::PVector create [expr {[$pt get x] + 30}] $h [expr {[$pt get z] + 30}]]
 
-  rettangolo_rigato [$::PVector create [$pt get x]               6 [expr {[$pt get z] +  2}]
-                    [$::PVector create [$pt get x] [expr {$h - 2}] [expr {[$pt get z] +  2}]
-                    [$::PVector create [$pt get x] [expr {$h - 2}] [expr {[$pt get z] + 28}]
-                    [$::PVector create [$pt get x]               6 [expr {[$pt get z] + 28}]
+  rettangolo_rigato \
+    [$::PVector create [$pt get x]               6 [expr {[$pt get z] +  2}]] \
+    [$::PVector create [$pt get x] [expr {$h - 2}] [expr {[$pt get z] +  2}]] \
+    [$::PVector create [$pt get x] [expr {$h - 2}] [expr {[$pt get z] + 28}]] \
+    [$::PVector create [$pt get x]               6 [expr {[$pt get z] + 28}]]
 
   for {set i 0} {$i < $nr1} {incr i} {
-    rettangolo_rigato [$::PVector create [$pt get x] 0 [expr {[$pt get z] + 2 +   i     *$inter1)}]
-                      [$::PVector create [$pt get x] 4 [expr {[$pt get z] + 2 +   i     *$inter1)}]
-                      [$::PVector create [$pt get x] 4 [expr {[$pt get z] + 1 + ($i + 1)*$inter1)}]
-                      [$::PVector create [$pt get x] 0 [expr {[$pt get z] + 1 + ($i + 1)*$inter1)}]
+    rettangolo_rigato \
+      [$::PVector create [$pt get x] 0 [expr {[$pt get z] + 2 +  $i     *$inter1}]] \
+      [$::PVector create [$pt get x] 4 [expr {[$pt get z] + 2 +  $i     *$inter1}]] \
+      [$::PVector create [$pt get x] 4 [expr {[$pt get z] + 1 + ($i + 1)*$inter1}]] \
+      [$::PVector create [$pt get x] 0 [expr {[$pt get z] + 1 + ($i + 1)*$inter1}]]
   }
-  rettangolo_nero [$::PVector create [expr {[$pt get x] +  2}]             6   [$pt get z]]
-                  [$::PVector create [expr {[$pt get x] +  2}] [expr {$h - 2}] [$pt get z]]
-                  [$::PVector create [expr {[$pt get x] + 28}] [expr {$h - 2}] [$pt get z]]
-                  [$::PVector create [expr {[$pt get x] + 28}]             6   [$pt get z]]
+  rettangolo_nero \
+    [$::PVector create [expr {[$pt get x] +  2}]             6   [$pt get z]] \
+    [$::PVector create [expr {[$pt get x] +  2}] [expr {$h - 2}] [$pt get z]] \
+    [$::PVector create [expr {[$pt get x] + 28}] [expr {$h - 2}] [$pt get z]] \
+    [$::PVector create [expr {[$pt get x] + 28}]             6   [$pt get z]]
 
   for {set i 0} {$i < $nr2} {incr i} {
-    rettangolo_nero [$::PVector create [expr {[$pt get x] + 2 +  $i     *$inter2}] 0 [$pt get z]]
-                    [$::PVector create [expr {[$pt get x] + 2 +  $i     *$inter2}] 4 [$pt get z]]
-                    [$::PVector create [expr {[$pt get x] + 1 + ($i + 1)*$inter2}] 4 [$pt get z]]
-                    [$::PVector create [expr {[$pt get x] + 1 + ($i + 1)*$inter2}] 0 [$pt get z]]
+    rettangolo_nero \
+      [$::PVector create [expr {[$pt get x] + 2 +  $i     *$inter2}] 0 [$pt get z]] \
+      [$::PVector create [expr {[$pt get x] + 2 +  $i     *$inter2}] 4 [$pt get z]] \
+      [$::PVector create [expr {[$pt get x] + 1 + ($i + 1)*$inter2}] 4 [$pt get z]] \
+      [$::PVector create [expr {[$pt get x] + 1 + ($i + 1)*$inter2}] 0 [$pt get z]]
   }
 }
 
@@ -472,7 +500,7 @@ proc albero { pt0 } {
   set pp2 [proietta $pt2]
 
   $::lista exec agg 0 [$pp1 get x] [$pp1 get y]
-  $::lista exec agg 6 [expr {[$pp2 get x] - [$pp1 get x])}] 0
+  $::lista exec agg 6 [expr {[$pp2 get x] - [$pp1 get x]}] 0
 
   vdlinea $pp0 $pp1
 }
@@ -480,32 +508,32 @@ proc albero { pt0 } {
 # --
 
 proc semaforox { pt0 } {
-  vlinea [proietta [$::PVector create [$pt0 get x]  -2 0 [$pt0 get z]]] \
-         [proietta [$::PVector create [$pt0 get x]  -2 5 [$pt0 get z]]]
+  vlinea [proietta [$::PVector create [expr {[$pt0 get x] -  2}] 0 [$pt0 get z]]] \
+         [proietta [$::PVector create [expr {[$pt0 get x] -  2}] 5 [$pt0 get z]]]
 
-  vlinea [proietta [$::PVector create [$pt0 get x] -28 0 [$pt0 get z]]] \
-         [proietta [$::PVector create [$pt0 get x] -28 5 [$pt0 get z]]]
+  vlinea [proietta [$::PVector create [expr {[$pt0 get x] - 28}] 0 [$pt0 get z]]] \
+         [proietta [$::PVector create [expr {[$pt0 get x] - 28}] 5 [$pt0 get z]]]
 
-  vlinea [proietta [$::PVector create [$pt0 get x]  -2 4 [$pt0 get z]]] \
-         [proietta [$::PVector create [$pt0 get x] -28 4 [$pt0 get z]]]
+  vlinea [proietta [$::PVector create [expr {[$pt0 get x] -  2}] 4 [$pt0 get z]]] \
+         [proietta [$::PVector create [expr {[$pt0 get x] - 28}] 4 [$pt0 get z]]]
 
-  vlinea [proietta [$::PVector create [$pt0 get x]  -2 5 [$pt0 get z]]] \
-         [proietta [$::PVector create [$pt0 get x] -28 5 [$pt0 get z]]]
+  vlinea [proietta [$::PVector create [expr {[$pt0 get x] -  2}] 5 [$pt0 get z]]] \
+         [proietta [$::PVector create [expr {[$pt0 get x] - 28}] 5 [$pt0 get z]]]
 
-  rettangolo_bianco [$::PVector create [$pt0 get x]  -4 4 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x]  -4 5 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x]  -9 5 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x]  -9 4 [$pt0 get z]]
+  rettangolo_bianco [$::PVector create [expr {[$pt0 get x] -  4}] 4 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] -  4}] 5 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] -  9}] 5 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] -  9}] 4 [$pt0 get z]]
 
-  rettangolo_bianco [$::PVector create [$pt0 get x] -11 4 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x] -11 5 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x] -19 5 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x] -19 4 [$pt0 get z]]
+  rettangolo_bianco [$::PVector create [expr {[$pt0 get x] - 11}] 4 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] - 11}] 5 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] - 19}] 5 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] - 19}] 4 [$pt0 get z]]
 
-  rettangolo_bianco [$::PVector create [$pt0 get x] -21 4 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x] -21 5 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x] -26 5 [$pt0 get z]] \
-                    [$::PVector create [$pt0 get x] -26 4 [$pt0 get z]]
+  rettangolo_bianco [$::PVector create [expr {[$pt0 get x] - 21}] 4 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] - 21}] 5 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] - 26}] 5 [$pt0 get z]] \
+                    [$::PVector create [expr {[$pt0 get x] - 26}] 4 [$pt0 get z]]
 }
 
 # --
@@ -594,19 +622,19 @@ proc box3d { pt1 pt2 } {
 # --
 
 proc cilindro3d { pt h nrseg rad contorno } {
-  set pv [sb::matrix $nrseg 2]
+  set pv [sb::obj_matrix $nrseg 2]
 
   for {set i 0} {$i < $nrseg} {incr i} {
     set alfa [sb::map $i 0 $nrseg 0 $::TWO_PI]
 
-    $pv set value [proietta \
+    $pv set value $i 0 [proietta \
       [$::PVector create [expr {[$pt get x] + 15 + $rad*cos($alfa)}] \
                          [$pt get y] \
-                         [expr {[$pt get z] + 15 - $rad*sin($alfa)}]]] $i 0
-    $pv set value [proietta \
+                         [expr {[$pt get z] + 15 - $rad*sin($alfa)}]]]
+    $pv set value $i 1 [proietta \
       [$::PVector create [expr {[$pt get x] + 15 + $rad*cos($alfa)}] \
                          [expr {[$pt get y] + $h}] \
-                         [expr {[$pt get z] + 15 - $rad*sin($alfa)}]]] $i 1
+                         [expr {[$pt get z] + 15 - $rad*sin($alfa)}]]]
   }
 
   for {set i 0} {$i < $nrseg} {incr i} {
@@ -628,10 +656,10 @@ proc cilindro3d { pt h nrseg rad contorno } {
   for {set i 0} {$i < $nrseg} {incr i} {
     set j [expr {($i + $nrseg - 1) % $nrseg}]
 
-    set alfa [expr {[sb::map $i 0 nrseg 0 $::TWO_PI] + 1}]
+    set alfa [expr {[sb::map $i 0 $nrseg 0 $::TWO_PI] + 1}]
 
     if {[[$pv get value $i 0] get x] <= [[$pv get value $j 0] get x]} {
-      if {[[$pv get value [expr {($i+1)%$nrseg}] 0] get x] >= [[$pv get value $i 0] get x]} {
+      if {[[$pv get value [expr {($i + 1) % $nrseg}] 0] get x] >= [[$pv get value $i 0] get x]} {
         vlinea [$pv get value $i 0] [$pv get value $i 1]
       }
       if {$contorno} {
@@ -646,9 +674,8 @@ proc cilindro3d { pt h nrseg rad contorno } {
                       [$pv get value $j 0] [$pv get value $j 1]
         }
       }
-    }
-    else {
-      if {[[$pv get value [expr {($i+1)%@nrseg}] 0] get x] <= [[$pv get value $i 0] get x]} {
+    } else {
+      if {[[$pv get value [expr {($i + 1) % $nrseg}] 0] get x] <= [[$pv get value $i 0] get x]} {
         vlinea [$pv get value $i 0] [$pv get value $i 1]
       }
     }
@@ -665,8 +692,8 @@ proc pilotis { pt0 dex dez h } {
   set delz [expr {($dez - 1)/$nrz}]
 
   for {set i $nrz} {$i > 0} {incr i -1} {
-    box3d [$::PVector create [$pt0 get x]              0 [expr {[$pt0 get z] + $i*$delz    }]] \
-          [$::PVector create [expr {[$pt0 get x] + 1} $h [expr {[$pt0 get z] + $i*$delz + 1}]]
+    box3d [$::PVector create [$pt0 get x]               0 [expr {[$pt0 get z] + $i*$delz    }]] \
+          [$::PVector create [expr {[$pt0 get x] + 1}] $h [expr {[$pt0 get z] + $i*$delz + 1}]]
   }
 
   for {set i $nrx} {$i >= 0} {incr i -1} {
@@ -786,9 +813,9 @@ $::CListA proc init { l } {
   $l set nr  0
   $l set nrv 0
 
-  $l set mat [sb::matrix 100000 3]
+  $l set mat [sb::obj_matrix 100000 3]
 
-  set pv [sb::array 100]
+  set pv [sb::obj_array 100]
 
   for {set i 0} {$i < [$pv get dim]} {incr i} {
     $pv set value $i [$::PVector create 0 0 0]
@@ -801,9 +828,9 @@ $::CListA proc agg { l tipo px py } {
   set mat [$l get mat]
   set nr  [$l get nr]
 
-  $mat set value $tipo                                 $nr 0
-  $mat set value [expr {$px + [irandIn -$::de $::de]}] $nr 1
-  $mat set value [expr {$py + [irandIn -$::de $::de]}] $nr 2
+  $mat set value $nr 0 $tipo
+  $mat set value $nr 1 [expr {$px + [irandIn -$::de $::de]}]
+  $mat set value $nr 2 [expr {$py + [irandIn -$::de $::de]}]
 
   incr nr
 
@@ -811,11 +838,13 @@ $::CListA proc agg { l tipo px py } {
   $l set nr  $nr
 }
 
-$::CListA proc _draw { l el } {
+$::CListA proc draw { l el } {
+  set nrv [$l get nrv]
   set mat [$l get mat]
   set pv  [$l get pv]
 
   set m [$mat get value $el 0]
+  #echo "draw l=$l el=$el m=$m"
 
   if       {$m == 0} {
     # move to
@@ -823,7 +852,7 @@ $::CListA proc _draw { l el } {
     set ::peny [$mat get value $el 2]
   } elseif {$m == 1} {
     # line to
-    $::renderer set pen.color [hsb 0 0 0 0.5]
+    $::renderer set pen.color [list hsb 0 0 0 0.5]
     $::renderer set brush.color none
 
     $::renderer exec draw.line [list $::penx $::peny] \
@@ -831,10 +860,10 @@ $::CListA proc _draw { l el } {
 
     set ::penx [$mat get value $el 1]
     set ::peny [$mat get value $el 2]
-  } elseif {$m 2} {
+  } elseif {$m == 2} {
     # rettangolo pieno
     $::renderer set pen.color   none
-    $::renderer set brush.color [hsb 0 0 1]
+    $::renderer set brush.color [list hsb 0 0 1]
 
     $::renderer set draw.rect $::penx $::peny \
       [expr {[$mat get value $el 1] - $::penx}] \
@@ -849,6 +878,8 @@ $::CListA proc _draw { l el } {
     $l set pv $pv
 
     incr nrv
+
+    $l set nrv $nrv
   } elseif {$m == 4} {
     # chiusura poligono pieno bianco
     set pv1 [$pv get value $nrv]
@@ -859,19 +890,21 @@ $::CListA proc _draw { l el } {
     $l set pv $pv
 
     incr nrv
+    $l set nrv $nrv
 
     $::renderer set pen.color none
-    $::renderer set brush.color [hsb 0 0 1]
+    $::renderer set brush.color [list hsb 0 0 1]
 
     $::renderer exec path.start
     for {set i 0} {$i < $nrv} {incr i} {
       set pv1 [$pv get value $i]
-      $::renderer exec path.lineTo [$pv1 get x] [$pv1 get y]
+      $::renderer exec path.lineTo [list [$pv1 get x] [$pv1 get y]]
     }
     $::renderer exec path.close
     $::renderer exec path.draw
 
     set nrv 0
+    $l set nrv $nrv
   } elseif {$m == 5} {
     # chiusura poligono pieno nero
     set pv1 [$pv get value $nrv]
@@ -882,19 +915,21 @@ $::CListA proc _draw { l el } {
     $l set pv $pv
 
     incr nrv
+    $l set nrv $nrv
 
     $::renderer set pen.color none
-    $::renderer set brush.color [hsb 0 0 0]
+    $::renderer set brush.color [list hsb 0 0 0]
 
     $::renderer exec path.start
     for {set i 0} {$i < $nrv} {incr i} {
       set pv1 [$pv get value $i]
-      $::renderer exec path.lineTo [$pv1 get x] [$pv1 get y]
+      $::renderer exec path.lineTo [list [$pv1 get x] [$pv1 get y]]
     }
     $::renderer exec path.close
     $::renderer exec path.draw
 
     set nrv 0
+    $l set nrv $nrv
   } elseif {$m == 6} {
     # sfera
     set px1 0
@@ -902,19 +937,19 @@ $::CListA proc _draw { l el } {
     set nrs [expr {$::height/6}]
     set ra [randIn 2.1 2.4]
     $::renderer set pen.color none
-    $::renderer set brush.color [hsb 0 0 1]
+    $::renderer set brush.color [list hsb 0 0 1]
     $::renderer exec draw.ellipse [list $::penx  $::peny \
         [expr {2*[$mat get value $el 1]}] [expr {2*[$mat get value $el 1]}]]
 
-    $::renderer set pen.color [hsb 0 0 0 0.5]
+    $::renderer set pen.color [list hsb 0 0 0 0.5]
     $::renderer set brush.color none
     for {set i 0} {$i < $nrs} {incr i} {
-      set alfa [sb::map $i 0 $nrs 0 2*$::TWO_PI]
+      set alfa [sb::map $i 0 $nrs 0 [expr {2*$::TWO_PI}]]
       set px0 $px1
       set py0 $py1
-      set rad [expr {[$mat get value $el 1] + 2*$::de*sin(ra*alfa)}]
-      set px1 [expr {$::penx + int(rad * cos(alfa))}]
-      set py1 [expr {$::peny + int(rad * sin(alfa))}]
+      set rad [expr {[$mat get value $el 1] + 2*$::de*sin($ra*$alfa)}]
+      set px1 [expr {$::penx + int($rad*cos($alfa))}]
+      set py1 [expr {$::peny + int($rad*sin($alfa))}]
       if {$i > 0} {
         $::renderer exec draw.line [list $px0 $py0] [list $px1 $py1]
       }

@@ -2,8 +2,7 @@ proc init { } {
   sb::canvas set range {-2 -2 2 2}
   sb::canvas set equal_scale 1
 
-  set ::pi  {3.141592653}
-  set ::tau [expr {2*$::pi}]
+  set ::tau [expr {2*$::PI}]
 
   set ::n 0
 
