@@ -33,6 +33,9 @@ class Control2D : public QFrame {
   bool isShown() const { return shown_; }
   void setShown(bool b);
 
+  bool isShowObjects() const { return showObjects_; }
+  void setShowObjects(bool b);
+
   bool createUi(const QString &ui);
   bool getUiValue(const QString &name, QVariant &value) const;
   bool setUiValue(const QString &name, const QVariant &value);
@@ -73,8 +76,9 @@ class Control2D : public QFrame {
   QFrame* uiFrame_ { nullptr };
   CQXml*  xml_     { nullptr };
 
-  bool active_ { true };
-  bool shown_  { false };
+  bool active_      { true };
+  bool shown_       { false };
+  bool showObjects_ { true };
 };
 
 }

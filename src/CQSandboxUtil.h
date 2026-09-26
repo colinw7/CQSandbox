@@ -97,7 +97,7 @@ inline bool stringToColor(CQTcl *tcl, const QString &str, QColor &c) {
   (void) tcl->splitList(str, strs);
 
   if (strs.size() == 4 || strs.size() == 5) {
-    if (strs[0] == "hsb" || strs[0] == "rgb") {
+    if (strs[0] == "hsb" || strs[0] == "ihsb" || strs[0] == "rgb" || strs[0] == "irgb") {
       mode = strs[0];
     }
 
@@ -106,20 +106,59 @@ inline bool stringToColor(CQTcl *tcl, const QString &str, QColor &c) {
 
   if (strs.size() == 3 || strs.size() == 4) {
     if      (mode == "rgb") {
-      auto r = stringToReal(strs[0]);
-      auto g = stringToReal(strs[1]);
-      auto b = stringToReal(strs[2]);
-      auto a = (strs.size() == 4 ? stringToReal(strs[3]) : 1.0);
+      double r, g, b;
+      if (! stringToReal(strs[0], r) || ! stringToReal(strs[1], g) || ! stringToReal(strs[2], b))
+        return false;
+
+      double a = 1.0;
+      if (strs.size() == 4) {
+        if (! stringToReal(strs[3], a))
+           return false;
+      }
 
       c = QColor(r*255, g*255, b*255, a*255);
     }
+    else if (mode == "irgb") {
+      double r, g, b;
+      if (! stringToReal(strs[0], r) || ! stringToReal(strs[1], g) || ! stringToReal(strs[2], b))
+        return false;
+
+      double a = 255;
+      if (strs.size() == 4) {
+        if (! stringToReal(strs[3], a))
+           return false;
+      }
+
+      c = QColor(int(r), int(g), int(b), int(a));
+    }
     else if (mode == "hsb") {
-      auto h = stringToReal(strs[0]);
-      auto s = stringToReal(strs[1]);
-      auto b = stringToReal(strs[2]);
-      auto a = (strs.size() == 4 ? stringToReal(strs[3]) : 1.0);
+      double h, s, b;
+      if (! stringToReal(strs[0], h) || ! stringToReal(strs[1], s) || ! stringToReal(strs[2], b))
+        return false;
+
+      double a = 1.0;
+      if (strs.size() == 4) {
+        if (! stringToReal(strs[3], a))
+           return false;
+      }
 
       auto hsb = CHSB(h/(2*M_PI), s, b);
+      auto rgb = CRGBUtil::HSBtoRGB(hsb);
+
+      c = QColor(rgb.getRed()*255, rgb.getGreen()*255, rgb.getBlue()*255, a*255);
+    }
+    else if (mode == "ihsb") {
+      double h, s, b;
+      if (! stringToReal(strs[0], h) || ! stringToReal(strs[1], s) || ! stringToReal(strs[2], b))
+        return false;
+
+      double a = 1.0;
+      if (strs.size() == 4) {
+        if (! stringToReal(strs[3], a))
+           return false;
+      }
+
+      auto hsb = CHSB(h/255.0, s/255.0, b/255.0);
       auto rgb = CRGBUtil::HSBtoRGB(hsb);
 
       c = QColor(rgb.getRed()*255, rgb.getGreen()*255, rgb.getBlue()*255, a*255);
@@ -296,7 +335,8 @@ inline Coord stringToCoord(const QString &str) {
 
 inline bool stringToPoint2D(CQTcl *tcl, const QString &str, Point2D &p) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   if (strs.size() > 2) {
     if (strs[2] == "px") {
@@ -359,7 +399,8 @@ inline QString point3DToString(const CPoint3D &p) {
 
 inline bool stringToQPoint(CQTcl *tcl, const QString &str, QPoint &p) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   if (strs.size() < 2)
     return false;
@@ -375,7 +416,8 @@ inline bool stringToQPoint(CQTcl *tcl, const QString &str, QPoint &p) {
 
 inline bool stringToPoint2D(CQTcl *tcl, const QString &str, CPoint2D &p) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   if (strs.size() < 2)
     return false;
@@ -399,7 +441,8 @@ inline CPoint2D stringToPoint2D(CQTcl *tcl, const QString &str) {
 
 inline bool stringToPoint3D(CQTcl *tcl, const QString &str, CPoint3D &p) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   if (strs.size() < 3)
     return false;
@@ -476,7 +519,8 @@ inline bool stringToVectors2D(CQTcl *tcl, const QString &str, std::vector<CVecto
 
 inline bool stringToVector3D(CQTcl *tcl, const QString &str, CVector3D &v) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   if (strs.size() < 3)
     return false;
@@ -500,7 +544,8 @@ inline CVector3D stringToVector3D(CQTcl *tcl, const QString &str) {
 
 inline bool stringToGLVector3D(CQTcl *tcl, const QString &str, CGLVector3D &v) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   if (strs.size() < 3)
     return false;
@@ -532,7 +577,8 @@ inline QString vector3DToString(const CGLVector3D &p) {
 
 inline bool stringToVectors3D(CQTcl *tcl, const QString &str, std::vector<CVector3D> &points) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   for (const auto &str : strs) {
     CVector3D p;
@@ -549,7 +595,8 @@ inline bool stringToVectors3D(CQTcl *tcl, const QString &str, std::vector<CVecto
 
 inline bool stringToQRect(CQTcl *tcl, const QString &str, QRect &rect) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   QPoint p1, p2;
 
@@ -578,7 +625,8 @@ inline bool stringToQRect(CQTcl *tcl, const QString &str, QRect &rect) {
 
 inline bool stringToBBox2D(CQTcl *tcl, const QString &str, CBBox2D &bbox) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   CPoint2D p1, p2;
 
@@ -614,7 +662,8 @@ inline QString bbox2DToString(const CBBox2D &bbox) {
 
 inline bool stringToBBox3D(CQTcl *tcl, const QString &str, CBBox3D &bbox) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   CPoint3D p1, p2;
 
@@ -658,7 +707,8 @@ inline QString bbox3DToString(const CBBox3D &bbox) {
 
 inline bool stringToIntArray(CQTcl *tcl, const QString &str, std::vector<int> &a) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   a.resize(strs.size());
 
@@ -673,26 +723,28 @@ inline bool stringToIntArray(CQTcl *tcl, const QString &str, std::vector<int> &a
   return true;
 }
 
-inline std::vector<unsigned int> stringToUIntArray(CQTcl *tcl, const QString &str) {
+inline bool stringToUIntArray(CQTcl *tcl, const QString &str, std::vector<uint> &integers) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
-
-  std::vector<unsigned int> integers;
+  if (! tcl->splitList(str, strs))
+    return false;
 
   for (const auto &str : strs) {
-    auto i = stringToInt(str);
+    int i;
+    if (! stringToInt(str, i))
+      return false;
 
     integers.push_back(i);
   }
 
-  return integers;
+  return true;
 }
 
 //---
 
 inline bool stringToGLColor(CQTcl *tcl, const QString &str, CGLColor &c) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
+  if (! tcl->splitList(str, strs))
+    return false;
 
   if (strs.size() >= 3) {
     auto r = stringToReal(strs[0]);
@@ -740,19 +792,20 @@ inline QColor stringToQColor(CQTcl *tcl, const QString &str) {
   return c1;
 }
 
-inline std::vector<CGLColor> stringToColors(CQTcl *tcl, const QString &str) {
+inline bool stringToColors(CQTcl *tcl, const QString &str, std::vector<CGLColor> &colors) {
   QStringList strs;
-  (void) tcl->splitList(str, strs);
-
-  std::vector<CGLColor> colors;
+  if (! tcl->splitList(str, strs))
+    return false;
 
   for (const auto &str : strs) {
     CGLColor c;
-    if (stringToGLColor(tcl, str, c))
-      colors.push_back(c);
+    if (! stringToGLColor(tcl, str, c))
+      return false;
+
+    colors.push_back(c);
   }
 
-  return colors;
+  return true;
 }
 
 inline QString colorToString(const CGLColor &c) {

@@ -30,6 +30,8 @@ proc init { } {
 # --
 
 proc setup { } {
+  sb::canvas set controls.show_objects 0
+
   set ::renderer [sb::renderer]
 
   set ::width  800
@@ -75,6 +77,10 @@ proc draw { } {
 
   set nr [$::lista get nr]
 
+  if {$::el0 == 0} {
+    $::renderer exec fill.rect
+  }
+
   set t 0
 
   while {$t < 50} {
@@ -95,8 +101,9 @@ proc draw { } {
 
 # --
 
-proc mouseClicked { } {
+proc mousePress { args } {
   $::lista set nr 0
+
   set ::el0 0
 
   city
@@ -108,7 +115,9 @@ proc mouseClicked { } {
 
 # --
 
-proc keyPressed { } {
+proc keyPress { args } {
+  set key [lindex $args 0]
+
   if {$key == "s"} {
     save "city.tif"
   }
@@ -844,7 +853,8 @@ $::CListA proc draw { l el } {
   set pv  [$l get pv]
 
   set m [$mat get value $el 0]
-  #echo "draw l=$l el=$el m=$m"
+
+  # echo "draw l=$l el=$el m=$m"
 
   if       {$m == 0} {
     # move to
@@ -938,8 +948,13 @@ $::CListA proc draw { l el } {
     set ra [randIn 2.1 2.4]
     $::renderer set pen.color none
     $::renderer set brush.color [list hsb 0 0 1]
-    $::renderer exec draw.ellipse [list $::penx  $::peny \
-        [expr {2*[$mat get value $el 1]}] [expr {2*[$mat get value $el 1]}]]
+
+    set ew [expr {2*[$mat get value $el 1]}]
+    set ex1 [expr {$::penx - $ew/2}]
+    set ey1 [expr {$::peny - $ew/2}]
+    set ex2 [expr {$::penx + $ew/2}]
+    set ey2 [expr {$::peny + $ew/2}]
+    $::renderer exec draw.ellipse [list $ex1 $ey1 $ex2 $ey2]
 
     $::renderer set pen.color [list hsb 0 0 0 0.5]
     $::renderer set brush.color none

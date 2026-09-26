@@ -229,6 +229,15 @@ class Canvas2D : public QFrame {
   void getSelectedObjects(std::vector<Object2D *> &objects) const;
 
   Object2D *getObjectAtPos(const QPoint &pos) const;
+
+  //---
+
+  bool objToColor(Tcl_Obj *obj, QColor &c) const;
+  bool objToRect (Tcl_Obj *obj, Rect2D &r) const;
+  bool objToPoint(Tcl_Obj *obj, Point2D &p) const;
+
+  //---
+
   Object2D *getObjectByName(const QString &name) const;
 
   //---
@@ -319,7 +328,8 @@ class Canvas2D : public QFrame {
   static int drawPointProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv);
 #endif
 
-  static int mapProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int mapProc  (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int clampProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
 #if 0
   static int fmulProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);

@@ -15,22 +15,30 @@ proc printMatrix { a } {
   echo "}"
 }
 
-set a [sb::matrix 3 3]
+set ia [sb::int_matrix  3 3]
+set ra [sb::real_matrix 3 3]
 
-printMatrix $a
+printMatrix $ia
+printMatrix $ra
 
-$a set value 1 {0 0}
-$a set value 2 {1 1}
-$a set value 3 {2 2}
+$ia set value {0 0} 1
+$ia set value {1 1} 5
+$ia set value {2 2} 3
 
-echo "[$a get value {0 0}]"
-echo "[$a get value {1 1}]"
-echo "[$a get value {2 2}]"
+echo "[$ia get value {0 0}]"
+echo "[$ia get value {1 1}]"
+echo "[$ia get value {2 2}]"
 
-printMatrix $a
+$ra set value {0 0} 1.1
+$ra set value {1 1} 2.5
+$ra set value {2 2} 3.2
 
-set a1 [$a get dup]
+echo "[$ra get value {0 0}]"
+echo "[$ra get value {1 1}]"
+echo "[$ra get value {2 2}]"
 
-printMatrix $a1
+set ia1 [$ia get dup]
+set ra1 [$ra get dup]
 
-#echo "[$a get value {3 3}]"
+printMatrix $ia1
+printMatrix $ra1

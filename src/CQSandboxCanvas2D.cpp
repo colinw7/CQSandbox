@@ -5,11 +5,12 @@
 #include <CQSandboxAStar2DObj.h>
 #include <CQSandboxAxis2DObj.h>
 #include <CQSandboxCircle2DObj.h>
+#include <CQSandboxColor2DObj.h>
 #include <CQSandboxCsv2DObj.h>
 #include <CQSandboxGroup2DObj.h>
 #include <CQSandboxImage2DObj.h>
 #include <CQSandboxLine2DObj.h>
-#include <CQSandboxMatrix2DObj.h>
+#include <CQSandboxObjArray2DObj.h>
 #include <CQSandboxPalette2DObj.h>
 #include <CQSandboxParticle2DObj.h>
 #include <CQSandboxPath2DObj.h>
@@ -265,16 +266,28 @@ addCommands()
   tcl->createObjCommand("sb::vector",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Vector2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::color",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Color2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
 
   tcl->createObjCommand("sb::obj_array",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ObjArray2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
-
   tcl->createObjCommand("sb::obj_matrix",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ObjMatrix2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
-  tcl->createObjCommand("sb::matrix",
+  tcl->createObjCommand("sb::int_array",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<IntArray2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::real_array",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<RealArray2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::int_matrix",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<IntMatrix2DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::real_matrix",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<RealMatrix2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
@@ -348,6 +361,9 @@ addCommands()
 
   tcl->createObjCommand("sb::map",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::mapProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::clamp",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::clampProc),
     static_cast<CQTcl::ObjCmdData>(this));
 
 #if 0
@@ -1184,6 +1200,112 @@ getObjectAtPos(const QPoint &pos) const
   return nullptr;
 }
 
+bool
+Canvas2D::
+objToColor(Tcl_Obj *obj, QColor &c) const
+{
+  auto str = tcl_->qstringFromObj(obj);
+
+  auto *colorObj = dynamic_cast<Color2DObj *>(getObjectByName(str));
+
+  if (colorObj) {
+    c = Util::RGBAToQColor(colorObj->color());
+  }
+  else {
+    if (! Util::stringToColor(tcl_, str, c))
+      return false;
+  }
+
+  return true;
+}
+
+bool
+Canvas2D::
+objToRect(Tcl_Obj *obj, Rect2D &r) const
+{
+#if 1
+  auto len = tcl_->getObjLength(obj);
+
+  Point2D ll, ur;
+
+  if (len > 4) {
+    auto units = tcl_->qstringFromObj(tcl_->getListObj(obj, 4));
+
+    if (units == "px") {
+      ll.x.units = Units::PIXEL;
+      ll.y.units = Units::PIXEL;
+      ur.x.units = Units::PIXEL;
+      ur.y.units = Units::PIXEL;
+    }
+    else
+      return false;
+  }
+
+  if (len >= 4) {
+    double x1, y1, x2, y2;
+    if (! tcl_->getRealFromObj(tcl_->getListObj(obj, 0), x1) ||
+        ! tcl_->getRealFromObj(tcl_->getListObj(obj, 1), y1) ||
+        ! tcl_->getRealFromObj(tcl_->getListObj(obj, 2), x2) ||
+        ! tcl_->getRealFromObj(tcl_->getListObj(obj, 3), y2))
+      return false;
+
+    ll.x.value = std::min(x1, x2);
+    ll.y.value = std::min(y1, y2);
+    ur.x.value = std::max(x1, x2);
+    ur.y.value = std::max(y1, y2);
+  }
+
+  r.ll = ll;
+  r.ur = ur;
+#else
+  auto str = tcl_->qstringFromObj(obj);
+
+  if (! Util::stringToRect2D(tcl_, str, r))
+    return false;
+#endif
+
+  return true;
+}
+
+bool
+Canvas2D::
+objToPoint(Tcl_Obj *obj, Point2D &p) const
+{
+#if 1
+  auto len = tcl_->getObjLength(obj);
+
+  Point2D ll, ur;
+
+  if (len > 2) {
+    auto units = tcl_->qstringFromObj(tcl_->getListObj(obj, 2));
+
+    if (units == "px") {
+      p.x.units = Units::PIXEL;
+      p.y.units = Units::PIXEL;
+    }
+    else
+      return false;
+  }
+
+  if (len >= 2) {
+    double x, y;
+    if (! tcl_->getRealFromObj(tcl_->getListObj(obj, 0), x) ||
+        ! tcl_->getRealFromObj(tcl_->getListObj(obj, 1), y))
+      return false;
+
+    p.x.value = x;
+    p.y.value = y;
+  }
+#else
+  auto str = tcl_->qstringFromObj(obj);
+
+  if (! Util::stringToPoint2D(tcl_, str, p))
+    return false;
+#endif
+
+  return true;
+}
+
 Object2D *
 Canvas2D::
 getObjectByName(const QString &name) const
@@ -1753,6 +1875,11 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     app_->control2D()->setShown(b);
   }
+  else if (name == "controls.show_objects") {
+    auto b = Util::stringToBool(value);
+
+    app_->control2D()->setShowObjects(b);
+  }
   else if (name == "module_dir") {
     moduleDirs_.push_back(value);
   }
@@ -2040,11 +2167,12 @@ objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
       for (int i = 3; i < objc; ++i)
         objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
 
-      Tcl_Obj *res;
+      Tcl_Obj *res = nullptr;
       if (! obj->getTclValue(name, objs, res))
         return TCL_ERROR;
 
-      tcl->setResult(res);
+      if (res)
+        tcl->setResult(res);
     }
     else {
       (void) app->errorMsg("Missing args for get");
@@ -2075,11 +2203,12 @@ objectTclCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **o
       for (int i = 3; i < objc; ++i)
         objs.push_back(const_cast<Tcl_Obj *>(objv[i]));
 
-      Tcl_Obj *res;
+      Tcl_Obj *res = nullptr;
       if (! obj->execTcl(op, objs, res))
         return TCL_ERROR;
 
-      tcl->setResult(res);
+      if (res)
+        tcl->setResult(res);
     }
     else {
       (void) app->errorMsg("Missing args for exec");
@@ -2259,6 +2388,31 @@ mapProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
     return TCL_ERROR;
 
   auto r1 = CMathUtil::map(r, min1, max1, min2, max2);
+
+  tcl->setResult(r1);
+
+  return TCL_OK;
+}
+
+
+int
+Canvas2D::
+clampProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  if (objc != 4)
+    return TCL_ERROR;
+
+  auto *th = static_cast<Canvas2D *>(clientData);
+  assert(th);
+
+  auto *tcl = th->tcl();
+
+  double r, min, max;
+  if (! tcl->getRealFromObj(objv[1], r) ||
+      ! tcl->getRealFromObj(objv[2], min) || ! tcl->getRealFromObj(objv[3], max))
+    return TCL_ERROR;
+
+  auto r1 = CMathUtil::clamp(r, min, max);
 
   tcl->setResult(r1);
 

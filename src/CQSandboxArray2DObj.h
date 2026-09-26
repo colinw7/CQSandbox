@@ -5,44 +5,79 @@
 
 namespace CQSandbox {
 
-class ObjArray2DObj : public Object2D {
+class IntArray2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  ObjArray2DObj(Canvas2D *canvas, uint dim);
+  IntArray2DObj(Canvas2D *canvas, uint dim);
 
-  const char *typeName() const override { return "obj_array"; }
+  const char *typeName() const override { return "int_array"; }
 
-  bool isTclCmd() const override { return true; }
-
-  bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
-  bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
  protected:
-  using Values = std::vector<Tcl_Obj *>;
+  using Values = std::vector<int>;
 
   Values values_;
 };
 
-class ObjMatrix2DObj : public Object2D {
+class RealArray2DObj : public Object2D {
   Q_OBJECT
 
  public:
   static bool create(Canvas2D *canvas, const QStringList &args);
 
-  ObjMatrix2DObj(Canvas2D *canvas, uint dim1, uint dim2);
+  RealArray2DObj(Canvas2D *canvas, uint dim);
 
-  const char *typeName() const override { return "obj_matrix"; }
+  const char *typeName() const override { return "real_array"; }
 
-  bool isTclCmd() const override { return true; }
-
-  bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
-  bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
  protected:
-  using Values      = std::vector<Tcl_Obj *>;
+  using Values = std::vector<double>;
+
+  Values values_;
+};
+
+class IntMatrix2DObj : public Object2D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas2D *canvas, const QStringList &args);
+
+  IntMatrix2DObj(Canvas2D *canvas, uint dim0, uint dim1);
+
+  const char *typeName() const override { return "int_matrix"; }
+
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+ protected:
+  using Values      = std::vector<int>;
+  using ValuesArray = std::vector<Values>;
+
+  ValuesArray values_;
+};
+
+class RealMatrix2DObj : public Object2D {
+  Q_OBJECT
+
+ public:
+  static bool create(Canvas2D *canvas, const QStringList &args);
+
+  RealMatrix2DObj(Canvas2D *canvas, uint dim0, uint dim1);
+
+  const char *typeName() const override { return "real_matrix"; }
+
+  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
+  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+ protected:
+  using Values      = std::vector<double>;
   using ValuesArray = std::vector<Values>;
 
   ValuesArray values_;

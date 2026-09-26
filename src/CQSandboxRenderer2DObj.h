@@ -18,10 +18,12 @@ class Renderer2DObj : public Object2D {
 
   const char *typeName() const override { return "renderer"; }
 
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool isTclCmd() const override { return true; }
 
-  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
+  bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
+  bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+
+  bool execTcl(const QString &op, const TclObjs &objs, Tcl_Obj* &res) override;
 
  private:
   QPainter *getPainter() const;

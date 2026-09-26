@@ -93,12 +93,17 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else if (name == "indices") {
-    shapeData_.setIndices(Util::stringToUIntArray(tcl, value));
+    std::vector<uint> indices;
+    if (! Util::stringToUIntArray(tcl, value, indices))
+      return false;
+
+    shapeData_.setIndices(indices);
 
     setNeedsUpdate();
   }
   else if (name == "colors") {
-    colors_ = Util::stringToColors(tcl, value);
+    if (! Util::stringToColors(tcl, value, colors_))
+      return false;
 
     setNeedsUpdate();
   }

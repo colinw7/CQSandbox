@@ -213,6 +213,15 @@ setShown(bool shown)
 
 void
 Control2D::
+setShowObjects(bool b)
+{
+  showObjects_ = b;
+
+  updateWidgets();
+}
+
+void
+Control2D::
 objectSelectedSlot(QListWidgetItem *, QListWidgetItem *)
 {
   updateCurrent();
@@ -236,12 +245,13 @@ updateWidgets()
 
   objectsData_.list->clear();
 
-  if (canvas_) {
-    auto *viewport = canvas_->currentViewport();
+  auto *viewport = (canvas_ ? canvas_->currentViewport() : nullptr);
 
-    if (viewport) {
-      for (auto *obj : viewport->objects)
+  if (viewport) {
+    if (isShowObjects()) {
+      for (auto *obj : viewport->objects) {
         objectsData_.list->addItem(obj->calcId());
+      }
     }
   }
 
