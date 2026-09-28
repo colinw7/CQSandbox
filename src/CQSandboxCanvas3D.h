@@ -78,7 +78,12 @@ class OpenGLWindow : public QOpenGLWidget, public QOpenGLExtraFunctions {
   virtual void initialize();
 
   virtual void resize();
+
+  //---
+
   virtual void render();
+
+  //---
 
   bool isAnimating() const { return animating_; }
   void setAnimating(bool animating);
@@ -352,6 +357,11 @@ class Canvas3D : public OpenGLWindow {
 
   bool isOutline() { return outline_; }
 
+  //--
+
+  bool isImageBuffer() { return imageBuffer_; }
+  void setImageBuffer(bool b) { imageBuffer_ = b; }
+
   //---
 
   const CRMinMax &xrange() const { return xrange_; }
@@ -398,7 +408,16 @@ class Canvas3D : public OpenGLWindow {
   void initialize() override;
 
   void resize() override;
+
+  //---
+
   void render() override;
+
+  void drawContents();
+  void drawBBoxes();
+  void drawSelected();
+
+  //---
 
   void bindBuffer (CQGLBuffer *buffer);
   void bindProgram(ShaderProgram *program);
@@ -638,6 +657,10 @@ class Canvas3D : public OpenGLWindow {
 
   using Points = std::vector<CVector3D>;
 
+  using ObjectSelectedPoints = std::map<Object3D *, Object3D::SelectedPoints>;
+  using ObjectSelectedFaces  = std::map<Object3D *, Object3D::SelectedFaces>;
+  using ObjectSelected       = std::set<Object3D *>;
+
   ///---
 
   App* app_ { nullptr };
@@ -692,6 +715,8 @@ class Canvas3D : public OpenGLWindow {
   bool smoothShade_ { true };
   bool outline_     { false };
 
+  bool imageBuffer_ { false };
+
   CRMinMax xrange_ { -1.0, 1.0 };
   CRMinMax yrange_ { -1.0, 1.0 };
   CRMinMax zrange_ { -1.0, 1.0 };
@@ -701,6 +726,7 @@ class Canvas3D : public OpenGLWindow {
   CVector3D  viewPos_;
 
   CBBox3D bbox_;
+  CBBox3D newBBox_;
 
   // interaction
   MouseData mouseData_;
@@ -770,6 +796,10 @@ class Canvas3D : public OpenGLWindow {
 
   ShaderProgram* selectionProgram_ { nullptr };
   CQGLBuffer*    selectionBuffer_  { nullptr };
+
+  ObjectSelectedPoints objectSelectedPoints_;
+  ObjectSelectedFaces  objectSelectedFaces_;
+  ObjectSelected       objectSelected_;
 };
 
 }

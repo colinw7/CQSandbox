@@ -256,7 +256,7 @@ class CQGLState {
       if (b)
         glActiveTexture(GL_TEXTURE0 + i);
       else
-        glActiveTexture(GL_TEXTURE0 + i);
+        glActiveTexture(GL_TEXTURE0);
 
       b = textureNum_.set(i, b);
     }

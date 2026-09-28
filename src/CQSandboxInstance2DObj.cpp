@@ -72,9 +72,9 @@ init()
 
 QString
 Instance2DObj::
-getCommandName() const
+calcCommandName() const
 {
-  return QString("sb2d::I_%1.%2").arg(classObj_->name()).arg(ind_);
+  return QString("%1::I_%2.%3").arg(getBaseId()).arg(classObj_->name()).arg(ind_);
 }
 
 bool

@@ -22,10 +22,18 @@ class Shlib2DObj : public Object2D {
 
   bool isTclCmd() const override { return true; }
 
+  //---
+
   bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
   bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
 
   bool execTcl(const QString &op, const TclObjs &objs, Tcl_Obj* &res) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  private:
   QString libName_;

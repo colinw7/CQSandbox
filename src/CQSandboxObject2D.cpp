@@ -36,7 +36,20 @@ QString
 Object2D::
 getCommandName() const
 {
-  return QString("sb2d::%1.%2").arg(typeName()).arg(ind_);
+  if (commandName_ == "") {
+    auto *th = const_cast<Object2D *>(this);
+
+    th->commandName_ = th->calcCommandName();
+  }
+
+  return commandName_;
+}
+
+QString
+Object2D::
+calcCommandName() const
+{
+  return QString("%1::%2.%3").arg(getBaseId()).arg(typeName()).arg(ind_);
 }
 
 //---
@@ -306,7 +319,8 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
   else if (name == "group") {
     auto *group = dynamic_cast<Group2DObj *>(canvas()->getObjectByName(value));
-    if (! group) return app->errorMsg(QString("Failed to find group '%1'").arg(value));
+    if (! group)
+      return app->errorMsg(QString("Failed to find group '%1'").arg(value));
 
     if (group != group_) {
       if (group_)

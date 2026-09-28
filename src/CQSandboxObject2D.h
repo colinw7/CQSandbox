@@ -20,12 +20,13 @@ class AnimateBrush;
 class Object2D : public QObject {
   Q_OBJECT
 
-  Q_PROPERTY(QString id       READ id)
-  Q_PROPERTY(bool    visible  READ isVisible  WRITE setVisible)
-  Q_PROPERTY(bool    selected READ isSelected WRITE setSelected)
-  Q_PROPERTY(int     layer    READ layer      WRITE setLayer)
-  Q_PROPERTY(double  xPos     READ xPos       WRITE setXPos)
-  Q_PROPERTY(double  yPos     READ yPos       WRITE setYPos)
+  Q_PROPERTY(QString id          READ id)
+  Q_PROPERTY(QString commandName READ getCommandName)
+  Q_PROPERTY(bool    visible     READ isVisible  WRITE setVisible)
+  Q_PROPERTY(bool    selected    READ isSelected WRITE setSelected)
+  Q_PROPERTY(int     layer       READ layer      WRITE setLayer)
+  Q_PROPERTY(double  xPos        READ xPos       WRITE setXPos)
+  Q_PROPERTY(double  yPos        READ yPos       WRITE setYPos)
 
  public:
   enum class Type {
@@ -174,7 +175,9 @@ class Object2D : public QObject {
 
   //---
 
-  virtual void draw(QPainter *) { }
+  virtual bool isDrawable() const { return true; }
+
+  virtual void draw(QPainter *) = 0;
 
   //---
 
@@ -185,7 +188,15 @@ class Object2D : public QObject {
   virtual void press(int x, int y);
   virtual void click(int x, int y);
 
-  virtual QString getCommandName() const;
+  //---
+
+  QString getBaseId() const { return "sb"; }
+
+  QString getCommandName() const;
+
+  virtual QString calcCommandName() const;
+
+  //---
 
   virtual Point2D pointToWindow(const Point2D &p) const;
 
@@ -204,8 +215,10 @@ class Object2D : public QObject {
   size_t    ind_    { 0 };
 
   QString id_;
-  bool    visible_  { true };
-  bool    selected_ { false };
+  QString commandName_;
+
+  bool visible_  { true };
+  bool selected_ { false };
 
   bool stroked_   { true };
   bool filled_    { true };

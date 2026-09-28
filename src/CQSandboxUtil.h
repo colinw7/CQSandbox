@@ -99,9 +99,9 @@ inline bool stringToColor(CQTcl *tcl, const QString &str, QColor &c) {
   if (strs.size() == 4 || strs.size() == 5) {
     if (strs[0] == "hsb" || strs[0] == "ihsb" || strs[0] == "rgb" || strs[0] == "irgb") {
       mode = strs[0];
-    }
 
-    strs.removeFirst();
+      strs.removeFirst();
+    }
   }
 
   if (strs.size() == 3 || strs.size() == 4) {

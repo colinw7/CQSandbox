@@ -17,14 +17,24 @@ class ObjArray2DObj : public Object2D {
 
   bool isTclCmd() const override { return true; }
 
+  //---
+
   bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
   bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   using Values = std::vector<Tcl_Obj *>;
 
   Values values_;
 };
+
+//---
 
 class ObjMatrix2DObj : public Object2D {
   Q_OBJECT
@@ -38,8 +48,16 @@ class ObjMatrix2DObj : public Object2D {
 
   bool isTclCmd() const override { return true; }
 
+  //---
+
   bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
   bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   using Values      = std::vector<Tcl_Obj *>;

@@ -19,15 +19,25 @@ class Class2DObj : public Object2D {
 
   const QString &name() const { return name_; }
 
-  QString getCommandName() const override;
+  QString calcCommandName() const override;
+
+  //---
 
   bool addMethod(const QString &name, const QString &args, const QString &body);
 
   bool invokeMethod(const QString &name, const QString &instanceName,
                     const std::vector<Tcl_Obj *> &args, Tcl_Obj* &res);
 
+  //---
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   struct MethodData {

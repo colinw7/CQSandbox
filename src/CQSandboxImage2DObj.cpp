@@ -149,12 +149,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   }
   else if (name == "image") {
     if (value != "") {
-      if (! Util::stringToImage(value, image_)) {
-        auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(value));
-        if (! imageObj)
-          return app->errorMsg(QString("Failed to find object '%1'").arg(value));
+      auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(value));
 
+      if (imageObj) {
         image_ = imageObj->image();
+      }
+      else {
+        if (! Util::stringToImage(value, image_))
+         return app->errorMsg(QString("Failed to find object '%1'").arg(value));
       }
     }
     else
@@ -199,7 +201,6 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   }
   else if (name == "image_mask") {
     auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(value));
-
     if (! imageObj)
       return app->errorMsg(QString("Failed to find image '%1'").arg(value));
 
@@ -237,6 +238,7 @@ bool
 Image2DObj::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
+  auto *app = canvas()->app();
   auto *tcl = canvas()->tcl();
 
   if      (op == "resize") {
@@ -321,6 +323,8 @@ exec(const QString &op, const QStringList &args, QVariant &res)
       return false;
 
     auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(args[0]));
+    if (! imageObj)
+      return app->errorMsg(QString("Failed to find image '%1'").arg(args[0]));
 
     image_ = CQImageFilter::mask(image_, imageObj->image_);
   }

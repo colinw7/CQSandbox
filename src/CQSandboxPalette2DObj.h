@@ -17,8 +17,16 @@ class Palette2DObj : public Object2D {
 
   const char *typeName() const override { return "palette"; }
 
+  //---
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   CColorRange colorRange_;

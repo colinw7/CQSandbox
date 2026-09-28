@@ -15,14 +15,26 @@ class IntArray2DObj : public Object2D {
 
   const char *typeName() const override { return "int_array"; }
 
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool isTclCmd() const override { return true; }
+
+  //---
+
+  bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
+  bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   using Values = std::vector<int>;
 
   Values values_;
 };
+
+//---
 
 class RealArray2DObj : public Object2D {
   Q_OBJECT
@@ -34,14 +46,26 @@ class RealArray2DObj : public Object2D {
 
   const char *typeName() const override { return "real_array"; }
 
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool isTclCmd() const override { return true; }
+
+  //---
+
+  bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
+  bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   using Values = std::vector<double>;
 
   Values values_;
 };
+
+//---
 
 class IntMatrix2DObj : public Object2D {
   Q_OBJECT
@@ -53,8 +77,18 @@ class IntMatrix2DObj : public Object2D {
 
   const char *typeName() const override { return "int_matrix"; }
 
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool isTclCmd() const override { return true; }
+
+  //---
+
+  bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
+  bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   using Values      = std::vector<int>;
@@ -62,6 +96,8 @@ class IntMatrix2DObj : public Object2D {
 
   ValuesArray values_;
 };
+
+//---
 
 class RealMatrix2DObj : public Object2D {
   Q_OBJECT
@@ -73,8 +109,18 @@ class RealMatrix2DObj : public Object2D {
 
   const char *typeName() const override { return "real_matrix"; }
 
-  bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
-  bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+  bool isTclCmd() const override { return true; }
+
+  //---
+
+  bool getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res) override;
+  bool setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   using Values      = std::vector<double>;

@@ -171,7 +171,7 @@ void
 OpenGLWindow::
 resizeGL(int, int)
 {
-  const qreal retinaScale = devicePixelRatio();
+  auto retinaScale = devicePixelRatio();
 
   pixelWidth_  = width ()*retinaScale;
   pixelHeight_ = height()*retinaScale;
@@ -656,6 +656,9 @@ Object3D *
 Canvas3D::
 getObjectByName(const QString &name) const
 {
+  if (name.left(6) != "sb3d::")
+    return nullptr;
+
   for (auto *obj : allObjects_) {
     if (name == obj->getCommandName())
       return obj;
@@ -1262,6 +1265,10 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return app_->errorMsg("Invalid clip distance '" + args[0] + "'");
 
     clips_.push_back(CPlane3D(n, d));
+  }
+  // image_buffer
+  else if (name == "image_buffer") {
+    setImageBuffer(Util::stringToBool(value));
   }
   // directories
   else if (name == "model_dir") {
@@ -2366,17 +2373,13 @@ render()
 
   //---
 
-  CBBox3D newBBox;
+  newBBox_ = CBBox3D();
 
   //---
 
-  using ObjectSelectedPoints = std::map<Object3D *, Object3D::SelectedPoints>;
-  using ObjectSelectedFaces  = std::map<Object3D *, Object3D::SelectedFaces>;
-  using ObjectSelected       = std::set<Object3D *>;
-
-  ObjectSelectedPoints objectSelectedPoints;
-  ObjectSelectedFaces  objectSelectedFaces;
-  ObjectSelected       objectSelected;
+  objectSelectedPoints_.clear();
+  objectSelectedFaces_ .clear();
+  objectSelected_      .clear();
 
   //---
 
@@ -2384,6 +2387,49 @@ render()
 
   //---
 
+  drawContents();
+
+  //---
+
+  if (isShowBBox())
+    drawBBoxes();
+
+  //---
+
+  drawSelected();
+
+  //---
+
+  glPopAttrib();
+
+  //---
+
+  if (isLightsVisible())
+    drawLights();
+
+  //---
+
+  //std::cerr << "BBox: " << newBBox_ << "\n";
+
+  //---
+
+  if (newBBox_ != bbox_) {
+    bbox_ = newBBox_;
+
+    Q_EMIT bboxChanged();
+
+    runTclCmd("bboxChanged");
+  }
+
+  //---
+
+  // (void) CQGLStateInst->checkError("< Canvas3D::render");
+}
+
+void
+Canvas3D::
+drawContents()
+{
   using MgrObjects = std::map<ObjectMgr3D *, Objects>;
 
   MgrObjects mgrObjects;
@@ -2419,7 +2465,7 @@ render()
         auto &selectedPoints = obj->selectedPoints();
 
         if (! selectedPoints.empty())
-          objectSelectedPoints[obj] = selectedPoints;
+          objectSelectedPoints_[obj] = selectedPoints;
       }
       else if (editType() == EditType::LINE) {
       }
@@ -2427,14 +2473,14 @@ render()
         auto &selectedFaces = obj->selectedFaces();
 
         if (! selectedFaces.empty())
-          objectSelectedFaces[obj] = selectedFaces;
+          objectSelectedFaces_[obj] = selectedFaces;
       }
       else if (editType() == EditType::OBJECT) {
         if (obj->isSelected())
-          objectSelected.insert(obj);
+          objectSelected_.insert(obj);
       }
 
-      newBBox += obj->bbox();
+      newBBox_ += obj->bbox();
     }
 
     //---
@@ -2442,31 +2488,35 @@ render()
     if (mgr)
       mgr->termRender(this);
   }
+}
 
-  //---
+void
+Canvas3D::
+drawBBoxes()
+{
+  for (auto *obj : objects_) {
+    if (! obj || ! obj->isVisible())
+      continue;
 
-  if (isShowBBox()) {
-    for (auto *obj : objects_) {
-      if (! obj || ! obj->isVisible())
-        continue;
+    if (obj->isSelected()) {
+      auto *bboxObj = obj->bboxObj();
 
-      if (obj->isSelected()) {
-        auto *bboxObj = obj->bboxObj();
-
-        if (bboxObj)
-          bboxObj->render();
-      }
+      if (bboxObj)
+        bboxObj->render();
     }
   }
+}
 
-  //---
-
-  if (! objectSelectedPoints.empty()) {
+void
+Canvas3D::
+drawSelected()
+{
+  if (! objectSelectedPoints_.empty()) {
     initSelectionProgram();
 
     selectionBuffer_->clearBuffers();
 
-    for (const auto &po : objectSelectedPoints) {
+    for (const auto &po : objectSelectedPoints_) {
       auto *object = po.first;
 
       const auto &modelMatrix = object->modelMatrix();
@@ -2507,7 +2557,7 @@ render()
     bindProgram(nullptr);
   }
 
-  if (! objectSelectedFaces.empty()) {
+  if (! objectSelectedFaces_.empty()) {
     auto dn = 0.01;
 
     initSelectionProgram();
@@ -2516,7 +2566,7 @@ render()
 
     FaceDataList selectedFaceDataList;
 
-    for (const auto &po : objectSelectedFaces) {
+    for (const auto &po : objectSelectedFaces_) {
       auto *object = po.first;
 
       const auto &faceDatas = object->getFaceDatas();
@@ -2581,7 +2631,7 @@ render()
     bindProgram(nullptr);
   }
 
-  if (! objectSelected.empty()) {
+  if (! objectSelected_.empty()) {
     auto dn = 0.01;
 
     initSelectionProgram();
@@ -2590,7 +2640,7 @@ render()
 
     FaceDataList selectedFaceDataList;
 
-    for (auto *object : objectSelected) {
+    for (auto *object : objectSelected_) {
       const auto &faceDatas = object->getFaceDatas();
       assert(! faceDatas.empty());
 
@@ -2648,33 +2698,6 @@ render()
 
     bindProgram(nullptr);
   }
-
-  //---
-
-  glPopAttrib();
-
-  //---
-
-  if (isLightsVisible())
-    drawLights();
-
-  //---
-
-  //std::cerr << "BBox: " << newBBox << "\n";
-
-  //---
-
-  if (newBBox != bbox_) {
-    bbox_ = newBBox;
-
-    Q_EMIT bboxChanged();
-
-    runTclCmd("bboxChanged");
-  }
-
-  //---
-
-  // (void) CQGLStateInst->checkError("< Canvas3D::render");
 }
 
 //---

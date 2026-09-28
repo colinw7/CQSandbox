@@ -264,7 +264,7 @@ class Canvas2D : public QFrame {
 
   QString addNewObject(Object2D *obj);
 
-  void addObject(Object2D *obj);
+  void addObject(Object2D *obj, bool notify=true);
   void removeObject(Object2D *obj);
 
   //---
@@ -336,6 +336,7 @@ class Canvas2D : public QFrame {
   static int fmaProc (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 #endif
 
+  static int noiseProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
   static int hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
   static int helpProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
@@ -431,6 +432,7 @@ class Canvas2D : public QFrame {
 
   struct TclCallbacks {
     bool mouseEvent      { true };
+    bool motionEvent     { false };
     bool keyEvent        { true };
     bool rubberBandEvent { false };
   };

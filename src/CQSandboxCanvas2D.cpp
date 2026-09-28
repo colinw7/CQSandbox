@@ -138,6 +138,7 @@ init(const QStringList &tclArgs)
 
   runTclCmd("proc mousePress { args } { }");
   runTclCmd("proc mouseMove { args } { }");
+  runTclCmd("proc mouseMotion { args } { }");
   runTclCmd("proc mouseRelease { args } { }");
 
   runTclCmd("proc setMode { args } { }");
@@ -375,6 +376,9 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 #endif
 
+  tcl->createObjCommand("sb::noise",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::noiseProc),
+    static_cast<CQTcl::ObjCmdData>(this));
   tcl->createObjCommand("sb::hypot",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::hypotProc),
     static_cast<CQTcl::ObjCmdData>(this));
@@ -982,6 +986,10 @@ mouseMoveEvent(QMouseEvent *e)
     if (tclCallbacks_.mouseEvent)
       runTclCmd(QString("mouseMove %1 %2").arg(p.x()).arg(p.y()));
   }
+  else {
+    if (tclCallbacks_.motionEvent)
+      runTclCmd(QString("mouseMotion %1 %2").arg(p.x()).arg(p.y()));
+  }
 
   //---
 
@@ -1310,6 +1318,9 @@ Object2D *
 Canvas2D::
 getObjectByName(const QString &name) const
 {
+  if (name.left(4) != "sb::")
+    return nullptr;
+
   for (auto *obj : allObjects_) {
     if (name == obj->getCommandName())
       return obj;
@@ -1327,7 +1338,7 @@ QString
 Canvas2D::
 addNewObject(Object2D *obj)
 {
-  addObject(obj);
+  addObject(obj, /*notify*/false);
 
   allObjects_.push_back(obj);
 
@@ -1340,7 +1351,11 @@ addNewObject(Object2D *obj)
 
   connect(obj, SIGNAL(stateChanged()), this, SLOT(updateStatus()));
 
-  return obj->calcId();
+  auto id = obj->calcId();
+
+  Q_EMIT objectsChanged();
+
+  return id;
 }
 
 void
@@ -1371,7 +1386,7 @@ createObjTclCommand(Object2D *obj)
 
 void
 Canvas2D::
-addObject(Object2D *obj)
+addObject(Object2D *obj, bool notify)
 {
   auto *viewport = currentViewport();
 
@@ -1379,7 +1394,8 @@ addObject(Object2D *obj)
 
   obj->setGroup(nullptr);
 
-  Q_EMIT objectsChanged();
+  if (notify)
+    Q_EMIT objectsChanged();
 }
 
 void
@@ -1887,6 +1903,11 @@ setValue(const QString &name, const QString &value, const QStringList &)
     auto b = Util::stringToBool(value);
 
     tclCallbacks_.rubberBandEvent = b;
+  }
+  else if (name == "motionEvent") {
+    auto b = Util::stringToBool(value);
+
+    tclCallbacks_.motionEvent = b;
   }
   else if (name == "timeout") {
     int i;
@@ -2457,6 +2478,42 @@ fmaProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
   return TCL_OK;
 }
 #endif
+
+int
+Canvas2D::
+noiseProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas2D *>(clientData);
+  assert(th);
+
+  auto *tcl = th->tcl();
+
+  double x { 0 }, y { 0 }, z { 0 };
+  if (objc > 1) {
+    if (! tcl->getRealFromObj(objv[1], x))
+      return TCL_ERROR;
+    y = x;
+    z = x;
+  }
+
+  if (objc > 2) {
+    if (! tcl->getRealFromObj(objv[2], y))
+      return TCL_ERROR;
+    z = x + y;
+  }
+
+  if (objc > 3) {
+    if (! tcl->getRealFromObj(objv[3], z))
+      return TCL_ERROR;
+    z = x + y;
+  }
+
+  auto n = CMathGen::noise(x, y, z);
+
+  tcl->setResult(n);
+
+  return TCL_OK;
+}
 
 int
 Canvas2D::

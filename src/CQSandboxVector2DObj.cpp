@@ -22,8 +22,6 @@ create(Canvas2D *canvas, const QStringList &args)
 
     obj->setX(x);
     obj->setY(y);
-
-    return false;
   }
 
   auto name = canvas->addNewObject(obj);
@@ -41,38 +39,107 @@ Vector2DObj(Canvas2D *canvas) :
 
 bool
 Vector2DObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
+getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res)
 {
+  auto *tcl = canvas()->tcl();
+
   if      (name == "x")
-    value = v_.x();
+    res = tcl->newRealObj(v_.x());
   else if (name == "y")
-    value = v_.y();
+    res = tcl->newRealObj(v_.y());
   else
-    return Object2D::getValue(name, args, value);
+    return Object2D::getTclValue(name, objs, res);
 
   return true;
 }
 
 bool
 Vector2DObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
+setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs)
 {
+  auto *tcl = canvas()->tcl();
+
   if      (name == "x") {
     double r;
-    if (! Util::stringToReal(value, r))
+    if (! tcl->getRealFromObj(value, r))
       return false;
 
     setX(r);
   }
   else if (name == "y") {
     double r;
-    if (! Util::stringToReal(value, r))
+    if (! tcl->getRealFromObj(value, r))
       return false;
 
     setY(r);
   }
   else
-    return Object2D::setValue(name, value, args);
+    return Object2D::setTclValue(name, value, objs);
+
+  return true;
+}
+
+bool
+Vector2DObj::
+execTcl(const QString &op, const TclObjs &objs, Tcl_Obj* &res)
+{
+  auto *app = canvas()->app();
+  auto *tcl = canvas()->tcl();
+
+  if      (op == "inc.x") {
+    if (objs.size() != 1)
+      return false;
+
+    double r;
+    if (! tcl->getRealFromObj(objs[0], r))
+      return false;
+
+    setX(v_.x() + r);
+  }
+  else if (op == "inc.y") {
+    if (objs.size() != 1)
+      return false;
+
+    double r;
+    if (! tcl->getRealFromObj(objs[0], r))
+      return false;
+
+    setY(v_.y() + r);
+  }
+  else if (op == "dec.x") {
+    if (objs.size() != 1)
+      return false;
+
+    double r;
+    if (! tcl->getRealFromObj(objs[0], r))
+      return false;
+
+    setX(v_.x() - r);
+  }
+  else if (op == "dec.y") {
+    if (objs.size() != 1)
+      return false;
+
+    double r;
+    if (! tcl->getRealFromObj(objs[0], r))
+      return false;
+
+    setY(v_.y() - r);
+  }
+  else if (op == "add") {
+    if (objs.size() != 1)
+      return false;
+
+    auto name = tcl->qstringFromObj(objs[0]);
+
+    auto *vectorObj = dynamic_cast<Vector2DObj *>(canvas()->getObjectByName(name));
+    if (! vectorObj)
+      return app->errorMsg(QString("Failed to find vector '%1'").arg(name));
+
+    v_ += vectorObj->v_;
+  }
+  else
+    return Object2D::execTcl(op, objs, res);
 
   return true;
 }

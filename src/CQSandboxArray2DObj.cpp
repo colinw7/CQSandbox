@@ -29,6 +29,8 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto name = canvas->addNewObject(obj);
 
+  obj->init();
+
   tcl->setResult(name);
 
   return true;
@@ -43,26 +45,26 @@ IntArray2DObj(Canvas2D *canvas, uint dim) :
 
 bool
 IntArray2DObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
+getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res)
 {
   auto *app = canvas()->app();
-//auto *tcl = canvas()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "value") {
-    if (args.size() != 1)
+    if (objs.size() != 1)
       return app->errorMsg("Invalid number of args for int_array get value");
 
     int i;
-    if (! Util::stringToInt(args[0], i))
+    if (! tcl->getIntFromObj(objs[0], i))
       return app->errorMsg("Invalid index for int_array get value");
 
     if (i < 0 || i >= int(values_.size()))
       return app->errorMsg("Invalid index for int_array get value");
 
-    value = values_[i];
+    res = tcl->newIntObj(values_[i]);
   }
   else if (name == "dim") {
-    value = int(values_.size());
+    res = tcl->newIntObj(values_.size());
   }
   else if (name == "dup") {
     auto *obj = new IntArray2DObj(canvas(), values_.size());
@@ -71,40 +73,40 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     auto name = canvas()->addNewObject(obj);
 
-    value = name;
+    res = tcl->newStringObj(name);
   }
   else
-    return Object2D::getValue(name, args, value);
+    return Object2D::getTclValue(name, objs, res);
 
   return true;
 }
 
 bool
 IntArray2DObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
+setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs)
 {
   auto *app = canvas()->app();
-//auto *tcl = canvas()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if (name == "value") {
-    if (args.size() != 1)
+    if (objs.size() != 1)
       return app->errorMsg("Invalid number of args for int_array set value");
 
     int i;
-    if (! Util::stringToInt(value, i))
+    if (! tcl->getIntFromObj(value, i))
       return app->errorMsg("Invalid index for int_array set value");
 
     if (i >= int(values_.size()))
       return app->errorMsg("Invalid index for int_array set value");
 
     int v;
-    if (! Util::stringToInt(args[0], v))
+    if (! tcl->getIntFromObj(objs[0], v))
       return app->errorMsg("Invalid int_array value");
 
     values_[i] = v;
   }
   else
-    return Object2D::setValue(name, value, args);
+    return Object2D::setTclValue(name, value, objs);
 
   return true;
 }
@@ -133,6 +135,8 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto name = canvas->addNewObject(obj);
 
+  obj->init();
+
   tcl->setResult(name);
 
   return true;
@@ -147,26 +151,26 @@ RealArray2DObj(Canvas2D *canvas, uint dim) :
 
 bool
 RealArray2DObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
+getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res)
 {
   auto *app = canvas()->app();
-//auto *tcl = canvas()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if      (name == "value") {
-    if (args.size() != 1)
+    if (objs.size() != 1)
       return app->errorMsg("Invalid number of args for real_array get value");
 
     int i;
-    if (! Util::stringToInt(args[0], i))
+    if (! tcl->getIntFromObj(objs[0], i))
       return app->errorMsg("Invalid index for real_array get value");
 
     if (i < 0 || i >= int(values_.size()))
       return app->errorMsg("Invalid index for real_array get value");
 
-    value = values_[i];
+    res = tcl->newRealObj(values_[i]);
   }
   else if (name == "dim") {
-    value = int(values_.size());
+    res = tcl->newIntObj(values_.size());
   }
   else if (name == "dup") {
     auto *obj = new RealArray2DObj(canvas(), values_.size());
@@ -175,40 +179,40 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     auto name = canvas()->addNewObject(obj);
 
-    value = name;
+    res = tcl->newStringObj(name);
   }
   else
-    return Object2D::getValue(name, args, value);
+    return Object2D::getTclValue(name, objs, res);
 
   return true;
 }
 
 bool
 RealArray2DObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
+setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs)
 {
   auto *app = canvas()->app();
-//auto *tcl = canvas()->tcl();
+  auto *tcl = canvas()->tcl();
 
   if (name == "value") {
-    if (args.size() != 1)
+    if (objs.size() != 1)
       return app->errorMsg("Invalid number of args for real_array set value");
 
     int i;
-    if (! Util::stringToInt(value, i))
+    if (! tcl->getIntFromObj(value, i))
       return app->errorMsg("Invalid index for real_array set value");
 
     if (i >= int(values_.size()))
       return app->errorMsg("Invalid index for real_array set value");
 
     double v;
-    if (! Util::stringToReal(args[0], v))
+    if (! tcl->getRealFromObj(objs[0], v))
       return app->errorMsg("Invalid real_array value");
 
     values_[i] = v;
   }
   else
-    return Object2D::setValue(name, value, args);
+    return Object2D::setTclValue(name, value, objs);
 
   return true;
 }
@@ -237,6 +241,8 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto name = canvas->addNewObject(obj);
 
+  obj->init();
+
   tcl->setResult(name);
 
   return true;
@@ -254,39 +260,40 @@ IntMatrix2DObj(Canvas2D *canvas, uint dim1, uint dim2) :
 
 bool
 IntMatrix2DObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
+getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res)
 {
   auto *app = canvas()->app();
   auto *tcl = canvas()->tcl();
 
   if      (name == "value") {
-    if (args.size() != 1 && args.size() != 2)
-      return app->errorMsg("Invalid number of args for real_matrix get value");
+    if (objs.size() != 1 && objs.size() != 2)
+      return app->errorMsg("Invalid number of args for int_matrix get value");
 
     int i1, i2;
-    if (args.size() == 2) {
-      if (! Util::stringToInt(args[0], i1) || ! Util::stringToInt(args[1], i2))
-        return app->errorMsg("Invalid indices for real_matrix get value");
+    if (objs.size() == 2) {
+      if (! tcl->getIntFromObj(objs[0], i1) || ! tcl->getIntFromObj(objs[1], i2))
+        return app->errorMsg("Invalid indices for int_matrix get value");
 
       if (i1 < 0 || i1 >= int(values_.size()) || i2 < 0 || i2 >= int(values_[0].size()))
-        return app->errorMsg("Invalid indices for real_matrix get value");
+        return app->errorMsg("Invalid indices for int_matrix get value");
     }
     else {
-      std::vector<int> i;
-      if (! Util::stringToIntArray(tcl, args[0], i) || i.size() != 2)
-        return app->errorMsg("Invalid indices for real_matrix get value");
+      int n = tcl->getObjLength(objs[0]);
+      if (n != 2)
+        return app->errorMsg("Invalid indices for int_matrix get value");
 
-      i1 = i[0];
-      i2 = i[1];
+      if (! tcl->getIntFromObj(tcl->getListObj(objs[0], 0), i1) ||
+          ! tcl->getIntFromObj(tcl->getListObj(objs[0], 1), i2))
+        return app->errorMsg("Invalid indices for int_matrix get value");
     }
 
-    value = values_[i1][i2];
+    res = tcl->newIntObj(values_[i1][i2]);
   }
   else if (name == "dim0") {
-    value = int(values_.size());
+    res = tcl->newIntObj(values_.size());
   }
   else if (name == "dim1") {
-    value = int(values_[0].size());
+    res = tcl->newIntObj(values_[0].size());
   }
   else if (name == "dup") {
     auto *obj = new IntMatrix2DObj(canvas(), values_.size(), values_[0].size());
@@ -295,30 +302,30 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     auto name = canvas()->addNewObject(obj);
 
-    value = name;
+    res = tcl->newStringObj(name);
   }
   else
-    return Object2D::getValue(name, args, value);
+    return Object2D::getTclValue(name, objs, res);
 
   return true;
 }
 
 bool
 IntMatrix2DObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
+setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs)
 {
   auto *app = canvas()->app();
   auto *tcl = canvas()->tcl();
 
   if (name == "value") {
-    if (args.size() != 1 && args.size() != 2)
+    if (objs.size() != 1 && objs.size() != 2)
       return app->errorMsg("Invalid number of args for int_matrix get value");
 
     int v;
 
     int i1, i2;
-    if (args.size() == 2) {
-      if (! Util::stringToInt(value, i1) || ! Util::stringToInt(args[0], i2))
+    if (objs.size() == 2) {
+      if (! tcl->getIntFromObj(value, i1) || ! tcl->getIntFromObj(objs[0], i2))
         return app->errorMsg("Invalid indices for int_matrix get value");
 
       if (i1 < 0 || i1 >= int(values_.size()) || i2 < 0 || i2 >= int(values_[0].size()))
@@ -326,27 +333,28 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
       //---
 
-      if (! Util::stringToInt(args[1], v))
+      if (! tcl->getIntFromObj(objs[1], v))
         return app->errorMsg("Invalid int_matrix value");
     }
     else {
-      std::vector<int> i;
-      if (! Util::stringToIntArray(tcl, value, i) || i.size() != 2)
+      int n = tcl->getObjLength(objs[0]);
+      if (n != 2)
         return app->errorMsg("Invalid indices for int_matrix get value");
 
-      i1 = i[0];
-      i2 = i[1];
+      if (! tcl->getIntFromObj(tcl->getListObj(value, 0), i1) ||
+          ! tcl->getIntFromObj(tcl->getListObj(value, 1), i2))
+        return app->errorMsg("Invalid indices for int_matrix get value");
 
       //---
 
-      if (! Util::stringToInt(args[0], v))
+      if (! tcl->getIntFromObj(objs[0], v))
         return app->errorMsg("Invalid int_matrix value");
     }
 
     values_[i1][i2] = v;
   }
   else
-    return Object2D::setValue(name, value, args);
+    return Object2D::setTclValue(name, value, objs);
 
   return true;
 }
@@ -375,6 +383,8 @@ create(Canvas2D *canvas, const QStringList &args)
 
   auto name = canvas->addNewObject(obj);
 
+  obj->init();
+
   tcl->setResult(name);
 
   return true;
@@ -392,39 +402,40 @@ RealMatrix2DObj(Canvas2D *canvas, uint dim1, uint dim2) :
 
 bool
 RealMatrix2DObj::
-getValue(const QString &name, const QStringList &args, QVariant &value)
+getTclValue(const QString &name, const TclObjs &objs, Tcl_Obj* &res)
 {
   auto *app = canvas()->app();
   auto *tcl = canvas()->tcl();
 
   if      (name == "value") {
-    if (args.size() != 1 && args.size() != 2)
+    if (objs.size() != 1 && objs.size() != 2)
       return app->errorMsg("Invalid number of args for real_matrix get value");
 
     int i1, i2;
-    if (args.size() == 2) {
-      if (! Util::stringToInt(args[0], i1) || ! Util::stringToInt(args[1], i2))
+    if (objs.size() == 2) {
+      if (! tcl->getIntFromObj(objs[0], i1) || ! tcl->getIntFromObj(objs[1], i2))
         return app->errorMsg("Invalid indices for real_matrix get value");
 
       if (i1 < 0 || i1 >= int(values_.size()) || i2 < 0 || i2 >= int(values_[0].size()))
         return app->errorMsg("Invalid indices for real_matrix get value");
     }
     else {
-      std::vector<int> i;
-      if (! Util::stringToIntArray(tcl, args[0], i) || i.size() != 2)
+      int n = tcl->getObjLength(objs[0]);
+      if (n != 2)
         return app->errorMsg("Invalid indices for real_matrix get value");
 
-      i1 = i[0];
-      i2 = i[1];
+      if (! tcl->getIntFromObj(tcl->getListObj(objs[0], 0), i1) ||
+          ! tcl->getIntFromObj(tcl->getListObj(objs[0], 1), i2))
+        return app->errorMsg("Invalid indices for real_matrix get value");
     }
 
-    value = values_[i1][i2];
+    res = tcl->newRealObj(values_[i1][i2]);
   }
   else if (name == "dim0") {
-    value = int(values_.size());
+    res = tcl->newIntObj(values_.size());
   }
   else if (name == "dim1") {
-    value = int(values_[0].size());
+    res = tcl->newIntObj(values_[0].size());
   }
   else if (name == "dup") {
     auto *obj = new RealMatrix2DObj(canvas(), values_.size(), values_[0].size());
@@ -433,54 +444,59 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     auto name = canvas()->addNewObject(obj);
 
-    value = name;
+    res = tcl->newStringObj(name);
   }
   else
-    return Object2D::getValue(name, args, value);
+    return Object2D::getTclValue(name, objs, res);
 
   return true;
 }
 
 bool
 RealMatrix2DObj::
-setValue(const QString &name, const QString &value, const QStringList &args)
+setTclValue(const QString &name, Tcl_Obj *value, const TclObjs &objs)
 {
   auto *app = canvas()->app();
   auto *tcl = canvas()->tcl();
 
   if (name == "value") {
-    if (args.size() != 1 && args.size() != 2)
+    if (objs.size() != 1 && objs.size() != 2)
       return app->errorMsg("Invalid number of args for real_matrix get value");
 
     double v;
 
     int i1, i2;
-    if (args.size() == 2) {
-      if (! Util::stringToInt(value, i1) || ! Util::stringToInt(args[0], i2))
+    if (objs.size() == 2) {
+      if (! tcl->getIntFromObj(value, i1) || ! tcl->getIntFromObj(objs[0], i2))
         return app->errorMsg("Invalid indices for real_matrix get value");
 
       if (i1 < 0 || i1 >= int(values_.size()) || i2 < 0 || i2 >= int(values_[0].size()))
         return app->errorMsg("Invalid indices for real_matrix get value");
 
-      if (! Util::stringToReal(args[1], v))
-        return app->errorMsg("Invalid real_array value");
+      //---
+
+      if (! tcl->getRealFromObj(objs[1], v))
+        return app->errorMsg("Invalid real_matrix value");
     }
     else {
-      std::vector<int> i;
-      if (! Util::stringToIntArray(tcl, value, i) || i.size() != 2)
+      int n = tcl->getObjLength(objs[0]);
+      if (n != 2)
         return app->errorMsg("Invalid indices for real_matrix get value");
 
-      i1 = i[0];
-      i2 = i[1];
+      if (! tcl->getIntFromObj(tcl->getListObj(value, 0), i1) ||
+          ! tcl->getIntFromObj(tcl->getListObj(value, 1), i2))
+        return app->errorMsg("Invalid indices for real_matrix get value");
 
-      if (! Util::stringToReal(args[0], v))
-        return app->errorMsg("Invalid real_array value");
+      //---
+
+      if (! tcl->getRealFromObj(objs[0], v))
+        return app->errorMsg("Invalid real_matrix value");
     }
 
     values_[i1][i2] = v;
   }
   else
-    return Object2D::setValue(name, value, args);
+    return Object2D::setTclValue(name, value, objs);
 
   return true;
 }

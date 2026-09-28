@@ -422,12 +422,15 @@ bool
 Object3D::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
+  auto *app = canvas()->app();
+
   if (op == "intersect") {
     if (args.size() < 1)
       return false;
 
     auto *obj = canvas()->getObjectByName(args[0]);
-    if (! obj) return false;
+    if (! obj)
+      return app->errorMsg(QString("Failed to find object '%1'").arg(args[0]));
 
     auto bbox1 = this->bbox();
     auto bbox2 = obj ->bbox();

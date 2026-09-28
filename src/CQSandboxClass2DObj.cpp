@@ -45,9 +45,9 @@ Class2DObj(Canvas2D *canvas, const QString &name) :
 
 QString
 Class2DObj::
-getCommandName() const
+calcCommandName() const
 {
-  return QString("sb2d::C_%1.%2").arg(name()).arg(ind_);
+  return QString("%1::C_%2.%3").arg(getBaseId()).arg(name()).arg(ind_);
 }
 
 bool

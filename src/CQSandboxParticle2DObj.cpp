@@ -138,15 +138,15 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "image") {
     QImage image;
 
-    if (! Util::stringToImage(value, image)) {
-      auto *obj = canvas()->getObjectByName(value);
-      if (! obj) return app->errorMsg(QString("Failed to find object '%1'").arg(value));
-
-      auto *imageObj = dynamic_cast<Image2DObj *>(obj);
-      if (! obj) return false;
-
-      particle_->setImage(imageObj->image());
+    auto *imageObj = dynamic_cast<Image2DObj *>(canvas()->getObjectByName(value));
+    if (imageObj)
+      image = imageObj->image();
+    else {
+      if (! Util::stringToImage(value, image))
+        return app->errorMsg(QString("Failed to find image '%1'").arg(value));
     }
+
+    particle_->setImage(image);
   }
   else
     return Object2D::setValue(name, value, args);

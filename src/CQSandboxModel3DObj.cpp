@@ -398,6 +398,7 @@ bool
 Model3DObj::
 exec(const QString &op, const QStringList &args, QVariant &res)
 {
+  auto *app = canvas()->app();
   auto *tcl = canvas()->tcl();
 
   if      (op == "translate") {
@@ -453,7 +454,8 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     assert(object_);
 
     auto *animObj = dynamic_cast<Model3DObj *>(canvas()->getObjectByName(args[0]));
-    if (! animObj) return false;
+    if (! animObj)
+      return app->errorMsg(QString("Failed to find model '%1'").arg(args[0]));
 
 //  std::cerr << id().toStdString() << " " << object_->numNodes() << "\n";
 

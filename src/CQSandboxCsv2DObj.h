@@ -17,10 +17,18 @@ class Csv2DObj : public Object2D {
 
   const char *typeName() const override { return "csv"; }
 
+  //---
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   bool exec(const QString &op, const QStringList &args, QVariant &res) override;
+
+  //---
+
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   QString filename_;

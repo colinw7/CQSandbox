@@ -19,13 +19,19 @@ class AStar2DObj : public Object2D {
 
   const char *typeName() const override { return "astar"; }
 
+  uint nx() const { return nx_; }
+  uint ny() const { return ny_; }
+
+  //---
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
   //---
 
-  uint nx() const { return nx_; }
-  uint ny() const { return ny_; }
+  bool isDrawable() const override { return false; }
+
+  void draw(QPainter *) override { }
 
  protected:
   struct CellPos {

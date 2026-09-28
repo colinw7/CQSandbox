@@ -13,8 +13,16 @@
 
 # Flame colors
 
+# draw = 3436195 
+# draw = 3271283 
+# draw = 2506407 
+
 proc randIn { min max } {
   return [expr {rand()*($max - $min) + $min}]
+}
+
+proc irandIn { min max } {
+  return [expr {int(rand()*($max - $min) + $min)}]
 }
 
 proc init { } {
@@ -76,7 +84,7 @@ proc drawBg { args } {
 }
 
 proc update { } {
-  draw
+  echo [time {draw}]
 }
 
 proc draw { } {
@@ -100,8 +108,9 @@ if {0} {
 }
 
   # Randomize the bottom row of the fire buffer
+  set height1 [expr {$::height-1}]
   for {set x 0} {$x < $::width} {incr x} {
-    $::fire set value $x [expr {$::height-1}] [expr {int([randIn 0 190])}]
+    $::fire set value $x $height1 [expr {[irandIn 0 190]}]
   }
 
   # loadPixels
@@ -114,14 +123,16 @@ if {0} {
     for {set x 0} {$x < $::width} {incr x} {
       # Add pixel values around current pixel
 
-      $::fire set value $x $y [expr {\
+      set ipal [expr { \
         (([$::fire get value [$::calc3 get value $x] [$::calc2 get value $y]] +
           [$::fire get value [$::calc1 get value $x] [$::calc2 get value $y]] +
           [$::fire get value [$::calc4 get value $x] [$::calc2 get value $y]] +
           [$::fire get value [$::calc1 get value $x] [$::calc5 get value $y]]) << 5) / 129}]
 
+      $::fire set value $x $y $ipal
+
       # Output everything to screen using our palette colors
-      $::renderer set pen.color [$::palette get value [$::fire get value $x $y]]
+      $::renderer set pen.color [$::palette get value $ipal]
 
       $::renderer exec image.pixel [list $x $y]
 
