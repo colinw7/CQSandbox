@@ -162,6 +162,12 @@ class Canvas3D : public OpenGLWindow {
     ORTHO
   };
 
+  enum class ShaderType {
+    MODEL,
+    SHADOW,
+    OUTLINE
+  };
+
   using Mgrs    = std::map<QString, ObjectMgr3D *>;
   using Objects = std::vector<Object3D *>;
 
@@ -269,6 +275,10 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  void setProgramShadow(ShaderProgram *program);
+
+  void setProgramOutline(ShaderProgram *program);
+
   void setProgramMatrices(ShaderProgram *program,
          const ProgramMatrixData &programMatrixData=ProgramMatrixData());
 
@@ -288,6 +298,11 @@ class Canvas3D : public OpenGLWindow {
   void setCameraType(const CameraType &cameraType);
 
   void setProgramCamera(ShaderProgram *program, CameraIFace *camera);
+
+  //---
+
+  const ShaderType &shaderType() const { return shaderType_; }
+  void setShaderType(const ShaderType &t) { shaderType_ = t; }
 
   //---
 
@@ -357,10 +372,20 @@ class Canvas3D : public OpenGLWindow {
 
   bool isOutline() { return outline_; }
 
-  //--
+  //---
 
-  bool isImageBuffer() { return imageBuffer_; }
-  void setImageBuffer(bool b) { imageBuffer_ = b; }
+  bool isImageBuffer() { return imageBufferData_.enabled; }
+  void setImageBuffer(bool b) { imageBufferData_.enabled = b; }
+
+  //---
+
+  bool isShadowed() { return shadowData_.enabled; }
+  void setShadowed(bool b) { shadowData_.enabled = b; }
+
+  //---
+
+  bool isOutlined() { return outlineData_.enabled; }
+  void setOutlined(bool b) { outlineData_.enabled = b; }
 
   //---
 
@@ -413,6 +438,8 @@ class Canvas3D : public OpenGLWindow {
 
   void render() override;
 
+  void setViewGlobals(CameraIFace *camera);
+
   void drawContents();
   void drawBBoxes();
   void drawSelected();
@@ -456,6 +483,7 @@ class Canvas3D : public OpenGLWindow {
   void keyReleaseEvent(QKeyEvent *e) override;
 
   void mouseMoveCamera();
+  void mouseMoveLight();
 
   //---
 
@@ -708,6 +736,8 @@ class Canvas3D : public OpenGLWindow {
   CameraType cameraType_ { CameraType::MODEL };
   Cameras    cameras_;
 
+  ShaderType shaderType_ { ShaderType::MODEL };
+
   bool depthTest_   { true };
   bool cullFace_    { true };
   bool frontFace_   { true };
@@ -715,7 +745,26 @@ class Canvas3D : public OpenGLWindow {
   bool smoothShade_ { true };
   bool outline_     { false };
 
-  bool imageBuffer_ { false };
+  struct ImageBufferData {
+    bool         enabled { false };
+    CQGLTexture* texture { nullptr };
+  };
+
+  ImageBufferData imageBufferData_;
+
+  struct ShadowData {
+    bool         enabled { false };
+    CQGLTexture* texture { nullptr };
+  };
+
+  ShadowData shadowData_;
+
+  struct OutlineData {
+    bool   enabled { false };
+    QColor color   { Qt::yellow };
+  };
+
+  OutlineData outlineData_;
 
   CRMinMax xrange_ { -1.0, 1.0 };
   CRMinMax yrange_ { -1.0, 1.0 };
@@ -744,9 +793,7 @@ class Canvas3D : public OpenGLWindow {
 
   Path3DObj* eyeLine_ { nullptr };
 
-  uint numDirectionalLights_ { 1 };
-  uint numPointLights_ { 2 };
-  uint numSpotLights_ { 2 };
+  uint maxNumLights_ { 5 };
 
   std::vector<Light3D *> lights_;
   uint                   lightNum_ { 1 };

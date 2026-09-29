@@ -11,21 +11,27 @@ out vec4 FragPos;
 out vec3 Normal;
 out vec3 Color;
 out vec2 TexCoords;
+out vec4 FragPosLightSpace;
 
 uniform mat4 meshMatrix;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform mat4 lightSpaceMatrix;
 
 uniform bool useBonePoints;
 uniform mat4 globalBoneTransform[128];
       
+uniform float outlinePointScale;
+
 #define NUM_CLIPS 4
 
 uniform int  numClipPlanes;
 uniform vec4 clipPlane[NUM_CLIPS];
 
 out float gl_ClipDistance[NUM_CLIPS];
+
+//---
 
 vec3 applyBonePointTransform(vec4 p) {
   vec3 result = vec3(0.0);
@@ -37,7 +43,7 @@ vec3 applyBonePointTransform(vec4 p) {
 }
 
 void main() {
-  vec3 position = aPos;
+  vec3 position = outlinePointScale*aPos;
   vec3 norm     = normalize(aNormal);
 
   if (useBonePoints) {
@@ -52,6 +58,8 @@ void main() {
 
   Color     = aColor;
   TexCoords = aTexCoord;
+
+  FragPosLightSpace = lightSpaceMatrix*FragPos;
 
   gl_Position = projection*view*FragPos;
 

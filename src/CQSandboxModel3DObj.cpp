@@ -728,6 +728,9 @@ initDraw(Canvas3D *canvas, double t)
 
   canvas->setProgramMatrices(program);
 
+  canvas->setProgramShadow (program);
+  canvas->setProgramOutline(program);
+
   //---
 
   canvas->setProgramClips(program);

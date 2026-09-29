@@ -1543,7 +1543,7 @@ lightPosSlot()
   auto *light = canvas_->currentLight();
 
   auto p = lightData_.posEdit->getValue();
-  light->setPosition(CPoint3D(p.x, p.y, p.z));
+  light->setPosition(CVector3D(p.x, p.y, p.z));
   canvas_->update();
 }
 

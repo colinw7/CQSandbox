@@ -97,6 +97,10 @@ Overview3D(App *app) :
   views2d_.push_back(&xview_);
   views2d_.push_back(&yview_);
   views2d_.push_back(&zview_);
+
+  //---
+
+  init();
 }
 
 Overview3D::
@@ -2631,9 +2635,9 @@ setLightPosition(const CPoint2D &pressPos)
 
   CPoint2D p;
 
-  if (xview_.pressRange(pressPos, p)) light->setPosition(CPoint3D(p.x, p.y, pos.z)); // XY
-  if (yview_.pressRange(pressPos, p)) light->setPosition(CPoint3D(pos.x, p.y, p.x)); // ZY
-  if (zview_.pressRange(pressPos, p)) light->setPosition(CPoint3D(p.x, pos.y, p.y)); // XZ
+  if (xview_.pressRange(pressPos, p)) light->setPosition(CVector3D(p.x, p.y, pos.z)); // XY
+  if (yview_.pressRange(pressPos, p)) light->setPosition(CVector3D(pos.x, p.y, p.x)); // ZY
+  if (zview_.pressRange(pressPos, p)) light->setPosition(CVector3D(p.x, pos.y, p.y)); // XZ
 
   canvas->update();
 

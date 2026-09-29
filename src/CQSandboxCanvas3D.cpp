@@ -1270,6 +1270,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "image_buffer") {
     setImageBuffer(Util::stringToBool(value));
   }
+  // shadowed
+  else if (name == "shadowed") {
+    setShadowed(Util::stringToBool(value));
+  }
+  // outlined
+  else if (name == "outlined") {
+    setOutlined(Util::stringToBool(value));
+  }
   // directories
   else if (name == "model_dir") {
     modelDirs_.push_back(value);
@@ -1291,6 +1299,10 @@ exec(const QString &op, const QStringList &, QVariant &res)
 
   if      (op == "update") {
     update();
+  }
+  else if (op == "save_image_buffer") {
+    if (imageBufferData_.texture)
+      imageBufferData_.texture->writeImage("image_buffer.png");
   }
   else
     return false;
@@ -1445,7 +1457,7 @@ getLightValue(const QString &name, const QStringList &, QVariant &res)
     res = lightNum();
   }
   else if (name == "position") {
-    res = Util::point3DToString(light->getPosition());
+    res = Util::vector3DToString(light->position());
   }
   else if (name == "direction") {
     if (light->getType() == CGeomLight3DType::SPOT)
@@ -1498,8 +1510,8 @@ setLightValue(const QString &name, const QString &value, const QStringList &args
     setLightNum(n);
   }
   else if (name == "position") {
-    CPoint3D pos;
-    if (! Util::stringToPoint3D(tcl, value, pos))
+    CVector3D pos;
+    if (! Util::stringToVector3D(tcl, value, pos))
       return false;
 
     light->setPosition(pos);
@@ -1868,6 +1880,44 @@ setRedrawTimeOut(int t)
 
 void
 Canvas3D::
+setProgramShadow(ShaderProgram *program)
+{
+  program->setUniformValue("isShadow", shaderType_ == ShaderType::SHADOW);
+
+  if (shaderType_ == ShaderType::MODEL && isShadowed()) {
+    CQGLStateInst->setActiveTextureNum(4, true);
+    shadowData_.texture->bindBuffer();
+
+    program->setUniformValue("shadowMap", 4);
+    program->setUniformValue("useShadowMap", true);
+
+    auto *light = currentLight();
+
+    auto lightMatrix = light->worldMatrix()*light->viewMatrix();
+    program->setUniformValue("lightSpaceMatrix", CQGLUtil::toQMatrix(lightMatrix));
+  }
+  else {
+    program->setUniformValue("shadowShader", (shaderType_ == ShaderType::SHADOW));
+    program->setUniformValue("useShadowMap", false);
+
+    auto lightMatrix = CMatrix3DH::identity();
+    program->setUniformValue("lightSpaceMatrix", CQGLUtil::toQMatrix(lightMatrix));
+  }
+}
+
+void
+Canvas3D::
+setProgramOutline(ShaderProgram *program)
+{
+  program->setUniformValue("isOutline", shaderType_ == ShaderType::OUTLINE);
+
+  program->setUniformValue("outlineColor", CQGLUtil::toVector(outlineData_.color));
+
+  program->setUniformValue("outlinePointScale", shaderType_ == ShaderType::OUTLINE ? 1.03f : 1.00f);
+}
+
+void
+Canvas3D::
 setProgramMatrices(ShaderProgram *program, const ProgramMatrixData &data)
 {
   // camera projection
@@ -1965,10 +2015,9 @@ updateLights()
 
   //---
 
-  auto numLights = numDirectionalLights_ + numPointLights_ + numSpotLights_;
-  if (numLights == lights_.size()) return;
+  if (lights_.size() == maxNumLights_) return;
 
-  while (lights_.size() < numLights) {
+  while (lights_.size() < maxNumLights_) {
     auto *light = new Light3D(this, Light3D::Type::DIRECTIONAL);
 
     connect(light, SIGNAL(changedSignal()), this, SLOT(lightChangeSlot()));
@@ -1995,7 +2044,7 @@ updateLights()
   lights_[il]->setType       (Light3D::Type::POINT);
   lights_[il]->setEnabled    (true);
   lights_[il]->setDiffuse    (CRGBA(1, 1, 1));
-  lights_[il]->setPosition   (CPoint3D(0.0, 1.0, 0.0));
+  lights_[il]->setPosition   (CVector3D(0.0, 1.0, 0.0));
   lights_[il]->setDirection  (CVector3D(0.0, -1.0, 0.0));
   lights_[il]->setPointRadius(8.0);
 
@@ -2005,7 +2054,7 @@ updateLights()
   lights_[il]->setType       (Light3D::Type::POINT);
   lights_[il]->setEnabled    (false);
   lights_[il]->setDiffuse    (CRGBA(1, 1, 1));
-  lights_[il]->setPosition   (CPoint3D(0.0, -1.0, 0.0));
+  lights_[il]->setPosition   (CVector3D(0.0, -1.0, 0.0));
   lights_[il]->setDirection  (CVector3D(0.0, 1.0, 0.0));
   lights_[il]->setPointRadius(8.0);
 
@@ -2019,7 +2068,7 @@ updateLights()
   lights_[il]->setType           (Light3D::Type::SPOT);
   lights_[il]->setEnabled        (false);
   lights_[il]->setDiffuse        (CRGBA(1, 1, 1));
-  lights_[il]->setPosition       (cpos + CPoint3D(0.0, 0.5, 0));
+  lights_[il]->setPosition       (CVector3D(cpos + CPoint3D(0.0, 0.5, 0)));
   lights_[il]->setSpotDirection  (CVector3D(0, 0, -1));
 //lights_[il]->setSpotCutOffAngle(std::cos(35.0));
   lights_[il]->setSpotCutOffAngle(35.0);
@@ -2030,7 +2079,7 @@ updateLights()
   lights_[il]->setType           (Light3D::Type::SPOT);
   lights_[il]->setEnabled        (false);
   lights_[il]->setDiffuse        (CRGBA(1, 1, 1));
-  lights_[il]->setPosition       (cpos + CPoint3D(0.0, -0.5, 0));
+  lights_[il]->setPosition       (CVector3D(cpos + CPoint3D(0.0, -0.5, 0)));
   lights_[il]->setSpotDirection  (CVector3D(0, 0, -1));
 //lights_[il]->setSpotCutOffAngle(std::cos(15.0));
   lights_[il]->setSpotCutOffAngle(15.0);
@@ -2050,14 +2099,14 @@ resetLight(Light3D *light)
     auto center  = bbox_.getCenter();
     auto maxSize = bbox_.getMaxSize();
 
-    light->setPosition(CPoint3D(center.x + maxSize/2, center.y + maxSize/2.0, center.z + maxSize));
+    light->setPosition(CVector3D(center.x + maxSize/2, center.y + maxSize/2.0, center.z + maxSize));
 
     light->setPointRadius(2*maxSize);
 
     light->setSpotDirection(CVector3D(center.x, center.y, center.z + maxSize));
   }
   else {
-    light->setPosition(CPoint3D(0, 1, 0));
+    light->setPosition(CVector3D(0, 1, 0));
 
     light->setPointRadius(10);
 
@@ -2091,7 +2140,7 @@ setProgramSimpleLight(ShaderProgram *program)
 {
   auto *light = currentLight();
 
-  program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->getPosition()));
+  program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->position()));
   program->setUniformValue("lightColor", CQGLUtil::toVector(light->getDiffuse()));
 
   program->setUniformValue("lightPower", light->getPower());
@@ -2117,22 +2166,15 @@ setProgramLights(ShaderProgram *program)
     return nameStr;
   };
 
-  int indD = 0, indP = 0, indS = 0;
+  uint il = 0;
 
-  for (const auto *light : lights()) {
-    QString lightName;
-
-    if     (light->getType() == Light3D::Type::DIRECTIONAL)
-      lightName = QString("directionalLights[%1]").arg(indD++);
-    else if (light->getType() == Light3D::Type::POINT)
-      lightName = QString("pointLights[%1]").arg(indP++);
-    else if (light->getType() == Light3D::Type::POINT)
-      lightName = QString("pointLights[%1]").arg(indP++);
-    else if (light->getType() == Light3D::Type::SPOT)
-      lightName = QString("spotLights[%1]").arg(indS++);
+  for (auto *light : lights()) {
+    auto lightName = QString("lights[%1]").arg(il);
 
     program->setUniformValue(STR(lightName + ".type"), int(light->getType()));
     program->setUniformValue(STR(lightName + ".enabled"), light->getEnabled());
+
+    program->setUniformValue(STR(lightName + ".position"), CQGLUtil::toVector(light->position()));
 
     program->setUniformValue(STR(lightName + ".color"), CQGLUtil::toVector(light->getDiffuse()));
 
@@ -2143,37 +2185,26 @@ setProgramLights(ShaderProgram *program)
                                CQGLUtil::toVector(light->getDirection()));
     }
     else if (light->getType() == Light3D::Type::POINT) {
-      program->setUniformValue(STR(lightName + ".position"),
-                               CQGLUtil::toVector(light->getPosition()));
+      program->setUniformValue(STR(lightName + ".radius"), float(light->getPointRadius()));
 
-      program->setUniformValue(STR(lightName + ".radius"  ), float(light->getPointRadius()));
-
-#if 0
       program->setUniformValue(STR(lightName + ".attenuation0"),
         float(light->getConstantAttenuation()));
       program->setUniformValue(STR(lightName + ".attenuation1"),
         float(light->getLinearAttenuation()));
       program->setUniformValue(STR(lightName + ".attenuation2"),
         float(light->getQuadraticAttenuation()));
-#endif
     }
     else if (light->getType() == Light3D::Type::SPOT) {
-      program->setUniformValue(STR(lightName + ".position"),
-                               CQGLUtil::toVector(light->getPosition()));
-
       program->setUniformValue(STR(lightName + ".direction"),
                                CQGLUtil::toVector(light->getSpotDirection()));
 
-      auto cutOffCos = std::cos(CMathGen::DegToRad(light->getSpotCutOffAngle()));
-      program->setUniformValue(STR(lightName + ".cutoff"), float(cutOffCos));
-
-#if 0
+      auto cutOffCos      = std::cos(CMathGen::DegToRad(light->getSpotCutOffAngle()));
       auto outerCutOffCos = std::cos(CMathGen::DegToRad(light->getSpotOuterCutOffAngle()));
 
+      program->setUniformValue(STR(lightName + ".cutoff"), float(cutOffCos));
       program->setUniformValue(STR(lightName + ".outerCutoff"), float(outerCutOffCos));
 
       program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
-#endif
     }
 #if 0
     else if (light->getType() == CGeomLight3DType::FLASHLIGHT) {
@@ -2187,6 +2218,11 @@ setProgramLights(ShaderProgram *program)
       program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
     }
 #endif
+
+    ++il;
+
+    if (il >= maxNumLights_)
+      break;
   }
 }
 
@@ -2334,16 +2370,16 @@ render()
 
   //---
 
+  // set GL start state
+  CQGLStateInst->reset();
+
   CQGLStateInst->setDepthMask(true);
 
-  CQGLStateInst->setDepthTest(isDepthTest());
-  CQGLStateInst->setCullFace (isCullFace ());
-
+  CQGLStateInst->setDepthTest     (isDepthTest());
+  CQGLStateInst->setCullFace      (isCullFace ());
 //CQGLStateInst->setEnableLighting(isLighting());
-
-  CQGLStateInst->setFrontFaceFlag(isFrontFace());
-
-  CQGLStateInst->setSmoothShade(isSmoothShade());
+  CQGLStateInst->setFrontFaceFlag (isFrontFace());
+  CQGLStateInst->setSmoothShade   (isSmoothShade());
 
   isOutline() ? CQGLStateInst->setPolygonMode(GL_LINE) : CQGLStateInst->setPolygonMode(GL_FILL);
 
@@ -2353,23 +2389,13 @@ render()
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   CQGLStateInst->setPolygonOffsetLine(false);
-
-  CQGLStateInst->setMultiSample(false);
-
-  CQGLStateInst->setStencilTest(false);
-
-  CQGLStateInst->setEnableTexture(false);
+  CQGLStateInst->setMultiSample      (false);
+  CQGLStateInst->setStencilTest      (false);
+  CQGLStateInst->setEnableTexture    (false);
 
   //---
 
-  auto *camera = currentCamera();
-
-  projectionMatrix_ = camera->perspectiveMatrix();
-  viewMatrix_       = camera->viewMatrix();
-
-  //---
-
-  viewPos_ = camera->position();
+  setViewGlobals(currentCamera());
 
   //---
 
@@ -2387,7 +2413,108 @@ render()
 
   //---
 
-  drawContents();
+  if (isShadowed()) {
+    if (! shadowData_.texture) {
+      shadowData_.texture = new CQGLTexture;
+
+      shadowData_.texture->setFunctions(this);
+    }
+
+    if (! shadowData_.texture->setShadow(1024, 1024))
+      std::cerr << "Set shadow texture failed\n";
+
+    auto shaderType = ShaderType::SHADOW;
+    std::swap(shaderType_, shaderType);
+
+    shadowData_.texture->bind();
+
+    setViewGlobals(currentLight());
+
+    drawContents();
+
+    setViewGlobals(currentCamera());
+
+    std::swap(shaderType_, shaderType);
+
+    shadowData_.texture->unbind();
+  }
+
+  //---
+
+  if (isImageBuffer()) {
+    if (! imageBufferData_.texture) {
+      imageBufferData_.texture = new CQGLTexture;
+
+      imageBufferData_.texture->setFunctions(this);
+    }
+
+    if (! imageBufferData_.texture->setTarget(pixelWidth(), pixelHeight()))
+      std::cerr << "Set texture shader target failed\n";
+
+    imageBufferData_.texture->bind();
+
+    auto oldMultiSample = CQGLStateInst->setMultiSample(true);
+
+    glViewport(0, 0, pixelWidth(), pixelHeight());
+
+    glClearColor(bgColor_.redF(), bgColor_.greenF(), bgColor_.blueF(), 1.0f);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    drawContents();
+
+    imageBufferData_.texture->unbind();
+
+    CQGLStateInst->setMultiSample(oldMultiSample);
+  }
+  else {
+    glViewport(0, 0, pixelWidth(), pixelHeight());
+
+    glClearColor(bgColor_.redF(), bgColor_.greenF(), bgColor_.blueF(), 1.0f);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    if (isOutlined()) {
+      // draw scene with stencil test
+      CQGLStateInst->setStencilTest(true);
+
+      glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+      glClear(GL_STENCIL_BUFFER_BIT);
+
+      glStencilFunc(GL_ALWAYS, 1, 0xFF);
+      glStencilMask(0xFF);
+
+      drawContents();
+
+      //---
+
+      // draw outline
+      glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+      glStencilMask(0x00);
+
+      CQGLStateInst->setDepthTest(false);
+
+      auto shaderType = ShaderType::OUTLINE;
+      std::swap(shaderType_, shaderType);
+
+      drawContents();
+
+      std::swap(shaderType_, shaderType);
+
+      glStencilMask(0xFF);
+      glStencilFunc(GL_ALWAYS, 1, 0xFF);
+
+      CQGLStateInst->setDepthTest(true);
+
+      //---
+
+      CQGLStateInst->setStencilTest(false);
+    }
+    else {
+      drawContents();
+    }
+  }
 
   //---
 
@@ -2424,6 +2551,15 @@ render()
   //---
 
   // (void) CQGLStateInst->checkError("< Canvas3D::render");
+}
+
+void
+Canvas3D::
+setViewGlobals(CameraIFace *camera)
+{
+  projectionMatrix_ = camera->perspectiveMatrix();
+  viewMatrix_       = camera->viewMatrix();
+  viewPos_          = camera->position();
 }
 
 void
@@ -3133,8 +3269,14 @@ mouseMoveEvent(QMouseEvent *e)
         rubberBand_->setBounds(Util::toQPoint(mouseData_.press), Util::toQPoint(mouseData_.move1));
         rubberBand_->show();
       }
-      else if (mouseData_.button == Qt::MiddleButton) {
+      else if (mouseData_.button == Qt::MiddleButton ||
+               mouseData_.button == Qt::MiddleButton) {
         mouseMoveCamera();
+      }
+    }
+    else if (type() == Type::LIGHT) {
+      if (mouseData_.button == Qt::MiddleButton) {
+        mouseMoveLight();
       }
     }
   }
@@ -3243,8 +3385,24 @@ mouseMoveCamera()
     camera->moveRight(-dx/100.0);
     camera->moveUp   ( dy/100.0);
   }
+}
 
-  update();
+void
+Canvas3D::
+mouseMoveLight()
+{
+  auto *light = currentLight();
+
+  auto dx = CMathUtil::sign(mouseData_.move2.x - mouseData_.move1.x);
+  auto dy = CMathUtil::sign(mouseData_.move2.y - mouseData_.move1.y);
+
+  auto *camera = currentCamera();
+
+  auto d = bbox_.getMaxSize()/100.0;
+
+  auto p = light->position() + dx*d*camera->right() - dy*d*camera->up();
+
+  light->setPosition(p);
 }
 
 //---
@@ -3843,16 +4001,29 @@ void
 Canvas3D::
 wheelEvent(QWheelEvent *e)
 {
-  auto *camera = currentCamera();
-
   auto dw = e->angleDelta().y()/250.0;
 
-  auto d = bbox_.getMaxSize()/100.0;
+  if      (type() == Type::CAMERA) {
+    auto *camera = currentCamera();
 
-  auto *camera1 = dynamic_cast<Camera *>(camera);
+    auto d = bbox_.getMaxSize()/100.0;
 
-  if (camera1)
-    camera1->setDistance(camera1->distance() - dw*d);
+    auto *camera1 = dynamic_cast<Camera *>(camera);
+
+    if (camera1)
+      camera1->setDistance(camera1->distance() - dw*d);
+  }
+  else if (type() == Type::LIGHT) {
+    auto *light = currentLight();
+
+    auto *camera = currentCamera();
+
+    auto d = bbox_.getMaxSize()/100.0;
+
+    auto p = light->position() + dw*d*camera->front();
+
+    light->setPosition(p);
+  }
 
   update();
 }
@@ -4026,25 +4197,25 @@ lightKeyPress()
   if (! light) return;
 
   if      (mouseData_.key == Qt::Key_W) {
-    light->setPosition(light->getPosition() + CPoint3D(0.0, 0.1, 0.0));
+    light->setPosition(light->position() + CVector3D(0.0, 0.1, 0.0));
   }
   else if (mouseData_.key == Qt::Key_S) {
-    light->setPosition(light->getPosition() - CPoint3D(0.0, 0.1, 0.0));
+    light->setPosition(light->position() - CVector3D(0.0, 0.1, 0.0));
   }
   else if (mouseData_.key == Qt::Key_A) {
-    light->setPosition(light->getPosition() - CPoint3D(0.1, 0.0, 0.0));
+    light->setPosition(light->position() - CVector3D(0.1, 0.0, 0.0));
   }
   else if (mouseData_.key == Qt::Key_D) {
-    light->setPosition(light->getPosition() + CPoint3D(0.1, 0.0, 0.0));
+    light->setPosition(light->position() + CVector3D(0.1, 0.0, 0.0));
   }
   else if (mouseData_.key == Qt::Key_L) {
     setLightNum(lightNum() + 1);
   }
   else if (mouseData_.key == Qt::Key_Up) {
-    light->setPosition(light->getPosition() + CPoint3D(0.0, 0.0, 0.1));
+    light->setPosition(light->position() + CVector3D(0.0, 0.0, 0.1));
   }
   else if (mouseData_.key == Qt::Key_Down) {
-    light->setPosition(light->getPosition() - CPoint3D(0.0, 0.0, 0.1));
+    light->setPosition(light->position() - CVector3D(0.0, 0.0, 0.1));
   }
 
   update();
