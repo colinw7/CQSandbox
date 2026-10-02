@@ -14,6 +14,8 @@
 #include <CRGBA.h>
 #include <CPlane3D.h>
 
+#include <CEnv.h>
+
 #include <QFrame>
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
@@ -302,7 +304,7 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   const ShaderType &shaderType() const { return shaderType_; }
-  void setShaderType(const ShaderType &t) { shaderType_ = t; }
+  ShaderType setShaderType(ShaderType t) { std::swap(shaderType_, t); return t; }
 
   //---
 
@@ -377,10 +379,22 @@ class Canvas3D : public OpenGLWindow {
   bool isImageBuffer() { return imageBufferData_.enabled; }
   void setImageBuffer(bool b) { imageBufferData_.enabled = b; }
 
+  bool isLightImageBuffer() const { return imageBufferData_.isLight; }
+  void setLightImageBuffer(bool b) { imageBufferData_.isLight = b; }
+
   //---
 
   bool isShadowed() { return shadowData_.enabled; }
   void setShadowed(bool b) { shadowData_.enabled = b; }
+
+  int isShadowLightBuffer() const { return shadowData_.lightBuffer; }
+  void setShadowLightBuffer(int i) { shadowData_.lightBuffer = i; }
+
+  double shadowBias() const { return shadowData_.bias; }
+  void setShadowBias(double r) { shadowData_.bias = r; }
+
+  bool isShadowDebug() const { return shadowData_.debug.getValue(); }
+  void setShadowDebug(bool b) { shadowData_.debug.setValue(b); }
 
   //---
 
@@ -745,19 +759,38 @@ class Canvas3D : public OpenGLWindow {
   bool smoothShade_ { true };
   bool outline_     { false };
 
-  struct ImageBufferData {
-    bool         enabled { false };
+  //---
+
+  struct TextureBuffer {
     CQGLTexture* texture { nullptr };
+  };
+
+  //---
+
+  struct ImageBufferData {
+    bool enabled { false };
+    bool isLight { false };
+
+    TextureBuffer textureBuffer;
   };
 
   ImageBufferData imageBufferData_;
 
+  //---
+
   struct ShadowData {
     bool         enabled { false };
-    CQGLTexture* texture { nullptr };
+    bool          lightBuffer { true };
+    double        bias        { 0.01 };
+    CEnvVar<bool> debug       { "CQSHADOW_SHADOW_DEBUG" };
+    int           size        { 1024 };
+
+    TextureBuffer textureBuffer;
   };
 
   ShadowData shadowData_;
+
+  //---
 
   struct OutlineData {
     bool   enabled { false };

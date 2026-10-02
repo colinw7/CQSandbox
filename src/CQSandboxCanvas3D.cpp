@@ -1301,8 +1301,8 @@ exec(const QString &op, const QStringList &, QVariant &res)
     update();
   }
   else if (op == "save_image_buffer") {
-    if (imageBufferData_.texture)
-      imageBufferData_.texture->writeImage("image_buffer.png");
+    if (imageBufferData_.textureBuffer.texture)
+      imageBufferData_.textureBuffer.texture->writeImage("image_buffer.png");
   }
   else
     return false;
@@ -1886,7 +1886,7 @@ setProgramShadow(ShaderProgram *program)
 
   if (shaderType_ == ShaderType::MODEL && isShadowed()) {
     CQGLStateInst->setActiveTextureNum(4, true);
-    shadowData_.texture->bindBuffer();
+    shadowData_.textureBuffer.texture->bindBuffer();
 
     program->setUniformValue("shadowMap", 4);
     program->setUniformValue("useShadowMap", true);
@@ -2395,10 +2395,6 @@ render()
 
   //---
 
-  setViewGlobals(currentCamera());
-
-  //---
-
   newBBox_ = CBBox3D();
 
   //---
@@ -2414,56 +2410,56 @@ render()
   //---
 
   if (isShadowed()) {
-    if (! shadowData_.texture) {
-      shadowData_.texture = new CQGLTexture;
+    if (! shadowData_.textureBuffer.texture) {
+      shadowData_.textureBuffer.texture = new CQGLTexture;
 
-      shadowData_.texture->setFunctions(this);
+      shadowData_.textureBuffer.texture->setFunctions(this);
     }
 
-    if (! shadowData_.texture->setShadow(1024, 1024))
+    if (! shadowData_.textureBuffer.texture->setShadow(shadowData_.size, shadowData_.size))
       std::cerr << "Set shadow texture failed\n";
 
-    auto shaderType = ShaderType::SHADOW;
-    std::swap(shaderType_, shaderType);
+    auto oldShaderType = setShaderType(ShaderType::SHADOW);
 
-    shadowData_.texture->bind();
+    shadowData_.textureBuffer.texture->bind();
 
     setViewGlobals(currentLight());
 
     drawContents();
 
-    setViewGlobals(currentCamera());
+    setShaderType(oldShaderType);
 
-    std::swap(shaderType_, shaderType);
-
-    shadowData_.texture->unbind();
+    shadowData_.textureBuffer.texture->unbind();
   }
 
   //---
 
   if (isImageBuffer()) {
-    if (! imageBufferData_.texture) {
-      imageBufferData_.texture = new CQGLTexture;
+    if (! imageBufferData_.textureBuffer.texture) {
+      imageBufferData_.textureBuffer.texture = new CQGLTexture;
 
-      imageBufferData_.texture->setFunctions(this);
+      imageBufferData_.textureBuffer.texture->setFunctions(this);
     }
 
-    if (! imageBufferData_.texture->setTarget(pixelWidth(), pixelHeight()))
+    if (! imageBufferData_.textureBuffer.texture->setTarget(pixelWidth(), pixelHeight()))
       std::cerr << "Set texture shader target failed\n";
 
-    imageBufferData_.texture->bind();
+    imageBufferData_.textureBuffer.texture->bind();
 
     auto oldMultiSample = CQGLStateInst->setMultiSample(true);
 
+    // clear canvas
     glViewport(0, 0, pixelWidth(), pixelHeight());
 
     glClearColor(bgColor_.redF(), bgColor_.greenF(), bgColor_.blueF(), 1.0f);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+    setViewGlobals(currentCamera());
+
     drawContents();
 
-    imageBufferData_.texture->unbind();
+    imageBufferData_.textureBuffer.texture->unbind();
 
     CQGLStateInst->setMultiSample(oldMultiSample);
   }
@@ -2485,6 +2481,8 @@ render()
       glStencilFunc(GL_ALWAYS, 1, 0xFF);
       glStencilMask(0xFF);
 
+      setViewGlobals(currentCamera());
+
       drawContents();
 
       //---
@@ -2497,6 +2495,8 @@ render()
 
       auto shaderType = ShaderType::OUTLINE;
       std::swap(shaderType_, shaderType);
+
+      setViewGlobals(currentCamera());
 
       drawContents();
 
@@ -2512,6 +2512,8 @@ render()
       CQGLStateInst->setStencilTest(false);
     }
     else {
+      setViewGlobals(currentCamera());
+
       drawContents();
     }
   }

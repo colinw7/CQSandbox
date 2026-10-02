@@ -198,11 +198,12 @@ void main() {
 
     lit = true;
 
-    if (lights[i].type == 0) { // directional
+    if      (lights[i].type == 0) { // directional
       //vec3 lightDir = normalize(lights[i].position - vec3(FragPos));
+      vec3 lightDir = normalize(-lights[i].direction);
 
-      float diffAmt = calcDiffuseFactor(lights[i].direction, norm);
-      float specAmt = calcSpecularFactor(lights[i].direction, viewDir, norm, shininess);
+      float diffAmt = calcDiffuseFactor(lightDir, norm);
+      float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
 
       result += (1 - shadow)*(diffAmt*lights[i].color*diffuseColor +
                               specAmt*lights[i].color*specColor);

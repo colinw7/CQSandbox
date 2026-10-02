@@ -62,7 +62,11 @@ class Control3D : public QFrame {
   void connectObjects(bool);
 
   void updateControl();
+  void connectControlSlots(bool b);
+
   void updateCamera();
+  void connectCameraSlots(bool b);
+
   void updateLights();
   void updateObjects();
   void updateOverview();
@@ -76,6 +80,8 @@ class Control3D : public QFrame {
   void frontFaceSlot(int b);
 
   void bgColorSlot(const QColor &c);
+
+  void enableShadowSlot(int b);
 
   // camera
   void cameraTypeSlot(int i);
@@ -158,11 +164,12 @@ class Control3D : public QFrame {
   QTabWidget* tab_ { nullptr };
 
   struct ControlData {
-    QCheckBox*    depthTestCheck { nullptr };
-    QCheckBox*    cullFaceCheck  { nullptr };
-    QCheckBox*    frontFaceCheck { nullptr };
-    CQColorEdit*  bgColorEdit    { nullptr };
-    CQBBox3DEdit* bboxEdit       { nullptr };
+    QCheckBox*    depthTestCheck  { nullptr };
+    QCheckBox*    cullFaceCheck   { nullptr };
+    QCheckBox*    frontFaceCheck  { nullptr };
+    CQColorEdit*  bgColorEdit     { nullptr };
+    CQBBox3DEdit* bboxEdit        { nullptr };
+    QCheckBox*    showShadowCheck { nullptr };
   };
 
   ControlData controlData_;
