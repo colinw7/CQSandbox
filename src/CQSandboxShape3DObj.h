@@ -3,6 +3,7 @@
 
 #include <CQSandboxObject3D.h>
 #include <CQSandboxShape3DData.h>
+#include <CQSandboxMaterial3D.h>
 
 #include <CGLVector2D.h>
 #include <CGLColor.h>
@@ -32,8 +33,11 @@ class Shape3DObj : public Object3D {
   Q_OBJECT
 
   Q_PROPERTY(ShapeType shapeType READ shapeType)
-  Q_PROPERTY(QColor    color     READ qcolor      WRITE setQColor)
-  Q_PROPERTY(QString   texture   READ textureFile WRITE setTextureFile)
+
+  Q_PROPERTY(QString diffuseTexture  READ diffuseTextureFile  WRITE setDiffuseTextureFile)
+  Q_PROPERTY(QString normalTexture   READ normalTextureFile   WRITE setNormalTextureFile)
+  Q_PROPERTY(QString specularTexture READ specularTextureFile WRITE setSpecularTextureFile)
+  Q_PROPERTY(QString emissionTexture READ emissionTextureFile WRITE setEmissionTextureFile)
 
   Q_ENUMS(ShapeType)
 
@@ -77,21 +81,25 @@ class Shape3DObj : public Object3D {
 
   //---
 
-  const CGLColor &color() const { return color_; }
-  void setColor(const CGLColor &c) { color_ = c; }
+  QString diffuseTextureFile() const;
+  void setDiffuseTextureFile(const QString &filename);
 
-  QColor qcolor() const { return Util::colorToQColor(color()); }
-  void setQColor(const QColor &c) { setColor(Util::qcolorToColor(c)); }
+  void setDiffuseTexture(CQGLTexture *texture);
 
-  //---
+  QString normalTextureFile() const;
+  void setNormalTextureFile(const QString &filename);
 
-  const QString &textureFile() const { return textureFile_; }
-  void setTextureFile(const QString &filename);
+  void setNormalTexture(CQGLTexture *texture);
 
-  void setTexture(CQGLTexture *texture) { diffuseTexture_ = texture; }
+  QString specularTextureFile() const;
+  void setSpecularTextureFile(const QString &filename);
 
-  void setNormalTexture(const QString &filename);
-  void setNormalTexture(CQGLTexture *texture) { normalTexture_ = texture; }
+  void setSpecularTexture(CQGLTexture *texture);
+
+  QString emissionTextureFile() const;
+  void setEmissionTextureFile(const QString &filename);
+
+  void setEmissionTexture(CQGLTexture *texture);
 
   //---
 
@@ -125,20 +133,13 @@ class Shape3DObj : public Object3D {
   static ShaderProgram* s_program;
   static Shape3DObjMgr* s_objectMgr;
 
-  CGLColor color_ { 1.0, 1.0, 1.0, 1.0 };
-
   ShapeType   shapeType_ { ShapeType::NONE };
   Shape3DData shapeData_;
 
   Colors colors_;
   bool   wireframe_ { false };
 
-  QString      textureFile_;
-  CQGLTexture *diffuseTexture_ { nullptr };
-  CQGLTexture *normalTexture_  { nullptr };
-
-  bool useDiffuseTexture_ { false };
-  bool useNormalTexture_  { false };
+  Material3D* material_ { nullptr };
 };
 
 }

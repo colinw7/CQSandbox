@@ -22,11 +22,13 @@ class Object2D : public QObject {
 
   Q_PROPERTY(QString id          READ id)
   Q_PROPERTY(QString commandName READ getCommandName)
-  Q_PROPERTY(bool    visible     READ isVisible  WRITE setVisible)
-  Q_PROPERTY(bool    selected    READ isSelected WRITE setSelected)
-  Q_PROPERTY(int     layer       READ layer      WRITE setLayer)
-  Q_PROPERTY(double  xPos        READ xPos       WRITE setXPos)
-  Q_PROPERTY(double  yPos        READ yPos       WRITE setYPos)
+
+  Q_PROPERTY(bool visible  READ isVisible  WRITE setVisible)
+  Q_PROPERTY(bool selected READ isSelected WRITE setSelected)
+  Q_PROPERTY(int  layer    READ layer      WRITE setLayer)
+
+  Q_PROPERTY(double xPos READ xPos WRITE setXPos)
+  Q_PROPERTY(double yPos READ yPos WRITE setYPos)
 
  public:
   enum class Type {

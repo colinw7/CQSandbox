@@ -726,6 +726,8 @@ initDraw(Canvas3D *canvas, double t)
 
   //---
 
+  canvas->setProgramSkybox(program, 5);
+
   canvas->setProgramMatrices(program);
 
   canvas->setProgramShadow (program);
@@ -825,6 +827,8 @@ drawObject(CGeomObject3D *object)
 
   //---
 
+  double transparency = 0.0;
+
   // render model
   for (const auto &faceData : geomObject1->faceDatas()) {
     // diffuse (texture 0)
@@ -906,8 +910,9 @@ drawObject(CGeomObject3D *object)
 #if 0
     program->setUniformValue("emissionColor", CQGLUtil::toVector(faceData.emission));
     program->setUniformValue("shininess"    , float(faceData.shininess));
-    program->setUniformValue("transparency" , float(1.0 - transparency));
 #endif
+
+    program->setUniformValue("transparency", float(1.0 - transparency));
 
     //---
 

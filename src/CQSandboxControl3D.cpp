@@ -4,6 +4,7 @@
 #include <CQSandboxCamera.h>
 #include <CQSandboxOrthoCamera.h>
 #include <CQSandboxOverview3D.h>
+#include <CQSandboxMaterial3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -74,17 +75,19 @@ Control3D(CQSandbox::Canvas3D *canvas) :
 
   //---
 
-  auto *controlFrame  = addControlFrame();
-  auto *cameraFrame   = addCameraFrame();
-  auto *lightFrame    = addLightFrame();
-  auto *objectsFrame  = addObjectsFrame();
-  auto *overviewFrame = addOverviewFrame();
+  auto *controlFrame   = addControlFrame();
+  auto *cameraFrame    = addCameraFrame();
+  auto *lightsFrame    = addLightsFrame();
+  auto *materialsFrame = addMaterialsFrame();
+  auto *objectsFrame   = addObjectsFrame();
+  auto *overviewFrame  = addOverviewFrame();
 
-  tab_->addTab(controlFrame , "General");
-  tab_->addTab(cameraFrame  , "Camera");
-  tab_->addTab(lightFrame   , "Lights");
-  tab_->addTab(objectsFrame , "Objects");
-  tab_->addTab(overviewFrame, "Overview");
+  tab_->addTab(controlFrame  , "General");
+  tab_->addTab(cameraFrame   , "Camera");
+  tab_->addTab(lightsFrame   , "Lights");
+  tab_->addTab(materialsFrame, "Materials");
+  tab_->addTab(objectsFrame  , "Objects");
+  tab_->addTab(overviewFrame , "Overview");
 
   //---
 
@@ -128,12 +131,13 @@ void
 Control3D::
 init()
 {
-  connect(canvas_, SIGNAL(cameraChangedSignal()), this, SLOT(updateSlot()));
   connect(canvas_, SIGNAL(lightChanged()), this, SLOT(updateSlot()));
 
   connect(canvas_, SIGNAL(objectsChanged()), this, SLOT(objectAddedSlot()));
 
   connect(canvas_, SIGNAL(lightAdded()), this, SLOT(lightAddedSlot()));
+
+  connect(canvas_, SIGNAL(materialAdded()), this, SLOT(materialAddedSlot()));
 
   connect(canvas_, SIGNAL(uiUpdateSignal()), this, SLOT(uiSlot()));
 }
@@ -205,7 +209,7 @@ addControlFrame()
 
   //---
 
-  connectControlSlots(true);
+  connectControl(true);
 
   return frame;
 }
@@ -230,34 +234,30 @@ addCameraFrame()
     ++cameraRow;
   };
 
-  auto addRealEdit = [&](const QString &label, const char *slotName) {
+  auto addRealEdit = [&](const QString &label) {
     auto *edit = new CQRealSpin;
-    connect(edit, SIGNAL(realValueChanged(double)), this, slotName);
     addLabelEdit(label, edit);
     return edit;
   };
 
-  auto addPoint3DEdit = [&](const QString &label, const char *slotName) {
+  auto addPoint3DEdit = [&](const QString &label) {
     auto *edit = new CQPoint3DEdit;
-    connect(edit, SIGNAL(editingFinished()), this, slotName);
     addLabelEdit(label, edit);
     return edit;
   };
 
 #if 0
-  auto addCheck = [&](const QString &label, const char *slotName) {
+  auto addCheck = [&](const QString &label) {
     auto *check = new QCheckBox;
-    connect(check , SIGNAL(stateChanged(int)), this, slotName);
     addLabelEdit(label, check);
     return check;
   };
 #endif
 
-  auto addCombo = [&](const QString &label, const QStringList &names, const char *slotName) {
+  auto addCombo = [&](const QString &label, const QStringList &names) {
     auto *combo = new QComboBox;
     for (const auto &name : names)
       combo->addItem(name);
-    connect(combo , SIGNAL(currentIndexChanged(int)), this, slotName);
     addLabelEdit(label, combo);
     return combo;
   };
@@ -265,29 +265,28 @@ addCameraFrame()
   //---
 
   cameraData_.typeCombo = addCombo("Type", QStringList() <<
-    "Free" << "First Person" << "Ortho", SLOT(cameraTypeSlot(int)));
+    "Free" << "First Person" << "Ortho");
 
   cameraData_.orthoTypeCombo = addCombo("Ortho Type", QStringList() <<
-    "Top" << "Bottom" << "Left" << "Right" << "Front" << "Back",
-    SLOT(cameraOrthoTypeSlot(int)));
+    "Top" << "Bottom" << "Left" << "Right" << "Front" << "Back");
 
 #if 0
-  cameraData_.rotateCheck = addCheck("Rotate", SLOT(cameraRotateSlot(int)));
+  cameraData_.rotateCheck = addCheck("Rotate");
 
-  cameraData_.zoomEdit = addRealEdit("Zoom", SLOT(cameraZoomSlot(double)));
+  cameraData_.zoomEdit = addRealEdit("Zoom");
 #endif
 
-  cameraData_.pitchEdit = addRealEdit("Pitch", SLOT(cameraPitchSlot(double)));
-  cameraData_.yawEdit   = addRealEdit("Yaw"  , SLOT(cameraYawSlot(double)));
-  cameraData_.rollEdit  = addRealEdit("Roll" , SLOT(cameraRollSlot(double)));
+  cameraData_.pitchEdit = addRealEdit("Pitch");
+  cameraData_.yawEdit   = addRealEdit("Yaw"  );
+  cameraData_.rollEdit  = addRealEdit("Roll" );
 
-  cameraData_.nearEdit = addRealEdit("Near", SLOT(cameraNearSlot(double)));
-  cameraData_.farEdit  = addRealEdit("Far" , SLOT(cameraFarSlot(double)));
-  cameraData_.fovEdit  = addRealEdit("FOV" , SLOT(cameraFovSlot(double)));
+  cameraData_.nearEdit = addRealEdit("Near");
+  cameraData_.farEdit  = addRealEdit("Far" );
+  cameraData_.fovEdit  = addRealEdit("FOV" );
 
-  cameraData_.originEdit   = addPoint3DEdit("Origin"  , SLOT(cameraOriginSlot()));
-  cameraData_.posEdit      = addPoint3DEdit("Position", SLOT(cameraPosSlot()));
-  cameraData_.distanceEdit = addRealEdit   ("Distance", SLOT(cameraDistanceSlot(double)));
+  cameraData_.originEdit   = addPoint3DEdit("Origin"  );
+  cameraData_.posEdit      = addPoint3DEdit("Position");
+  cameraData_.distanceEdit = addRealEdit   ("Distance");
 
   //---
 
@@ -309,12 +308,14 @@ addCameraFrame()
 
   //---
 
+  connectCamera(true);
+
   return frame;
 }
 
 QFrame *
 Control3D::
-addLightFrame()
+addLightsFrame()
 {
   auto *frame  = new QFrame;
   auto *layout = new QVBoxLayout(frame);
@@ -370,34 +371,34 @@ addLightFrame()
 
   //---
 
-  lightData_.ambientColorEdit = addColorEdit("Ambient Color");
+  lightsData_.ambientColorEdit = addColorEdit("Ambient Color");
 
-  lightData_.ambientStrengthEdit = addRealEdit("Ambient Strength");
-  lightData_.ambientStrengthEdit->setRange(0.0, 1.0);
-
-  //---
-
-  lightData_.diffuseEdit = addRealEdit("Diffuse Strength");
-  lightData_.diffuseEdit->setRange(0.0, 2.0);
+  lightsData_.ambientStrengthEdit = addRealEdit("Ambient Strength");
+  lightsData_.ambientStrengthEdit->setRange(0.0, 1.0);
 
   //---
 
-  lightData_.specularColorEdit = addColorEdit("Specular Color");
-
-  lightData_.specularEdit = addRealEdit("Specular Strength");
-  lightData_.specularEdit->setRange(0.0, 1.0);
+  lightsData_.diffuseEdit = addRealEdit("Diffuse Strength");
+  lightsData_.diffuseEdit->setRange(0.0, 2.0);
 
   //---
 
-  lightData_.emissiveColorEdit = addColorEdit("Emissive Color");
+  lightsData_.specularColorEdit = addColorEdit("Specular Color");
 
-  lightData_.emissiveEdit = addRealEdit("Emissive Strength");
-  lightData_.emissiveEdit->setRange(0.0, 1.0);
+  lightsData_.specularEdit = addRealEdit("Specular Strength");
+  lightsData_.specularEdit->setRange(0.0, 1.0);
 
   //---
 
-  lightData_.shininessEdit = addRealEdit("Shininess");
-  lightData_.shininessEdit->setRange(0.0, 100.0);
+  lightsData_.emissiveColorEdit = addColorEdit("Emissive Color");
+
+  lightsData_.emissiveEdit = addRealEdit("Emissive Strength");
+  lightsData_.emissiveEdit->setRange(0.0, 1.0);
+
+  //---
+
+  lightsData_.shininessEdit = addRealEdit("Shininess");
+  lightsData_.shininessEdit->setRange(0.0, 100.0);
 
   //---
 
@@ -410,43 +411,43 @@ addLightFrame()
 
   //---
 
-  lightData_.list = new QListWidget;
+  lightsData_.list = new QListWidget;
 
-  lightData_.list->setSelectionMode(QListWidget::SingleSelection);
+  lightsData_.list->setSelectionMode(QListWidget::SingleSelection);
 
-  controlLayout->addWidget(lightData_.list, lightRow, 0, 1, 2);
+  controlLayout->addWidget(lightsData_.list, lightRow, 0, 1, 2);
 
   ++lightRow;
 
   //--
 
-  lightData_.typeCombo = addCombo("Type",
+  lightsData_.typeCombo = addCombo("Type",
     QStringList() << "Directional" << "Point" << "Spot");
 
-  lightData_.enabledCheck = addCheck("Enabled");
+  lightsData_.enabledCheck = addCheck("Enabled");
 
-  lightData_.colorEdit = addColorEdit("Color"); // diffuse
-
-  //---
-
-  lightData_.powerEdit = addRealEdit("Power");
-  lightData_.powerEdit->setRange(0.0, 100.0);
+  lightsData_.colorEdit = addColorEdit("Color"); // diffuse
 
   //---
 
-  lightData_.posEdit = addPoint3DEdit("Position");
+  lightsData_.powerEdit = addRealEdit("Power");
+  lightsData_.powerEdit->setRange(0.0, 100.0);
 
   //---
 
-  lightData_.dirEdit = addPoint3DEdit("Direction");
+  lightsData_.posEdit = addPoint3DEdit("Position");
 
   //---
 
-  lightData_.cutoffEdit = addRealEdit("Cut Off Angle");
+  lightsData_.dirEdit = addPoint3DEdit("Direction");
 
   //---
 
-  lightData_.radiusEdit = addRealEdit("Point Radius");
+  lightsData_.cutoffEdit = addRealEdit("Cut Off Angle");
+
+  //---
+
+  lightsData_.radiusEdit = addRealEdit("Point Radius");
 
   //---
 
@@ -470,6 +471,81 @@ addLightFrame()
   //---
 
   connectLights(true);
+
+  return frame;
+}
+
+QFrame *
+Control3D::
+addMaterialsFrame()
+{
+  auto *frame  = new QFrame;
+  auto *layout = new QVBoxLayout(frame);
+
+  //---
+
+  auto *controlFrame  = new QGroupBox("Materials");
+  auto *controlLayout = new QGridLayout(controlFrame);
+
+  layout->addWidget(controlFrame);
+
+  int materialsRow = 0;
+
+  //---
+
+  auto addLabelEdit = [&](const QString &label, QWidget *w) {
+    controlLayout->addWidget(new QLabel(label), materialsRow, 0);
+    controlLayout->addWidget(w, materialsRow, 1);
+    ++materialsRow;
+  };
+
+  auto addRealEdit = [&](const QString &label) {
+    auto *edit = new CQRealSpin;
+    addLabelEdit(label, edit);
+    return edit;
+  };
+
+  auto addColorEdit = [&](const QString &label) {
+    auto *edit = new CQColorEdit;
+    addLabelEdit(label, edit);
+    return edit;
+  };
+
+  //---
+
+  materialsData_.diffuseColorEdit = addColorEdit("Diffuse");
+
+  materialsData_.emissionEdit = addRealEdit("Emission");
+  materialsData_.emissionEdit->setRange(0.0, 1.0);
+
+  materialsData_.specularEdit = addRealEdit("Specular");
+  materialsData_.specularEdit->setRange(0.0, 1.0);
+
+  materialsData_.shininessEdit = addRealEdit("Shininess");
+  materialsData_.shininessEdit->setRange(0.0, 100.0);
+
+  materialsData_.transparencyEdit = addRealEdit("Transparency");
+  materialsData_.transparencyEdit->setRange(0.0, 1.0);
+
+  materialsData_.reflectivityEdit = addRealEdit("Reflectivity");
+  materialsData_.reflectivityEdit->setRange(0.0, 1.0);
+
+  materialsData_.refractivityEdit = addRealEdit("Refractivity");
+  materialsData_.refractivityEdit->setRange(0.0, 1.0);
+
+  //---
+
+  materialsData_.list = new QListWidget;
+
+  materialsData_.list->setSelectionMode(QListWidget::SingleSelection);
+
+  controlLayout->addWidget(materialsData_.list, materialsRow, 0, 1, 2);
+
+  ++materialsRow;
+
+  //--
+
+  connectMaterials(true);
 
   return frame;
 }
@@ -582,56 +658,48 @@ addOverviewFrame()
     ++row;
   };
 
-  auto addCheck = [&](const QString &label, const char *slotName) {
+  auto addCheck = [&](const QString &label) {
     auto *checkBox = new QCheckBox;
-    connect(checkBox, SIGNAL(stateChanged(int)), this, slotName);
     addLabelEdit(label, checkBox);
     return checkBox;
   };
 
-  auto addRealEdit = [&](const QString &label, const char *slotName) {
+  auto addRealEdit = [&](const QString &label) {
     auto *edit = new CQRealSpin;
-    connect(edit, SIGNAL(realValueChanged(double)), this, slotName);
     addLabelEdit(label, edit);
     return edit;
   };
 
-  auto addColorEdit = [&](const QString &label, const char *slotName) {
+  auto addColorEdit = [&](const QString &label) {
     auto *edit = new CQColorEdit;
-    connect(edit, SIGNAL(colorChanged(const QColor &)), this, slotName);
     addLabelEdit(label, edit);
     return edit;
   };
 
   //---
 
-  overviewData_.wireFrameCheck = addCheck("Wireframe"  , SLOT(overviewWireframeSlot(int)));
-  overviewData_.solidCheck     = addCheck("Solid"      , SLOT(overviewSolidSlot(int)));
-  overviewData_.zclipCheck     = addCheck("Z Clip"     , SLOT(overviewZClipSlot(int)));
-  overviewData_.cameraCheck    = addCheck("Show Camera", SLOT(overviewShowCameraSlot(int)));
-  overviewData_.lightCheck     = addCheck("Show Light" , SLOT(overviewShowLightSlot(int)));
-  overviewData_.basisCheck     = addCheck("Show Basis" , SLOT(overviewShowBasisSlot(int)));
+  overviewData_.wireFrameCheck = addCheck("Wireframe"  );
+  overviewData_.solidCheck     = addCheck("Solid"      );
+  overviewData_.zclipCheck     = addCheck("Z Clip"     );
+  overviewData_.cameraCheck    = addCheck("Show Camera");
+  overviewData_.lightCheck     = addCheck("Show Light" );
+  overviewData_.basisCheck     = addCheck("Show Basis" );
 
-  overviewData_.bgColor =
-    addColorEdit("Background"    , SLOT(overviewBgColorSlot(const QColor &)));
-  overviewData_.strokeColor =
-    addColorEdit("Stroke Color"  , SLOT(overviewStrokeColorSlot(const QColor &)));
-  overviewData_.strokeAlpha =
-    addRealEdit ("Stroke Alpha"  , SLOT(overviewStrokeAlphaSlot(double)));
-  overviewData_.fillColor =
-    addColorEdit("Fill Color"    , SLOT(overviewFillColorSlot(const QColor &)));
-  overviewData_.fillAlpha =
-    addRealEdit ("Fill Alpha"    , SLOT(overviewFillAlphaSlot(double)));
-  overviewData_.selectedColor =
-    addColorEdit("Selected Color", SLOT(overviewSelectedColorSlot(const QColor &)));
-  overviewData_.pointSize =
-    addRealEdit ("Point Size"    , SLOT(overviewPointSizeSlot(double)));
+  overviewData_.bgColor       = addColorEdit("Background"    );
+  overviewData_.strokeColor   = addColorEdit("Stroke Color"  );
+  overviewData_.strokeAlpha   = addRealEdit ("Stroke Alpha"  );
+  overviewData_.fillColor     = addColorEdit("Fill Color"    );
+  overviewData_.fillAlpha     = addRealEdit ("Fill Alpha"    );
+  overviewData_.selectedColor = addColorEdit("Selected Color");
+  overviewData_.pointSize     = addRealEdit ("Point Size"    );
 
   //---
 
   layout->setRowStretch(row, 1);
 
   //---
+
+  connectOverview(true);
 
   return frame;
 }
@@ -707,8 +775,20 @@ void
 Control3D::
 lightAddedSlot()
 {
-  needsUpdate_   = true;
-  lightsChanged_ = true;
+  needsUpdate_ = true;
+
+  lightsData_.changed = true;
+
+  uiSlot();
+}
+
+void
+Control3D::
+materialAddedSlot()
+{
+  needsUpdate_ = true;
+
+  materialsData_.changed = true;
 
   uiSlot();
 }
@@ -738,6 +818,7 @@ updateWidgets()
   updateControl();
   updateCamera();
   updateLights();
+  updateMaterials();
   updateObjects();
   updateOverview();
 }
@@ -746,7 +827,7 @@ void
 Control3D::
 updateControl()
 {
-  connectControlSlots(false);
+  connectControl(false);
 
   controlData_.depthTestCheck->setChecked(canvas_->isDepthTest());
   controlData_.cullFaceCheck ->setChecked(canvas_->isCullFace());
@@ -758,12 +839,12 @@ updateControl()
 
   controlData_.bboxEdit->setValue(canvas_->bbox());
 
-  connectControlSlots(true);
+  connectControl(true);
 }
 
 void
 Control3D::
-connectControlSlots(bool b)
+connectControl(bool b)
 {
   if (b) {
     connect(controlData_.depthTestCheck, &QCheckBox::stateChanged,
@@ -799,7 +880,7 @@ void
 Control3D::
 updateCamera()
 {
-  connectCameraSlots(false);
+  connectCamera(false);
 
   //---
 
@@ -837,12 +918,12 @@ updateCamera()
 
   //---
 
-  connectCameraSlots(true);
+  connectCamera(true);
 }
 
 void
 Control3D::
-connectCameraSlots(bool b)
+connectCamera(bool b)
 {
   if (b){
     connect(canvas_, SIGNAL(cameraChangedSignal()),
@@ -931,41 +1012,41 @@ updateLights()
 
   //---
 
-  lightData_.ambientColorEdit   ->setColor(Util::RGBAToQColor(canvas_->ambientColor()));
-  lightData_.ambientStrengthEdit->setValue(canvas_->ambientStrength());
-  lightData_.diffuseEdit        ->setValue(canvas_->diffuseStrength());
-  lightData_.specularColorEdit  ->setColor(Util::RGBAToQColor(canvas_->specularColor()));
-  lightData_.specularEdit       ->setValue(canvas_->specularStrength());
-  lightData_.emissiveColorEdit  ->setColor(Util::RGBAToQColor(canvas_->emissiveColor()));
-  lightData_.emissiveEdit       ->setValue(canvas_->emissiveStrength());
-  lightData_.shininessEdit      ->setValue(canvas_->shininess());
+  lightsData_.ambientColorEdit   ->setColor(Util::RGBAToQColor(canvas_->ambientColor()));
+  lightsData_.ambientStrengthEdit->setValue(canvas_->ambientStrength());
+  lightsData_.diffuseEdit        ->setValue(canvas_->diffuseStrength());
+  lightsData_.specularColorEdit  ->setColor(Util::RGBAToQColor(canvas_->specularColor()));
+  lightsData_.specularEdit       ->setValue(canvas_->specularStrength());
+  lightsData_.emissiveColorEdit  ->setColor(Util::RGBAToQColor(canvas_->emissiveColor()));
+  lightsData_.emissiveEdit       ->setValue(canvas_->emissiveStrength());
+  lightsData_.shininessEdit      ->setValue(canvas_->shininess());
 
   //---
 
   auto *currentLight = canvas_->currentLight();
 
-  lightData_.typeCombo->setCurrentIndex(int(currentLight->getType()));
+  lightsData_.typeCombo->setCurrentIndex(int(currentLight->getType()));
 
-  lightData_.enabledCheck->setChecked(currentLight->getEnabled());
-  lightData_.colorEdit   ->setColor(Util::RGBAToQColor(currentLight->getDiffuse()));
-  lightData_.powerEdit   ->setValue(currentLight->getPower());
-  lightData_.posEdit     ->setValue(currentLight->getPosition());
+  lightsData_.enabledCheck->setChecked(currentLight->getEnabled());
+  lightsData_.colorEdit   ->setColor(Util::RGBAToQColor(currentLight->getDiffuse()));
+  lightsData_.powerEdit   ->setValue(currentLight->getPower());
+  lightsData_.posEdit     ->setValue(currentLight->getPosition());
 
   if (currentLight->getType() == Light3D::Type::SPOT)
-    lightData_.dirEdit->setValue(currentLight->getSpotDirection().point());
+    lightsData_.dirEdit->setValue(currentLight->getSpotDirection().point());
   else
-    lightData_.dirEdit->setValue(currentLight->getDirection().point());
+    lightsData_.dirEdit->setValue(currentLight->getDirection().point());
 
-  lightData_.cutoffEdit->setEnabled(currentLight->getType() == Light3D::Type::SPOT);
-  lightData_.cutoffEdit->setValue(currentLight->getSpotCutOffAngle());
+  lightsData_.cutoffEdit->setEnabled(currentLight->getType() == Light3D::Type::SPOT);
+  lightsData_.cutoffEdit->setValue(currentLight->getSpotCutOffAngle());
 
-  lightData_.radiusEdit->setEnabled(currentLight->getType() == Light3D::Type::POINT);
-  lightData_.radiusEdit->setValue(currentLight->getPointRadius());
+  lightsData_.radiusEdit->setEnabled(currentLight->getType() == Light3D::Type::POINT);
+  lightsData_.radiusEdit->setValue(currentLight->getPointRadius());
 
-  if (lightsChanged_) {
-    lightsChanged_ = false;
+  if (lightsData_.changed) {
+    lightsData_.changed = false;
 
-    lightData_.list->clear();
+    lightsData_.list->clear();
 
     QListWidgetItem *currentItem = nullptr;
 
@@ -974,7 +1055,7 @@ updateLights()
 
       auto *item = new QListWidgetItem(lightName);
 
-      lightData_.list->addItem(item);
+      lightsData_.list->addItem(item);
 
       item->setData(Qt::UserRole, light->id());
 
@@ -983,7 +1064,7 @@ updateLights()
     }
 
     if (currentItem)
-      lightData_.list->setCurrentItem(currentItem, QItemSelectionModel::Select);
+      lightsData_.list->setCurrentItem(currentItem, QItemSelectionModel::Select);
   }
 
   //---
@@ -996,102 +1077,173 @@ Control3D::
 connectLights(bool b)
 {
   if (b) {
-    connect(lightData_.ambientColorEdit, &CQColorEdit::colorChanged,
+    connect(lightsData_.ambientColorEdit, &CQColorEdit::colorChanged,
             this, &Control3D::ambientColorSlot);
-    connect(lightData_.ambientStrengthEdit, &CQRealSpin::realValueChanged,
+    connect(lightsData_.ambientStrengthEdit, &CQRealSpin::realValueChanged,
             this, &Control3D::ambientStrengthSlot);
-    connect(lightData_.diffuseEdit, &CQRealSpin::realValueChanged,
+    connect(lightsData_.diffuseEdit, &CQRealSpin::realValueChanged,
             this, &Control3D::diffuseSlot);
-    connect(lightData_.specularColorEdit, &CQColorEdit::colorChanged,
+    connect(lightsData_.specularColorEdit, &CQColorEdit::colorChanged,
             this, &Control3D::specularColorSlot);
-    connect(lightData_.specularEdit, &CQRealSpin::realValueChanged,
+    connect(lightsData_.specularEdit, &CQRealSpin::realValueChanged,
             this, &Control3D::specularSlot);
-    connect(lightData_.emissiveColorEdit, &CQColorEdit::colorChanged,
+    connect(lightsData_.emissiveColorEdit, &CQColorEdit::colorChanged,
             this, &Control3D::emissiveColorSlot);
-    connect(lightData_.emissiveEdit, &CQRealSpin::realValueChanged,
+    connect(lightsData_.emissiveEdit, &CQRealSpin::realValueChanged,
             this, &Control3D::emissiveSlot);
-    connect(lightData_.shininessEdit, &CQRealSpin::realValueChanged,
+    connect(lightsData_.shininessEdit, &CQRealSpin::realValueChanged,
             this, &Control3D::shininessSlot);
 
-    connect(lightData_.enabledCheck , &QCheckBox::stateChanged,
+    connect(lightsData_.enabledCheck , &QCheckBox::stateChanged,
             this, &Control3D::lightCheckSlot);
-    connect(lightData_.colorEdit , &CQColorEdit::colorChanged,
+    connect(lightsData_.colorEdit , &CQColorEdit::colorChanged,
             this, &Control3D::lightColorSlot);
-    connect(lightData_.powerEdit , &CQRealSpin::realValueChanged,
+    connect(lightsData_.powerEdit , &CQRealSpin::realValueChanged,
             this, &Control3D::lightPowerSlot);
-    connect(lightData_.posEdit   , &CQPoint3DEdit::editingFinished,
+    connect(lightsData_.posEdit   , &CQPoint3DEdit::editingFinished,
             this, &Control3D::lightPosSlot);
-    connect(lightData_.dirEdit   , &CQPoint3DEdit::editingFinished,
+    connect(lightsData_.dirEdit   , &CQPoint3DEdit::editingFinished,
             this, &Control3D::lightDirSlot);
-    connect(lightData_.cutoffEdit, &CQRealSpin::realValueChanged,
+    connect(lightsData_.cutoffEdit, &CQRealSpin::realValueChanged,
             this, &Control3D::lightCutoffSlot);
-    connect(lightData_.radiusEdit, &CQRealSpin::realValueChanged,
+    connect(lightsData_.radiusEdit, &CQRealSpin::realValueChanged,
             this, &Control3D::lightRadiusSlot);
-    connect(lightData_.list, &QListWidget::currentItemChanged,
+    connect(lightsData_.list, &QListWidget::currentItemChanged,
             this, &Control3D::lightSelectedSlot);
   }
   else {
-    disconnect(lightData_.ambientColorEdit, &CQColorEdit::colorChanged,
+    disconnect(lightsData_.ambientColorEdit, &CQColorEdit::colorChanged,
                this, &Control3D::ambientColorSlot);
-    disconnect(lightData_.ambientStrengthEdit, &CQRealSpin::realValueChanged,
+    disconnect(lightsData_.ambientStrengthEdit, &CQRealSpin::realValueChanged,
                this, &Control3D::ambientStrengthSlot);
-    disconnect(lightData_.diffuseEdit, &CQRealSpin::realValueChanged,
+    disconnect(lightsData_.diffuseEdit, &CQRealSpin::realValueChanged,
                this, &Control3D::diffuseSlot);
-    disconnect(lightData_.specularColorEdit, &CQColorEdit::colorChanged,
+    disconnect(lightsData_.specularColorEdit, &CQColorEdit::colorChanged,
                this, &Control3D::specularColorSlot);
-    disconnect(lightData_.specularEdit, &CQRealSpin::realValueChanged,
+    disconnect(lightsData_.specularEdit, &CQRealSpin::realValueChanged,
                this, &Control3D::specularSlot);
-    disconnect(lightData_.emissiveColorEdit, &CQColorEdit::colorChanged,
+    disconnect(lightsData_.emissiveColorEdit, &CQColorEdit::colorChanged,
                this, &Control3D::emissiveColorSlot);
-    disconnect(lightData_.emissiveEdit, &CQRealSpin::realValueChanged,
+    disconnect(lightsData_.emissiveEdit, &CQRealSpin::realValueChanged,
                this, &Control3D::emissiveSlot);
-    disconnect(lightData_.shininessEdit, &CQRealSpin::realValueChanged,
+    disconnect(lightsData_.shininessEdit, &CQRealSpin::realValueChanged,
                this, &Control3D::shininessSlot);
 
-    disconnect(lightData_.enabledCheck , &QCheckBox::stateChanged,
+    disconnect(lightsData_.enabledCheck , &QCheckBox::stateChanged,
                this, &Control3D::lightCheckSlot);
-    disconnect(lightData_.colorEdit , &CQColorEdit::colorChanged,
+    disconnect(lightsData_.colorEdit , &CQColorEdit::colorChanged,
                this, &Control3D::lightColorSlot);
-    disconnect(lightData_.powerEdit , &CQRealSpin::realValueChanged,
+    disconnect(lightsData_.powerEdit , &CQRealSpin::realValueChanged,
                this, &Control3D::lightPowerSlot);
-    disconnect(lightData_.posEdit   , &CQPoint3DEdit::editingFinished,
+    disconnect(lightsData_.posEdit   , &CQPoint3DEdit::editingFinished,
                this, &Control3D::lightPosSlot);
-    disconnect(lightData_.dirEdit   , &CQPoint3DEdit::editingFinished,
+    disconnect(lightsData_.dirEdit   , &CQPoint3DEdit::editingFinished,
                this, &Control3D::lightDirSlot);
-    disconnect(lightData_.cutoffEdit, &CQRealSpin::realValueChanged,
+    disconnect(lightsData_.cutoffEdit, &CQRealSpin::realValueChanged,
                this, &Control3D::lightCutoffSlot);
-    disconnect(lightData_.radiusEdit, &CQRealSpin::realValueChanged,
+    disconnect(lightsData_.radiusEdit, &CQRealSpin::realValueChanged,
                this, &Control3D::lightRadiusSlot);
-    disconnect(lightData_.list, &QListWidget::currentItemChanged,
+    disconnect(lightsData_.list, &QListWidget::currentItemChanged,
                this, &Control3D::lightSelectedSlot);
   }
 }
 
 void
 Control3D::
-connectObjects(bool b)
+updateMaterials()
+{
+  connectMaterials(false);
+
+  //---
+
+  auto *currentMaterial = canvas_->currentMaterial();
+
+  //---
+
+  if (currentMaterial) {
+    materialsData_.diffuseColorEdit->setColor(currentMaterial->diffuseColor());
+    materialsData_.emissionEdit    ->setValue(currentMaterial->emission());
+    materialsData_.specularEdit    ->setValue(currentMaterial->specular());
+    materialsData_.shininessEdit   ->setValue(currentMaterial->shininess());
+    materialsData_.transparencyEdit->setValue(currentMaterial->transparency());
+    materialsData_.reflectivityEdit->setValue(currentMaterial->reflectivity());
+    materialsData_.refractivityEdit->setValue(currentMaterial->refractivity());
+  }
+
+  //---
+
+  if (materialsData_.changed) {
+    materialsData_.changed = false;
+
+    materialsData_.list->clear();
+
+    QListWidgetItem *currentItem = nullptr;
+
+    for (auto *material : canvas_->materials()) {
+      auto *item = new QListWidgetItem(material->name());
+
+      materialsData_.list->addItem(item);
+
+      item->setData(Qt::UserRole, material->id());
+
+      if (material == currentMaterial)
+        currentItem = item;
+    }
+
+    if (currentItem)
+      materialsData_.list->setCurrentItem(currentItem, QItemSelectionModel::Select);
+  }
+
+  //---
+
+  connectMaterials(true);
+}
+
+void
+Control3D::
+connectMaterials(bool b)
 {
   if (b) {
-    connect(objectsData_.list, &QListWidget::currentItemChanged,
-            this, &Control3D::objectSelectedSlot);
+    connect(materialsData_.diffuseColorEdit, &CQColorEdit::colorChanged,
+            this, &Control3D::materialDiffuseColorSlot);
 
-    connect(objectsData_.posEdit, &CQPoint3DEdit::editingFinished,
-            this, &Control3D::objectPosSlot);
-    connect(objectsData_.scaleEdit, &CQPoint3DEdit::editingFinished,
-            this, &Control3D::objectScaleSlot);
-    connect(objectsData_.rotateEdit, &CQPoint3DEdit::editingFinished,
-            this, &Control3D::objectRotateSlot);
+    connect(materialsData_.emissionEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::materialEmissionSlot);
+    connect(materialsData_.specularEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::materialSpecularSlot);
+    connect(materialsData_.shininessEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::materialShininessSlot);
+
+    connect(materialsData_.transparencyEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::transparencySlot);
+    connect(materialsData_.reflectivityEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::reflectivitySlot);
+    connect(materialsData_.refractivityEdit, &CQRealSpin::realValueChanged,
+            this, &Control3D::refractivitySlot);
+
+    connect(materialsData_.list, &QListWidget::currentItemChanged,
+            this, &Control3D::materialSelectedSlot);
   }
   else {
-    disconnect(objectsData_.list, &QListWidget::currentItemChanged,
-               this, &Control3D::objectSelectedSlot);
+    disconnect(materialsData_.diffuseColorEdit, &CQColorEdit::colorChanged,
+               this, &Control3D::materialDiffuseColorSlot);
 
-    disconnect(objectsData_.posEdit, &CQPoint3DEdit::editingFinished,
-               this, &Control3D::objectPosSlot);
-    disconnect(objectsData_.scaleEdit, &CQPoint3DEdit::editingFinished,
-               this, &Control3D::objectScaleSlot);
-    disconnect(objectsData_.rotateEdit, &CQPoint3DEdit::editingFinished,
-               this, &Control3D::objectRotateSlot);
+    disconnect(materialsData_.emissionEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::materialEmissionSlot);
+    disconnect(materialsData_.specularEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::materialSpecularSlot);
+    disconnect(materialsData_.shininessEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::materialShininessSlot);
+
+    disconnect(materialsData_.transparencyEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::transparencySlot);
+    disconnect(materialsData_.reflectivityEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::reflectivitySlot);
+    disconnect(materialsData_.refractivityEdit, &CQRealSpin::realValueChanged,
+               this, &Control3D::refractivitySlot);
+
+    disconnect(materialsData_.list, &QListWidget::currentItemChanged,
+               this, &Control3D::materialSelectedSlot);
   }
 }
 
@@ -1100,6 +1252,8 @@ Control3D::
 updateObjects()
 {
   connectObjects(false);
+
+  //---
 
   if (objectsChanged_) {
     objectsChanged_ = false;
@@ -1152,6 +1306,131 @@ updateObjects()
   connectObjects(true);
 }
 
+void
+Control3D::
+connectObjects(bool b)
+{
+  if (b) {
+    connect(objectsData_.list, &QListWidget::currentItemChanged,
+            this, &Control3D::objectSelectedSlot);
+
+    connect(objectsData_.posEdit, &CQPoint3DEdit::editingFinished,
+            this, &Control3D::objectPosSlot);
+    connect(objectsData_.scaleEdit, &CQPoint3DEdit::editingFinished,
+            this, &Control3D::objectScaleSlot);
+    connect(objectsData_.rotateEdit, &CQPoint3DEdit::editingFinished,
+            this, &Control3D::objectRotateSlot);
+  }
+  else {
+    disconnect(objectsData_.list, &QListWidget::currentItemChanged,
+               this, &Control3D::objectSelectedSlot);
+
+    disconnect(objectsData_.posEdit, &CQPoint3DEdit::editingFinished,
+               this, &Control3D::objectPosSlot);
+    disconnect(objectsData_.scaleEdit, &CQPoint3DEdit::editingFinished,
+               this, &Control3D::objectScaleSlot);
+    disconnect(objectsData_.rotateEdit, &CQPoint3DEdit::editingFinished,
+               this, &Control3D::objectRotateSlot);
+  }
+}
+
+void
+Control3D::
+updateOverview()
+{
+  auto *overview = canvas_->app()->overview3D();
+  if (! overview) return;
+
+  connectOverview(false);
+
+  //---
+
+  overviewData_.wireFrameCheck->setChecked(overview->isWireframe());
+  overviewData_.solidCheck    ->setChecked(overview->isSolid());
+  overviewData_.zclipCheck    ->setChecked(overview->isZClip());
+  overviewData_.cameraCheck   ->setChecked(overview->isCameraVisible());
+  overviewData_.lightCheck    ->setChecked(overview->isLightsVisible());
+  overviewData_.basisCheck    ->setChecked(overview->isBasisVisible());
+
+  overviewData_.bgColor      ->setColor(overview->bgColor());
+  overviewData_.strokeColor  ->setColor(overview->strokeColor());
+  overviewData_.strokeAlpha  ->setValue(overview->strokeAlpha());
+  overviewData_.fillColor    ->setColor(overview->fillColor());
+  overviewData_.fillAlpha    ->setValue(overview->fillAlpha());
+  overviewData_.selectedColor->setColor(overview->selectedColor());
+  overviewData_.pointSize    ->setValue(overview->pointSize());
+
+  //---
+
+  connectOverview(true);
+}
+
+void
+Control3D::
+connectOverview(bool b)
+{
+  if (b) {
+    connect(overviewData_.wireFrameCheck, &QCheckBox::stateChanged,
+            this, &Control3D::overviewWireframeSlot);
+    connect(overviewData_.solidCheck, &QCheckBox::stateChanged,
+            this, &Control3D::overviewSolidSlot);
+    connect(overviewData_.zclipCheck, &QCheckBox::stateChanged,
+            this, &Control3D::overviewZClipSlot);
+    connect(overviewData_.cameraCheck, &QCheckBox::stateChanged,
+            this, &Control3D::overviewShowCameraSlot);
+    connect(overviewData_.lightCheck, &QCheckBox::stateChanged,
+            this, &Control3D::overviewShowLightSlot);
+    connect(overviewData_.basisCheck, &QCheckBox::stateChanged,
+            this, &Control3D::overviewShowBasisSlot);
+
+    connect(overviewData_.bgColor, &CQColorEdit::colorChanged,
+            this, &Control3D::overviewBgColorSlot);
+    connect(overviewData_.strokeColor, &CQColorEdit::colorChanged,
+            this, &Control3D::overviewStrokeColorSlot);
+    connect(overviewData_.strokeAlpha, &CQRealSpin::realValueChanged,
+            this, &Control3D::overviewStrokeAlphaSlot);
+    connect(overviewData_.fillColor, &CQColorEdit::colorChanged,
+            this, &Control3D::overviewFillColorSlot);
+    connect(overviewData_.fillAlpha, &CQRealSpin::realValueChanged,
+            this, &Control3D::overviewFillAlphaSlot);
+    connect(overviewData_.selectedColor, &CQColorEdit::colorChanged,
+            this, &Control3D::overviewSelectedColorSlot);
+    connect(overviewData_.pointSize, &CQRealSpin::realValueChanged,
+            this, &Control3D::overviewPointSizeSlot);
+  }
+  else {
+    disconnect(overviewData_.wireFrameCheck, &QCheckBox::stateChanged,
+               this, &Control3D::overviewWireframeSlot);
+    disconnect(overviewData_.solidCheck, &QCheckBox::stateChanged,
+               this, &Control3D::overviewSolidSlot);
+    disconnect(overviewData_.zclipCheck, &QCheckBox::stateChanged,
+               this, &Control3D::overviewZClipSlot);
+    disconnect(overviewData_.cameraCheck, &QCheckBox::stateChanged,
+               this, &Control3D::overviewShowCameraSlot);
+    disconnect(overviewData_.lightCheck, &QCheckBox::stateChanged,
+               this, &Control3D::overviewShowLightSlot);
+    disconnect(overviewData_.basisCheck, &QCheckBox::stateChanged,
+               this, &Control3D::overviewShowBasisSlot);
+
+    disconnect(overviewData_.bgColor, &CQColorEdit::colorChanged,
+               this, &Control3D::overviewBgColorSlot);
+    disconnect(overviewData_.strokeColor, &CQColorEdit::colorChanged,
+               this, &Control3D::overviewStrokeColorSlot);
+    disconnect(overviewData_.strokeAlpha, &CQRealSpin::realValueChanged,
+               this, &Control3D::overviewStrokeAlphaSlot);
+    disconnect(overviewData_.fillColor, &CQColorEdit::colorChanged,
+               this, &Control3D::overviewFillColorSlot);
+    disconnect(overviewData_.fillAlpha, &CQRealSpin::realValueChanged,
+               this, &Control3D::overviewFillAlphaSlot);
+    disconnect(overviewData_.selectedColor, &CQColorEdit::colorChanged,
+               this, &Control3D::overviewSelectedColorSlot);
+    disconnect(overviewData_.pointSize, &CQRealSpin::realValueChanged,
+               this, &Control3D::overviewPointSizeSlot);
+  }
+}
+
+//---
+
 Object3D *
 Control3D::
 getCurrentObject() const
@@ -1166,85 +1445,6 @@ getCurrentObject() const
   auto *indObj = canvas_->objectFromInd(ind);
 
   return indObj;
-}
-
-void
-Control3D::
-updateOverview()
-{
-  auto *overview = canvas_->app()->overview3D();
-  if (! overview) return;
-
-  disconnect(overviewData_.wireFrameCheck, &QCheckBox::stateChanged,
-             this, &Control3D::overviewWireframeSlot);
-  disconnect(overviewData_.solidCheck, &QCheckBox::stateChanged,
-             this, &Control3D::overviewSolidSlot);
-  disconnect(overviewData_.zclipCheck, &QCheckBox::stateChanged,
-             this, &Control3D::overviewZClipSlot);
-  disconnect(overviewData_.cameraCheck, &QCheckBox::stateChanged,
-             this, &Control3D::overviewShowCameraSlot);
-  disconnect(overviewData_.lightCheck, &QCheckBox::stateChanged,
-             this, &Control3D::overviewShowLightSlot);
-  disconnect(overviewData_.basisCheck, &QCheckBox::stateChanged,
-             this, &Control3D::overviewShowBasisSlot);
-
-  disconnect(overviewData_.bgColor, &CQColorEdit::colorChanged,
-             this, &Control3D::overviewBgColorSlot);
-  disconnect(overviewData_.strokeColor, &CQColorEdit::colorChanged,
-             this, &Control3D::overviewStrokeColorSlot);
-  disconnect(overviewData_.strokeAlpha, &CQRealSpin::realValueChanged,
-             this, &Control3D::overviewStrokeAlphaSlot);
-  disconnect(overviewData_.fillColor, &CQColorEdit::colorChanged,
-             this, &Control3D::overviewFillColorSlot);
-  disconnect(overviewData_.fillAlpha, &CQRealSpin::realValueChanged,
-             this, &Control3D::overviewFillAlphaSlot);
-  disconnect(overviewData_.selectedColor, &CQColorEdit::colorChanged,
-             this, &Control3D::overviewSelectedColorSlot);
-  disconnect(overviewData_.pointSize, &CQRealSpin::realValueChanged,
-             this, &Control3D::overviewPointSizeSlot);
-
-  overviewData_.wireFrameCheck->setChecked(overview->isWireframe());
-  overviewData_.solidCheck    ->setChecked(overview->isSolid());
-  overviewData_.zclipCheck    ->setChecked(overview->isZClip());
-  overviewData_.cameraCheck   ->setChecked(overview->isCameraVisible());
-  overviewData_.lightCheck    ->setChecked(overview->isLightsVisible());
-  overviewData_.basisCheck    ->setChecked(overview->isBasisVisible());
-
-  overviewData_.bgColor      ->setColor  (overview->bgColor());
-  overviewData_.strokeColor  ->setColor  (overview->strokeColor());
-  overviewData_.strokeAlpha  ->setValue  (overview->strokeAlpha());
-  overviewData_.fillColor    ->setColor  (overview->fillColor());
-  overviewData_.fillAlpha    ->setValue  (overview->fillAlpha());
-  overviewData_.selectedColor->setColor  (overview->selectedColor());
-  overviewData_.pointSize    ->setValue  (overview->pointSize());
-
-  connect(overviewData_.wireFrameCheck, &QCheckBox::stateChanged,
-          this, &Control3D::overviewWireframeSlot);
-  connect(overviewData_.solidCheck, &QCheckBox::stateChanged,
-          this, &Control3D::overviewSolidSlot);
-  connect(overviewData_.zclipCheck, &QCheckBox::stateChanged,
-          this, &Control3D::overviewZClipSlot);
-  connect(overviewData_.cameraCheck, &QCheckBox::stateChanged,
-          this, &Control3D::overviewShowCameraSlot);
-  connect(overviewData_.lightCheck, &QCheckBox::stateChanged,
-          this, &Control3D::overviewShowLightSlot);
-  connect(overviewData_.basisCheck, &QCheckBox::stateChanged,
-          this, &Control3D::overviewShowBasisSlot);
-
-  connect(overviewData_.bgColor, &CQColorEdit::colorChanged,
-          this, &Control3D::overviewBgColorSlot);
-  connect(overviewData_.strokeColor, &CQColorEdit::colorChanged,
-          this, &Control3D::overviewStrokeColorSlot);
-  connect(overviewData_.strokeAlpha, &CQRealSpin::realValueChanged,
-          this, &Control3D::overviewStrokeAlphaSlot);
-  connect(overviewData_.fillColor, &CQColorEdit::colorChanged,
-          this, &Control3D::overviewFillColorSlot);
-  connect(overviewData_.fillAlpha, &CQRealSpin::realValueChanged,
-          this, &Control3D::overviewFillAlphaSlot);
-  connect(overviewData_.selectedColor, &CQColorEdit::colorChanged,
-          this, &Control3D::overviewSelectedColorSlot);
-  connect(overviewData_.pointSize, &CQRealSpin::realValueChanged,
-          this, &Control3D::overviewPointSizeSlot);
 }
 
 void
@@ -1299,7 +1499,7 @@ void
 Control3D::
 ambientStrengthSlot()
 {
-  auto a = lightData_.ambientStrengthEdit->value();
+  auto a = lightsData_.ambientStrengthEdit->value();
 
   canvas_->setAmbientStrength(a);
   canvas_->update();
@@ -1309,7 +1509,7 @@ void
 Control3D::
 diffuseSlot()
 {
-  auto a = lightData_.diffuseEdit->value();
+  auto a = lightsData_.diffuseEdit->value();
 
   canvas_->setDiffuseStrength(a);
   canvas_->update();
@@ -1327,7 +1527,7 @@ void
 Control3D::
 specularSlot()
 {
-  auto a = lightData_.specularEdit->value();
+  auto a = lightsData_.specularEdit->value();
 
   canvas_->setSpecularStrength(a);
   canvas_->update();
@@ -1345,7 +1545,7 @@ void
 Control3D::
 emissiveSlot()
 {
-  auto a = lightData_.emissiveEdit->value();
+  auto a = lightsData_.emissiveEdit->value();
 
   canvas_->setEmissiveStrength(a);
   canvas_->update();
@@ -1355,7 +1555,7 @@ void
 Control3D::
 shininessSlot()
 {
-  auto a = lightData_.shininessEdit->value();
+  auto a = lightsData_.shininessEdit->value();
 
   canvas_->setShininess(a);
   canvas_->update();
@@ -1598,7 +1798,7 @@ lightPosSlot()
 {
   auto *light = canvas_->currentLight();
 
-  auto p = lightData_.posEdit->getValue();
+  auto p = lightsData_.posEdit->getValue();
   light->setPosition(CVector3D(p.x, p.y, p.z));
   canvas_->update();
 }
@@ -1609,7 +1809,7 @@ lightDirSlot()
 {
   auto *light = canvas_->currentLight();
 
-  auto p = lightData_.dirEdit->getValue();
+  auto p = lightsData_.dirEdit->getValue();
   if (light->getType() == Light3D::Type::SPOT)
     light->setSpotDirection(CVector3D(p.x, p.y, p.z));
   else
@@ -1644,6 +1844,94 @@ resetLightSlot()
   auto *light = canvas_->currentLight();
 
   canvas_->resetLight(light);
+}
+
+void
+Control3D::
+materialDiffuseColorSlot(const QColor &c)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setDiffuseColor(c);
+  canvas_->update();
+}
+
+void
+Control3D::
+materialEmissionSlot(double r)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setEmission(r);
+  canvas_->update();
+}
+
+void
+Control3D::
+materialSpecularSlot(double r)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setSpecular(r);
+  canvas_->update();
+}
+
+void
+Control3D::
+materialShininessSlot(double r)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setShininess(r);
+  canvas_->update();
+}
+
+void
+Control3D::
+transparencySlot(double r)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setTransparency(r);
+  canvas_->update();
+}
+
+void
+Control3D::
+reflectivitySlot(double r)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setReflectivity(r);
+  canvas_->update();
+}
+
+void
+Control3D::
+refractivitySlot(double r)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setRefractivity(r);
+  canvas_->update();
+}
+
+void
+Control3D::
+materialSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
+{
+  int id = item->data(Qt::UserRole).toInt();
+
+  canvas_->setMaterialId(id);
+
+  updateMaterials();
 }
 
 void

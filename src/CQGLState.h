@@ -48,6 +48,7 @@ class CQGLState {
 
   void reset() {
     setDepthTest        (false  , /*force*/true);
+    setDepthFunc        (GL_LESS, /*force*/true);
     setCullFace         (false  , /*force*/true);
     setBlend            (false  , /*force*/true);
     setPolygonOffsetLine(false  , /*force*/true);
@@ -97,6 +98,20 @@ class CQGLState {
     }
 
     return b;
+  }
+
+  //---
+
+  int depthFunc() const { return depthFunc_; }
+
+  int setDepthFunc(int func, bool force=false) {
+    if (force || func != depthFunc_) {
+      std::swap(depthFunc_, func);
+
+      glDepthFunc(depthFunc_);
+    }
+
+    return func;
   }
 
   //---
@@ -349,6 +364,7 @@ class CQGLState {
   bool    multiSample_       { false };
   bool    stenclTest_        { false };
   int     frontFace_         { GL_CCW };
+  int     depthFunc_         { GL_LESS };
   bool    depthMask_         { true };   // default true
   bool    texture_           { false };
   bool    cubeMap_           { false };

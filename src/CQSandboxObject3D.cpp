@@ -214,10 +214,21 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = id();
   else if (name == "type_name")
     value = typeName();
-  else if (name == "visible")
-    value = QString(isVisible() ? "1" : "0");
-  else if (name == "pseudo")
-    value = QString(isPseudo() ? "1" : "0");
+
+  // state
+  else if (name == "visible") {
+    value = isVisible();
+  }
+  else if (name == "selected") {
+    value = isSelected();
+  }
+  else if (name == "pseudo") {
+    value = isPseudo();
+  }
+  else if (name == "layer") {
+    value = layer();
+  }
+
   else if (name == "position")
     value = Util::point3DToString(position());
   else if (name == "x_angle")
@@ -303,16 +314,41 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
   if      (name == "id")
     setId(value);
+
+  // state
   else if (name == "visible") {
-    setVisible(Util::stringToBool(value));
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setVisible(b);
 
     setNeedsUpdate();
+  }
+  else if (name == "selected") {
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setSelected(b);
   }
   else if (name == "pseudo") {
-    setPseudo(Util::stringToBool(value));
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    setPseudo(b);
 
     setNeedsUpdate();
   }
+  else if (name == "layer") {
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    setLayer(i);
+  }
+
   else if (name == "position") {
     CPoint3D p;
     if (! Util::stringToPoint3D(tcl, value, p))

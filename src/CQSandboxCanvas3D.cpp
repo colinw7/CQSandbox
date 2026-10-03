@@ -597,6 +597,13 @@ QString
 Canvas3D::
 addNewObject(Object3D *obj)
 {
+  auto *skyboxObj = dynamic_cast<Skybox3DObj *>(obj);
+
+  if (skyboxObj)
+    skyboxObj_ = skyboxObj;
+
+  //---
+
   addObject(obj);
 
   allObjects_.push_back(obj);
@@ -671,6 +678,51 @@ getObjectByName(const QString &name) const
 
   return nullptr;
 }
+
+//---
+
+Material3D *
+Canvas3D::
+createMaterial()
+{
+  auto *material = new Material3D;
+
+  uint id = materials_.size() + 1;
+
+  material->setId(id);
+
+  material->setName(QString("material.%1").arg(material->id()));
+
+  materials_.push_back(material);
+
+  if (materialId_ == 0)
+    materialId_ = id;
+
+  Q_EMIT materialAdded();
+
+  return material;
+}
+
+Material3D *
+Canvas3D::
+currentMaterial() const
+{
+  for (auto *material : materials()) {
+    if (material->id() == materialId_)
+      return material;
+  }
+
+  return nullptr;
+}
+
+void
+Canvas3D::
+setMaterialId(uint id)
+{
+  materialId_ = id;
+}
+
+//---
 
 int
 Canvas3D::
@@ -1027,7 +1079,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   // range
   else if (name == "xmap") {
     if (args.size() >= 1) {
-      auto x = Util::stringToReal(args[0]);
+      double x;
+      if (! Util::stringToReal(args[0], x))
+        return false;
 
       auto x1 = xrange_.map(x, -0.5, 0.5);
 
@@ -1038,7 +1092,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   }
   else if (name == "ymap") {
     if (args.size() >= 1) {
-      auto y = Util::stringToReal(args[0]);
+      double y;
+      if (! Util::stringToReal(args[0], y))
+        return false;
 
       auto y1 = yrange_.map(y, -0.5, 0.5);
 
@@ -1049,7 +1105,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   }
   else if (name == "zmap") {
     if (args.size() >= 1) {
-      auto z = Util::stringToReal(args[0]);
+      double z;
+      if (! Util::stringToReal(args[0], z))
+        return false;
 
       auto z1 = zrange_.map(z, -0.5, 0.5);
 
@@ -1175,8 +1233,10 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (strs.size() != 2)
       return app_->errorMsg("Invalid values for range");
 
-    double xmin = Util::stringToReal(strs[0]);
-    double xmax = Util::stringToReal(strs[1]);
+    double xmin, xmax;
+    if (! Util::stringToReal(strs[0], xmin) ||
+        ! Util::stringToReal(strs[1], xmax))
+      return false;
 
     xrange_ = CRMinMax(xmin, xmax);
   }
@@ -1187,10 +1247,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (strs.size() != 2)
       return app_->errorMsg("Invalid values for range");
 
-    double xmin = Util::stringToReal(strs[0]);
-    double xmax = Util::stringToReal(strs[1]);
+    double ymin, ymax;
+    if (! Util::stringToReal(strs[0], ymin) ||
+        ! Util::stringToReal(strs[1], ymax))
+      return false;
 
-    yrange_ = CRMinMax(xmin, xmax);
+    yrange_ = CRMinMax(ymin, ymax);
   }
   else if (name == "zrange") {
     QStringList strs;
@@ -1199,10 +1261,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (strs.size() != 2)
       return app_->errorMsg("Invalid values for range");
 
-    double xmin = Util::stringToReal(strs[0]);
-    double xmax = Util::stringToReal(strs[1]);
+    double zmin, zmax;
+    if (! Util::stringToReal(strs[0], zmin) ||
+        ! Util::stringToReal(strs[1], zmax))
+      return false;
 
-    zrange_ = CRMinMax(xmin, xmax);
+    zrange_ = CRMinMax(zmin, zmax);
   }
   // lights
   else if (name == "lights.simple") {
@@ -1277,6 +1341,26 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   // outlined
   else if (name == "outlined") {
     setOutlined(Util::stringToBool(value));
+  }
+  else if (name == "reflection_map") {
+    setReflectionMap(Util::stringToBool(value));
+  }
+  else if (name == "refraction_map") {
+    setRefractionMap(Util::stringToBool(value));
+  }
+  else if (name == "reflectivity") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    setReflectivity(r);
+  }
+  else if (name == "refractivity") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    setRefractivity(r);
   }
   // directories
   else if (name == "model_dir") {
@@ -1360,16 +1444,41 @@ setCameraValue(const QString &name, const QString &value, const QStringList &)
 
   auto *camera = currentCamera();
 
-  if      (name == "near")
-    camera->setNear(Util::stringToReal(value));
-  else if (name == "far")
-    camera->setFar(Util::stringToReal(value));
-  else if (name == "yaw")
-    camera->setYaw(CMathGen::DegToRad(Util::stringToReal(value)));
-  else if (name == "pitch")
-    camera->setPitch(CMathGen::DegToRad(Util::stringToReal(value)));
-  else if (name == "roll")
-    camera->setRoll(CMathGen::DegToRad(Util::stringToReal(value)));
+  if      (name == "near") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    camera->setNear(r);
+  }
+  else if (name == "far") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    camera->setFar(r);
+  }
+  else if (name == "yaw") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    camera->setYaw(CMathGen::DegToRad(r));
+  }
+  else if (name == "pitch") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    camera->setPitch(CMathGen::DegToRad(r));
+  }
+  else if (name == "roll") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    camera->setRoll(CMathGen::DegToRad(r));
+  }
   else if (name == "position") {
     CVector3D pos;
     if (! Util::stringToVector3D(tcl, value, pos))
@@ -1384,8 +1493,13 @@ setCameraValue(const QString &name, const QString &value, const QStringList &)
     camera->setOrigin(pos);
   }
 #if 0
-  else if (name == "zoom")
-    camera->setZoom(Util::stringToReal(value));
+  else if (name == "zoom") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    camera->setZoom(r);
+  }
 #endif
   else if (name == "distance") {
     double r;
@@ -1530,7 +1644,9 @@ setLightValue(const QString &name, const QString &value, const QStringList &args
     light->setDiffuse(Util::QColorToRGBA(Util::stringToColor(tcl, value)));
   }
   else if (name == "point_radius") {
-    auto r = Util::stringToReal(value);
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
 
     light->setPointRadius(r);
   }
@@ -1897,7 +2013,9 @@ setProgramShadow(ShaderProgram *program)
     program->setUniformValue("lightSpaceMatrix", CQGLUtil::toQMatrix(lightMatrix));
   }
   else {
-    program->setUniformValue("shadowShader", (shaderType_ == ShaderType::SHADOW));
+    //program->setUniformValue("shadowShader", (shaderType_ == ShaderType::SHADOW));
+
+    program->setUniformValue("shadowMap", 4);
     program->setUniformValue("useShadowMap", false);
 
     auto lightMatrix = CMatrix3DH::identity();
@@ -1934,6 +2052,34 @@ setProgramMatrices(ShaderProgram *program, const ProgramMatrixData &data)
 
   // view pos
   program->setUniformValue("viewPos", CQGLUtil::toVector(viewPos()));
+}
+
+void
+Canvas3D::
+setProgramSkybox(ShaderProgram *program, int ind)
+{
+  if (skyboxObj_) {
+    skyboxObj_->bindTexture(ind);
+
+    program->setUniformValue("useCubeMap", 1);
+    program->setUniformValue("cubeMap"   , ind);
+
+    program->setUniformValue("reflectionMap", isReflectionMap());
+    program->setUniformValue("refractionMap", isRefractionMap());
+
+    program->setUniformValue("reflectivity", float(reflectivity()));
+    program->setUniformValue("refractivity", float(refractivity()));
+  }
+  else {
+    program->setUniformValue("useCubeMap", 0);
+    program->setUniformValue("cubeMap"   , ind);
+
+    program->setUniformValue("reflectionMap", 0);
+    program->setUniformValue("refractionMap", 0);
+
+    program->setUniformValue("reflectivity", 1.0f);
+    program->setUniformValue("refractivity", 1.0f);
+  }
 }
 
 //---
@@ -2140,10 +2286,14 @@ setProgramSimpleLight(ShaderProgram *program)
 {
   auto *light = currentLight();
 
+#if 1
+  setProgramLight(program, light, "light");
+#else
   program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->position()));
   program->setUniformValue("lightColor", CQGLUtil::toVector(light->getDiffuse()));
 
   program->setUniformValue("lightPower", light->getPower());
+#endif
 }
 
 void
@@ -2158,6 +2308,24 @@ setProgramLights(ShaderProgram *program)
 
   //---
 
+  uint il = 0;
+
+  for (auto *light : lights()) {
+    auto lightName = QString("lights[%1]").arg(il);
+
+    setProgramLight(program, light, lightName);
+
+    ++il;
+
+    if (il >= maxNumLights_)
+      break;
+  }
+}
+
+void
+Canvas3D::
+setProgramLight(ShaderProgram *program, Light3D *light, const QString &lightName)
+{
   static char nameStr[256];
 
   auto STR = [&](const QString &str) {
@@ -2166,64 +2334,53 @@ setProgramLights(ShaderProgram *program)
     return nameStr;
   };
 
-  uint il = 0;
+  program->setUniformValue(STR(lightName + ".type"), int(light->getType()));
+  program->setUniformValue(STR(lightName + ".enabled"), light->getEnabled());
 
-  for (auto *light : lights()) {
-    auto lightName = QString("lights[%1]").arg(il);
+  program->setUniformValue(STR(lightName + ".position"), CQGLUtil::toVector(light->position()));
 
-    program->setUniformValue(STR(lightName + ".type"), int(light->getType()));
-    program->setUniformValue(STR(lightName + ".enabled"), light->getEnabled());
+  program->setUniformValue(STR(lightName + ".color"), CQGLUtil::toVector(light->getDiffuse()));
 
-    program->setUniformValue(STR(lightName + ".position"), CQGLUtil::toVector(light->position()));
+  program->setUniformValue(STR(lightName + ".power"), light->getPower());
 
-    program->setUniformValue(STR(lightName + ".color"), CQGLUtil::toVector(light->getDiffuse()));
-
-    program->setUniformValue(STR(lightName + ".power"), light->getPower());
-
-    if (light->getType() == Light3D::Type::DIRECTIONAL) {
-      program->setUniformValue(STR(lightName + ".direction"),
-                               CQGLUtil::toVector(light->getDirection()));
-    }
-    else if (light->getType() == Light3D::Type::POINT) {
-      program->setUniformValue(STR(lightName + ".radius"), float(light->getPointRadius()));
-
-      program->setUniformValue(STR(lightName + ".attenuation0"),
-        float(light->getConstantAttenuation()));
-      program->setUniformValue(STR(lightName + ".attenuation1"),
-        float(light->getLinearAttenuation()));
-      program->setUniformValue(STR(lightName + ".attenuation2"),
-        float(light->getQuadraticAttenuation()));
-    }
-    else if (light->getType() == Light3D::Type::SPOT) {
-      program->setUniformValue(STR(lightName + ".direction"),
-                               CQGLUtil::toVector(light->getSpotDirection()));
-
-      auto cutOffCos      = std::cos(CMathGen::DegToRad(light->getSpotCutOffAngle()));
-      auto outerCutOffCos = std::cos(CMathGen::DegToRad(light->getSpotOuterCutOffAngle()));
-
-      program->setUniformValue(STR(lightName + ".cutoff"), float(cutOffCos));
-      program->setUniformValue(STR(lightName + ".outerCutoff"), float(outerCutOffCos));
-
-      program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
-    }
-#if 0
-    else if (light->getType() == CGeomLight3DType::FLASHLIGHT) {
-      // eye direction
-      auto cutOffCos      = std::cos(CMathGen::DegToRad(light->getSpotCutOffAngle()));
-      auto outerCutOffCos = std::cos(CMathGen::DegToRad(light->getSpotOuterCutOffAngle()));
-
-      program->setUniformValue(STR(lightName + ".cutoff"), float(cutOffCos));
-      program->setUniformValue(STR(lightName + ".outerCutoff"), float(outerCutOffCos));
-
-      program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
-    }
-#endif
-
-    ++il;
-
-    if (il >= maxNumLights_)
-      break;
+  if (light->getType() == Light3D::Type::DIRECTIONAL) {
+    program->setUniformValue(STR(lightName + ".direction"),
+                             CQGLUtil::toVector(light->getDirection()));
   }
+  else if (light->getType() == Light3D::Type::POINT) {
+    program->setUniformValue(STR(lightName + ".radius"), float(light->getPointRadius()));
+
+    program->setUniformValue(STR(lightName + ".attenuation0"),
+      float(light->getConstantAttenuation()));
+    program->setUniformValue(STR(lightName + ".attenuation1"),
+      float(light->getLinearAttenuation()));
+    program->setUniformValue(STR(lightName + ".attenuation2"),
+      float(light->getQuadraticAttenuation()));
+  }
+  else if (light->getType() == Light3D::Type::SPOT) {
+    program->setUniformValue(STR(lightName + ".direction"),
+                             CQGLUtil::toVector(light->getSpotDirection()));
+
+    auto cutOffCos      = std::cos(CMathGen::DegToRad(light->getSpotCutOffAngle()));
+    auto outerCutOffCos = std::cos(CMathGen::DegToRad(light->getSpotOuterCutOffAngle()));
+
+    program->setUniformValue(STR(lightName + ".cutoff"), float(cutOffCos));
+    program->setUniformValue(STR(lightName + ".outerCutoff"), float(outerCutOffCos));
+
+    program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
+  }
+#if 0
+  else if (light->getType() == CGeomLight3DType::FLASHLIGHT) {
+    // eye direction
+    auto cutOffCos      = std::cos(CMathGen::DegToRad(light->getSpotCutOffAngle()));
+    auto outerCutOffCos = std::cos(CMathGen::DegToRad(light->getSpotOuterCutOffAngle()));
+
+    program->setUniformValue(STR(lightName + ".cutoff"), float(cutOffCos));
+    program->setUniformValue(STR(lightName + ".outerCutoff"), float(outerCutOffCos));
+
+    program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
+  }
+#endif
 }
 
 void
@@ -2354,7 +2511,7 @@ render()
 
   glPushAttrib(GL_ALL_ATTRIB_BITS);
 
-  for (auto *obj : objects_) {
+  for (auto *obj : objects()) {
     if (! obj || ! obj->isVisible())
       continue;
 
@@ -2383,7 +2540,7 @@ render()
 
   isOutline() ? CQGLStateInst->setPolygonMode(GL_LINE) : CQGLStateInst->setPolygonMode(GL_FILL);
 
-  glDepthFunc(GL_LEQUAL);
+  CQGLStateInst->setDepthFunc(GL_LEQUAL);
 
   CQGLStateInst->setBlend(true);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -2572,7 +2729,7 @@ drawContents()
 
   MgrObjects mgrObjects;
 
-  for (auto *obj : objects_) {
+  for (auto *obj : objects()) {
     auto *mgr = obj->mgr();
 
     mgrObjects[mgr].push_back(obj);
@@ -2632,7 +2789,7 @@ void
 Canvas3D::
 drawBBoxes()
 {
-  for (auto *obj : objects_) {
+  for (auto *obj : objects()) {
     if (! obj || ! obj->isVisible())
       continue;
 
@@ -3298,7 +3455,7 @@ mouseReleaseEvent(QMouseEvent *e)
 
   Objects clickObjs;
 
-  for (auto *obj : objects_) {
+  for (auto *obj : objects()) {
     if (! obj->isVisible())
       continue;
 
@@ -3489,7 +3646,7 @@ selectNearestPoint(const CPoint2D &p)
 
   MinPointData minPointData;
 
-  for (auto *object : objects_) {
+  for (auto *object : objects()) {
     object->clearSelection();
 
     auto *buffer = object->getBuffer();
@@ -3562,7 +3719,7 @@ selectNearestFace(const CPoint2D &p)
 
   MinFaceData minFaceData;
 
-  for (auto *object : objects_) {
+  for (auto *object : objects()) {
     object->clearSelection();
 
     const auto &faceDatas = object->getFaceDatas();
@@ -3643,7 +3800,7 @@ selectNearestObject(const CPoint2D &p)
 
   MinFaceData minFaceData;
 
-  for (auto *object : objects_) {
+  for (auto *object : objects()) {
     object->setSelected(false);
 
     const auto &faceDatas = object->getFaceDatas();
@@ -3706,7 +3863,7 @@ selectPointsInside(const CBBox2D &r)
 
   auto pvMatrix = projectionMatrix*viewMatrix;
 
-  for (auto *object : objects_) {
+  for (auto *object : objects()) {
     object->clearSelection();
 
     auto *buffer = object->getBuffer();
@@ -3765,7 +3922,7 @@ selectFacesInside(const CBBox2D &r)
 
   auto pvMatrix = projectionMatrix*viewMatrix;
 
-  for (auto *object : objects_) {
+  for (auto *object : objects()) {
     object->clearSelection();
 
     const auto &faceDatas = object->getFaceDatas();
@@ -3805,13 +3962,13 @@ selectObjectsInside(const CBBox2D &r)
 
   auto pvMatrix = projectionMatrix*viewMatrix;
 
-  for (auto *object : objects_) {
+  for (auto *object : objects()) {
     object->setSelected(false);
 
     object->clearSelection();
   }
 
-  for (auto *object : objects_) {
+  for (auto *object : objects()) {
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
 
@@ -3915,67 +4072,71 @@ setMousePos(double xpos, double ypos)
 
   //---
 
-  if (isEyeLineVisible()) {
-    CVector3D pe1(xv1, yv1, zv1);
-    CVector3D pe2(xv2, yv2, zv2);
+  if (type() == Type::CAMERA) {
+    if (isEyeLineVisible()) {
+      CVector3D pe1(xv1, yv1, zv1);
+      CVector3D pe2(xv2, yv2, zv2);
 
-    eyeLine_->setLine(pe1, pe2);
-    eyeLine_->setVisible(true);
+      eyeLine_->setLine(pe1, pe2);
+      eyeLine_->setVisible(true);
+    }
   }
 
   //---
 
-  intersectPoints_.clear();
+  if (type() == Type::MODEL) {
+    intersectPoints_.clear();
 
-  for (auto *obj : objects_) {
-    if (! obj->isVisible())
-      continue;
+    for (auto *obj : objects()) {
+      if (! obj->isVisible())
+        continue;
 
-    auto imodelMatrix = obj->modelMatrix().inverse();
+      auto imodelMatrix = obj->modelMatrix().inverse();
 
-    double mx1, my1, mz1;
-    imodelMatrix.multiplyPoint(xv1, yv1, zv1, &mx1, &my1, &mz1);
+      double mx1, my1, mz1;
+      imodelMatrix.multiplyPoint(xv1, yv1, zv1, &mx1, &my1, &mz1);
 
-    double mx2, my2, mz2;
-    imodelMatrix.multiplyPoint(xv2, yv2, zv2, &mx2, &my2, &mz2);
+      double mx2, my2, mz2;
+      imodelMatrix.multiplyPoint(xv2, yv2, zv2, &mx2, &my2, &mz2);
 
-    CVector3D pm1(mx1, my1, mz1);
-    CVector3D pm2(mx2, my2, mz2);
+      CVector3D pm1(mx1, my1, mz1);
+      CVector3D pm2(mx2, my2, mz2);
 
-    CPoint3D pi1, pi2;
+      CPoint3D pi1, pi2;
 
-    bool inside = obj->intersect(pm1, pm2, pi1, pi2);
+      bool inside = obj->intersect(pm1, pm2, pi1, pi2);
 
-    if (inside != obj->isInside()) {
-      obj->setInside(inside);
+      if (inside != obj->isInside()) {
+        obj->setInside(inside);
 
-      obj->setNeedsUpdate();
+        obj->setNeedsUpdate();
+      }
+
+      if (inside) {
+        auto mapPoint = [&](const CPoint3D &p) {
+          double x1, y1, z1;
+          obj->modelMatrix().multiplyPoint(p.x, p.y, p.z, &x1, &y1, &z1);
+          return CVector3D(x1, y1, z1);
+        };
+
+        intersectPoints_.push_back(mapPoint(pi1));
+
+        if (pi2 != pi1)
+          intersectPoints_.push_back(mapPoint(pi2));
+      }
     }
 
-    if (inside) {
-      auto mapPoint = [&](const CPoint3D &p) {
-        double x1, y1, z1;
-        obj->modelMatrix().multiplyPoint(p.x, p.y, p.z, &x1, &y1, &z1);
-        return CVector3D(x1, y1, z1);
-      };
+    if (isEyeLineVisible()) {
+      addIntersectParticles();
 
-      intersectPoints_.push_back(mapPoint(pi1));
+      std::vector<CGLVector3D> ppoints;
 
-      if (pi2 != pi1)
-        intersectPoints_.push_back(mapPoint(pi2));
+      for (const auto &ip : intersectPoints_)
+        ppoints.push_back(CGLVector3D(ip.getX(), ip.getY(), ip.getZ()));
+
+      intersectParticles_->setPoints(ppoints);
+      intersectParticles_->setVisible(true);
     }
-  }
-
-  if (isEyeLineVisible()) {
-    addIntersectParticles();
-
-    std::vector<CGLVector3D> ppoints;
-
-    for (const auto &ip : intersectPoints_)
-      ppoints.push_back(CGLVector3D(ip.getX(), ip.getY(), ip.getZ()));
-
-    intersectParticles_->setPoints(ppoints);
-    intersectParticles_->setVisible(true);
   }
 }
 

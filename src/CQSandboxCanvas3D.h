@@ -44,6 +44,8 @@ class ShaderToyProgram;
 class Light3D;
 class Path3DObj;
 class ParticleList3DObj;
+class Skybox3DObj;
+class Material3D;
 
 class Camera;
 class FPCamera;
@@ -170,8 +172,9 @@ class Canvas3D : public OpenGLWindow {
     OUTLINE
   };
 
-  using Mgrs    = std::map<QString, ObjectMgr3D *>;
-  using Objects = std::vector<Object3D *>;
+  using Mgrs      = std::map<QString, ObjectMgr3D *>;
+  using Objects   = std::vector<Object3D *>;
+  using Materials = std::vector<Material3D *>;
 
   //---
 
@@ -284,6 +287,8 @@ class Canvas3D : public OpenGLWindow {
   void setProgramMatrices(ShaderProgram *program,
          const ProgramMatrixData &programMatrixData=ProgramMatrixData());
 
+  void setProgramSkybox(ShaderProgram *program, int ind);
+
   //---
 
   // cameras
@@ -327,6 +332,7 @@ class Canvas3D : public OpenGLWindow {
   void setProgramLightGlobals(ShaderProgram *program);
   void setProgramSimpleLight(ShaderProgram *program);
   void setProgramLights(ShaderProgram *program);
+  void setProgramLight(ShaderProgram *program, Light3D *light, const QString &lightName);
 
   const std::vector<Light3D *> lights() const { return lights_; }
 
@@ -403,6 +409,20 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  bool isReflectionMap() const { return reflectionMap_; }
+  void setReflectionMap(bool b) { reflectionMap_ = b; }
+
+  bool isRefractionMap() const { return refractionMap_; }
+  void setRefractionMap(bool b) { refractionMap_ = b; }
+
+  double reflectivity() const { return reflectivity_; }
+  void setReflectivity(double r) { reflectivity_ = r; }
+
+  double refractivity() const { return refractivity_; }
+  void setRefractivity(double r) { refractivity_ = r; }
+
+  //---
+
   const CRMinMax &xrange() const { return xrange_; }
   const CRMinMax &yrange() const { return yrange_; }
   const CRMinMax &zrange() const { return zrange_; }
@@ -441,6 +461,18 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   Object3D *getObjectByName(const QString &name) const;
+
+  //---
+
+  // Materials
+
+  Material3D *createMaterial();
+
+  const std::vector<Material3D *> materials() const { return materials_; }
+
+  Material3D *currentMaterial() const;
+
+  void setMaterialId(uint id);
 
   //---
 
@@ -663,6 +695,8 @@ class Canvas3D : public OpenGLWindow {
   void lightAdded();
   void lightChanged();
 
+  void materialAdded();
+
   void loopStateChanged();
 
  private:
@@ -799,6 +833,16 @@ class Canvas3D : public OpenGLWindow {
 
   OutlineData outlineData_;
 
+  //---
+
+  bool reflectionMap_ { false };
+  bool refractionMap_ { false };
+
+  double reflectivity_ { 0.5 };
+  double refractivity_ { 0.5 };
+
+  //---
+
   CRMinMax xrange_ { -1.0, 1.0 };
   CRMinMax yrange_ { -1.0, 1.0 };
   CRMinMax zrange_ { -1.0, 1.0 };
@@ -826,11 +870,11 @@ class Canvas3D : public OpenGLWindow {
 
   Path3DObj* eyeLine_ { nullptr };
 
-  uint maxNumLights_ { 5 };
-
+  // Lights
   std::vector<Light3D *> lights_;
-  uint                   lightNum_ { 1 };
+  uint                   lightNum_     { 1 };
   bool                   simpleLights_ { false };
+  uint                   maxNumLights_ { 5 };
 
   ParticleList3DObj* intersectParticles_ { nullptr };
 
@@ -844,12 +888,20 @@ class Canvas3D : public OpenGLWindow {
   Objects allObjects_;
   bool    objectsValid_ { false };
 
+  Skybox3DObj *skyboxObj_ { nullptr };
+
   Points intersectPoints_;
 
   QStringList modelDirs_;
   QStringList moduleDirs_;
 
   bool ignoreChange_ { false };
+
+  //---
+
+  // Materials
+  Materials materials_;
+  uint      materialId_ { 0 };
 
   //---
 

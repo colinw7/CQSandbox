@@ -154,8 +154,6 @@ updateObjectData()
   if (! needsUpdate_)
     return;
 
-  needsUpdate_ = false;
-
   // set up vertex data (and buffer(s)) and configure vertex attributes
   CVector3D sceneSize(1, 1, 1);
 
@@ -211,7 +209,7 @@ updateObjectData()
 
           const auto &model = vertex.getModel();
 
-          if (! flipYZ_)
+          if (! isFlipYZ())
             buffer->addPoint(model);
           else
             buffer->addPoint(CQGLBuffer::Point(model.x, model.z, model.y));
@@ -230,10 +228,12 @@ updateObjectData()
     return std::max(std::max(x, y), z);
   };
 
-  auto sceneScale = float(1.0/max3(sceneSize.getX(), sceneSize.getY(), sceneSize.getZ()));
+  auto sceneScale = boxSize()/max3(sceneSize.getX(), sceneSize.getY(), sceneSize.getZ());
   //std::cerr << "Scene Scale : " << sceneScale << "\n";
 
   setScale(sceneScale);
+
+  needsUpdate_ = false;
 }
 
 void
@@ -246,8 +246,13 @@ render()
 
   //---
 
-//bool oldDepthMask = CQGLStateInst->setDepthMask(false);
-  glDepthFunc(GL_LEQUAL);
+  bool onTop = true;
+
+  bool oldDepthMask = CQGLStateInst->setDepthMask(onTop);
+  auto oldDepthFunc = CQGLStateInst->setDepthFunc(onTop ? GL_LEQUAL : GL_LESS);
+  auto oldCullFace  = CQGLStateInst->setCullFace(false);
+
+  //---
 
   // setup model shader
   for (auto &po : objectDatas_) {
@@ -257,26 +262,7 @@ render()
 
     canvas_->bindProgram(s_program);
 
-    if (useCubemap_) {
-      if (cubemap_) {
-        cubemap_->enable(/*enable*/true);
-
-        CQGLStateInst->setActiveTextureNum(0, true);
-
-        cubemap_->bind();
-
-        //cubemap_->setParameters();
-      }
-    }
-    else {
-      if (texture_) {
-        texture_->enable(/*enable*/true);
-
-        CQGLStateInst->setActiveTextureNum(0, true);
-
-        texture_->bind();
-      }
-    }
+    bindTexture(0);
 
     s_program->setUniformValue("textureId", 0);
 
@@ -314,30 +300,66 @@ render()
     }
 #endif
 
-    if (useCubemap_) {
-      if (cubemap_) {
-        cubemap_->enable(/*enable*/false);
-
-        cubemap_->unbind();
-
-        //cubemap_->setParameters();
-      }
-    }
-    else {
-      if (texture_) {
-        texture_->enable(/*enable*/false);
-
-        texture_->unbind();
-      }
-    }
+    unbindTexture();
 
     canvas_->bindBuffer(nullptr);
 
     canvas_->bindProgram(nullptr);
   }
 
-//CQGLStateInst->setDepthMask(oldDepthMask);
-  glDepthFunc(GL_LESS);
+  //---
+
+  CQGLStateInst->setDepthMask(oldDepthMask);
+  CQGLStateInst->setDepthFunc(oldDepthFunc);
+  CQGLStateInst->setCullFace (oldCullFace);
+}
+
+void
+Skybox3DObj::
+bindTexture(int ind)
+{
+  if (useCubemap_) {
+    if (cubemap_) {
+      cubemap_->enable(/*enable*/true);
+
+      CQGLStateInst->setActiveTextureNum(ind, true);
+
+      cubemap_->bind();
+
+      //cubemap_->setParameters();
+    }
+  }
+  else {
+    if (texture_) {
+      texture_->enable(/*enable*/true);
+
+      CQGLStateInst->setActiveTextureNum(ind, true);
+
+      texture_->bind();
+    }
+  }
+}
+
+void
+Skybox3DObj::
+unbindTexture()
+{
+  if (useCubemap_) {
+    if (cubemap_) {
+      cubemap_->enable(/*enable*/false);
+
+      cubemap_->unbind();
+
+      //cubemap_->setParameters();
+    }
+  }
+  else {
+    if (texture_) {
+      texture_->enable(/*enable*/false);
+
+      texture_->unbind();
+    }
+  }
 }
 
 }

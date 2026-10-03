@@ -41,7 +41,7 @@ class CQGLCubemap {
  private:
   using ImageData = unsigned char *;
 
-  std::vector<QImage>     images_;
+  std::vector<QImage>    images_;
   std::vector<ImageData> imageDatas_;
 
   int w_ { 0 };

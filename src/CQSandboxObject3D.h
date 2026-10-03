@@ -74,6 +74,7 @@ class Object3D : public QObject {
   Q_PROPERTY(bool selected READ isSelected WRITE setSelected)
   Q_PROPERTY(bool inside   READ isInside   WRITE setInside)
   Q_PROPERTY(bool pseudo   READ isPseudo   WRITE setPseudo)
+  Q_PROPERTY(int  layer    READ layer      WRITE setLayer)
 
   Q_PROPERTY(double xangle  READ xAngleDeg WRITE setXAngleDeg)
   Q_PROPERTY(double yangle  READ yAngleDeg WRITE setYAngleDeg)
@@ -205,10 +206,13 @@ class Object3D : public QObject {
   bool isInside() const { return inside_; }
   void setInside(bool b) { inside_ = b; }
 
-  //---
-
   bool isPseudo() const { return pseudo_; }
   void setPseudo(bool b) { pseudo_ = b; }
+
+  int layer() const { return layer_; }
+  void setLayer(int i) { layer_ = i; }
+
+  //---
 
   bool isCullFace() const { return cullFace_; }
   void setCullFace(bool b) { cullFace_ = b; }
@@ -413,12 +417,16 @@ class Object3D : public QObject {
   size_t    ind_    { 0 };
 
   QString id_;
-  bool    visible_      { true };
-  bool    selected_     { false };
-  bool    inside_       { false };
-  bool    pseudo_       { false };
-  bool    cullFace_     { true };
-  bool    frontFace_    { true };
+
+  bool visible_      { true };
+  bool selected_     { false };
+  bool inside_       { false };
+  bool pseudo_       { false };
+
+  int layer_ { -1 };
+
+  bool cullFace_  { true };
+  bool frontFace_ { true };
 
   ProgramMatrixData programMatrixData_;
 

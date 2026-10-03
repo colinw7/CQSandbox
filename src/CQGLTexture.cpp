@@ -58,6 +58,8 @@ load(const QString &fileName, bool flip)
     return false;
   }
 
+  fileName_ = fileName;
+
   return load(image, flip);
 }
 

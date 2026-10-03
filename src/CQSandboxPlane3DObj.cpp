@@ -91,8 +91,13 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
 
-  if      (name == "color")
-    setColor(Util::stringToQColor(tcl, value));
+  if      (name == "color") {
+    QColor c;
+    if (! Util::stringToQColor(tcl, value, c))
+      return false;
+
+    setColor(c);
+  }
   else if (name == "texture")
     setTextureFile(value);
   else

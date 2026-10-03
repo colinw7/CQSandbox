@@ -258,7 +258,7 @@ updateObjs()
       auto *texture = (vis ? getTexture("wall") : getTexture("door"));
 
       if (texture)
-        nobj->setTexture(texture);
+        nobj->setDiffuseTexture(texture);
     };
 
     if (nvis) addWall(true, (x1 + x2)/2.0, (y1 + y2)/2.0, z2, x2 - x1, y2 - y1, dw);
@@ -295,7 +295,7 @@ updateObjs()
       auto *texture = getTexture("floor");
 
       if (texture)
-        nobj->setTexture(texture);
+        nobj->setDiffuseTexture(texture);
     };
 
     addFloor((x1 + x2)/2.0, y1, (z1 + z2)/2.0, x2 - x1, dw, z2 - z1);

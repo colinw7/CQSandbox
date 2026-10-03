@@ -35,7 +35,7 @@ proc bboxChanged { } {
   resetProc
 }
 
-proc resetProc { } {
+proc resetProc { args } {
   sb3d::camera exec reset
   sb3d::light  exec reset 1
 }
@@ -46,7 +46,7 @@ proc cameraChanged { } {
   }
 }
 
-proc normalsProc { } {
+proc normalsProc { args } {
   set ::normals [expr {1 - $::normals}]
 
   if {$::normals} {
@@ -56,7 +56,7 @@ proc normalsProc { } {
   }
 }
 
-proc orientSlot { } {
+proc orientSlot { args } {
   set ::orient [expr {1 - $::orient}]
 
   if {$::orient} {

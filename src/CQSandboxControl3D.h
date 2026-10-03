@@ -54,22 +54,28 @@ class Control3D : public QFrame {
  private:
   QFrame *addControlFrame();
   QFrame *addCameraFrame();
-  QFrame *addLightFrame();
+  QFrame *addLightsFrame();
+  QFrame *addMaterialsFrame();
   QFrame *addObjectsFrame();
   QFrame *addOverviewFrame();
 
-  void connectLights(bool);
-  void connectObjects(bool);
+  void updateLights();
+  void connectLights(bool b);
+
+  void updateMaterials();
+  void connectMaterials(bool b);
 
   void updateControl();
-  void connectControlSlots(bool b);
+  void connectControl(bool b);
 
   void updateCamera();
-  void connectCameraSlots(bool b);
+  void connectCamera(bool b);
 
-  void updateLights();
   void updateObjects();
+  void connectObjects(bool b);
+
   void updateOverview();
+  void connectOverview(bool b);
 
   Object3D *getCurrentObject() const;
 
@@ -104,7 +110,7 @@ class Control3D : public QFrame {
 
   void resetCameraSlot();
 
-  // light
+  // lights
   void ambientColorSlot(const QColor &c);
   void ambientStrengthSlot();
   void diffuseSlot();
@@ -124,6 +130,17 @@ class Control3D : public QFrame {
   void lightCutoffSlot(double);
   void lightRadiusSlot(double);
   void resetLightSlot();
+
+  // materials
+  void materialDiffuseColorSlot(const QColor &c);
+  void materialEmissionSlot(double);
+  void materialSpecularSlot(double);
+  void materialShininessSlot(double);
+  void transparencySlot(double);
+  void reflectivitySlot(double);
+  void refractivitySlot(double);
+
+  void materialSelectedSlot(QListWidgetItem *, QListWidgetItem *);
 
   // objects
   void objectSelectedSlot(QListWidgetItem *, QListWidgetItem *);
@@ -153,6 +170,7 @@ class Control3D : public QFrame {
 
   void objectAddedSlot();
   void lightAddedSlot();
+  void materialAddedSlot();
 
   void uiSlot();
 
@@ -192,7 +210,8 @@ class Control3D : public QFrame {
 
   CameraData cameraData_;
 
-  struct LightData {
+  struct LightsData {
+    bool           changed             { true };
     CQColorEdit*   ambientColorEdit    { nullptr };
     CQRealSpin*    ambientStrengthEdit { nullptr };
     CQRealSpin*    diffuseEdit         { nullptr };
@@ -212,7 +231,21 @@ class Control3D : public QFrame {
     CQRealSpin*    radiusEdit          { nullptr };
   };
 
-  LightData lightData_;
+  LightsData lightsData_;
+
+  struct MaterialsData {
+    bool         changed          { true };
+    CQColorEdit* diffuseColorEdit { nullptr };
+    CQRealSpin*  emissionEdit     { nullptr };
+    CQRealSpin*  specularEdit     { nullptr };
+    CQRealSpin*  shininessEdit    { nullptr };
+    CQRealSpin*  transparencyEdit { nullptr };
+    CQRealSpin*  reflectivityEdit { nullptr };
+    CQRealSpin*  refractivityEdit { nullptr };
+    QListWidget* list             { nullptr };
+  };
+
+  MaterialsData materialsData_;
 
   struct ObjectsData {
     QListWidget*        list       { nullptr };
@@ -250,7 +283,6 @@ class Control3D : public QFrame {
   bool shown_          { false };
   bool needsUpdate_    { false };
   bool objectsChanged_ { true };
-  bool lightsChanged_  { true };
 };
 
 }
