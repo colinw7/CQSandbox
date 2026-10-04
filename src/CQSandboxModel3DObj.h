@@ -50,7 +50,7 @@ class Model3DObj : public Object3D {
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
-  static ShaderProgram* shaderProgram() { return s_shaderData.program; }
+  static ShaderProgram *shaderProgram() { return s_shaderData.program; }
 
   static void initShader(Canvas3D *canvas);
 
@@ -113,6 +113,8 @@ class Model3DObj : public Object3D {
   void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
 
  private:
+  static ShaderProgram *currentShaderProgram(Canvas3D *canvas);
+
   void updateObject(CGeomObject3D *object, ObjectData &objectData);
 
   void drawObject(CGeomObject3D *object);

@@ -271,7 +271,6 @@ addCommands()
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Color2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
-
   tcl->createObjCommand("sb::obj_array",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ObjArray2DObj>),
     static_cast<CQTcl::ObjCmdData>(this));

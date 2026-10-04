@@ -25,15 +25,15 @@ space_cube_map/back.png \
   sb3d::canvas set reflection_map 1
   sb3d::canvas set refraction_map 1
 
-  #$::shape1 set reflectivity 0.75
-  #$::shape2 set refractivity 0.75
+  $::shape1 set reflectivity 0.75
+  $::shape2 set refractivity 0.75
 
-# sb3d::canvas set reflectivity 1
-# sb3d::canvas set refractivity 1
+  sb3d::canvas set reflectivity 1
+  sb3d::canvas set refractivity 1
 
-  $::shape1 set transparency 0.8
-  $::shape1 set layer        1
+# $::shape1 set transparency 0.8
+# $::shape1 set layer        1
 
-  $::shape2 set transparency 0.8
-  $::shape2 set layer        2
+# $::shape2 set transparency 0.8
+# $::shape2 set layer        2
 }

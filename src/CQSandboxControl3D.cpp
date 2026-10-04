@@ -192,9 +192,24 @@ addControlFrame()
 
   layout->addWidget(shadowFrame, row++, 0, 1, 2);
 
-  controlData_.showShadowCheck = addCheck("Enabled");
+  controlData_.showShadowCheck  = new QCheckBox("Enabled");
+  controlData_.debugShadowCheck = new QCheckBox("Debug");
 
   shadowLayout->addWidget(controlData_.showShadowCheck);
+  shadowLayout->addWidget(controlData_.debugShadowCheck);
+
+  //---
+
+  auto *skyboxFrame  = new QGroupBox("Skybox");
+  auto *skyboxLayout = new QVBoxLayout(skyboxFrame);
+
+  layout->addWidget(skyboxFrame, row++, 0, 1, 2);
+
+  controlData_.showSkyboxCheck  = new QCheckBox("Visible");
+  controlData_.debugSkyboxCheck = new QCheckBox("Debug");
+
+  skyboxLayout->addWidget(controlData_.showSkyboxCheck);
+  skyboxLayout->addWidget(controlData_.debugSkyboxCheck);
 
   //---
 
@@ -835,7 +850,11 @@ updateControl()
 
   controlData_.bgColorEdit->setColor(canvas_->bgColor());
 
-  controlData_.showShadowCheck->setChecked(canvas_->isShadowed());
+  controlData_.showShadowCheck ->setChecked(canvas_->isShadowed());
+  controlData_.debugShadowCheck->setChecked(canvas_->isShadowDebug());
+
+  controlData_.showSkyboxCheck ->setChecked(canvas_->isShowSkybox());
+  controlData_.debugSkyboxCheck->setChecked(canvas_->isDebugSkybox());
 
   controlData_.bboxEdit->setValue(canvas_->bbox());
 
@@ -859,6 +878,13 @@ connectControl(bool b)
 
     connect(controlData_.showShadowCheck, &QCheckBox::stateChanged,
             this, &Control3D::enableShadowSlot);
+    connect(controlData_.debugShadowCheck, &QCheckBox::stateChanged,
+            this, &Control3D::debugShadowSlot);
+
+    connect(controlData_.showSkyboxCheck, &QCheckBox::stateChanged,
+            this, &Control3D::showSkyboxSlot);
+    connect(controlData_.debugSkyboxCheck, &QCheckBox::stateChanged,
+            this, &Control3D::debugSkyboxSlot);
   }
   else {
     disconnect(controlData_.depthTestCheck, &QCheckBox::stateChanged,
@@ -873,6 +899,13 @@ connectControl(bool b)
 
     disconnect(controlData_.showShadowCheck, &QCheckBox::stateChanged,
                this, &Control3D::enableShadowSlot);
+    disconnect(controlData_.debugShadowCheck, &QCheckBox::stateChanged,
+               this, &Control3D::debugShadowSlot);
+
+    disconnect(controlData_.showSkyboxCheck, &QCheckBox::stateChanged,
+               this, &Control3D::showSkyboxSlot);
+    disconnect(controlData_.debugSkyboxCheck, &QCheckBox::stateChanged,
+               this, &Control3D::debugSkyboxSlot);
   }
 }
 
@@ -1484,6 +1517,30 @@ Control3D::
 enableShadowSlot(int b)
 {
   canvas_->setShadowed(b);
+  canvas_->update();
+}
+
+void
+Control3D::
+debugShadowSlot(int b)
+{
+  canvas_->setShadowDebug(b);
+  canvas_->update();
+}
+
+void
+Control3D::
+showSkyboxSlot(int b)
+{
+  canvas_->setShowSkybox(b);
+  canvas_->update();
+}
+
+void
+Control3D::
+debugSkyboxSlot(int b)
+{
+  canvas_->setDebugSkybox(b);
   canvas_->update();
 }
 

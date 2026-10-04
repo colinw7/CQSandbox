@@ -169,7 +169,8 @@ class Canvas3D : public OpenGLWindow {
   enum class ShaderType {
     MODEL,
     SHADOW,
-    OUTLINE
+    OUTLINE,
+    SHADOW_CUBE
   };
 
   using Mgrs      = std::map<QString, ObjectMgr3D *>;
@@ -195,6 +196,9 @@ class Canvas3D : public OpenGLWindow {
   };
 
   using Cameras = std::vector<CameraIFace *>;
+
+ private:
+  struct TextureBuffer;
 
  public:
   Canvas3D(App *app);
@@ -281,6 +285,7 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   void setProgramShadow(ShaderProgram *program);
+  void unsetProgramShadow();
 
   void setProgramOutline(ShaderProgram *program);
 
@@ -310,6 +315,8 @@ class Canvas3D : public OpenGLWindow {
 
   const ShaderType &shaderType() const { return shaderType_; }
   ShaderType setShaderType(ShaderType t) { std::swap(shaderType_, t); return t; }
+
+  ShaderProgram *shadowCubeShaderProgram();
 
   //---
 
@@ -349,6 +356,14 @@ class Canvas3D : public OpenGLWindow {
   Object3D *objectFromInd(uint ind) const;
 
   Object3D *getCurrentObject() const;
+
+  //---
+
+  bool isShowSkybox() const { return showSkybox_; }
+  void setShowSkybox(bool b) { showSkybox_ = b; }
+
+  bool isDebugSkybox() const { return debugSkybox_; }
+  void setDebugSkybox(bool b) { debugSkybox_ = b; }
 
   //---
 
@@ -498,6 +513,9 @@ class Canvas3D : public OpenGLWindow {
   void initSelectionProgram();
 
   void drawLights();
+
+  void drawTexture(TextureBuffer &texture, bool isDepth);
+  void drawCubeMapTexture(TextureBuffer &textureBuffer, bool isDepth);
 
   //---
 
@@ -796,7 +814,11 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   struct TextureBuffer {
-    CQGLTexture* texture { nullptr };
+    CameraIFace*   camera        { nullptr };
+    CQGLTexture*   texture       { nullptr };
+    ShaderProgram* shaderProgram { nullptr };
+    CQGLBuffer*    buffer        { nullptr };
+    FaceDataList   faceDataList;
   };
 
   //---
@@ -812,8 +834,12 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  uint textureAreaSize_ { 256 };
+
+  //---
+
   struct ShadowData {
-    bool         enabled { false };
+    bool          enabled     { false };
     bool          lightBuffer { true };
     double        bias        { 0.01 };
     CEnvVar<bool> debug       { "CQSHADOW_SHADOW_DEBUG" };
@@ -823,6 +849,16 @@ class Canvas3D : public OpenGLWindow {
   };
 
   ShadowData shadowData_;
+
+  struct ShadowCubeData {
+    int size { 1024 };
+
+    TextureBuffer textureBuffer;
+  };
+
+  ShadowCubeData shadowCubeData_;
+
+  ShaderProgram *shadowCubeShaderProgram_ { nullptr };
 
   //---
 
@@ -888,7 +924,10 @@ class Canvas3D : public OpenGLWindow {
   Objects allObjects_;
   bool    objectsValid_ { false };
 
-  Skybox3DObj *skyboxObj_ { nullptr };
+  Skybox3DObj*  skyboxObj_   { nullptr };
+  bool          showSkybox_  { true };
+  bool          debugSkybox_ { false };
+  TextureBuffer skyboxTextureBuffer;
 
   Points intersectPoints_;
 

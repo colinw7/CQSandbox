@@ -718,7 +718,7 @@ void
 Model3DObj::
 initDraw(Canvas3D *canvas, double t)
 {
-  auto *program = s_shaderData.program;
+  auto *program = currentShaderProgram(canvas);
 
   canvas->bindProgram(program);
 
@@ -750,13 +750,15 @@ Model3DObj::
 termDraw(Canvas3D *canvas)
 {
   canvas->bindProgram(nullptr);
+
+  canvas->unsetProgramShadow();
 }
 
 void
 Model3DObj::
 drawObject(CGeomObject3D *object)
 {
-  auto *program = s_shaderData.program;
+  auto *program = currentShaderProgram(canvas());
 
   //---
 
@@ -1394,6 +1396,16 @@ calcTangents1(CGeomObject3D *geomObject)
 
     calcTangents1(child);
   }
+}
+
+ShaderProgram *
+Model3DObj::
+currentShaderProgram(Canvas3D *canvas)
+{
+  if (canvas->shaderType() == Canvas3D::ShaderType::SHADOW_CUBE)
+    return canvas->shadowCubeShaderProgram();
+
+  return shaderProgram();
 }
 
 }

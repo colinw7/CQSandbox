@@ -11,6 +11,16 @@
 
 //---
 
+namespace {
+
+bool checkError(const char *msg) {
+  return CQGLStateInst->checkError(msg);
+}
+
+}
+
+//---
+
 CQGLTexture::
 CQGLTexture()
 {
@@ -31,8 +41,8 @@ CQGLTexture(const CImagePtr &image)
 CQGLTexture::
 ~CQGLTexture()
 {
-  if (valid_ && glIsTexture(id_))
-    glDeleteTextures(1, &id_);
+  if (valid_ && glIsTexture(textureId_))
+    glDeleteTextures(1, &textureId_);
 }
 
 bool
@@ -67,7 +77,7 @@ bool
 CQGLTexture::
 load(const QImage &image, bool flip)
 {
-  return init(image, flip);
+  return initImage(image, flip);
 }
 
 void
@@ -78,7 +88,7 @@ setImage(const QImage &image)
 
   type_ = Type::IMAGE;
 
-  init(image, /*flip*/false);
+  initImage(image, /*flip*/false);
 }
 
 void
@@ -91,7 +101,7 @@ setImage(const CImagePtr &image)
 
   auto &qimage = dynamic_cast<CQImage *>(image.get())->getQImage();
 
-  init(qimage, /*flip*/false);
+  initImage(qimage, /*flip*/false);
 }
 
 bool
@@ -109,42 +119,36 @@ setTarget(int w, int h)
     // The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
     if (frameBufferId_ == 0) {
       functions_->glGenFramebuffers(1, &frameBufferId_);
-      if (! CQGLStateInst->checkError("glGenFramebuffers")) return false;
+      if (! checkError("glGenFramebuffers")) return false;
     }
 
-    // bind framebuffer
-    functions_->glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId_);
-    if (! CQGLStateInst->checkError("glBindFramebuffer")) return false;
+    glBindFrameBuffer(frameBufferId_);
 
     // The texture we're going to render to
-    if (id_ == 0) {
-      glGenTextures(1, &id_);
-      if (! CQGLStateInst->checkError("glGenTextures")) return false;
+    if (textureId_ == 0) {
+      glGenTextures(1, &textureId_);
+      if (! checkError("glGenTextures")) return false;
     }
 
     // bind texture
-    glBindTexture(GL_TEXTURE_2D, id_);
-    if (! CQGLStateInst->checkError("glBindTexture")) return false;
+    glBindTexture2D(textureId_);
 
     // Give an empty image to OpenGL ( the last "0" )
     // no difference for GL_RGBA and GL_RGB (TODO: support multisample)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, targetWidth_, targetHeight_,
                  /*border*/0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    if (! CQGLStateInst->checkError("glTexImage2D")) return false;
+    if (! checkError("glTexImage2D")) return false;
 
     // Poor filtering (need min filter to avoid mip map use - not set)
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//  if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+    if (! checkError("glTexParameteri")) return false;
 
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//  if (! CQGLStateInst->checkError("glTexParameteri")) return false;
-
-//  glBindTexture(GL_TEXTURE_2D, 0);
-//  if (! CQGLStateInst->checkError("glBindTexture")) return false;
+  //if (! checkError("glTexParameteri")) return false;
 
     // allocate depth buffer
     if (depthRenderBuffer_ == 0)
@@ -159,9 +163,10 @@ setTarget(int w, int h)
                                           GL_RENDERBUFFER, depthRenderBuffer_);
 
     // attach it to currently bound framebuffer object
-    //functions_->glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, id_, 0);
-    functions_->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, id_, 0);
-    if (! CQGLStateInst->checkError("glFramebufferTexture2D")) return false;
+    //functions_->glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, textureId_, 0);
+    functions_->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                       GL_TEXTURE_2D, textureId_, 0);
+    if (! checkError("glFramebufferTexture2D")) return false;
 
     // generate render buffer
     // Set the list of draw buffers.
@@ -173,8 +178,156 @@ setTarget(int w, int h)
       return false;
     }
 
+    // reset current frame buffer
+    glBindFrameBuffer(0);
+
+    // unbind texture
+    glBindTexture2D(0);
+
     valid_ = true;
   }
+
+  return true;
+}
+
+bool
+CQGLTexture::
+setCubemap()
+{
+  assert(type_ == Type::NONE || type_ == Type::CUBE_MAP);
+
+  type_ = Type::CUBE_MAP;
+
+  if (! valid_) {
+    // create cubemap texture
+    if (textureId_ == 0) {
+      glGenTextures(1, &textureId_);
+      if (! checkError("glGenTextures")) return false;
+    }
+
+    // make texture current
+    glBindTextureCubeMap(textureId_);
+
+    // set parameters
+#if 1
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+#else
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_REPEAT);
+#endif
+    if (! checkError("glTexParameteri")) return false;
+
+#if 0
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+#else
+  //glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+#endif
+    if (! checkError("glTexParameteri")) return false;
+
+    // unbind texture
+    glBindTextureCubeMap(0);
+
+    valid_ = true;
+  }
+
+  return true;
+}
+
+bool
+CQGLTexture::
+setCubemapImages(const std::vector<QImage> &images, bool flip)
+{
+  enum { CUBE_MAP_IMAGE_COUNT = 6 };
+
+  assert(type_ == Type::CUBE_MAP);
+
+  if (images.size() != CUBE_MAP_IMAGE_COUNT) {
+    std::cerr << "Invalid number of images\n";
+    return false;
+  }
+
+  //---
+
+  // create cube image data memory
+  targetWidth_  = 0;
+  targetHeight_ = 0;
+
+  images_    .resize(CUBE_MAP_IMAGE_COUNT);
+  imageDatas_.resize(CUBE_MAP_IMAGE_COUNT);
+
+  for (int i = 0; i < CUBE_MAP_IMAGE_COUNT; ++i) {
+    if (images[i].isNull()) {
+      std::cerr << "Invalid image data\n";
+      return false;
+    }
+
+    QImage image;
+
+    if (useAlpha())
+      image = images[i].convertToFormat(QImage::Format_RGBA8888);
+    else
+      image = images[i].convertToFormat(QImage::Format_RGB888);
+
+    images_[i] = image;
+
+    auto w1 = image.width ();
+    auto h1 = image.height();
+
+    if (i == 0) {
+      targetWidth_  = w1;
+      targetHeight_ = h1;
+    }
+    else {
+      if (w1 != targetWidth_ || h1 != targetHeight_) {
+        std::cerr << "Invalid image size\n";
+        return false;
+      }
+    }
+
+    auto *imageData = new unsigned char [4*targetWidth_*targetHeight_];
+
+    imageDatas_[i] = imageData;
+
+    int ii = 0;
+
+    for (int y = 0; y < targetHeight_; ++y) {
+      int y1 = (flip ? targetHeight_ - 1 - y : y);
+
+      for (int x = 0; x < targetWidth_; ++x) {
+        auto rgba = image.pixel(x, y1);
+
+        imageData[ii++] = qBlue (rgba);
+        imageData[ii++] = qGreen(rgba);
+        imageData[ii++] = qRed  (rgba);
+        imageData[ii++] = qAlpha(rgba);
+      }
+    }
+  }
+
+  //---
+
+  // make texture current
+  glBindTextureCubeMap(textureId_);
+
+  // build our texture mipmaps
+  //GLint internalFormat = (useAlpha() ? GL_RGBA : GL_RGB);
+  GLint internalFormat = GL_RGB;
+
+  for (int i = 0; i < CUBE_MAP_IMAGE_COUNT; ++i)
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, internalFormat,
+                 targetWidth_, targetHeight_, 0, GL_BGRA,
+                 GL_UNSIGNED_BYTE, imageDatas_[i]);
+
+  functions_->glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+  // unbind texture
+  glBindTextureCubeMap(0);
 
   return true;
 }
@@ -194,32 +347,31 @@ setShadow(int w, int h)
     // The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
     if (frameBufferId_ == 0) {
       functions_->glGenFramebuffers(1, &frameBufferId_);
-      if (! CQGLStateInst->checkError("glGenFramebuffers")) return false;
+      if (! checkError("glGenFramebuffers")) return false;
     }
 
     // The texture we're going to render to
-    if (id_ == 0) {
-      glGenTextures(1, &id_);
-      if (! CQGLStateInst->checkError("glGenTextures")) return false;
+    if (textureId_ == 0) {
+      glGenTextures(1, &textureId_);
+      if (! checkError("glGenTextures")) return false;
     }
 
     // make texture current
-    glBindTexture(GL_TEXTURE_2D, id_);
-    if (! CQGLStateInst->checkError("glBindTexture")) return false;
+    glBindTexture2D(textureId_);
 
     // Give an empty image to OpenGL ( the last "0" )
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, targetWidth_, targetHeight_,
                  /*border*/0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-    if (! CQGLStateInst->checkError("glTexImage2D")) return false;
+    if (! checkError("glTexImage2D")) return false;
 
     // Poor filtering (need min filter to avoid mip map use - not set)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+    if (! checkError("glTexParameteri")) return false;
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+    if (! checkError("glTexParameteri")) return false;
 
     // const depth on texture border for clipping of light view
     float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -230,19 +382,19 @@ setShadow(int w, int h)
     //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+    if (! checkError("glTexParameteri")) return false;
 #endif
 
 #if 0
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
     glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_ALPHA);
-    if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+    if (! checkError("glTexParameteri")) return false;
 #endif
 
 #if 0
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
-    if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+    if (! checkError("glTexParameteri")) return false;
 #endif
 
     int width, height, depth;
@@ -252,12 +404,12 @@ setShadow(int w, int h)
     std::cerr << "Texture : " << width << " " << height << " " << depth << "\n";
 
     // make framebuffer current
-    functions_->glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId_);
-    if (! CQGLStateInst->checkError("glBindFramebuffer")) return false;
+    glBindFrameBuffer(frameBufferId_);
 
     // use texture as frame buffer depth
-    functions_->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, id_, 0);
-    if (! CQGLStateInst->checkError("glFramebufferTexture2D")) return false;
+    functions_->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                                       GL_TEXTURE_2D, textureId_, 0);
+    if (! checkError("glFramebufferTexture2D")) return false;
 
     glDrawBuffer(GL_NONE); // disable color buffers
     glReadBuffer(GL_NONE);
@@ -274,8 +426,10 @@ setShadow(int w, int h)
     std::cerr << "Framebuffer depth: " << depthBits << "\n";
 
     // reset current frame buffer
-    functions_->glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    if (! CQGLStateInst->checkError("glBindFramebuffer")) return false;
+    glBindFrameBuffer(0);
+
+    // unbind texture
+    glBindTexture2D(0);
 
     valid_ = true;
   }
@@ -285,7 +439,95 @@ setShadow(int w, int h)
 
 bool
 CQGLTexture::
-init(const QImage &image, bool flip)
+setShadowCubeMap(int w, int h)
+{
+  enum { CUBE_MAP_IMAGE_COUNT = 6 };
+
+  assert(type_ == Type::NONE || type_ == Type::SHADOW_CUBE_MAP);
+
+  type_ = Type::SHADOW_CUBE_MAP;
+
+  if (! valid_ || w != targetWidth_ || h != targetHeight_) {
+    targetWidth_  = w;
+    targetHeight_ = h;
+
+    // create framebuffer
+    if (frameBufferId_ == 0) {
+      functions_->glGenFramebuffers(1, &frameBufferId_);
+      if (! checkError("glGenFramebuffers")) return false;
+    }
+
+    // create depth cubemap texture
+    if (textureId_ == 0) {
+      glGenTextures(1, &textureId_);
+      if (! checkError("glGenTextures")) return false;
+    }
+
+    // make texture current
+    glBindTextureCubeMap(textureId_);
+
+    // Give an empty image to OpenGL ( the last "0" )
+    for (unsigned int i = 0; i < CUBE_MAP_IMAGE_COUNT; ++i)
+      glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+                   targetWidth_, targetHeight_, /*border*/0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    if (! checkError("glTexImage2D")) return false;
+
+    // Poor filtering (need min filter to avoid mip map use - not set)
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    if (! checkError("glTexParameteri")) return false;
+
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    if (! checkError("glTexParameteri")) return false;
+
+#if 0
+    int width, height, depth;
+    glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_WIDTH, &width);
+    glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_HEIGHT, &height);
+    glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_DEPTH_SIZE, &depth);
+    std::cerr << "Texture : " << width << " " << height << " " << depth << "\n";
+#endif
+
+    // make framebuffer current
+    glBindFrameBuffer(frameBufferId_);
+
+    // use texture as frame buffer depth
+    functions_->glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, textureId_, 0);
+    if (! checkError("glFramebufferTexture")) return false;
+
+    glDrawBuffer(GL_NONE); // disable color buffers
+    glReadBuffer(GL_NONE);
+
+    if (functions_->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      std::cerr << "Framebuffer error\n";
+      return false;
+    }
+
+#if 0
+    GLint depthBits;
+    functions_->glGetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                                                      GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE,
+                                                      &depthBits);
+    std::cerr << "Framebuffer depth: " << depthBits << "\n";
+#endif
+
+    // reset current frame buffer
+    glBindFrameBuffer(0);
+
+    // unbind texture
+    glBindTextureCubeMap(0);
+
+    valid_ = true;
+  }
+
+  return true;
+}
+
+bool
+CQGLTexture::
+initImage(const QImage &image, bool flip)
 {
   if (image.isNull()) {
     std::cerr << "Invalid image data\n";
@@ -328,14 +570,13 @@ init(const QImage &image, bool flip)
   //glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   // allocate texture id
-  glGenTextures(1, &id_);
-  if (! CQGLStateInst->checkError("glGenTextures")) return false;
+  glGenTextures(1, &textureId_);
+  if (! checkError("glGenTextures")) return false;
 
   valid_ = true;
 
-  // set texture type
-  glBindTexture(GL_TEXTURE_2D, id_);
-  if (! CQGLStateInst->checkError("glBindTexture")) return false;
+  // set current texture
+  glBindTexture2D(textureId_);
 
   if (wrapType() == WrapType::CLAMP) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -345,15 +586,15 @@ init(const QImage &image, bool flip)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   }
-  if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+  if (! checkError("glTexParameteri")) return false;
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+  if (! checkError("glTexParameteri")) return false;
 
   // select modulate to mix texture with color for shading
   //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-  //if (! CQGLStateInst->checkError("glTexEnvf")) return false;
+  //if (! checkError("glTexEnvf")) return false;
 
   // build our texture mipmaps
   GLint internalFormat = (useAlpha() ? GL_RGBA : GL_RGB);
@@ -362,19 +603,19 @@ init(const QImage &image, bool flip)
 #if 1
     // Hardware mipmap generation
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP_SGIS, GL_TRUE);
-    if (! CQGLStateInst->checkError("glTexParameteri")) return false;
+    if (! checkError("glTexParameteri")) return false;
 
     glHint(GL_GENERATE_MIPMAP_HINT_SGIS, GL_NICEST);
-    if (! CQGLStateInst->checkError("glHint")) return false;
+    if (! checkError("glHint")) return false;
 #endif
 
     glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width_, height_, 0,
                  GL_BGRA, GL_UNSIGNED_BYTE, &imageData_[0]);
-    if (! CQGLStateInst->checkError("glTexImage2D")) return false;
+    if (! checkError("glTexImage2D")) return false;
 
 #if 0
     glGenerateMipmap(GL_TEXTURE_2D);
-    if (! CQGLStateInst->checkError("glGenerateMipmap")) return false;
+    if (! checkError("glGenerateMipmap")) return false;
 #endif
   }
   else {
@@ -382,11 +623,68 @@ init(const QImage &image, bool flip)
     // good old gluBuild2DMipmaps function
     gluBuild2DMipmaps(GL_TEXTURE_2D, internalFormat, width_, height_,
                       GL_BGRA, GL_UNSIGNED_BYTE, &imageData_[0]);
-    if (! CQGLStateInst->checkError("gluBuild2DMipmaps")) return false;
+    if (! checkError("gluBuild2DMipmaps")) return false;
   }
+
+  // unbind texture
+  glBindTexture2D(0);
 
   return true;
 }
+
+//---
+
+void
+CQGLTexture::
+bindTexture()
+{
+  assert(textureId_ > 0);
+
+  if (type_ == Type::IMAGE || type_ == Type::TARGET)
+    bind();
+  else
+    bindBuffer();
+}
+
+void
+CQGLTexture::
+unbindTexture()
+{
+  assert(textureId_ > 0);
+
+  if (type_ == Type::IMAGE || type_ == Type::TARGET)
+    unbind();
+  else
+    unbindBuffer();
+}
+
+//---
+
+void
+CQGLTexture::
+bindFrameBuffer()
+{
+  assert(textureId_ > 0);
+
+  if (type_ == Type::IMAGE || type_ == Type::TARGET)
+    assert(false);
+  else
+    bind();
+}
+
+void
+CQGLTexture::
+unbindFrameBuffer()
+{
+  assert(textureId_ > 0);
+
+  if (type_ == Type::IMAGE || type_ == Type::TARGET)
+    assert(false);
+  else
+    unbind();
+}
+
+//---
 
 void
 CQGLTexture::
@@ -394,30 +692,49 @@ bind() const
 {
   enable(true);
 
-  if      (type_ == Type::TARGET) {
+  // bind image texture
+  if      (type_ == Type::IMAGE) {
+    glBindTexture2D(textureId_);
+  }
+  // bind target framebuffer
+  else if (type_ == Type::TARGET) {
     assert(frameBufferId_ > 0);
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFrameBuffer(frameBufferId_);
 
-    functions_->glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId_);
     functions_->glViewport(0, 0, targetWidth_, targetHeight_);
 
     // Clear the screen
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   }
+  // bind cube map texture
+  else if (type_ == Type::CUBE_MAP) {
+    glBindTextureCubeMap(textureId_);
+  }
+  // bind shadow framebuffer
   else if (type_ == Type::SHADOW) {
     assert(frameBufferId_ > 0);
 
-    //glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFrameBuffer(frameBufferId_);
 
     functions_->glViewport(0, 0, targetWidth_, targetHeight_);
-    functions_->glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId_);
+
+    // Clear the screen
+    glClear(GL_DEPTH_BUFFER_BIT);
+  }
+  // bind shadow cube map framebuffer
+  else if (type_ == Type::SHADOW_CUBE_MAP) {
+    assert(frameBufferId_ > 0);
+
+    glBindFrameBuffer(frameBufferId_);
+
+    functions_->glViewport(0, 0, targetWidth_, targetHeight_);
 
     // Clear the screen
     glClear(GL_DEPTH_BUFFER_BIT);
   }
   else {
-    glBindTexture(GL_TEXTURE_2D, id_);
+    assert(false);
   }
 }
 
@@ -425,37 +742,77 @@ void
 CQGLTexture::
 unbind() const
 {
-  if      (type_ == Type::TARGET) {
-    assert(frameBufferId_ > 0);
-
-    functions_->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  if      (type_ == Type::IMAGE) {
+    glBindTexture2D(0);
+  }
+  else if (type_ == Type::TARGET) {
+    glBindFrameBuffer(0);
+  }
+  else if (type_ == Type::CUBE_MAP) {
+    glBindTextureCubeMap(0);
   }
   else if (type_ == Type::SHADOW) {
-    assert(frameBufferId_ > 0);
-
-    functions_->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFrameBuffer(0);
   }
-  else
-    glBindTexture(GL_TEXTURE_2D, 0);
+  else if (type_ == Type::SHADOW_CUBE_MAP) {
+    glBindFrameBuffer(0);
+  }
+  else {
+    assert(false);
+  }
 }
+
+//---
 
 void
 CQGLTexture::
 bindBuffer() const
 {
+  // bind texture for frame buffer types
+  // Note: only for frame buffer types !!!
+
+  assert(frameBufferId_);
+
   enable(true);
 
-  if (frameBufferId_)
-    glBindTexture(GL_TEXTURE_2D, id_);
+  if      (type_ == Type::TARGET) {
+    glBindTexture2D(textureId_);
+  }
+  else if (type_ == Type::SHADOW) {
+    glBindTexture2D(textureId_);
+  }
+  else if (type_ == Type::SHADOW_CUBE_MAP) {
+    glBindTextureCubeMap(textureId_);
+  }
+  else {
+    assert(false);
+  }
 }
 
 void
 CQGLTexture::
 unbindBuffer() const
 {
-  if (frameBufferId_)
-    glBindTexture(GL_TEXTURE_2D, 0);
+  // unbind texture for frame buffer types
+  // Note: only for frame buffer types !!!
+
+  assert(frameBufferId_);
+
+  if      (type_ == Type::TARGET) {
+    glBindTexture2D(0);
+  }
+  else if (type_ == Type::SHADOW) {
+    glBindTexture2D(0);
+  }
+  else if (type_ == Type::SHADOW_CUBE_MAP) {
+    glBindTextureCubeMap(0);
+  }
+  else {
+    assert(false);
+  }
 }
+
+//---
 
 void
 CQGLTexture::
@@ -463,6 +820,8 @@ enable(bool b) const
 {
   CQGLStateInst->setEnableTexture(b);
 }
+
+//---
 
 void
 CQGLTexture::
@@ -556,7 +915,7 @@ writeImage(const std::string &filename, const ImageData &data) const
   if (data.debug)
     std::cerr << "write: " << filename << "\n";
 
-  glBindTexture(GL_TEXTURE_2D, getId());
+  glBindTexture2D(getId());
 
   int width, height;
   glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
@@ -567,7 +926,7 @@ writeImage(const std::string &filename, const ImageData &data) const
 
   colors.resize(width*height);
 
-  if (type_ == Type::SHADOW) {
+  if      (type_ == Type::SHADOW) {
     MinMax minMax;
 
     pixels.resize(width*height);
@@ -612,6 +971,9 @@ writeImage(const std::string &filename, const ImageData &data) const
 
     if (data.debug)
       minMax.print("r");
+  }
+  else if (type_ == Type::SHADOW_CUBE_MAP) {
+    std::cerr << "Unimplemented\n";
   }
   else {
     MinMax minMax;
@@ -686,7 +1048,7 @@ writeImage(const std::string &filename, const ImageData &data) const
     }
   }
 
-  glBindTexture(GL_TEXTURE_2D, 0);
+  glBindTexture2D(0);
 
   //---
 
@@ -711,9 +1073,9 @@ writeImage(const std::string &filename, const ImageData &data) const
 
 void
 CQGLTexture::
-getRange(MinMax &minMax) const
+getTextureRange(MinMax &minMax) const
 {
-  glBindTexture(GL_TEXTURE_2D, getId());
+  glBindTexture2D(getId());
 
   int width, height;
   glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
@@ -721,7 +1083,7 @@ getRange(MinMax &minMax) const
 
   std::vector<float> pixels;
 
-  if (type_ == Type::SHADOW) {
+  if      (type_ == Type::SHADOW) {
     pixels.resize(width*height);
 
     glGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &pixels[0]);
@@ -758,8 +1120,67 @@ getRange(MinMax &minMax) const
     }
   }
 
-  glBindTexture(GL_TEXTURE_2D, 0);
+  glBindTexture2D(0);
 }
+
+void
+CQGLTexture::
+getTextureCubeMapRange(MinMax &minMax) const
+{
+  enum { CUBE_MAP_IMAGE_COUNT = 6 };
+
+  glBindTextureCubeMap(getId());
+
+  for (int i = 0; i < CUBE_MAP_IMAGE_COUNT; ++i) {
+    int width, height;
+    glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_TEXTURE_WIDTH, &width);
+    glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_TEXTURE_HEIGHT, &height);
+
+    std::vector<float> pixels;
+
+    if      (type_ == Type::SHADOW_CUBE_MAP) {
+      pixels.resize(width*height);
+
+      glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+                    GL_FLOAT, &pixels[0]);
+
+      int ii = 0;
+
+      for (int iy = 0; iy < height; ++iy) {
+        for (int ix = 0; ix < width; ++ix, ++ii) {
+          auto r = pixels[ii];
+
+          minMax.update(r);
+        }
+      }
+    }
+    else {
+      pixels.resize(4*width*height);
+
+      glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA, GL_FLOAT, &pixels[0]);
+
+      int ii = 0, ii1 = 0;
+
+      for (int iy = 0; iy < height; ++iy) {
+        for (int ix = 0; ix < width; ++ix, ii += 4, ++ii1) {
+          auto r = pixels[ii + 0];
+          auto g = pixels[ii + 1];
+          auto b = pixels[ii + 2];
+        //auto a = pixels[ii + 3];
+
+          minMax.update(r);
+          minMax.update(g);
+          minMax.update(b);
+        //minMax.update(a);
+        }
+      }
+    }
+  }
+
+  glBindTextureCubeMap(0);
+}
+
+//---
 
 void
 CQGLTexture::
@@ -772,4 +1193,69 @@ printBufferStatus()
 
   glGetIntegerv(GL_DRAW_BUFFER, &i);
   std::cerr << "Draw Buffer: " << i << "\n";
+}
+
+//---
+
+void
+CQGLTexture::
+glBindTexture2D(uint id) const
+{
+  if (id > 0) {
+    assert(bindTextureId_ == 0);
+
+    glBindTexture(GL_TEXTURE_2D, id);
+  }
+  else {
+    assert(bindTextureId_ > 0);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+  }
+
+  (void) checkError("glBindTexture");
+
+  auto *th = const_cast<CQGLTexture *>(this);
+  th->bindTextureId_ = id;
+}
+
+void
+CQGLTexture::
+glBindTextureCubeMap(uint id) const
+{
+  if (id > 0) {
+    assert(bindTextureCubeMapId_ == 0);
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, id);
+  }
+  else {
+    assert(bindTextureCubeMapId_ > 0);
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+  }
+
+  (void) checkError("glBindTexture");
+
+  auto *th = const_cast<CQGLTexture *>(this);
+  th->bindTextureCubeMapId_ = id;
+}
+
+void
+CQGLTexture::
+glBindFrameBuffer(uint id) const
+{
+  if (id > 0) {
+    assert(bindFrameBufferId_ == 0);
+
+    functions_->glBindFramebuffer(GL_FRAMEBUFFER, id);
+  }
+  else {
+    assert(bindFrameBufferId_ > 0);
+
+    functions_->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+
+  (void) checkError("glBindFramebuffer");
+
+  auto *th = const_cast<CQGLTexture *>(this);
+  th->bindFrameBufferId_ = id;
 }

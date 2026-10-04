@@ -599,8 +599,11 @@ addNewObject(Object3D *obj)
 {
   auto *skyboxObj = dynamic_cast<Skybox3DObj *>(obj);
 
-  if (skyboxObj)
+  if (skyboxObj) {
+    assert(! skyboxObj_);
+
     skyboxObj_ = skyboxObj;
+  }
 
   //---
 
@@ -1998,9 +2001,20 @@ void
 Canvas3D::
 setProgramShadow(ShaderProgram *program)
 {
-  program->setUniformValue("isShadow", shaderType_ == ShaderType::SHADOW);
+  if (shaderType() == ShaderType::SHADOW_CUBE) {
+    auto *light = currentLight();
 
-  if (shaderType_ == ShaderType::MODEL && isShadowed()) {
+    program->setUniformValue("near_plane", float(light->near()));
+    program->setUniformValue("far_plane" , float(light->far ()));
+
+    return;
+  }
+
+  //---
+
+  program->setUniformValue("isShadow", shaderType() == ShaderType::SHADOW);
+
+  if (shaderType() == ShaderType::MODEL && isShadowed()) {
     CQGLStateInst->setActiveTextureNum(4, true);
     shadowData_.textureBuffer.texture->bindBuffer();
 
@@ -2013,7 +2027,7 @@ setProgramShadow(ShaderProgram *program)
     program->setUniformValue("lightSpaceMatrix", CQGLUtil::toQMatrix(lightMatrix));
   }
   else {
-    //program->setUniformValue("shadowShader", (shaderType_ == ShaderType::SHADOW));
+    //program->setUniformValue("shadowShader", (shaderType() == ShaderType::SHADOW));
 
     program->setUniformValue("shadowMap", 4);
     program->setUniformValue("useShadowMap", false);
@@ -2025,13 +2039,22 @@ setProgramShadow(ShaderProgram *program)
 
 void
 Canvas3D::
+unsetProgramShadow()
+{
+  if (shaderType() == ShaderType::MODEL && isShadowed()) {
+    shadowData_.textureBuffer.texture->unbindBuffer();
+  }
+}
+
+void
+Canvas3D::
 setProgramOutline(ShaderProgram *program)
 {
-  program->setUniformValue("isOutline", shaderType_ == ShaderType::OUTLINE);
+  program->setUniformValue("isOutline", shaderType() == ShaderType::OUTLINE);
 
   program->setUniformValue("outlineColor", CQGLUtil::toVector(outlineData_.color));
 
-  program->setUniformValue("outlinePointScale", shaderType_ == ShaderType::OUTLINE ? 1.03f : 1.00f);
+  program->setUniformValue("outlinePointScale", shaderType() == ShaderType::OUTLINE ? 1.03f : 1.00f);
 }
 
 void
@@ -2116,6 +2139,23 @@ setProgramCamera(ShaderProgram *program, CameraIFace *camera)
   program->setUniformValue("cameraFront", CQGLUtil::toVector(camera->front()));
   program->setUniformValue("cameraRight", CQGLUtil::toVector(camera->right()));
   program->setUniformValue("cameraUp"   , CQGLUtil::toVector(camera->up(  )));
+}
+
+//---
+
+ShaderProgram *
+Canvas3D::
+shadowCubeShaderProgram()
+{
+  if (! shadowCubeShaderProgram_) {
+    shadowCubeShaderProgram_ = new ShaderProgram(app_);
+
+    shadowCubeShaderProgram_->addVertexFile  (app_->buildDir() + "/shaders/shadow_cube_map.vs");
+    shadowCubeShaderProgram_->addFragmentFile(app_->buildDir() + "/shaders/shadow_cube_map.fs");
+    shadowCubeShaderProgram_->addGeometryFile(app_->buildDir() + "/shaders/shadow_cube_map.gs");
+  }
+
+  return shadowCubeShaderProgram_;
 }
 
 //---
@@ -2285,6 +2325,11 @@ Canvas3D::
 setProgramSimpleLight(ShaderProgram *program)
 {
   auto *light = currentLight();
+
+  if (shaderType() == ShaderType::SHADOW_CUBE) {
+    program->setUniformValue("lightPos", CQGLUtil::toVector(light->position()));
+    return;
+  }
 
 #if 1
   setProgramLight(program, light, "light");
@@ -2515,6 +2560,9 @@ render()
     if (! obj || ! obj->isVisible())
       continue;
 
+    if (obj == skyboxObj_ && ! isShowSkybox())
+      continue;
+
     obj->preRender();
   }
 
@@ -2567,26 +2615,61 @@ render()
   //---
 
   if (isShadowed()) {
-    if (! shadowData_.textureBuffer.texture) {
-      shadowData_.textureBuffer.texture = new CQGLTexture;
+    auto *light = currentLight();
 
-      shadowData_.textureBuffer.texture->setFunctions(this);
+    if      (light->getType() == Light3D::Type::DIRECTIONAL) {
+      // draw scene with (directional) light as camera (eye) to texture to get visibilty
+      // from light direction
+      if (! shadowData_.textureBuffer.texture) {
+        shadowData_.textureBuffer.texture = new CQGLTexture;
+
+        shadowData_.textureBuffer.texture->setFunctions(this);
+      }
+
+      if (! shadowData_.textureBuffer.texture->setShadow(shadowData_.size, shadowData_.size))
+        std::cerr << "Set shadow texture failed\n";
+
+      auto oldShaderType = setShaderType(ShaderType::SHADOW);
+
+      shadowData_.textureBuffer.texture->bind();
+
+      shadowData_.textureBuffer.camera = light;
+
+      setViewGlobals(shadowData_.textureBuffer.camera);
+
+      drawContents();
+
+      setShaderType(oldShaderType);
+
+      shadowData_.textureBuffer.texture->unbind();
     }
+    else if (light->getType() == Light3D::Type::POINT) {
+      // draw scene with (point) light as camera (eye) to cube map textures to get visibilty
+      // in all directions
+      if (! shadowCubeData_.textureBuffer.texture) {
+        shadowCubeData_.textureBuffer.texture = new CQGLTexture;
 
-    if (! shadowData_.textureBuffer.texture->setShadow(shadowData_.size, shadowData_.size))
-      std::cerr << "Set shadow texture failed\n";
+        shadowCubeData_.textureBuffer.texture->setFunctions(this);
+      }
 
-    auto oldShaderType = setShaderType(ShaderType::SHADOW);
+      if (! shadowCubeData_.textureBuffer.texture->
+              setShadowCubeMap(shadowCubeData_.size, shadowCubeData_.size))
+        std::cerr << "Set shadow cube texture failed\n";
 
-    shadowData_.textureBuffer.texture->bind();
+      auto oldShaderType = setShaderType(ShaderType::SHADOW_CUBE);
 
-    setViewGlobals(currentLight());
+      shadowCubeData_.textureBuffer.texture->bind();
 
-    drawContents();
+      shadowData_.textureBuffer.camera = light;
 
-    setShaderType(oldShaderType);
+      setViewGlobals(shadowData_.textureBuffer.camera);
 
-    shadowData_.textureBuffer.texture->unbind();
+      drawContents();
+
+      setShaderType(oldShaderType);
+
+      shadowCubeData_.textureBuffer.texture->unbind();
+    }
   }
 
   //---
@@ -2695,6 +2778,31 @@ render()
 
   //---
 
+  if (isShadowed() && isShadowDebug()) {
+    auto *light = currentLight();
+
+    if      (light->getType() == Light3D::Type::DIRECTIONAL) {
+      glViewport(0, 0, textureAreaSize_, textureAreaSize_);
+
+      drawTexture(shadowData_.textureBuffer, /*isDepth*/true);
+    }
+    else if (light->getType() == Light3D::Type::POINT) {
+      glViewport(0, 0, textureAreaSize_, textureAreaSize_);
+
+      drawCubeMapTexture(shadowCubeData_.textureBuffer, /*isDepth*/true);
+    }
+  }
+
+  if (skyboxObj_ && isDebugSkybox()) {
+    glViewport(0, 0, textureAreaSize_, textureAreaSize_);
+
+    skyboxTextureBuffer.texture = skyboxObj_->texture();
+
+    drawCubeMapTexture(skyboxTextureBuffer, /*isDepth*/false);
+  }
+
+  //---
+
   //std::cerr << "BBox: " << newBBox_ << "\n";
 
   //---
@@ -2711,6 +2819,8 @@ render()
 
   // (void) CQGLStateInst->checkError("< Canvas3D::render");
 }
+
+//---
 
 void
 Canvas3D::
@@ -2749,6 +2859,9 @@ drawContents()
 
     for (auto *obj : objects) {
       if (! obj || ! obj->isVisible())
+        continue;
+
+      if (obj == skyboxObj_ && ! isShowSkybox())
         continue;
 
       if (obj->group())
@@ -2993,6 +3106,253 @@ drawSelected()
 
     bindProgram(nullptr);
   }
+}
+
+//---
+
+void
+Canvas3D::
+drawTexture(TextureBuffer &textureBuffer, bool isDepth)
+{
+  CQGLTexture::MinMax minMax;
+
+  if (isDepth) {
+    textureBuffer.texture->getTextureRange(minMax);
+    minMax.print("Texture Min Max");
+  }
+
+  //---
+
+  if (! textureBuffer.shaderProgram) {
+    textureBuffer.shaderProgram = new ShaderProgram(app_);
+
+    textureBuffer.shaderProgram->addVertexFile  (app_->buildDir() + "/shaders/texture.vs");
+    textureBuffer.shaderProgram->addFragmentFile(app_->buildDir() + "/shaders/texture.fs");
+  }
+
+  textureBuffer.shaderProgram->bind();
+
+  textureBuffer.shaderProgram->setUniformValue("near_plane", float(textureBuffer.camera->near()));
+  textureBuffer.shaderProgram->setUniformValue("far_plane" , float(textureBuffer.camera->far ()));
+
+  textureBuffer.shaderProgram->setUniformValue("min_value", float(minMax.min.value_or(0.0)));
+  textureBuffer.shaderProgram->setUniformValue("max_value", float(minMax.max.value_or(1.0)));
+
+  // add plane for texture
+  if (! textureBuffer.buffer) {
+    textureBuffer.buffer = textureBuffer.shaderProgram->createBuffer();
+
+    textureBuffer.buffer->clearBuffers();
+
+    textureBuffer.faceDataList.clear();
+
+    //---
+
+    struct PointData {
+      CPoint2D p;
+      CPoint2D tp;
+
+      PointData() { }
+
+      PointData(const CPoint2D &p1, const CPoint2D &p2) :
+       p(p1), tp(p2) {
+      }
+    };
+
+    auto addPoint = [&](const PointData &p) {
+      textureBuffer.buffer->addPoint(p.p.x, p.p.y, 0.0);
+      textureBuffer.buffer->addTexturePoint(p.tp.x, p.tp.y);
+    };
+
+    auto addPolygon = [&](const std::vector<PointData> &points) {
+      FaceData faceData;
+
+      faceData.pos = textureBuffer.faceDataList.pos;
+      faceData.len = points.size();
+
+      for (const auto &p : points) {
+        addPoint(p);
+      }
+
+      textureBuffer.faceDataList.faceDatas.push_back(faceData);
+
+      textureBuffer.faceDataList.pos += faceData.len;
+    };
+
+    auto addRect = [&](const QRectF &rect) {
+      std::vector<PointData> points;
+
+      points.push_back(PointData(CPoint2D(rect.left (), rect.top   ()), CPoint2D(0, 0)));
+      points.push_back(PointData(CPoint2D(rect.right(), rect.top   ()), CPoint2D(1, 0)));
+      points.push_back(PointData(CPoint2D(rect.right(), rect.bottom()), CPoint2D(1, 1)));
+      points.push_back(PointData(CPoint2D(rect.left (), rect.bottom()), CPoint2D(0, 1)));
+
+      addPolygon(points);
+    };
+
+    addRect(QRectF(-1, -1, 2, 2));
+
+    textureBuffer.buffer->load();
+  }
+
+  //---
+
+  auto oldDepthTest = CQGLStateInst->setDepthTest(false);
+
+  //---
+
+  // model matrix
+  auto modelMatrix = CMatrix3DH::identity();
+  textureBuffer.shaderProgram->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
+
+  textureBuffer.shaderProgram->setUniformValue("textureId", 0);
+
+  textureBuffer.shaderProgram->setUniformValue("isDepth", isDepth);
+
+  //---
+
+  textureBuffer.buffer->bind();
+
+  glEnable(GL_TEXTURE_2D);
+  glActiveTexture(GL_TEXTURE0);
+
+  textureBuffer.texture->bindBuffer();
+
+  for (const auto &faceData : textureBuffer.faceDataList.faceDatas) {
+    glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
+  }
+
+  textureBuffer.texture->unbindBuffer();
+
+  glDisable(GL_TEXTURE_2D);
+
+  textureBuffer.buffer->unbind();
+
+  //---
+
+  textureBuffer.shaderProgram->release();
+
+  CQGLStateInst->setDepthTest(oldDepthTest);
+}
+
+void
+Canvas3D::
+drawCubeMapTexture(TextureBuffer &textureBuffer, bool isDepth)
+{
+  if (! textureBuffer.shaderProgram) {
+    textureBuffer.shaderProgram = new ShaderProgram(app_);
+
+    textureBuffer.shaderProgram->addVertexFile  (app_->buildDir() + "/shaders/texture_cube_map.vs");
+    textureBuffer.shaderProgram->addFragmentFile(app_->buildDir() + "/shaders/texture_cube_map.fs");
+  }
+
+  //---
+
+  textureBuffer.shaderProgram->bind();
+
+  //---
+
+  // add plane for texture
+  if (! textureBuffer.buffer) {
+    textureBuffer.buffer = textureBuffer.shaderProgram->createBuffer();
+
+    textureBuffer.buffer->clearBuffers();
+
+    textureBuffer.faceDataList.clear();
+
+    //---
+
+    struct PointData {
+      CPoint2D p;
+      CPoint2D tp;
+
+      PointData() { }
+
+      PointData(const CPoint2D &p1, const CPoint2D &p2) :
+       p(p1), tp(p2) {
+      }
+    };
+
+    auto addPoint = [&](const PointData &p) {
+      textureBuffer.buffer->addPoint(p.p.x, p.p.y, 0.0);
+      textureBuffer.buffer->addTexturePoint(p.tp.x, p.tp.y);
+    };
+
+    auto addPolygon = [&](const std::vector<PointData> &points) {
+      FaceData faceData;
+
+      faceData.pos = textureBuffer.faceDataList.pos;
+      faceData.len = points.size();
+
+      for (const auto &p : points) {
+        addPoint(p);
+      }
+
+      textureBuffer.faceDataList.faceDatas.push_back(faceData);
+
+      textureBuffer.faceDataList.pos += faceData.len;
+    };
+
+    auto addRect = [&](const QRectF &rect) {
+      std::vector<PointData> points;
+
+      points.push_back(PointData(CPoint2D(rect.left (), rect.top   ()), CPoint2D(0, 0)));
+      points.push_back(PointData(CPoint2D(rect.right(), rect.top   ()), CPoint2D(1, 0)));
+      points.push_back(PointData(CPoint2D(rect.right(), rect.bottom()), CPoint2D(1, 1)));
+      points.push_back(PointData(CPoint2D(rect.left (), rect.bottom()), CPoint2D(0, 1)));
+
+      addPolygon(points);
+    };
+
+    addRect(QRectF(-1, -1, 2, 2));
+
+    textureBuffer.buffer->load();
+  }
+
+  //---
+
+  auto oldDepthTest = CQGLStateInst->setDepthTest(false);
+
+  //---
+
+  // model matrix
+  auto modelMatrix = CMatrix3DH::identity();
+  textureBuffer.shaderProgram->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
+
+  textureBuffer.shaderProgram->setUniformValue("textureId", 0);
+
+  //---
+
+  textureBuffer.buffer->bind();
+
+  glEnable(GL_TEXTURE_2D);
+  glActiveTexture(GL_TEXTURE0);
+
+  if (isDepth)
+    textureBuffer.texture->bindBuffer();
+  else
+    textureBuffer.texture->bind();
+
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+  for (const auto &faceData : textureBuffer.faceDataList.faceDatas) {
+    glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
+  }
+
+  if (isDepth)
+    textureBuffer.texture->unbindBuffer();
+  else
+    textureBuffer.texture->unbind();
+
+  glDisable(GL_TEXTURE_2D);
+
+  textureBuffer.buffer->unbind();
+
+  //---
+
+  textureBuffer.shaderProgram->release();
+
+  CQGLStateInst->setDepthTest(oldDepthTest);
 }
 
 //---

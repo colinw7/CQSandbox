@@ -38,6 +38,8 @@ class Skybox3DObj : public Object3D {
   double boxSize() const { return boxSize_; }
   void setBoxSize(double r) { boxSize_ = r; }
 
+  CQGLTexture *texture() const { return texture_; }
+
   //---
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
