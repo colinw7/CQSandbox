@@ -28,6 +28,8 @@ class Path2DObj : public Object2D {
 
  protected:
   QPainterPath path_;
+  double       angle_ { 0.0 };
+  CPoint2D     p_;
 };
 
 }

@@ -841,10 +841,10 @@ inline double radToDeg(double d) {
 
 //---
 
-inline QPainterPath stringToPath(const QString &str) {
-  QPainterPath path;
-  (void) CQSVGUtil::stringToPath(str, path);
-  return path;
+inline bool stringToPath(const QString &str, QPainterPath &path) {
+  if (! CQSVGUtil::stringToPath(str, path))
+    return false;
+  return true;
 }
 
 inline QString pathToString(const QPainterPath &path) {

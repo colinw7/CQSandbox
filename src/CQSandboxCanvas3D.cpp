@@ -9,14 +9,12 @@
 #include <CQSandboxBBox3DObj.h>
 #include <CQSandboxCsv3DObj.h>
 #include <CQSandboxCube3DObj.h>
-#include <CQSandboxDungeon3DObj.h>
 #include <CQSandboxGraph3DObj.h>
 #include <CQSandboxGrid3DObj.h>
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxJson3DObj.h>
 #include <CQSandboxLineList3DObj.h>
 #include <CQSandboxModel3DObj.h>
-#include <CQSandboxOthello3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxPath3DObj.h>
 #include <CQSandboxPoint3DObj.h>
@@ -33,6 +31,14 @@
 #include <CQSandboxText3DObj.h>
 #include <CQSandboxVector3DObj.h>
 #include <CQSandboxXML3DObj.h>
+
+#ifdef CQSANDBOX_OTHELLO
+#include <CQSandboxOthello3DObj.h>
+#endif
+
+#ifdef CQSANDBOX_DUNGEON
+#include <CQSandboxDungeon3DObj.h>
+#endif
 
 #include <CQSandboxApp.h>
 #include <CQSandboxCamera.h>
@@ -2001,39 +2007,73 @@ void
 Canvas3D::
 setProgramShadow(ShaderProgram *program)
 {
-  if (shaderType() == ShaderType::SHADOW_CUBE) {
-    auto *light = currentLight();
+ auto *light = currentLight();
 
-    program->setUniformValue("near_plane", float(light->near()));
-    program->setUniformValue("far_plane" , float(light->far ()));
+  program->setUniformValue("shadowBias", float(shadowBias()));
 
-    return;
-  }
+  program->setUniformValue("near_plane", float(light->near()));
+  program->setUniformValue("far_plane" , float(light->far ()));
 
   //---
 
-  program->setUniformValue("isShadow", shaderType() == ShaderType::SHADOW);
+  program->setUniformValue("isShadow",
+    shaderType() == ShaderType::SHADOW || shaderType() == ShaderType::SHADOW_CUBE);
+
+  //---
+
+  program->setUniformValue("shadowMap", 4);
+  program->setUniformValue("shadowCubeMap", 5);
+
+  program->setUniformValue("useShadowMap", false);
+  program->setUniformValue("useShadowCubeMap", false);
 
   if (shaderType() == ShaderType::MODEL && isShadowed()) {
-    CQGLStateInst->setActiveTextureNum(4, true);
-    shadowData_.textureBuffer.texture->bindBuffer();
+    if (shadowData_.textureBuffer.texture) {
+      CQGLStateInst->setActiveTextureNum(4, true);
+      shadowData_.textureBuffer.texture->bindBuffer();
 
-    program->setUniformValue("shadowMap", 4);
-    program->setUniformValue("useShadowMap", true);
+      program->setUniformValue("useShadowMap", true);
+    }
 
-    auto *light = currentLight();
+    if (shadowCubeData_.textureBuffer.texture) {
+      CQGLStateInst->setActiveTextureNum(5, true);
+      shadowCubeData_.textureBuffer.texture->bindBuffer();
 
-    auto lightMatrix = light->worldMatrix()*light->viewMatrix();
-    program->setUniformValue("lightSpaceMatrix", CQGLUtil::toQMatrix(lightMatrix));
+      program->setUniformValue("useShadowCubeMap", true);
+    }
   }
-  else {
-    //program->setUniformValue("shadowShader", (shaderType() == ShaderType::SHADOW));
 
-    program->setUniformValue("shadowMap", 4);
-    program->setUniformValue("useShadowMap", false);
+  if (shaderType() == ShaderType::SHADOW_CUBE) {
+    std::vector<CMatrix3DH> shadowTransforms;
 
-    auto lightMatrix = CMatrix3DH::identity();
-    program->setUniformValue("lightSpaceMatrix", CQGLUtil::toQMatrix(lightMatrix));
+    shadowTransforms.resize(6);
+
+    auto shadowProj = shadowCubeData_.textureBuffer.camera->worldMatrix();
+
+    auto addShadowTransform = [&](uint i, const CVector3D &front, const CVector3D &up) {
+      CMatrix3DH viewMatrix;
+
+      auto lightPos = shadowCubeData_.textureBuffer.camera->position();
+
+      auto right = front.crossProduct(up);
+
+      viewMatrix.setLookAt(lightPos.point(), front, up, right);
+
+      shadowTransforms[i] = shadowProj*viewMatrix;
+    };
+
+    addShadowTransform(0, CVector3D( 1.0,  0.0,  0.0), CVector3D(0.0, -1.0,  0.0)); // left
+    addShadowTransform(1, CVector3D(-1.0,  0.0,  0.0), CVector3D(0.0, -1.0,  0.0)); // right
+    addShadowTransform(2, CVector3D( 0.0,  1.0,  0.0), CVector3D(0.0,  0.0,  1.0)); // up
+    addShadowTransform(3, CVector3D( 0.0, -1.0,  0.0), CVector3D(0.0,  0.0, -1.0)); // down
+    addShadowTransform(4, CVector3D( 0.0,  0.0,  1.0), CVector3D(0.0, -1.0,  0.0)); // front
+    addShadowTransform(5, CVector3D( 0.0,  0.0, -1.0), CVector3D(0.0, -1.0,  0.0)); // back
+
+    for (uint i = 0; i < shadowTransforms.size(); ++i) {
+      auto name = "shadowMatrices[" + std::to_string(i) + "]";
+
+      program->setUniformValue(name.c_str(), CQGLUtil::toQMatrix(shadowTransforms[i]));
+    }
   }
 }
 
@@ -2042,7 +2082,11 @@ Canvas3D::
 unsetProgramShadow()
 {
   if (shaderType() == ShaderType::MODEL && isShadowed()) {
-    shadowData_.textureBuffer.texture->unbindBuffer();
+    if (shadowData_.textureBuffer.texture)
+      shadowData_.textureBuffer.texture->unbindBuffer();
+
+    if (shadowCubeData_.textureBuffer.texture)
+      shadowCubeData_.textureBuffer.texture->unbindBuffer();
   }
 }
 
@@ -2169,6 +2213,8 @@ currentLight() const
   if (lights_.empty()) {
     auto *light = new Light3D(th, Light3D::Type::DIRECTIONAL);
 
+    light->setIndex(lights_.size());
+
     connect(light, SIGNAL(changedSignal()), this, SLOT(lightChangeSlot()));
 
     th->lights_.push_back(light);
@@ -2201,7 +2247,8 @@ updateLights()
 
   //---
 
-  if (lights_.size() == maxNumLights_) return;
+  if (lights_.size() == maxNumLights_)
+    return;
 
   while (lights_.size() < maxNumLights_) {
     auto *light = new Light3D(this, Light3D::Type::DIRECTIONAL);
@@ -2365,6 +2412,12 @@ setProgramLights(ShaderProgram *program)
     if (il >= maxNumLights_)
       break;
   }
+
+  //---
+
+  auto *light = currentLight();
+
+  program->setUniformValue("lightPos", CQGLUtil::toVector(light->position()));
 }
 
 void
@@ -2426,6 +2479,14 @@ setProgramLight(ShaderProgram *program, Light3D *light, const QString &lightName
     program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
   }
 #endif
+
+  //---
+
+  auto lightMatrix = light->worldMatrix()*light->viewMatrix();
+
+  std::string varName = "lightSpaceMatrix[" + std::to_string(light->index()) + "]";
+
+  program->setUniformValue(varName.c_str(), CQGLUtil::toQMatrix(lightMatrix));
 }
 
 void
@@ -2660,15 +2721,20 @@ render()
 
       shadowCubeData_.textureBuffer.texture->bind();
 
-      shadowData_.textureBuffer.camera = light;
+      shadowCubeData_.textureBuffer.camera = light;
 
-      setViewGlobals(shadowData_.textureBuffer.camera);
+      auto oldFov = shadowCubeData_.textureBuffer.camera->fov();
+      shadowCubeData_.textureBuffer.camera->setFov(90.0);
+
+      setViewGlobals(shadowCubeData_.textureBuffer.camera);
 
       drawContents();
 
       setShaderType(oldShaderType);
 
       shadowCubeData_.textureBuffer.texture->unbind();
+
+      shadowCubeData_.textureBuffer.camera->setFov(oldFov);
     }
   }
 
@@ -3325,15 +3391,16 @@ drawCubeMapTexture(TextureBuffer &textureBuffer, bool isDepth)
 
   textureBuffer.buffer->bind();
 
-  glEnable(GL_TEXTURE_2D);
-  glActiveTexture(GL_TEXTURE0);
+  CQGLStateInst->setEnableTexture(true);
+
+  CQGLStateInst->setActiveTextureNum(0, true);
 
   if (isDepth)
     textureBuffer.texture->bindBuffer();
   else
     textureBuffer.texture->bind();
 
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+  CQGLStateInst->setPolygonMode(GL_FILL);
 
   for (const auto &faceData : textureBuffer.faceDataList.faceDatas) {
     glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
@@ -3344,7 +3411,7 @@ drawCubeMapTexture(TextureBuffer &textureBuffer, bool isDepth)
   else
     textureBuffer.texture->unbind();
 
-  glDisable(GL_TEXTURE_2D);
+  CQGLStateInst->setEnableTexture(false);
 
   textureBuffer.buffer->unbind();
 

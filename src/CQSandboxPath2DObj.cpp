@@ -17,8 +17,10 @@ create(Canvas2D *canvas, const QStringList &args)
 
   QPainterPath path;
 
-  if (args.size() >= 1)
-    path = Util::stringToPath(args[0]);
+  if (args.size() >= 1) {
+    if (! Util::stringToPath(args[0], path))
+      return false;
+  }
 
   auto *obj = new Path2DObj(canvas, path);
 
@@ -51,8 +53,16 @@ bool
 Path2DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  if (name == "path") {
-    path_ = Util::stringToPath(value);
+  if       (name == "path") {
+    if (! Util::stringToPath(value, path_))
+      return false;
+  }
+  else if (name == "angle") {
+    double a;
+    if (! Util::stringToReal(value, a))
+      return false;
+
+    angle_ = CMathGen::DegToRad(a);
   }
   else
     return Object2D::setValue(name, value, args);
@@ -75,6 +85,8 @@ exec(const QString &op, const QStringList &args, QVariant &res)
       return false;
 
     path_.moveTo(p.x, p.y);
+
+    p_ = p;
   }
   else if (op == "lineTo") {
     if (args.size() < 1)
@@ -85,6 +97,8 @@ exec(const QString &op, const QStringList &args, QVariant &res)
       return false;
 
     path_.lineTo(p.x, p.y);
+
+    p_ = p;
   }
   else if (op == "curveTo") {
     if (args.size() < 2)
@@ -104,9 +118,41 @@ exec(const QString &op, const QStringList &args, QVariant &res)
         return false;
 
       path_.cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+
+      p_ = p3;
     }
-    else
+    else {
       path_.quadTo(p1.x, p1.y, p2.x, p2.y);
+
+      p_ = p2;
+    }
+  }
+  else if (op == "step") {
+    if (args.size() < 1)
+      return false;
+
+    double d;
+    if (! Util::stringToReal(args[0], d))
+      return false;
+
+    auto dx = d*std::cos(angle_);
+    auto dy = d*std::sin(angle_);
+
+    auto p = p_ + CPoint2D(dx, dy);
+
+    path_.lineTo(p.x, p.y);
+
+    p_ = p;
+  }
+  else if (op == "turn") {
+    if (args.size() < 1)
+      return false;
+
+    double a;
+    if (! Util::stringToReal(args[0], a))
+      return false;
+
+    angle_ += CMathGen::DegToRad(a);
   }
   else
     return Object2D::exec(op, args, res);

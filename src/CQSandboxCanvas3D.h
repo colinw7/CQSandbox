@@ -841,7 +841,7 @@ class Canvas3D : public OpenGLWindow {
   struct ShadowData {
     bool          enabled     { false };
     bool          lightBuffer { true };
-    double        bias        { 0.01 };
+    double        bias        { 0.001 }; // 0.00001
     CEnvVar<bool> debug       { "CQSHADOW_SHADOW_DEBUG" };
     int           size        { 1024 };
 

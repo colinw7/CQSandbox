@@ -4,7 +4,6 @@ in vec4 FragPos;
 in vec3 Normal;
 in vec3 Color;
 in vec2 TexCoord;
-in vec4 FragPosLightSpace;
 
 out vec4 FragColor;
 
@@ -29,6 +28,7 @@ struct Light {
   float attenuation1;
   float attenuation2;
   float power;
+  mat4  matrix;
 };
 
 #define NUM_LIGHTS 5
@@ -48,15 +48,30 @@ uniform float emissiveStrength;
 uniform float shininess;
 
 //--- Shadows
+
+in  vec4 FragPosLightSpace[NUM_LIGHTS]; // for directional shadow
+out vec4 ShadowColor;                   // for cube map shadow debug
+
+uniform float shadowBias;
+uniform float far_plane;
+
+// Directional Shadow
 uniform sampler2D shadowMap;
 uniform bool      useShadowMap;
 uniform bool      isShadow;
 
+// Point Cube Map Shadow
+uniform samplerCube shadowCubeMap;
+uniform bool        useShadowCubeMap;
+//uniform bool        shadowMapDebug;
+
 //--- Outline
+
 uniform bool isOutline;
 uniform vec3 outlineColor;
 
 //--- Skybox
+
 uniform samplerCube cubeMap;
 uniform bool        useCubeMap;
 
@@ -138,6 +153,34 @@ vec3 calcEmissionColor() {
 
 //---
 
+float shadowCubeMapCalculation(vec3 fragPos, vec3 lightPos) {
+  // get vector between fragment position and light position
+  vec3 fragToLight = fragPos - lightPos;
+
+  // use the fragment to light vector to sample from the depth map
+  float closestDepth = texture(shadowCubeMap, fragToLight).r;
+  //float closestDepth = 0.0;
+
+  // it is currently in linear range between [0,1],
+  // let's re-transform it back to original depth value
+  closestDepth *= far_plane;
+
+  // now get current linear depth as the length between the fragment and light position
+  float currentDepth = length(fragToLight);
+
+  // test for shadows
+  // we use a much larger bias since depth is now in [near_plane, far_plane] range
+//float bias = 0.05;
+  float bias = shadowBias;
+
+  float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+
+  // display closestDepth as debug (to visualize depth cubemap)
+  ShadowColor = vec4(vec3(closestDepth/far_plane), 1.0);
+
+  return shadow;
+}
+
 float shadowCalculation(vec4 fragPosLightSpace) {
   // perform perspective divide
   vec3 projCoord = fragPosLightSpace.xyz/fragPosLightSpace.w;
@@ -151,13 +194,157 @@ float shadowCalculation(vec4 fragPosLightSpace) {
   // get depth of current fragment from light's perspective
   float currentDepth = projCoord.z;
 
-  float bias = 0.00001;
+// calculate bias (based on depth map resolution and slope)
+/*
+  vec3 normal = normalize(Normal);
+  vec3 lightDir = normalize(lightPos - FragPos);
+  float bias = max(0.05*(1.0 - dot(normal, lightDir)), 0.005);
+*/
+  float bias = shadowBias;
 
   // check whether current frag pos is in shadow
   float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
 //float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
 
+/*
+  // PCF
+  float shadow = 0.0;
+  vec2 texelSize = 1.0/textureSize(shadowMap, 0);
+  for (int x = -1; x <= 1; ++x) {
+    for (int y = -1; y <= 1; ++y) {
+      float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y)*texelSize).r;
+      shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+    }
+  }
+  shadow /= 9.0;
+*/
+
+  //float shadow = currentDepth - shadowBias > closestDepth ? 1.0 : 0.0;
+  //float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+
   return shadow;
+}
+
+//---
+
+vec3 calcDirectionalLight(int i, vec3 norm, vec3 diffuseColor, vec3 specColor, vec3 viewDir) {
+  float shadow = 0.0;
+  if (useShadowMap) {
+    shadow = shadowCalculation(FragPosLightSpace[i]);
+  }
+
+  //vec3 lightDir = normalize(lights[i].position - vec3(FragPos));
+  vec3 lightDir = normalize(-lights[i].direction);
+
+  // diffuse light color
+  float diffAmt = calcDiffuseFactor(lightDir, norm);
+
+  // specular light color
+  float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
+
+  return (1 - shadow)*(diffAmt*lights[i].color*diffuseColor +
+                       specAmt*lights[i].color*specColor);
+}
+
+vec3 calcPointLight(int i, vec3 norm, vec3 diffuseColor, vec3 specColor, vec3 viewDir) {
+  float shadow = 0.0;
+  if (useShadowCubeMap) {
+    shadow = shadowCubeMapCalculation(vec3(FragPos), lights[i].position);
+    //return vec3(shadow, shadow, shadow);
+    if (shadow < 0) return vec3(1, 0, 0);
+    if (shadow > 1) return vec3(0, 1, 0);
+  }
+
+  vec3 toLight = lights[i].position - vec3(FragPos);
+  vec3 lightDir = normalize(toLight);
+
+  // diffuse light color
+  float falloff = 1.0;
+
+  if (lights[i].radius > 0.0) {
+    float distToLight = length(toLight);
+
+    /*
+    falloff = 1.0/(lights[i].attenuation0 +
+                   distToLight*(lights[i].attenuation1 +
+                         distToLight*lights[i].attenuation2));
+    */
+    falloff = max(0.0, 1.0 - (distToLight/lights[i].radius));
+  }
+
+  float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
+
+  // specular light color
+  float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
+
+  return (1 - shadow)*(diffAmt*lights[i].color*diffuseColor +
+                       specAmt*lights[i].color*specColor);
+}
+
+vec3 calcSpotLight(int i, vec3 norm, vec3 diffuseColor, vec3 specColor, vec3 viewDir) {
+  vec3 toLight  = lights[i].position - vec3(FragPos);
+  vec3 lightDir = normalize(toLight);
+
+  float diffFactor = 1.0; 
+
+  vec3 lightDir1 = normalize(-lights[i].direction);
+
+  // diffuse light color
+  float angle = dot(lights[i].direction, -lightDir);
+
+  // cos(0) = 1 (parallel), cos(90) = 0 (perp)
+  // cutoff is cos(angle) so inside if greater
+  
+  float falloff = 0.0;
+  if (lights[i].outerCutoff < lights[i].cutoff) {
+    float epsilon = lights[i].cutoff - lights[i].outerCutoff;
+    falloff = clamp((angle - lights[i].outerCutoff)/epsilon, 0.0, 1.0);
+  } else {
+    falloff = clamp(angle/lights[i].cutoff, 0.0, 1.0);
+  }
+  falloff = pow(falloff, lights[i].exponent);
+  
+  //if (angle > lights[i].cutoff) {
+  //  falloff = pow(angle, lights[i].exponent);
+  //}
+
+  float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
+
+  // specular light color
+  float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
+
+  return diffAmt*lights[i].color*diffuseColor + specAmt*lights[i].color*specColor;
+}
+
+vec3 calcFlashLight(int i, vec3 norm, vec3 diffuseColor, vec3 specColor, vec3 viewDir) {
+  vec3 toLight  = viewPos - vec3(FragPos);
+  vec3 lightDir = normalize(toLight);
+
+  // diffuse light color
+  float angle = max(dot(lightDir, norm), 0.0);
+
+  // cos(0) = 1 (parallel), cos(90) = 0 (perp)
+  // cutoff is cos(angle) so inside if greater
+
+  float falloff = 0.0;
+  if (lights[i].outerCutoff < lights[i].cutoff) {
+    float epsilon = lights[i].cutoff - lights[i].outerCutoff;
+    falloff = clamp((angle - lights[i].outerCutoff)/epsilon, 0.0, 1.0);
+  } else {
+    falloff = clamp(angle/lights[i].cutoff, 0.0, 1.0);
+  }
+  falloff = pow(falloff, lights[i].exponent);
+
+  //if (angle > lights[i].cutoff) {
+  //  falloff = pow(angle, lights[i].exponent);
+  //}
+
+  float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
+
+  // specular light color
+  float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
+
+  return diffAmt*lights[i].color*diffuseColor + specAmt*lights[i].color*specColor;
 }
 
 //---
@@ -214,22 +401,13 @@ void main() {
   // specular color
   vec3 specColor = calcSpecularColor();
 
-  vec3 diffuseColor1 = diffuseColor;
-
   if     (reflectionMap) {
     //specColor = reflectColor;
-    diffuseColor1 = (1 - reflectivity)*diffuseColor + reflectivity*reflectColor;
+    diffuseColor = (1 - reflectivity)*diffuseColor + reflectivity*reflectColor;
   }
   else if (refractionMap) {
     //specColor = refractColor;
-    diffuseColor1 = (1 - refractivity)*diffuseColor + refractivity*refractColor;
-  }
-
-  //---
-
-  float shadow = 0.0;
-  if (useShadowMap) {
-    shadow = shadowCalculation(FragPosLightSpace);
+    diffuseColor = (1 - refractivity)*diffuseColor + refractivity*refractColor;
   }
 
   //---
@@ -247,36 +425,16 @@ void main() {
     lit = true;
 
     if      (lights[i].type == 0) { // directional
-      //vec3 lightDir = normalize(lights[i].position - vec3(FragPos));
-      vec3 lightDir = normalize(-lights[i].direction);
-
-      float diffAmt = calcDiffuseFactor(lightDir, norm);
-      float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
-
-      result += (1 - shadow)*(diffAmt*lights[i].color*diffuseColor1 +
-                              specAmt*lights[i].color*specColor);
+      result += calcDirectionalLight(i, norm, diffuseColor, specColor, viewDir);
     }
     else if (lights[i].type == 1) { // point
-      vec3 toLight = lights[i].position - vec3(FragPos);
-      vec3 lightDir = normalize(toLight);
-      float distToLight = length(toLight);
-      float falloff = max(0.0, 1.0 - (distToLight/lights[i].radius));
-
-      float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
-      float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess)*falloff;
-
-      result += diffAmt*lights[i].color*diffuseColor1 + specAmt*lights[i].color*specColor;
+      result += calcPointLight(i, norm, diffuseColor, specColor, viewDir);
     }
     else if (lights[i].type == 2) { // spot
-      vec3 toLight = lights[i].position - vec3(FragPos);
-      vec3 lightDir = normalize(toLight);
-      float angle = dot(lights[i].direction, -lightDir);
-      float falloff = (angle > lights[i].cutoff ? 1.0 : 0.0);
-
-      float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
-      float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess)*falloff;
-
-      result += diffAmt*lights[i].color*diffuseColor1 + specAmt*lights[i].color*specColor;
+      result += calcSpotLight(i, norm, diffuseColor, specColor, viewDir);
+    }
+    else if (lights[i].type == 3) { // flashlight
+      result += calcFlashLight(i, norm, diffuseColor, specColor, viewDir);
     }
   }
 
@@ -284,7 +442,7 @@ void main() {
   if (! lit) {
     float diffFactor = max(dot(norm, viewDir), 0.0);
 
-    result += diffFactor*diffuseColor1;
+    result += diffFactor*diffuseColor;
   }
 
   //---
@@ -299,4 +457,10 @@ void main() {
   // adjust color by state
 
   FragColor = (isWireframe ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(result, transparency));
+
+/*
+  if (shadowMapDebug) {
+    FragColor = ShadowColor;
+  }
+*/
 }

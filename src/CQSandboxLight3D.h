@@ -31,6 +31,9 @@ class Light3D : public CameraIFace, public CGeomLight3D {
   int id() const { return id_; }
   void setId(int i) { id_ = i; notifyChanged(); }
 
+  int index() const { return index_; }
+  void setIndex(int i) { index_ = i; }
+
   void setName(const std::string &name);
 
   //---
@@ -59,6 +62,10 @@ class Light3D : public CameraIFace, public CGeomLight3D {
 
   //---
 
+  void setFov(double r) override { fov_ = r; }
+
+  //---
+
   void initBuffer();
   void initShader();
 
@@ -77,6 +84,7 @@ class Light3D : public CameraIFace, public CGeomLight3D {
 
   Canvas3D*   canvas_ { nullptr };
   int         id_     { 0 };
+  int         index_  { 0 };
   CQGLBuffer* buffer_ { nullptr };
 
   mutable CVector3D position_;
