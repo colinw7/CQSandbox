@@ -2299,6 +2299,7 @@ classCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   return TCL_OK;
 }
+
 int
 Canvas2D::
 viewportCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
@@ -2413,7 +2414,6 @@ mapProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 
   return TCL_OK;
 }
-
 
 int
 Canvas2D::

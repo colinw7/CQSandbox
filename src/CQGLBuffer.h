@@ -206,6 +206,11 @@ class CQGLBuffer {
 
   uint numInds() const { return data_.inds.size(); }
 
+  uint getInd(int i) {
+    return data_.inds[i];
+  }
+
+  // map ind to position in inds array
   int mapInd(uint ind) const {
     int i = -1;
 
@@ -503,6 +508,31 @@ class CQGLBuffer {
 
   //---
 
+  struct DrawData {
+    int  mode    { GL_TRIANGLES };
+    int  pos     { 0 };
+    int  len     { -1 };
+    bool indexed { false };
+  };
+
+  void drawData(const DrawData &data) {
+    if (data.indexed) {
+      if (data.len >= 0)
+        glDrawElements(data.mode, data.len, GL_UNSIGNED_INT,
+                       reinterpret_cast<void *>(data.pos*sizeof(int)));
+      else
+        glDrawElements(data.mode, int(numIndices()), GL_UNSIGNED_INT, nullptr);
+    }
+    else {
+      if (data.len >= 0)
+        glDrawArrays(data.mode, data.pos, data.len);
+      else
+        glDrawArrays(data.mode, 0, int(numPoints()));
+    }
+  }
+
+  //---
+
   void drawTriangles() {
     glDrawArrays(GL_TRIANGLES, 0, int(numPoints()));
   }
@@ -765,6 +795,46 @@ class CQGLBuffer {
   };
 
   Data data_;
+};
+
+//---
+
+#define CQGLBufferMgrInst CQGLBufferMgr::getInstance()
+
+class CQGLBufferMgr {
+ public:
+  static CQGLBufferMgr *getInstance() {
+    static CQGLBufferMgr *inst;
+
+    if (! inst)
+      inst = new CQGLBufferMgr;
+
+    return inst;
+  }
+
+ ~CQGLBufferMgr() { }
+
+  void addBuffer(CQGLBuffer *buffer) {
+    assert(buffer->ind() > 0);
+
+    auto pb = buffers_.find(buffer->ind());
+    assert(pb == buffers_.end());
+
+    buffers_[buffer->ind()] = buffer;
+  }
+
+  CQGLBuffer *getBuffer(uint ind) const {
+    auto pb = buffers_.find(ind);
+    if (pb == buffers_.end()) return nullptr;
+
+    return (*pb).second;
+  }
+
+ private:
+  CQGLBufferMgr() { }
+
+ private:
+  std::map<uint, CQGLBuffer *> buffers_;
 };
 
 #endif

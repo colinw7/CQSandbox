@@ -18,6 +18,7 @@ class CQRubberBand;
 class CGeomObject3D;
 class CGeomFace3D;
 class CGLCameraIFace;
+class CQGLBuffer;
 
 namespace CQSandbox {
 
@@ -168,7 +169,7 @@ class Overview3D : public QFrame {
   void updateObject(Object3D *object);
   void updateGroup(Group3DObj *obj);
   void updateModel(Model3DObj *obj);
-  void updateGeomObject(CGeomObject3D *object);
+  void updateGeomObject(Model3DObj *obj, CGeomObject3D *object);
   void updateLineList(LineList3DObj *obj);
   void updateParticleList(ParticleList3DObj *obj);
   void updatePath(Path3DObj *obj);
@@ -183,7 +184,7 @@ class Overview3D : public QFrame {
   void drawObject(Object3D *object);
   void drawGroup(Group3DObj *obj);
   void drawModel(Model3DObj *obj);
-  void drawGeomObject(CGeomObject3D *object);
+  void drawGeomObject(Model3DObj *obj, CGeomObject3D *object);
   void drawLineList(LineList3DObj *obj);
   void drawParticleList(ParticleList3DObj *obj);
   void drawPath(Path3DObj *obj);
@@ -338,15 +339,15 @@ class Overview3D : public QFrame {
   //---
 
   struct Face {
-    CGeomFace3D*          face { nullptr };
     QColor                color;
     std::vector<CPoint3D> points;
-    int                   ind { -1 };
+    int                   ind    { -1 };
   };
 
   using Faces = std::vector<Face>;
 
-  using ObjFaces = std::map<CGeomObject3D *, Faces>;
+  using GeomObjFaces = std::map<CGeomObject3D *, Faces>;
+  using ObjFaces     = std::map<Object3D *, Faces>;
 
   //---
 
@@ -379,6 +380,7 @@ class Overview3D : public QFrame {
   using ViewSortedPolygon2DArray = std::map<int, SortedPolygon2DArray>;
   using ViewSortedLine2DArray    = std::map<int, SortedPolygon2DArray>;
   using ViewSortedPoint2DArray   = std::map<int, SortedPoint2DArray>;
+  using GeomObjMap               = std::map<CGeomObject3D *, Model3DObj *>;
 
   struct DrawData {
     QPainter* painter { nullptr };
@@ -389,8 +391,10 @@ class Overview3D : public QFrame {
     CMatrix3DH modelMatrix;
     CMatrix3DH meshMatrix;
 
-    ObjFaces objFaces;
-    CBBox3D  bbox;
+    GeomObjFaces geomObjFaces;
+    ObjFaces     objFaces;
+    CBBox3D      bbox;
+    GeomObjMap   geomObjMap;
 
     double near { 0.0 };
     double far  { 1.0 };

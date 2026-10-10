@@ -16,7 +16,9 @@ uniform float diffuseStrength;
 uniform float specularStrength;
 uniform float shininess;
 
-uniform bool isWireframe;
+uniform bool  isWireframe;
+uniform vec3  wireframeColor;
+uniform float wireframeAlpha;
 
 void main() {
   vec3 norm = normalize(Normal);
@@ -38,7 +40,7 @@ void main() {
   vec3 result = ambient + diffuse + specular;
 
   if (isWireframe)
-    FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    FragColor = vec4(wireframeColor, wireframeAlpha);
   else
     FragColor = vec4(result, 1.0f);
 }

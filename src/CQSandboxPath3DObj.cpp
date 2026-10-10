@@ -307,6 +307,22 @@ updateGL()
   }
 
   buffer_->load();
+
+  //---
+
+  pointDatas_.clear();
+
+  PointData pointData;
+
+  pointData.buffer = buffer_;
+
+  std::vector<int> pointInds = { 0, 1, 2, 4 };
+
+  for (uint i = 0; i < np; ++i) {
+    pointData.ind = i;
+
+    pointDatas_.push_back(pointData);
+  }
 }
 
 CBBox3D
@@ -335,8 +351,10 @@ render()
 
   //---
 
+  auto *program = shaderProgram();
+
   setModelMatrix();
-  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
@@ -350,6 +368,33 @@ render()
 
   //---
 
+  auto drawPoints = [&]() {
+    if (getPointDatas().empty())
+      return;
+
+    program->setUniformValue("isPoint", true);
+    program->setUniformValue("isLine" , false);
+
+    CQGLBuffer::DrawData drawData;
+
+    CQGLStateInst->setPointSize(8);
+
+    drawData.mode    = GL_POINTS;
+    drawData.indexed = buffer_->hasIndices();
+    drawData.len     = 1;
+
+    for (const auto &pointData : getPointDatas()) {
+      drawData.pos = pointData.ind;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  if (canvas_->editType() == Canvas3D::EditType::POINT)
+    drawPoints();
+
+  //---
+
   canvas_->bindBuffer(nullptr);
 }
 
@@ -357,11 +402,13 @@ void
 Path3DObj::
 initDraw(Canvas3D *canvas)
 {
-  canvas->bindProgram(s_program);
+  auto *program = shaderProgram();
+
+  canvas->bindProgram(program);
 
   //---
 
-  canvas->setProgramMatrices(s_program);
+  canvas->setProgramMatrices(program);
 }
 
 void

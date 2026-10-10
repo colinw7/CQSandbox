@@ -15,6 +15,7 @@ class CFlag;
 
 namespace CQSandbox {
 
+class Material3D;
 class ShaderProgram;
 
 class Surface3DObj : public Object3D {
@@ -27,6 +28,8 @@ class Surface3DObj : public Object3D {
 
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
+
+  static ShaderProgram* shaderProgram() { return s_program; }
 
   //---
 
@@ -44,8 +47,12 @@ class Surface3DObj : public Object3D {
   int nx() const { return nx_; }
   int ny() const { return ny_; }
 
+  //---
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  //---
 
   void resizePoints();
 
@@ -80,6 +87,8 @@ class Surface3DObj : public Object3D {
   int     ny_ { 0 };
 
   bool wireframe_ { false };
+
+  Material3D* material_ { nullptr };
 
 #ifdef CQSANDBOX_WATER_SURFACE
   CWaterSurface *waterSurface_ { nullptr };

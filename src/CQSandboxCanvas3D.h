@@ -251,11 +251,27 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  bool isWireframe() const { return wireframeData_.visible; }
+  void setWireframe(bool b) { wireframeData_.visible = b; }
+
+  const CRGBA &wireframeColor() const { return wireframeData_.color; }
+  void setWireframeColor(const CRGBA &c) { wireframeData_.color = c; }
+
+  double wireframeAlpha() const { return wireframeData_.alpha; }
+  void setWireframeAlpha(double r) { wireframeData_.alpha = r; }
+
+  //---
+
+  const CRGBA &selectColor() const { return selectData_.color; }
+  void setSelectColor(const CRGBA &c) { selectData_.color = c; }
+
+  double selectAlpha() const { return selectData_.alpha; }
+  void setSelectAlpha(double r) { selectData_.alpha = r; }
+
+  //---
+
   bool isPolygonLine() const { return polygonLine_; }
   void setPolygonLine(bool b) { polygonLine_ = b; }
-
-  bool isWireframe() const { return wireframe_; }
-  void setWireframe(bool b) { wireframe_ = b; }
 
   bool isSolid() const { return solid_; }
   void setSolid(bool b) { solid_ = b; }
@@ -293,6 +309,8 @@ class Canvas3D : public OpenGLWindow {
          const ProgramMatrixData &programMatrixData=ProgramMatrixData());
 
   void setProgramSkybox(ShaderProgram *program, int ind);
+
+  void setProgramMaterial(ShaderProgram *program, Material3D *material);
 
   //---
 
@@ -565,18 +583,18 @@ class Canvas3D : public OpenGLWindow {
     uint        face   { 0 };
   };
 
-  void selectNearestPoint (const CPoint2D &p);
-  void selectNearestLine  (const CPoint2D &p);
-  void selectNearestFace  (const CPoint2D &p);
-  void selectNearestObject(const CPoint2D &p);
+  void selectNearestPoint (const CPoint2D &p, bool clear);
+  void selectNearestLine  (const CPoint2D &p, bool clear);
+  void selectNearestFace  (const CPoint2D &p, bool clear);
+  void selectNearestObject(const CPoint2D &p, bool clear);
 
   void updateNearestBufferPoint(Object3D *object, CQGLBuffer *buffer, const CMatrix3DH &matrix,
                                 const CPoint2D &p, MinPointData &minPointData);
 
-  void selectPointsInside (const CBBox2D &r);
-  void selectLinesInside  (const CBBox2D &r);
-  void selectFacesInside  (const CBBox2D &r);
-  void selectObjectsInside(const CBBox2D &r);
+  void selectPointsInside (const CBBox2D &r, bool clear);
+  void selectLinesInside  (const CBBox2D &r, bool clear);
+  void selectFacesInside  (const CBBox2D &r, bool clear);
+  void selectObjectsInside(const CBBox2D &r, bool clear);
 
   void selectBufferPoints(Object3D *object, CQGLBuffer *buffer,
                           const CMatrix3DH &matrix, const CBBox2D &r);
@@ -602,8 +620,16 @@ class Canvas3D : public OpenGLWindow {
 
   void selectObjects(const std::vector<Object3D *> &objs, bool clear=false, bool update=true);
   void selectObject(Object3D *obj, bool clear=false, bool update=true);
+
+  void selectFaces(const std::vector<CGeomFace3D *> &faces, bool clear=false, bool update=true);
   void selectFace(CGeomFace3D *face, bool clear=false, bool update=true);
+
+  void selectVertices(const std::vector<CGeomVertex3D *> &vertices,
+                      bool clear=false, bool update=true);
+  void selectVertex(CGeomVertex3D *vertex, bool clear=false, bool update=true);
+
   void deselectAll();
+  void deselectObject(Object3D *obj);
 
   void setMousePos(double xpos, double ypos);
 
@@ -785,8 +811,22 @@ class Canvas3D : public OpenGLWindow {
   double emissiveStrength_ { 0.1 };
   double shininess_        { 32.0 };
 
+  struct WireframeData {
+    bool   visible { false };
+    CRGBA  color   { CRGBA::white() };
+    double alpha   { 1.0 };
+  };
+
+  WireframeData wireframeData_;
+
+  struct SelectData {
+    CRGBA  color { CRGBA::yellow() };
+    double alpha { 1.0 };
+  };
+
+  SelectData selectData_;
+
   bool polygonLine_    { false };
-  bool wireframe_      { false };
   bool solid_          { false };
   bool textured_       { true };
   bool showBBox_       { false };

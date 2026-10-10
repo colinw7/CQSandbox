@@ -6,6 +6,7 @@
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxMaterial3D.h>
 #include <CQSandboxApp.h>
+#include <CQSandboxUI.h>
 #include <CQSandboxUtil.h>
 
 #include <CQColorEdit.h>
@@ -147,82 +148,67 @@ Control3D::
 addControlFrame()
 {
   auto *frame  = new QFrame(this);
-  auto *layout = new QGridLayout(frame);
+  auto *layout = new QVBoxLayout(frame);
+
+  UI ui(this, layout);
 
   //---
 
-  int row = 0;
+  ui.startGroup("GL");
 
-  auto addLabelEdit = [&](const QString &label, QWidget *w) {
-    layout->addWidget(new QLabel(label), row, 0);
-    layout->addWidget(w, row, 1);
-    ++row;
-  };
+  controlData_.depthTestCheck = ui.addLabelEdit("Depth Test", new QCheckBox);
+  controlData_.cullFaceCheck  = ui.addLabelEdit("Cull Face" , new QCheckBox);
+  controlData_.frontFaceCheck = ui.addLabelEdit("Front Face", new QCheckBox);
 
-  auto addCheck = [&](const QString &label) {
-    auto *checkBox = new QCheckBox;
-    addLabelEdit(label, checkBox);
-    return checkBox;
-  };
+  controlData_.bgColorEdit = ui.addLabelEdit("Bg Color", new CQColorEdit);
 
-  auto addColorEdit = [&](const QString &label) {
-    auto *edit = new CQColorEdit;
-    addLabelEdit(label, edit);
-    return edit;
-  };
+  ui.endGroup();
 
   //---
 
-  controlData_.depthTestCheck = addCheck("Depth Test");
-  controlData_.cullFaceCheck  = addCheck("Cull Face" );
-  controlData_.frontFaceCheck = addCheck("Front Face");
+  ui.startGroup("Wireframe");
+
+  controlData_.wireframeColor = ui.addLabelEdit("Color", new CQColorEdit);
+  controlData_.wireframeAlpha = ui.addLabelEdit("Alpha", new CQRealSpin);
+
+  ui.endGroup();
 
   //---
 
-  controlData_.bgColorEdit = addColorEdit("Bg Color");
+  ui.startGroup("Select");
+
+  controlData_.selectColor = ui.addLabelEdit("Color", new CQColorEdit);
+  controlData_.selectAlpha = ui.addLabelEdit("Alpha", new CQRealSpin);
+
+  ui.endGroup();
 
   //---
 
-  layout->setRowStretch(row++, 1);
+  ui.startGroup("Shadow");
+
+  controlData_.showShadowCheck  = ui.addLabelEdit("Enabled", new QCheckBox);
+  controlData_.debugShadowCheck = ui.addLabelEdit("Debug"  , new QCheckBox);
+
+  ui.endGroup();
 
   //---
 
-  auto *shadowFrame  = new QGroupBox("Shadow");
-  auto *shadowLayout = new QVBoxLayout(shadowFrame);
+  ui.startGroup("Skybox");
 
-  layout->addWidget(shadowFrame, row++, 0, 1, 2);
-
-  controlData_.showShadowCheck  = new QCheckBox("Enabled");
-  controlData_.debugShadowCheck = new QCheckBox("Debug");
-
-  shadowLayout->addWidget(controlData_.showShadowCheck);
-  shadowLayout->addWidget(controlData_.debugShadowCheck);
+  controlData_.showSkyboxCheck  = ui.addLabelEdit("Visible", new QCheckBox);
+  controlData_.debugSkyboxCheck = ui.addLabelEdit("Debug"  , new QCheckBox);
 
   //---
 
-  auto *skyboxFrame  = new QGroupBox("Skybox");
-  auto *skyboxLayout = new QVBoxLayout(skyboxFrame);
+  ui.startGroup("BBox");
 
-  layout->addWidget(skyboxFrame, row++, 0, 1, 2);
+  controlData_.bboxEdit = ui.addWidget(new CQBBox3DEdit);
 
-  controlData_.showSkyboxCheck  = new QCheckBox("Visible");
-  controlData_.debugSkyboxCheck = new QCheckBox("Debug");
-
-  skyboxLayout->addWidget(controlData_.showSkyboxCheck);
-  skyboxLayout->addWidget(controlData_.debugSkyboxCheck);
+  ui.endGroup();
 
   //---
 
-  auto *bboxFrame  = new QGroupBox("BBox");
-  auto *bboxLayout = new QVBoxLayout(bboxFrame);
-
-  layout->addWidget(bboxFrame, row++, 0, 1, 2);
-
-  controlData_.bboxEdit = new CQBBox3DEdit;
-
-  bboxLayout->addWidget(controlData_.bboxEdit);
-
-  //---
+  ui.addStretch();
 
   connectControl(true);
 
@@ -850,6 +836,12 @@ updateControl()
 
   controlData_.bgColorEdit->setColor(canvas_->bgColor());
 
+  controlData_.wireframeColor->setColor(Util::RGBAToQColor(canvas_->wireframeColor()));
+  controlData_.wireframeAlpha->setValue(canvas_->wireframeAlpha());
+
+  controlData_.selectColor->setColor(Util::RGBAToQColor(canvas_->selectColor()));
+  controlData_.selectAlpha->setValue(canvas_->selectAlpha());
+
   controlData_.showShadowCheck ->setChecked(canvas_->isShadowed());
   controlData_.debugShadowCheck->setChecked(canvas_->isShadowDebug());
 
@@ -876,6 +868,16 @@ connectControl(bool b)
     connect(controlData_.bgColorEdit, &CQColorEdit::colorChanged,
             this, &Control3D::bgColorSlot);
 
+    connect(controlData_.wireframeColor, &CQColorEdit::colorChanged,
+            this, &Control3D::wireframeColorSlot);
+    connect(controlData_.wireframeAlpha, &CQRealSpin::realValueChanged,
+            this, &Control3D::wireframeAlphaSlot);
+
+    connect(controlData_.selectColor, &CQColorEdit::colorChanged,
+            this, &Control3D::selectColorSlot);
+    connect(controlData_.selectAlpha, &CQRealSpin::realValueChanged,
+            this, &Control3D::selectAlphaSlot);
+
     connect(controlData_.showShadowCheck, &QCheckBox::stateChanged,
             this, &Control3D::enableShadowSlot);
     connect(controlData_.debugShadowCheck, &QCheckBox::stateChanged,
@@ -896,6 +898,16 @@ connectControl(bool b)
 
     disconnect(controlData_.bgColorEdit, &CQColorEdit::colorChanged,
                this, &Control3D::bgColorSlot);
+
+    connect(controlData_.wireframeColor, &CQColorEdit::colorChanged,
+            this, &Control3D::wireframeColorSlot);
+    connect(controlData_.wireframeAlpha, &CQRealSpin::realValueChanged,
+            this, &Control3D::wireframeAlphaSlot);
+
+    disconnect(controlData_.selectColor, &CQColorEdit::colorChanged,
+               this, &Control3D::selectColorSlot);
+    disconnect(controlData_.selectAlpha, &CQRealSpin::realValueChanged,
+               this, &Control3D::selectAlphaSlot);
 
     disconnect(controlData_.showShadowCheck, &QCheckBox::stateChanged,
                this, &Control3D::enableShadowSlot);
@@ -1509,6 +1521,38 @@ Control3D::
 bgColorSlot(const QColor &c)
 {
   canvas_->setBgColor(c);
+  canvas_->update();
+}
+
+void
+Control3D::
+wireframeColorSlot(const QColor &c)
+{
+  canvas_->setWireframeColor(Util::QColorToRGBA(c));
+  canvas_->update();
+}
+
+void
+Control3D::
+wireframeAlphaSlot(double r)
+{
+  canvas_->setWireframeAlpha(r);
+  canvas_->update();
+}
+
+void
+Control3D::
+selectColorSlot(const QColor &c)
+{
+  canvas_->setSelectColor(Util::QColorToRGBA(c));
+  canvas_->update();
+}
+
+void
+Control3D::
+selectAlphaSlot(double r)
+{
+  canvas_->setSelectAlpha(r);
   canvas_->update();
 }
 

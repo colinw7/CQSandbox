@@ -15,6 +15,7 @@
 #include <CQSandboxJson3DObj.h>
 #include <CQSandboxLineList3DObj.h>
 #include <CQSandboxModel3DObj.h>
+#include <CQSandboxModifier3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxPath3DObj.h>
 #include <CQSandboxPoint3DObj.h>
@@ -366,6 +367,8 @@ setEditMode(const EditMode &mode)
   if (mode != editMode_) {
     editMode_ = mode;
 
+    update();
+
     Q_EMIT typeChanged();
   }
 }
@@ -376,6 +379,8 @@ setEditType(const EditType &type)
 {
   if (type != editType_) {
     editType_ = type;
+
+    update();
 
     Q_EMIT typeChanged();
   }
@@ -451,6 +456,13 @@ addCommands()
   // layout
   tcl->createObjCommand("sb3d::quad_tree",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<QuadTree3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  //---
+
+  // modifier
+  tcl->createObjCommand("sb3d::modifier",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Modifier3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   //---
@@ -2098,7 +2110,8 @@ setProgramOutline(ShaderProgram *program)
 
   program->setUniformValue("outlineColor", CQGLUtil::toVector(outlineData_.color));
 
-  program->setUniformValue("outlinePointScale", shaderType() == ShaderType::OUTLINE ? 1.03f : 1.00f);
+  program->setUniformValue("outlinePointScale",
+    shaderType() == ShaderType::OUTLINE ? 1.03f : 1.00f);
 }
 
 void
@@ -2147,6 +2160,20 @@ setProgramSkybox(ShaderProgram *program, int ind)
     program->setUniformValue("reflectivity", 1.0f);
     program->setUniformValue("refractivity", 1.0f);
   }
+}
+
+void
+Canvas3D::
+setProgramMaterial(ShaderProgram *program, Material3D *material)
+{
+  program->setUniformValue("specularStrength", float(material->specular()));
+  program->setUniformValue("emissiveStrength", float(material->emission()));
+  program->setUniformValue("shininess"       , float(material->shininess()));
+
+  program->setUniformValue("opacity", float(1.0 - material->transparency()));
+
+  program->setUniformValue("reflectivity", float(material->reflectivity()));
+  program->setUniformValue("refractivity", float(material->refractivity()));
 }
 
 //---
@@ -2373,19 +2400,12 @@ setProgramSimpleLight(ShaderProgram *program)
 {
   auto *light = currentLight();
 
-  if (shaderType() == ShaderType::SHADOW_CUBE) {
-    program->setUniformValue("lightPos", CQGLUtil::toVector(light->position()));
-    return;
-  }
-
-#if 1
   setProgramLight(program, light, "light");
-#else
+
   program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->position()));
   program->setUniformValue("lightColor", CQGLUtil::toVector(light->getDiffuse()));
 
   program->setUniformValue("lightPower", light->getPower());
-#endif
 }
 
 void
@@ -2418,6 +2438,9 @@ setProgramLights(ShaderProgram *program)
   auto *light = currentLight();
 
   program->setUniformValue("lightPos", CQGLUtil::toVector(light->position()));
+  program->setUniformValue("lightColor", CQGLUtil::toVector(light->getDiffuse()));
+
+  program->setUniformValue("lightPower", light->getPower());
 }
 
 void
@@ -2797,7 +2820,7 @@ render()
       glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
       glStencilMask(0x00);
 
-      CQGLStateInst->setDepthTest(false);
+      auto oldDepthTest = CQGLStateInst->setDepthTest(false);
 
       auto shaderType = ShaderType::OUTLINE;
       std::swap(shaderType_, shaderType);
@@ -2811,7 +2834,7 @@ render()
       glStencilMask(0xFF);
       glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
-      CQGLStateInst->setDepthTest(true);
+      CQGLStateInst->setDepthTest(oldDepthTest);
 
       //---
 
@@ -2985,6 +3008,8 @@ void
 Canvas3D::
 drawSelected()
 {
+  auto oldDepthTest = CQGLStateInst->setDepthTest(false);
+
   if (! objectSelectedPoints_.empty()) {
     initSelectionProgram();
 
@@ -3022,7 +3047,10 @@ drawSelected()
 
     bindBuffer(selectionBuffer_);
 
-    glPointSize(8);
+    selectionProgram_->setUniformValue("selectColor", CQGLUtil::toVector(selectColor()));
+    selectionProgram_->setUniformValue("selectAlpha", float(selectAlpha()));
+
+    CQGLStateInst->setPointSize(8);
 
     selectionBuffer_->drawPoints();
 
@@ -3085,6 +3113,9 @@ drawSelected()
     setProgramMatrices(selectionProgram_);
 
     bindBuffer(selectionBuffer_);
+
+    selectionProgram_->setUniformValue("selectColor", CQGLUtil::toVector(selectColor()));
+    selectionProgram_->setUniformValue("selectAlpha", float(selectAlpha()));
 
     selectionProgram_->setUniformValue("isWireframe", 0);
 
@@ -3154,6 +3185,9 @@ drawSelected()
 
     bindBuffer(selectionBuffer_);
 
+    selectionProgram_->setUniformValue("selectColor", CQGLUtil::toVector(selectColor()));
+    selectionProgram_->setUniformValue("selectAlpha", float(selectAlpha()));
+
     selectionProgram_->setUniformValue("isWireframe", 0);
 
     CQGLStateInst->setPolygonMode(GL_FILL);
@@ -3172,6 +3206,8 @@ drawSelected()
 
     bindProgram(nullptr);
   }
+
+  CQGLStateInst->setDepthTest(oldDepthTest);
 }
 
 //---
@@ -3916,30 +3952,32 @@ mouseReleaseEvent(QMouseEvent *e)
 
   if (type() == Type::MODEL) {
     if (mouseData_.button == Qt::LeftButton) {
+      bool clear = ! mouseData_.isShift;
+
       auto dx = std::abs(mouseData_.press.x - mouseData_.move1.x);
       auto dy = std::abs(mouseData_.press.y - mouseData_.move1.y);
 
       if (dx + dy < 4) {
         if      (editType() == EditType::POINT)
-          selectNearestPoint(mouseData_.press);
+          selectNearestPoint(mouseData_.press, clear);
         else if (editType() == EditType::LINE)
-          selectNearestLine(mouseData_.press);
+          selectNearestLine(mouseData_.press, clear);
         else if (editType() == EditType::FACE)
-          selectNearestFace(mouseData_.press);
+          selectNearestFace(mouseData_.press, clear);
         else if (editType() == EditType::OBJECT)
-          selectNearestObject(mouseData_.press);
+          selectNearestObject(mouseData_.press, clear);
       }
       else {
         auto bbox = CBBox2D(mouseData_.press, mouseData_.move1);
 
         if      (editType() == EditType::POINT)
-          selectPointsInside(bbox);
+          selectPointsInside(bbox, clear);
         else if (editType() == EditType::LINE)
-          selectLinesInside(bbox);
+          selectLinesInside(bbox, clear);
         else if (editType() == EditType::FACE)
-          selectFacesInside(bbox);
+          selectFacesInside(bbox, clear);
         else if (editType() == EditType::OBJECT)
-          selectObjectsInside(bbox);
+          selectObjectsInside(bbox, clear);
       }
     }
   }
@@ -3997,14 +4035,20 @@ void
 Canvas3D::
 deselectAll()
 {
-  for (auto *obj : objects()) {
-    obj->setSelected(false);
+  for (auto *obj : objects())
+    deselectObject(obj);
+}
 
-    auto *model3DObj = dynamic_cast<Model3DObj *>(obj);
+void
+Canvas3D::
+deselectObject(Object3D *obj)
+{
+  obj->clearSelection();
 
-    if (model3DObj)
-      model3DObj->object()->setSelected(false);
-  }
+  auto *model3DObj = dynamic_cast<Model3DObj *>(obj);
+
+  if (model3DObj)
+    model3DObj->deselectAll();
 }
 
 void
@@ -4014,14 +4058,8 @@ selectObjects(const std::vector<Object3D *> &objs, bool clear, bool update)
   if (clear)
     deselectAll();
 
-  for (auto *obj : objs) {
-    auto *model3DObj = dynamic_cast<Model3DObj *>(obj);
-
+  for (auto *obj : objs)
     obj->setSelected(true);
-
-    if (model3DObj)
-      model3DObj->object()->setSelected(true);
-  }
 
   if (update)
     this->update();
@@ -4034,12 +4072,21 @@ selectObject(Object3D *obj, bool clear, bool update)
   if (clear)
     deselectAll();
 
-  auto *model3DObj = dynamic_cast<Model3DObj *>(obj);
-
   obj->setSelected(true);
 
-  if (model3DObj)
-    model3DObj->object()->setSelected(true);
+  if (update)
+    this->update();
+}
+
+void
+Canvas3D::
+selectFaces(const std::vector<CGeomFace3D *> &faces, bool clear, bool update)
+{
+  if (clear)
+    deselectAll();
+
+  for (auto *face : faces)
+    face->setSelected(true);
 
   if (update)
     this->update();
@@ -4060,7 +4107,34 @@ selectFace(CGeomFace3D *face, bool clear, bool update)
 
 void
 Canvas3D::
-selectNearestPoint(const CPoint2D &p)
+selectVertices(const std::vector<CGeomVertex3D *> &vertices, bool clear, bool update)
+{
+  if (clear)
+    deselectAll();
+
+  for (auto *vertex : vertices)
+    vertex->setSelected(true);
+
+  if (update)
+    this->update();
+}
+
+void
+Canvas3D::
+selectVertex(CGeomVertex3D *vertex, bool clear, bool update)
+{
+  if (clear)
+    deselectAll();
+
+  vertex->setSelected(true);
+
+  if (update)
+    this->update();
+}
+
+void
+Canvas3D::
+selectNearestPoint(const CPoint2D &p, bool clear)
 {
   auto p1 = mapPixelToViewport(p);
 
@@ -4074,7 +4148,8 @@ selectNearestPoint(const CPoint2D &p)
   MinPointData minPointData;
 
   for (auto *object : objects()) {
-    object->clearSelection();
+    if (clear)
+      deselectObject(object);
 
     auto *buffer = object->getBuffer();
     if (! buffer) continue;
@@ -4125,13 +4200,13 @@ updateNearestBufferPoint(Object3D *object, CQGLBuffer *buffer, const CMatrix3DH 
 
 void
 Canvas3D::
-selectNearestLine(const CPoint2D &)
+selectNearestLine(const CPoint2D &, bool)
 {
 }
 
 void
 Canvas3D::
-selectNearestFace(const CPoint2D &p)
+selectNearestFace(const CPoint2D &p, bool clear)
 {
   auto p1 = mapPixelToViewport(p);
 
@@ -4147,7 +4222,8 @@ selectNearestFace(const CPoint2D &p)
   MinFaceData minFaceData;
 
   for (auto *object : objects()) {
-    object->clearSelection();
+    if (clear)
+      deselectObject(object);
 
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
@@ -4212,7 +4288,7 @@ selectNearestFace(const CPoint2D &p)
 
 void
 Canvas3D::
-selectNearestObject(const CPoint2D &p)
+selectNearestObject(const CPoint2D &p, bool clear)
 {
   auto p1 = mapPixelToViewport(p);
 
@@ -4228,7 +4304,8 @@ selectNearestObject(const CPoint2D &p)
   MinFaceData minFaceData;
 
   for (auto *object : objects()) {
-    object->setSelected(false);
+    if (clear)
+      deselectObject(object);
 
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
@@ -4276,7 +4353,7 @@ selectNearestObject(const CPoint2D &p)
 
 void
 Canvas3D::
-selectPointsInside(const CBBox2D &r)
+selectPointsInside(const CBBox2D &r, bool clear)
 {
   auto p1 = mapPixelToViewport(r.getMin());
   auto p2 = mapPixelToViewport(r.getMax());
@@ -4291,7 +4368,8 @@ selectPointsInside(const CBBox2D &r)
   auto pvMatrix = projectionMatrix*viewMatrix;
 
   for (auto *object : objects()) {
-    object->clearSelection();
+    if (clear)
+      deselectObject(object);
 
     auto *buffer = object->getBuffer();
     if (! buffer) continue;
@@ -4329,13 +4407,13 @@ selectBufferPoints(Object3D *object, CQGLBuffer *buffer,
 
 void
 Canvas3D::
-selectLinesInside(const CBBox2D &)
+selectLinesInside(const CBBox2D &, bool)
 {
 }
 
 void
 Canvas3D::
-selectFacesInside(const CBBox2D &r)
+selectFacesInside(const CBBox2D &r, bool clear)
 {
   auto p1 = mapPixelToViewport(r.getMin());
   auto p2 = mapPixelToViewport(r.getMax());
@@ -4350,7 +4428,8 @@ selectFacesInside(const CBBox2D &r)
   auto pvMatrix = projectionMatrix*viewMatrix;
 
   for (auto *object : objects()) {
-    object->clearSelection();
+    if (clear)
+      deselectObject(object);
 
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
@@ -4375,7 +4454,7 @@ selectFacesInside(const CBBox2D &r)
 
 void
 Canvas3D::
-selectObjectsInside(const CBBox2D &r)
+selectObjectsInside(const CBBox2D &r, bool clear)
 {
   auto p1 = mapPixelToViewport(r.getMin());
   auto p2 = mapPixelToViewport(r.getMax());
@@ -4389,11 +4468,8 @@ selectObjectsInside(const CBBox2D &r)
 
   auto pvMatrix = projectionMatrix*viewMatrix;
 
-  for (auto *object : objects()) {
-    object->setSelected(false);
-
-    object->clearSelection();
-  }
+  if (clear)
+    deselectAll();
 
   for (auto *object : objects()) {
     const auto &faceDatas = object->getFaceDatas();

@@ -896,6 +896,8 @@ inline Qt::Alignment stringToAlign(const QString &str) {
 inline QPoint  toQPoint (const CPoint2D &p) { return QPoint (p.x, p.y); }
 inline QPointF toQPointF(const CPoint2D &p) { return QPointF(p.x, p.y); }
 
+inline CPoint2D toCPoint (const QPointF  &p) { return CPoint2D(p.x(), p.y()); }
+
 //---
 
 inline CPoint3D pointsCenter(const std::vector<CPoint3D> &points) {

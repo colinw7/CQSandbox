@@ -77,6 +77,8 @@ bool
 CQGLTexture::
 load(const QImage &image, bool flip)
 {
+  type_ = Type::IMAGE;
+
   return initImage(image, flip);
 }
 

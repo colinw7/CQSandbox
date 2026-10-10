@@ -115,9 +115,9 @@ class Shape3DObj : public Object3D {
 
   CBBox3D calcBBox() override;
 
-  void calcNormals();
-
-  const FaceDatas &getFaceDatas() const override;
+  const FaceDatas  &getFaceDatas () const override;
+  const LineDatas  &getLineDatas () const override;
+  const PointDatas &getPointDatas() const override;
 
   void render() override;
 
@@ -128,7 +128,9 @@ class Shape3DObj : public Object3D {
   void applyMatrix(const CMatrix3DH &m) override;
 
  protected:
-  using Colors = std::vector<CGLColor>;
+  using Normals   = std::vector<CVector3D>;
+  using TexCoords = std::vector<CVector2D>;
+  using Colors    = std::vector<CGLColor>;
 
   static ShaderProgram* s_program;
   static Shape3DObjMgr* s_objectMgr;
@@ -136,10 +138,16 @@ class Shape3DObj : public Object3D {
   ShapeType   shapeType_ { ShapeType::NONE };
   Shape3DData shapeData_;
 
+  Shape3DData::ConfigData configData_;
+
   Colors colors_;
   bool   wireframe_ { false };
 
   Material3D* material_ { nullptr };
+
+  Normals   s_normals_;
+  TexCoords s_texCoords_;
+  Colors    s_colors_;
 };
 
 }

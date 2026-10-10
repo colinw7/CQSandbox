@@ -35,6 +35,8 @@ calcId() const
   return id;
 }
 
+//----
+
 void
 Object3D::
 setSelected(bool b)
@@ -677,6 +679,28 @@ createBBoxObj()
 
 void
 Object3D::
+addModifier(Modifier3DObj *obj)
+{
+  modifiers_.push_back(obj);
+}
+
+void
+Object3D::
+removeModifier(Modifier3DObj *obj)
+{
+  Modifiers modifiers;
+
+  for (auto *obj1 : modifiers_)
+    if (obj1 != obj)
+      modifiers.push_back(obj1);
+
+  std::swap(modifiers_, modifiers);
+}
+
+//---
+
+void
+Object3D::
 clearSelection()
 {
   selectedPoints_.clear();
@@ -695,6 +719,32 @@ Object3D::
 selectFace(uint bufferInd, uint faceInd)
 {
   selectedFaces_[bufferInd].insert(faceInd);
+}
+
+bool
+Object3D::
+isPointSelected(uint bufferInd, uint faceInd) const
+{
+  auto pf = selectedPoints_.find(bufferInd);
+  if (pf == selectedPoints_.end()) return false;
+
+  auto pi = (*pf).second.find(faceInd);
+  if (pi == (*pf).second.end()) return false;
+
+  return true;
+}
+
+bool
+Object3D::
+isFaceSelected(uint bufferInd, uint faceInd) const
+{
+  auto pf = selectedFaces_.find(bufferInd);
+  if (pf == selectedFaces_.end()) return false;
+
+  auto pi = (*pf).second.find(faceInd);
+  if (pi == (*pf).second.end()) return false;
+
+  return true;
 }
 
 }

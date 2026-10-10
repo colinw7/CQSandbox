@@ -92,6 +92,8 @@ class CanvasToolbar3D : public QFrame {
 
   QLabel* infoLabel_ { nullptr };
   QLabel* posLabel_  { nullptr };
+
+  bool connected_ { false };
 };
 
 //---
@@ -136,6 +138,8 @@ class OverviewToolbar3D : public QFrame {
 
   QLabel* infoLabel_ { nullptr };
   QLabel* posLabel_  { nullptr };
+
+  bool connected_ { false };
 };
 
 }

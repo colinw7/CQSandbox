@@ -18,7 +18,10 @@ class Shape3DData {
   using Points    = std::vector<CVector3D>;
   using Indices   = std::vector<unsigned int>;
   using TexCoords = std::vector<CVector2D>;
-  using FaceDatas = std::vector<FaceData>;
+
+  using FaceDatas  = std::vector<FaceData>;
+  using LineDatas  = std::vector<LineData>;
+  using PointDatas = std::vector<PointData>;
 
   struct VertexData {
     CVector3D position;
@@ -28,6 +31,20 @@ class Shape3DData {
     VertexData(const CVector3D &position, const CVector3D &normal, const CVector2D &texCoord) :
      position(position), normal(normal), texCoord(texCoord) {
     }
+  };
+
+  enum CapType {
+    NONE,
+    NGON,
+    FAN
+  };
+
+  struct ConfigData {
+    ConfigData() { }
+
+    CapType cap_type    { CapType::FAN };
+    int     num_patches { -1 };
+    int     num_xy      { -1 };
   };
 
  public:
@@ -52,6 +69,12 @@ class Shape3DData {
   const FaceDatas &faceDatas() const { return faceDatas_; }
   void setFaceDatas(const FaceDatas &faceDatas) { faceDatas_ = faceDatas; }
 
+  const LineDatas &lineDatas() const { return lineDatas_; }
+  void setLineDatas(const LineDatas &lineDatas) { lineDatas_ = lineDatas; }
+
+  const PointDatas &pointDatas() const { return pointDatas_; }
+  void setPointDatas(const PointDatas &pointDatas) { pointDatas_ = pointDatas; }
+
   CShape3D *geom() const { return geom_; }
 
   bool isUseTriangleStrip() const { return useTriangleStrip_; }
@@ -62,8 +85,8 @@ class Shape3DData {
 
   //---
 
-  void addCone(double r, double h);
-  void addCylinder(double r, double h);
+  void addCone(double r, double h, const ConfigData &configData=ConfigData());
+  void addCylinder(double r, double h, const ConfigData &configData=ConfigData());
   void addCube(double sx, double sy, double sz);
   void addSphere(double r);
 
@@ -85,7 +108,10 @@ class Shape3DData {
   Points    normals_;
   Indices   indices_;
   TexCoords texCoords_;
-  FaceDatas faceDatas_;
+
+  FaceDatas  faceDatas_;
+  LineDatas  lineDatas_;
+  PointDatas pointDatas_;
 
   CShape3D *geom_ { nullptr };
 

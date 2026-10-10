@@ -42,6 +42,7 @@ Surface3DObj::
 Surface3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::SURFACE)
 {
+  material_ = canvas_->createMaterial();
 }
 
 bool
@@ -199,7 +200,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else if (name == "wireframe") {
-    wireframe_ = Util::stringToBool(value);
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    wireframe_ = b;
 
     setNeedsUpdate();
   }
@@ -241,7 +246,8 @@ resizePoints()
 
   FaceData faceData;
 
-  faceData.len = 3;
+  faceData.buffer = buffer_;
+  faceData.len    = 3;
 
   for (int iy = 0; iy < ny_ - 1; ++iy) {
     for (int ix = 0; ix < nx_ - 1; ++ix) {
@@ -270,6 +276,19 @@ resizePoints()
   }
 
   assert(ii == ni);
+
+  //---
+
+  for (int i = 0; i < np; ++i) {
+    PointData pointData;
+
+    pointData.buffer = buffer_;
+    pointData.ind    = i;
+
+    pointDatas_.push_back(pointData);
+  }
+
+  //---
 
   colors_.resize(np);
 
@@ -443,16 +462,18 @@ render()
 
   //---
 
-  canvas_->bindProgram(s_program);
+  auto *program = shaderProgram();
 
-  canvas_->setProgramMatrices(s_program);
+  canvas_->bindProgram(program);
 
-  canvas_->setProgramLightGlobals(s_program);
+  canvas_->setProgramMatrices(program);
 
-  canvas_->setProgramSimpleLight(s_program);
+  canvas_->setProgramLightGlobals(program);
+
+  canvas_->setProgramSimpleLight(program);
 
   setModelMatrix();
-  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   //---
 
@@ -460,34 +481,109 @@ render()
 
   //---
 
-  bool solid     = ! wireframe_;
-  bool wireframe = (wireframe_ || canvas_->isWireframe());
+  program->setUniformValue("wireframeColor", CQGLUtil::toVector(canvas_->wireframeColor()));
+  program->setUniformValue("wireframeAlpha", float(canvas_->wireframeAlpha()));
 
-  if (solid) {
-    s_program->setUniformValue("isWireframe", 0);
-
-    CQGLStateInst->setPolygonMode(GL_FILL);
-
-    if (buffer_->numIndices() > 0)
-      buffer_->drawTriangleIndices();
-    else
-      buffer_->drawTriangles();
-  }
-
-  if (wireframe) {
-    s_program->setUniformValue("isWireframe", 1);
-
-    CQGLStateInst->setPolygonMode(GL_LINE);
-
-    if (buffer_->numIndices() > 0)
-      buffer_->drawTriangleIndices();
-    else
-      buffer_->drawTriangles();
-  }
-
-  canvas_->bindBuffer(nullptr);
+  program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
+  program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
 
   //---
+
+  auto drawBuffer = [&](bool wireframe) {
+    program->setUniformValue("isWireframe", wireframe);
+    program->setUniformValue("isPoint"    , false);
+    program->setUniformValue("isLine"     , false);
+
+    CQGLStateInst->setPolygonMode(wireframe ? GL_LINE : GL_FILL);
+
+    CQGLBuffer::DrawData drawData;
+
+    drawData.mode = GL_TRIANGLES;
+
+    if (buffer_->hasIndices())
+      drawData.indexed = true;
+
+    for (const auto &faceData : getFaceDatas()) {
+      if (faceData.glMode >= 0)
+        drawData.mode = faceData.glMode;
+
+      drawData.pos = faceData.pos;
+      drawData.len = faceData.len;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  auto drawPoints = [&]() {
+    if (getPointDatas().empty())
+      return;
+
+    program->setUniformValue("isWireframe", false);
+    program->setUniformValue("isPoint"    , true);
+    program->setUniformValue("isLine"     , false);
+
+    CQGLBuffer::DrawData drawData;
+
+    CQGLStateInst->setPointSize(8);
+
+    drawData.mode    = GL_POINTS;
+    drawData.indexed = false;
+    drawData.len     = 1;
+
+    for (const auto &pointData : getPointDatas()) {
+      drawData.pos = pointData.ind;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  auto drawLines = [&]() {
+    if (getLineDatas().empty())
+      return;
+
+    program->setUniformValue("isWireframe", false);
+    program->setUniformValue("isPoint"    , false);
+    program->setUniformValue("isLine"     , true);
+
+    CQGLBuffer::DrawData drawData;
+
+    CQGLStateInst->setLineWidth(8);
+
+    drawData.mode = GL_LINES;
+    drawData.len  = 2;
+
+    if (buffer_->hasIndices())
+      drawData.indexed = true;
+
+    for (const auto &lineData : getLineDatas()) {
+      drawData.pos = lineData.ind1;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  //---
+
+  bool wireframe = (wireframe_ || canvas_->isWireframe());
+  bool solid     = canvas_->isSolid() || canvas_->isTextured();
+
+  if (wireframe) {
+    drawBuffer(true);
+  }
+
+  if (solid) {
+    drawBuffer(false);
+  }
+
+  if (canvas_->editType() == Canvas3D::EditType::POINT)
+    drawPoints();
+
+  if (canvas_->editType() == Canvas3D::EditType::LINE)
+    drawLines();
+
+  //---
+
+  canvas_->bindBuffer(nullptr);
 
   canvas_->bindProgram(nullptr);
 }

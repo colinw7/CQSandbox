@@ -169,7 +169,7 @@ render()
 
   //---
 
-  glPointSize(size_);
+  CQGLStateInst->setPointSize(size_);
 
   CQGLStateInst->setPolygonMode(GL_POINT);
 

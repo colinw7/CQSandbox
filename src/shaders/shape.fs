@@ -58,6 +58,11 @@ uniform TextureData emissiveTexture;
 //--- State
 
 uniform bool  isWireframe;
+uniform vec3  wireframeColor;
+uniform float wireframeAlpha;
+uniform bool  isPoint;
+uniform bool  isLine;
+
 uniform float opacity;
 
 uniform bool  reflectionMap;
@@ -231,5 +236,12 @@ void main() {
 
   // adjust color by state
 
-  FragColor = (isWireframe ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(result, opacity));
+  if      (isWireframe)
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+  else if (isPoint)
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+  else if (isLine)
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+  else
+    FragColor = vec4(result, opacity);
 }

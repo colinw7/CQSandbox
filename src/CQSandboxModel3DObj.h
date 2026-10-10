@@ -83,6 +83,8 @@ class Model3DObj : public Object3D {
   const CPoint3D &angles() const override;
   void setAngles(const CPoint3D &p) override;
 
+  void setSelected(bool b) override;
+
   //---
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
@@ -107,6 +109,13 @@ class Model3DObj : public Object3D {
   const FaceDatas &getFaceDatas() const override;
 
   void render() override;
+
+  void deselectAll();
+
+  void clearSelection() override;
+
+  void selectPoint(uint bufferInd, uint pointInd) override;
+  void selectFace (uint bufferInd, uint faceInd) override;
 
   void calcTangents();
 

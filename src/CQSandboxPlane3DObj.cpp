@@ -73,16 +73,51 @@ init()
   points_    = points;
   texCoords_ = texCoords;
 
+  //---
+
   FaceData faceData;
 
-  faceData.pos = 0;
-  faceData.len = 3;
+  faceData.buffer = buffer_;
+  faceData.pos    = 0;
+  faceData.len    = 3;
 
   faceDatas_.push_back(faceData);
 
   faceData.pos += faceData.len;
 
   faceDatas_.push_back(faceData);
+
+  //---
+
+  PointData pointData;
+
+  pointData.buffer = buffer_;
+
+  std::vector<int> pointInds = { 0, 1, 2, 4 };
+
+  for (int i = 0; i < 4; ++i) {
+    pointData.ind = pointInds[i];
+
+    pointDatas_.push_back(pointData);
+  }
+
+  //---
+
+  LineData lineData;
+
+  lineData.buffer = buffer_;
+
+  auto addLine = [&](int i1, int i2) {
+    lineData.ind1   = i1;
+    lineData.ind2   = i2;
+
+    lineDatas_.push_back(lineData);
+  };
+
+  addLine(0, 1);
+  addLine(1, 2);
+  addLine(3, 4);
+  addLine(4, 5);
 }
 
 bool
@@ -232,12 +267,14 @@ render()
 
   //---
 
-  canvas_->bindProgram(s_program);
+  auto *program = shaderProgram();
+
+  canvas_->bindProgram(program);
 
   setModelMatrix();
-  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
-  canvas_->setProgramMatrices(s_program, programMatrixData());
+  canvas_->setProgramMatrices(program, programMatrixData());
 
   //---
 
@@ -245,10 +282,12 @@ render()
 
   //---
 
-  useTexture_ = (! canvas_->isWireframe() && !!texture_);
+  bool useTexture_ = false;
 
-  s_program->setUniformValue("useTexture", useTexture_);
-  s_program->setUniformValue("textureId", 0);
+  if (canvas_->isTextured() && texture_)
+    useTexture_ = true;
+
+  program->setUniformValue("textureId", 0);
 
   bool oldTexture = CQGLStateInst->setEnableTexture(useTexture_);
 
@@ -259,16 +298,103 @@ render()
 
   //---
 
-  if (canvas_->isWireframe()) {
-    CQGLStateInst->setPolygonMode(GL_LINE);
+  program->setUniformValue("wireframeColor", CQGLUtil::toVector(canvas_->wireframeColor()));
+  program->setUniformValue("wireframeAlpha", float(canvas_->wireframeAlpha()));
 
-    buffer_->drawTriangles();
-  }
-  else {
-    CQGLStateInst->setPolygonMode(GL_FILL);
+  program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
+  program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
 
-    buffer_->drawTriangles();
+  //---
+
+  auto drawBuffer = [&](bool wireframe) {
+    program->setUniformValue("isWireframe", wireframe);
+    program->setUniformValue("isPoint"    , false);
+    program->setUniformValue("isLine"     , false);
+
+    CQGLStateInst->setPolygonMode(wireframe ? GL_LINE : GL_FILL);
+
+    program->setUniformValue("useTexture", ! wireframe && useTexture_);
+
+    CQGLBuffer::DrawData drawData;
+
+    drawData.mode    = GL_TRIANGLES;
+    drawData.indexed = buffer_->hasIndices();
+
+    for (const auto &faceData : getFaceDatas()) {
+      if (faceData.glMode >= 0)
+        drawData.mode = faceData.glMode;
+
+      drawData.pos = faceData.pos;
+      drawData.len = faceData.len;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  auto drawPoints = [&]() {
+    if (getPointDatas().empty())
+      return;
+
+    program->setUniformValue("isWireframe", false);
+    program->setUniformValue("isPoint"    , true);
+    program->setUniformValue("isLine"     , false);
+
+    CQGLBuffer::DrawData drawData;
+
+    CQGLStateInst->setPointSize(8);
+
+    drawData.mode    = GL_POINTS;
+    drawData.indexed = buffer_->hasIndices();
+    drawData.len     = 1;
+
+    for (const auto &pointData : getPointDatas()) {
+      drawData.pos = pointData.ind;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  auto drawLines = [&]() {
+    if (getLineDatas().empty())
+      return;
+
+    program->setUniformValue("isWireframe", false);
+    program->setUniformValue("isPoint"    , false);
+    program->setUniformValue("isLine"     , true);
+
+    CQGLBuffer::DrawData drawData;
+
+    CQGLStateInst->setLineWidth(8);
+
+    drawData.mode    = GL_LINES;
+    drawData.indexed = buffer_->hasIndices();
+    drawData.len     = 2;
+
+    for (const auto &lineData : getLineDatas()) {
+      drawData.pos = lineData.ind1;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  //---
+
+  bool wireframe = canvas_->isWireframe();
+  bool solid     = canvas_->isSolid() || canvas_->isTextured();
+
+  if (wireframe) {
+    drawBuffer(true);
   }
+
+  if (solid) {
+    drawBuffer(false);
+  }
+
+  if (canvas_->editType() == Canvas3D::EditType::POINT)
+    drawPoints();
+
+  if (canvas_->editType() == Canvas3D::EditType::LINE)
+    drawLines();
 
   //---
 
@@ -279,6 +405,9 @@ render()
   canvas_->bindProgram(nullptr);
 
   canvas_->bindBuffer(nullptr);
+
+  if (useTexture_)
+    texture_->unbind();
 }
 
 }

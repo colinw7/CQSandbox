@@ -333,29 +333,29 @@ updateObjects()
 
   auto *canvas = app_->canvas3D();
 
-  for (auto *object : canvas->objects()) {
-    if (! object->isVisible())
+  for (auto *obj : canvas->objects()) {
+    if (! obj->isVisible())
       continue;
 
-    updateObject(object);
+    updateObject(obj);
   }
 }
 
 void
 Overview3D::
-updateObject(Object3D *object)
+updateObject(Object3D *obj)
 {
-  auto *group3DObj      = dynamic_cast<Group3DObj        *>(object);
-  auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
-  auto *lineListObj     = dynamic_cast<LineList3DObj     *>(object);
-  auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
-  auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
-  auto *pointObj        = dynamic_cast<Point3DObj        *>(object);
-  auto *pointListObj    = dynamic_cast<PointList3DObj    *>(object);
-  auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
-  auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
-  auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
-  auto *textObj         = dynamic_cast<Text3DObj         *>(object);
+  auto *group3DObj      = dynamic_cast<Group3DObj        *>(obj);
+  auto *model3DObj      = dynamic_cast<Model3DObj        *>(obj);
+  auto *lineListObj     = dynamic_cast<LineList3DObj     *>(obj);
+  auto *particleListObj = dynamic_cast<ParticleList3DObj *>(obj);
+  auto *pathObj         = dynamic_cast<Path3DObj         *>(obj);
+  auto *pointObj        = dynamic_cast<Point3DObj        *>(obj);
+  auto *pointListObj    = dynamic_cast<PointList3DObj    *>(obj);
+  auto *shapeObj        = dynamic_cast<Shape3DObj        *>(obj);
+  auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(obj);
+  auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(obj);
+  auto *textObj         = dynamic_cast<Text3DObj         *>(obj);
 
   if      (group3DObj     ) updateGroup(group3DObj);
   else if (model3DObj     ) updateModel(model3DObj);
@@ -374,11 +374,11 @@ void
 Overview3D::
 updateGroup(Group3DObj *obj)
 {
-  for (auto *object : obj->objects()) {
-    if (! object->isVisible())
+  for (auto *obj : obj->objects()) {
+    if (! obj->isVisible())
       continue;
 
-    updateObject(object);
+    updateObject(obj);
   }
 }
 
@@ -386,7 +386,7 @@ void
 Overview3D::
 updateModel(Model3DObj *obj)
 {
-  updateGeomObject(obj->object());
+  updateGeomObject(obj, obj->object());
 }
 
 void
@@ -473,6 +473,13 @@ updateShape(Shape3DObj *obj)
 {
   const auto &mm = obj->modelMatrix();
 
+  //---
+
+  drawData_.modelMatrix = mm;
+  drawData_.meshMatrix  = CMatrix3DH::identity();
+
+  //---
+
   const auto &shapeData = obj->shapeData();
 
   const auto &inds   = shapeData.indices();
@@ -481,30 +488,42 @@ updateShape(Shape3DObj *obj)
   auto ni = inds.size();
 
   if (ni > 0) {
-    for (uint i = 0; i < ni; i += 3) {
-      drawData_.bbox += mm*points[inds[i + 0]].point();
-      drawData_.bbox += mm*points[inds[i + 1]].point();
-      drawData_.bbox += mm*points[inds[i + 2]].point();
-    }
+    for (const auto &ind : inds)
+      drawData_.bbox += mm*points[ind].point();
   }
   else {
-    if      (shapeData.isUseTriangleStrip()) {
-      for (const auto &p : points)
-        drawData_.bbox += mm*p;
-    }
-    else if (shapeData.isUseTriangleFan()) {
-      for (const auto &p : points)
-        drawData_.bbox += mm*p;
-    }
-    else {
-      auto np = points.size();
+    for (const auto &p : points)
+      drawData_.bbox += mm*p;
+  }
 
-      for (uint i = 0; i < np; i += 3) {
-        drawData_.bbox += mm*points[i + 0].point();
-        drawData_.bbox += mm*points[i + 1].point();
-        drawData_.bbox += mm*points[i + 2].point();
-      }
+  auto &faces = drawData_.objFaces[obj];
+
+  faces.clear();
+
+  const auto &faceDatas = obj->getFaceDatas();
+
+  int i = 0;
+
+  for (const auto &faceData : faceDatas) {
+    Face face;
+
+    face.color = faceData.color;
+    face.ind   = i++;
+
+    for (int i = 0; i < faceData.len; ++i) {
+      CQGLBuffer::PointData data;
+      faceData.buffer->getPointData(faceData.pos + i, data);
+
+      auto p = data.point->point();
+
+      p = drawData_.modelMatrix*drawData_.meshMatrix*p;
+
+      face.points.push_back(p);
+
+      drawData_.bbox += p;
     }
+
+    faces.push_back(face);
   }
 }
 
@@ -560,33 +579,30 @@ updateText(Text3DObj *obj)
 
 void
 Overview3D::
-updateGeomObject(CGeomObject3D *object)
+updateGeomObject(Model3DObj *obj, CGeomObject3D *geomObject)
 {
   CQPerfTrace trace("Overview3D::updateGeomObject");
 
-  if (! object->getVisible())
+  if (! geomObject->getVisible())
     return;
 
   //---
 
   auto *canvas = app_->canvas3D();
 
-  auto *geomObject = dynamic_cast<GeomObject3D *>(object);
-  assert(geomObject);
+  auto *geomObject1 = dynamic_cast<GeomObject3D *>(geomObject);
 
-  auto *geomObject1 = geomObject;
-
-  if (object->refObject()) {
-    geomObject1 = dynamic_cast<GeomObject3D *>(object->refObject());
+  if (geomObject->refObject()) {
+    geomObject1 = dynamic_cast<GeomObject3D *>(geomObject->refObject());
     assert(geomObject1);
 
-    updateGeomObject(geomObject1);
+    updateGeomObject(obj, geomObject1);
   }
 
   //---
 
-  drawData_.modelMatrix = CMatrix3DH(object->getHierTransform());
-  drawData_.meshMatrix  = CMatrix3DH(object->getMeshGlobalTransform());
+  drawData_.modelMatrix = CMatrix3DH(geomObject->getHierTransform());
+  drawData_.meshMatrix  = CMatrix3DH(geomObject->getMeshGlobalTransform());
 
   //---
 
@@ -623,17 +639,21 @@ updateGeomObject(CGeomObject3D *object)
 
   //---
 
-  auto &faces = drawData_.objFaces[object];
+  drawData_.geomObjMap[geomObject] = obj;
+
+  auto &faces = drawData_.geomObjFaces[geomObject];
 
   faces.clear();
 
   auto *buffer = geomObject1->getBuffer();
 
+  int i = 0;
+
   for (const auto &faceData : geomObject1->faceDatas()) {
     Face face;
 
-    face.face  = faceData.face;
     face.color = faceData.color;
+    face.ind   = i;
 
     for (int i = 0; i < faceData.len; ++i) {
       CQGLBuffer::PointData data;
@@ -656,12 +676,14 @@ updateGeomObject(CGeomObject3D *object)
     }
 
     faces.push_back(face);
+
+    ++i;
   }
 
   //---
 
-  for (auto *child : object->children()) {
-    updateGeomObject(child);
+  for (auto *child : geomObject->children()) {
+    updateGeomObject(obj, child);
   }
 }
 
@@ -711,11 +733,11 @@ drawObjects()
 
   drawData_.painter->save();
 
-  for (auto *object : canvas->objects()) {
-    if (! object->isVisible())
+  for (auto *obj : canvas->objects()) {
+    if (! obj->isVisible())
       continue;
 
-    drawObject(object);
+    drawObject(obj);
   }
 
   //---
@@ -735,7 +757,11 @@ drawObjects()
         }
 
         if (pd.wireframe || pd.selected) {
-          drawData_.painter->setPen(pd.selected ? selectedColor : strokeColor);
+          auto pen = drawData_.painter->pen();
+          pen.setColor(pd.selected ? selectedColor : strokeColor);
+          pen.setWidthF(pd.selected ? 3 : 0);
+
+          drawData_.painter->setPen(pen);
           drawData_.painter->setBrush(Qt::NoBrush);
 
           drawData_.painter->drawPolygon(&pd.points[0], int(pd.points.size()));
@@ -767,7 +793,9 @@ drawObjects()
         }
 
         if (pd.label != "") {
-          drawData_.painter->setPen(pd.selected ? selectedColor : strokeColor);
+          auto pen = drawData_.painter->pen();
+          pen.setColor(pd.selected ? selectedColor : strokeColor);
+          pen.setWidthF(pd.selected ? 3 : 0);
 
           drawData_.painter->drawText(px, py, pd.label);
         }
@@ -782,19 +810,19 @@ drawObjects()
 
 void
 Overview3D::
-drawObject(Object3D *object)
+drawObject(Object3D *obj)
 {
-  auto *group3DObj      = dynamic_cast<Group3DObj        *>(object);
-  auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
-  auto *lineListObj     = dynamic_cast<LineList3DObj     *>(object);
-  auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
-  auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
-  auto *pointObj        = dynamic_cast<Point3DObj        *>(object);
-  auto *pointListObj    = dynamic_cast<PointList3DObj    *>(object);
-  auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
-  auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
-  auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
-  auto *textObj         = dynamic_cast<Text3DObj         *>(object);
+  auto *group3DObj      = dynamic_cast<Group3DObj        *>(obj);
+  auto *model3DObj      = dynamic_cast<Model3DObj        *>(obj);
+  auto *lineListObj     = dynamic_cast<LineList3DObj     *>(obj);
+  auto *particleListObj = dynamic_cast<ParticleList3DObj *>(obj);
+  auto *pathObj         = dynamic_cast<Path3DObj         *>(obj);
+  auto *pointObj        = dynamic_cast<Point3DObj        *>(obj);
+  auto *pointListObj    = dynamic_cast<PointList3DObj    *>(obj);
+  auto *shapeObj        = dynamic_cast<Shape3DObj        *>(obj);
+  auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(obj);
+  auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(obj);
+  auto *textObj         = dynamic_cast<Text3DObj         *>(obj);
 
   if      (group3DObj     ) drawGroup(group3DObj);
   else if (model3DObj     ) drawModel(model3DObj);
@@ -813,11 +841,11 @@ void
 Overview3D::
 drawGroup(Group3DObj *obj)
 {
-  for (auto *object : obj->objects()) {
-    if (! object->isVisible())
+  for (auto *obj : obj->objects()) {
+    if (! obj->isVisible())
       continue;
 
-    drawObject(object);
+    drawObject(obj);
   }
 }
 
@@ -827,21 +855,25 @@ drawModel(Model3DObj *obj)
 {
   CQPerfTrace trace("Overview3D::drawModel");
 
-  auto *object = obj->object();
+  auto *geomObject = obj->object();
 
-  drawGeomObject(object);
+  drawGeomObject(obj, geomObject);
 }
 
 void
 Overview3D::
-drawGeomObject(CGeomObject3D *object)
+drawGeomObject(Model3DObj *obj, CGeomObject3D *geomObject)
 {
-  bool objSelected = object->getSelected();
+  bool objSelected = geomObject->getSelected();
 
-  auto &faces = drawData_.objFaces[object];
+  auto &faceDatas = obj->getFaceDatas();
+
+  auto &faces = drawData_.geomObjFaces[geomObject];
 
   for (auto &face : faces) {
-    bool faceSelected = face.face->getSelected() || objSelected;
+    auto *geomFace = faceDatas[face.ind].face;
+
+    bool faceSelected = geomFace->getSelected() || objSelected;
 
     drawModelPolygon(face.points, faceSelected);
   }
@@ -850,10 +882,10 @@ drawGeomObject(CGeomObject3D *object)
 
   if (isBasisVisible() && objSelected) {
     CVector3D u, v, w;
-    getBasis(object, u, v, w);
+    getBasis(geomObject, u, v, w);
 
     CBBox3D bbox;
-    object->getTransformedModelBBox(bbox);
+    geomObject->getTransformedModelBBox(bbox);
 
     auto c = bbox.getCenter();
 
@@ -864,19 +896,19 @@ drawGeomObject(CGeomObject3D *object)
 
   //---
 
-  for (auto *child : object->children()) {
-    drawGeomObject(child);
+  for (auto *child : geomObject->children()) {
+    drawGeomObject(obj, child);
   }
 }
 
 void
 Overview3D::
-getBasis(CGeomObject3D *object, CVector3D &u, CVector3D &v, CVector3D &w) const
+getBasis(CGeomObject3D *obj, CVector3D &u, CVector3D &v, CVector3D &w) const
 {
   CVector3D u1, v1, w1;
-  object->getBasis(u1, v1, w1);
+  obj->getBasis(u1, v1, w1);
 
-  const auto &modelMatrix = object->getHierTransform();
+  const auto &modelMatrix = obj->getHierTransform();
 
   u = (modelMatrix*u1).normalized();
   v = (modelMatrix*v1).normalized();
@@ -1181,7 +1213,11 @@ drawShape(Shape3DObj *obj)
 {
   bool objSelected = obj->isSelected();
 
-  drawData_.painter->setPen(objSelected ? selectedColor() : strokeColor());
+#if 0
+  auto pen = drawData_.painter->pen();
+  pen.setColor(objSelected ? selectedColor() : strokeColor());
+  pen.setWidthF(objSelected ? 3 : 0);
+#endif
 
   drawData_.modelMatrix = obj->modelMatrix();
 
@@ -1192,39 +1228,41 @@ drawShape(Shape3DObj *obj)
 
   auto ni = inds.size();
 
-  if (ni > 0) {
-    for (uint i = 0; i < ni; i += 3) {
-      std::vector<CPoint3D> poly;
+  int mode = GL_TRIANGLES;
 
-      poly.push_back(points[inds[i + 0]].point());
-      poly.push_back(points[inds[i + 1]].point());
-      poly.push_back(points[inds[i + 2]].point());
+  if      (shapeData.isUseTriangleStrip())
+    mode = GL_TRIANGLE_STRIP;
+  else if (shapeData.isUseTriangleFan())
+    mode = GL_TRIANGLE_FAN;
 
-      drawModelPolygon(poly, objSelected);
-    }
-  }
-  else {
-    if      (shapeData.isUseTriangleStrip()) {
-      for (const auto &p : points)
-        drawModelPoint(p.point(), "", objSelected);
-    }
-    else if (shapeData.isUseTriangleFan()) {
-      for (const auto &p : points)
-        drawModelPoint(p.point(), "", objSelected);
+  int fi = 0;
+
+  for (const auto &faceData : shapeData.faceDatas()) {
+    if (faceData.glMode >= 0)
+      mode = faceData.glMode;
+
+    if (mode != GL_LINE_LOOP)
+      assert(faceData.len == 3);
+
+    std::vector<CPoint3D> poly;
+
+    if (ni > 0) {
+      for (int i = 0; i < faceData.len; ++i)
+        poly.push_back(points[inds[faceData.pos + i]].point());
     }
     else {
-      auto np = points.size();
-
-      for (uint i = 0; i < np; i += 3) {
-        std::vector<CPoint3D> poly;
-
-        poly.push_back(points[i + 0].point());
-        poly.push_back(points[i + 1].point());
-        poly.push_back(points[i + 2].point());
-
-        drawModelPolygon(poly, objSelected);
-      }
+      for (int i = 0; i < faceData.len; ++i)
+        poly.push_back(points[faceData.pos + i].point());
     }
+
+    bool faceSelected = objSelected;
+
+    if (! faceSelected)
+      faceSelected = obj->isFaceSelected(faceData.buffer->ind(), fi);
+
+    drawModelPolygon(poly, faceSelected);
+
+    ++fi;
   }
 }
 
@@ -1292,7 +1330,9 @@ drawText(Text3DObj *obj)
 
   auto pos = obj->position();
 
-  drawData_.painter->setPen(objSelected ? selectedColor() : strokeColor());
+  auto pen = drawData_.painter->pen();
+  pen.setColor(objSelected ? selectedColor() : strokeColor());
+  pen.setWidthF(objSelected ? 3 : 0);
 
   drawModelPoint(CPoint3D(pos.getX(), pos.getY(), pos.getZ()), obj->text(), objSelected);
 }
@@ -1862,7 +1902,7 @@ mouseReleaseEvent(QMouseEvent *e)
 
   if (mouseData_.button == Qt::LeftButton) {
     if (editType() == EditType::SELECT) {
-      bool clear = ! mouseData_.isControl;
+      bool clear = ! mouseData_.isShift;
 
       int dx = std::abs(mouseData_.pressPos.x - mouseData_.movePos2.x);
       int dy = std::abs(mouseData_.pressPos.y - mouseData_.movePos2.y);
@@ -2103,21 +2143,21 @@ selectObjectIn(const CPoint2D &p, const QRect &r, bool clear)
   if      (selectType == SelectType::OBJECT) {
     std::set<Object3D *> selectObjectSet;
 
-    for (auto *object : canvas->objects()) {
-      if (! object->isVisible())
+    for (auto *obj : canvas->objects()) {
+      if (! obj->isVisible())
         continue;
 
-      auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
-      auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
-      auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
-      auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
-      auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
-      auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
-      auto *textObj         = dynamic_cast<Text3DObj         *>(object);
+      auto *model3DObj      = dynamic_cast<Model3DObj        *>(obj);
+      auto *particleListObj = dynamic_cast<ParticleList3DObj *>(obj);
+      auto *pathObj         = dynamic_cast<Path3DObj         *>(obj);
+      auto *shapeObj        = dynamic_cast<Shape3DObj        *>(obj);
+      auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(obj);
+      auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(obj);
+      auto *textObj         = dynamic_cast<Text3DObj         *>(obj);
 
       if      (model3DObj) {
         if (selectModelIn(model3DObj, viewType, r1))
-          selectObjectSet.insert(object);
+          selectObjectSet.insert(obj);
       }
       else if (particleListObj) {
         //selectParticleListIn(particleListObj);
@@ -2127,7 +2167,7 @@ selectObjectIn(const CPoint2D &p, const QRect &r, bool clear)
       }
       else if (shapeObj) {
         if (selectShapeIn(shapeObj, viewType, r1))
-          selectObjectSet.insert(object);
+          selectObjectSet.insert(obj);
       }
       else if (spriteObj) {
         //selectSpriteIn(spriteObj);
@@ -2142,64 +2182,103 @@ selectObjectIn(const CPoint2D &p, const QRect &r, bool clear)
 
     std::vector<Object3D *> selectObjects;
 
-    for (auto *object : selectObjectSet)
-      selectObjects.push_back(object);
+    for (auto *obj : selectObjectSet)
+      selectObjects.push_back(obj);
 
     canvas->selectObjects(selectObjects, clear, /*update*/true);
+
+    update();
   }
   else if (selectType == SelectType::FACE) {
-#if 0
-    std::vector<CGeomFace3D *> selectFaces;
+    std::vector<CGeomFace3D *> selectGeomFaces;
 
-    for (auto &pf : drawData_.objFaces) {
-      auto *object = pf.first;
+    for (auto &pf : drawData_.geomObjFaces) {
+      auto *geomObject = pf.first;
 
-      const auto &geomData = pf.second;
+      auto *obj = drawData_.geomObjMap[geomObject];
 
-      //---
+      auto &faceDatas = obj->getFaceDatas();
 
-      for (auto *faceData : geomData.faceDatas) {
+      const auto &faces = pf.second;
+
+      for (const auto &face : faces) {
         QPolygonF poly;
 
-        for (const auto &pf : faceData->points) {
+        for (const auto &pf : face.points) {
           auto pf1 = viewQPoint(viewType, pf);
 
           poly << pf1;
         }
 
-        if (poly.intersects(QPolygonF(r1)))
-          selectFaces.push_back(faceData->face);
+        if (poly.intersects(QPolygonF(r1))) {
+          auto *geomFace = faceDatas[face.ind].face;
+
+          selectGeomFaces.push_back(geomFace);
+        }
       }
     }
 
-    canvas->selectFaces(selectFaces, clear, /*update*/true);
-#endif
+    canvas->selectFaces(selectGeomFaces, clear, /*update*/true);
+
+    for (auto &pf : drawData_.objFaces) {
+      auto *obj = pf.first;
+
+      auto &faceDatas = obj->getFaceDatas();
+
+      const auto &faceDatas1 = pf.second;
+
+      for (const auto &faceData1 : faceDatas1) {
+        QPolygonF poly;
+
+        for (const auto &pf : faceData1.points) {
+          auto pf1 = viewQPoint(viewType, pf);
+
+          poly << pf1;
+        }
+
+        if (poly.intersects(QPolygonF(r1))) {
+          auto &faceData = const_cast<FaceData &>(faceDatas[faceData1.ind]);
+
+          //faceData.selected = true;
+          obj->selectFace(faceData.buffer->ind(), faceData1.ind);
+        }
+      }
+    }
+
+    update();
   }
   else if (selectType == SelectType::EDGE) {
 #if 0
 #endif
   }
   else if (selectType == SelectType::POINT) {
-#if 0
-    CQCamera3DCanvas::ObjectSelectInds selectInds;
+    std::vector<CGeomVertex3D *> selectGeomVertices;
 
-    for (auto &pf : drawData_.objFaces) {
-      auto *object = pf.first;
+    for (auto &pf : drawData_.geomObjFaces) {
+      auto *geomObject = pf.first;
 
-      const auto &geomData = pf.second;
+      auto *obj = drawData_.geomObjMap[geomObject];
+
+      auto &faceDatas = obj->getFaceDatas();
+
+      const auto &faces = pf.second;
 
       //---
 
-      for (auto *faceData : geomData.faceDatas) {
+      for (const auto &face : faces) {
         int i = 0;
 
-        for (const auto &pf : faceData->points) {
+        for (const auto &pf : face.points) {
           auto pf1 = viewQPoint(viewType, pf);
 
           if (r1.contains(pf1)) {
-            auto vInd = faceData->face->getVertex(i);
+            auto *geomFace = faceDatas[face.ind].face;
 
-            selectInds[object].insert(vInd);
+            auto vInd = geomFace->getVertex(i);
+
+            auto *v = geomObject->getVertexP(vInd);
+
+            selectGeomVertices.push_back(v);
           }
 
           ++i;
@@ -2207,8 +2286,9 @@ selectObjectIn(const CPoint2D &p, const QRect &r, bool clear)
       }
     }
 
-    canvas->selectVertices(selectInds);
-#endif
+    canvas->selectVertices(selectGeomVertices, clear, /*update*/true);
+
+    update();
   }
 }
 
@@ -2216,9 +2296,9 @@ bool
 Overview3D::
 selectModelIn(Model3DObj *obj, ViewType viewType, const QRectF &r)
 {
-  auto *object = obj->object();
+  auto *geomObject = obj->object();
 
-  auto &faces = drawData_.objFaces[object];
+  auto &faces = drawData_.geomObjFaces[geomObject];
 
   //---
 
@@ -2304,17 +2384,17 @@ selectObjectAt1(const ViewData &view, const CPoint3D &p, bool clear)
 
   auto *canvas = app_->canvas3D();
 
-  for (auto *object : canvas->objects()) {
-    if (! object->isVisible())
+  for (auto *obj : canvas->objects()) {
+    if (! obj->isVisible())
       continue;
 
-    auto *model3DObj      = dynamic_cast<Model3DObj        *>(object);
-    auto *particleListObj = dynamic_cast<ParticleList3DObj *>(object);
-    auto *pathObj         = dynamic_cast<Path3DObj         *>(object);
-    auto *shapeObj        = dynamic_cast<Shape3DObj        *>(object);
-    auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(object);
-    auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(object);
-    auto *textObj         = dynamic_cast<Text3DObj         *>(object);
+    auto *model3DObj      = dynamic_cast<Model3DObj        *>(obj);
+    auto *particleListObj = dynamic_cast<ParticleList3DObj *>(obj);
+    auto *pathObj         = dynamic_cast<Path3DObj         *>(obj);
+    auto *shapeObj        = dynamic_cast<Shape3DObj        *>(obj);
+    auto *spriteObj       = dynamic_cast<Sprite3DObj       *>(obj);
+    auto *surface3DObj    = dynamic_cast<Surface3DObj      *>(obj);
+    auto *textObj         = dynamic_cast<Text3DObj         *>(obj);
 
     if      (model3DObj) {
       selectModelAt(model3DObj, view, p1, selectAtData);
@@ -2349,30 +2429,41 @@ selectObjectAt1(const ViewData &view, const CPoint3D &p, bool clear)
   if      (selectType == SelectType::OBJECT) {
     const auto &pf = selectAtData.areaObjFaces.begin()->second.begin();
 
-    auto *object = (*pf).first;
+    auto *obj = (*pf).first;
 
-    canvas->selectObject(object, clear, /*update*/true);
+    canvas->selectObject(obj, clear, /*update*/true);
+
+    update();
   }
   else if (selectType == SelectType::FACE) {
     const auto &pf = selectAtData.areaObjFaces.begin()->second.begin();
 
-    auto *face = (*(*pf).second.begin()).face;
+    auto *obj = (*pf).first;
 
-    canvas->selectFace(face, clear, /*update*/true);
+    const auto &face = *(*pf).second.begin();
+
+    const auto &faceDatas = obj->getFaceDatas();
+
+    auto &faceData = const_cast<FaceData &>(faceDatas[face.ind]);
+
+    if (clear)
+      canvas->deselectAll();
+
+    obj->selectFace(faceData.buffer->ind(), face.ind);
+
+    update();
   }
   else if (selectType == SelectType::EDGE) {
 #if 0
-    auto pm = viewPoint(view.type, p);
-
     CGeomEdge3D* minEdge = nullptr;
     double       minDist = 0.0;
 
     for (auto &pf : drawData_.objFaces) {
-      auto *object = pf.first;
+      auto *obj = pf.first;
 
       const auto &geomData = pf.second;
 
-      const auto &edges = object->getEdges();
+      const auto &edges = obj->getEdges();
 
       for (auto *edge : edges) {
         auto getEdgeVertex = [&](uint ind) {
@@ -2388,7 +2479,7 @@ selectObjectAt1(const ViewData &view, const CPoint3D &p, bool clear)
         auto pf2 = viewPoint(view.type, pe2);
 
         double dist = 0.0;
-        (void) CMathGeom2D::PointLineDistance(pm, CLine2D(pf1, pf2), &dist);
+        (void) CMathGeom2D::PointLineDistance(p1, CLine2D(pf1, pf2), &dist);
 
         if (! minEdge || dist < minDist) {
           minEdge = edge;
@@ -2397,50 +2488,69 @@ selectObjectAt1(const ViewData &view, const CPoint3D &p, bool clear)
       }
     }
 
-    if (minEdge)
+    if (minEdge) {
       canvas->selectEdge(minEdge, clear, /*update*/true);
+
+      update();
+    }
 #endif
   }
   else if (selectType == SelectType::POINT) {
-#if 0
-    auto pm = viewPoint(view.type, p);
+    const auto &pf = selectAtData.areaObjFaces.begin()->second.begin();
 
-    int    minInd  = -1;
-    double minDist = 0.0;
+    auto *obj = (*pf).first;
 
-    CGeomFace3D *face = nullptr;
+    const auto &mm = obj->modelMatrix();
 
-    for (auto &pf : drawData_.objFaces) {
-      auto *object = pf.first;
+    const auto &faceDatas = obj->getFaceDatas();
 
-      const auto &geomData = pf.second;
+    CGeomFace3D* minFace    = nullptr;
+    int          minFaceInd = -1;
+    int          minInd     = -1;
+    double       minDist    = 0.0;
 
-      //---
+    for (const auto &face : (*pf).second) {
+      const auto &faceData = faceDatas[face.ind];
 
-      for (auto *faceData : geomData.faceDatas) {
-        int i = 0;
+      int i = 0;
 
-        for (const auto &pf : faceData->points) {
-          auto pf1 = viewPoint(view.type, pf);
+      for (int i1 = 0; i1 < faceData.len; ++i1) {
+        CQGLBuffer::PointData data;
+        faceData.buffer->getPointData(faceData.pos + i1, data);
 
-          auto d = pf1.distanceTo(pm);
+        auto pf = data.point->point();
 
-          if (! face || d < minDist) {
-            face    = faceData->face;
-            minInd  = i;
-            minDist = d;
-          }
+        pf = mm*pf;
 
-          ++i;
+        auto pf1 = viewQPoint(view.type, pf);
+
+        auto d = Util::toCPoint(pf1).distanceTo(Util::toCPoint(p1));
+
+        if (minInd < 0 || d < minDist) {
+          minFace    = faceData.face;
+          minFaceInd = face.ind;
+          minInd     = i;
+          minDist    = d;
         }
+
+        ++i;
       }
     }
 
-    auto  vInd = face->getVertex(minInd);
-    auto &v    = object->getVertex(vInd);
+    if (minFace) {
+      auto  vInd = minFace->getVertex(minInd);
+      auto *v    = minFace->getObject()->getVertexP(vInd);
 
-    canvas->selectVertex(&v, clear, /*update*/true);
-#endif
+      canvas->selectVertex(v, clear, /*update*/true);
+    }
+    else {
+      if (clear)
+        canvas->deselectAll();
+
+      obj->selectPoint(faceDatas[minFaceInd].buffer->ind(), minInd);
+    }
+
+    update();
   }
 }
 
@@ -2448,9 +2558,9 @@ void
 Overview3D::
 selectModelAt(Model3DObj *obj, const ViewData &view, const QPointF &p1, SelectAtData &selectAtData)
 {
-  auto *object = obj->object();
+  auto *geomObject = obj->object();
 
-  auto &faces = drawData_.objFaces[object];
+  auto &faces = drawData_.geomObjFaces[geomObject];
 
   //---
 
@@ -2476,65 +2586,41 @@ void
 Overview3D::
 selectShapeAt(Shape3DObj *obj, const ViewData &view, const QPointF &p1, SelectAtData &selectAtData)
 {
-  auto selectType = this->selectType();
-
-  if (selectType != SelectType::OBJECT)
-    return;
-
   const auto &mm = obj->modelMatrix();
 
-  const auto &shapeData = obj->shapeData();
+  //---
 
-  const auto &inds   = shapeData.indices();
-  const auto &points = shapeData.points();
+  int fi = 0;
 
-  auto ni = inds.size();
+  const auto &faceDatas = obj->getFaceDatas();
 
-  if (ni > 0) {
-    for (uint i = 0; i < ni; i += 3) {
-      QPolygonF poly;
+  for (const auto &faceData : faceDatas) {
+    QPolygonF poly;
 
-      poly.push_back(viewQPoint(view.type, mm*points[inds[i + 0]].point()));
-      poly.push_back(viewQPoint(view.type, mm*points[inds[i + 1]].point()));
-      poly.push_back(viewQPoint(view.type, mm*points[inds[i + 2]].point()));
+    for (int i = 0; i < faceData.len; ++i) {
+      CQGLBuffer::PointData data;
+      faceData.buffer->getPointData(faceData.pos + i, data);
 
-      if (poly.containsPoint(p1, Qt::WindingFill)) {
-        Face face;
+      auto p = data.point->point();
 
-        face.ind = i;
+      p = mm*p;
 
-        auto area = polygonArea(poly);
+      auto p1 = viewQPoint(view.type, p);
 
-        selectAtData.areaObjFaces[area][obj].push_back(face);
-      }
+      poly.push_back(p1);
     }
-  }
-  else {
-    if      (shapeData.isUseTriangleStrip()) {
+
+    if (poly.containsPoint(p1, Qt::WindingFill)) {
+      auto area = polygonArea(poly);
+
+      Face face;
+
+      face.ind = fi;
+
+      selectAtData.areaObjFaces[area][obj].push_back(face);
     }
-    else if (shapeData.isUseTriangleFan()) {
-    }
-    else {
-      auto np = points.size();
 
-      for (uint i = 0; i < np; i += 3) {
-        QPolygonF poly;
-
-        poly.push_back(viewQPoint(view.type, mm*points[i + 0].point()));
-        poly.push_back(viewQPoint(view.type, mm*points[i + 1].point()));
-        poly.push_back(viewQPoint(view.type, mm*points[i + 2].point()));
-
-        if (poly.containsPoint(p1, Qt::WindingFill)) {
-          Face face;
-
-          face.ind = i;
-
-          auto area = polygonArea(poly);
-
-          selectAtData.areaObjFaces[area][obj].push_back(face);
-        }
-      }
-    }
+    ++fi;
   }
 }
 

@@ -19,6 +19,8 @@ createBuffer() const
 
   buffer->setInd(CQGLBuffer::nextInd());
 
+  CQGLBufferMgrInst->addBuffer(buffer);
+
   return buffer;
 }
 

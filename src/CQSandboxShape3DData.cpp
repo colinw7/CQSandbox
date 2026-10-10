@@ -16,12 +16,19 @@ Shape3DData::
   delete geom_;
 }
 
+// cone. Base at (0, 0), radius=r, height=h
 void
 Shape3DData::
-addCone(double r, double h)
+addCone(double r, double h, const ConfigData &configData)
 {
   uint stacks = 20;
   uint slices = 20;
+
+  if (configData.num_xy > 0)
+    stacks = uint(configData.num_xy);
+
+  if (configData.num_patches > 0)
+    slices = uint(configData.num_patches);
 
   std::vector<double> x, y;
 
@@ -41,17 +48,80 @@ addCone(double r, double h)
 
   addBodyRev(&x[0], &y[0], stacks, slices);
 
+  //---
+
+  // cone (-r -> r, -r -> r, 0 -> h)
   delete geom_;
-  geom_ = new CCone3D(r);
+  geom_ = new CCone3D(r, h);
+
+  //---
+
+  auto np = points_.size();
+
+#if 0
+  for (uint i = 0; i < np; ++i)
+    normals_[i] = dynamic_cast<CCone3D *>(geom_)->pointNormal(points_[i].point());
+#endif
+
+  //---
+
+  if (configData.cap_type != CapType::NONE) {
+    FaceData faceData;
+
+    auto pos = faceDatas_.back().pos + faceDatas_.back().len;
+
+    if      (configData.cap_type == CapType::NGON) {
+      faceData.glMode = GL_LINE_LOOP;
+
+      for (uint i = 0; i < slices; ++i)
+        indices_.push_back(i);
+
+      faceData.pos = pos;
+      faceData.len = slices;
+
+      faceDatas_.push_back(faceData);
+    }
+    else if (configData.cap_type == CapType::FAN) {
+      faceData.glMode = GL_TRIANGLES;
+
+      int ind1 = np;
+
+      points_ .push_back(CVector3D(0,  0, 0));
+      normals_.push_back(CVector3D(0, -1, 0));
+
+      for (uint i = 0; i < slices; ++i) {
+        uint i1 = (i + 1) % slices;
+
+        indices_.push_back(i   );
+        indices_.push_back(ind1);
+        indices_.push_back(i1  );
+
+        faceData.pos = pos;
+        faceData.len = 3;
+
+        faceDatas_.push_back(faceData);
+
+        pos += faceData.len;
+      }
+    }
+  }
 }
 
+// cylinder. Base at (0, 0), radius=r, height=h
 void
 Shape3DData::
-addCylinder(double r, double h)
+addCylinder(double r, double h, const ConfigData &configData)
 {
   uint stacks = 20;
   uint slices = 20;
 
+  if (configData.num_xy > 0)
+    stacks = uint(configData.num_xy);
+
+  if (configData.num_patches > 0)
+    slices = uint(configData.num_patches);
+
+  // add cylinder (no end caps)
   std::vector<double> x, y;
 
   x.resize(stacks);
@@ -60,7 +130,7 @@ addCylinder(double r, double h)
   x[0         ] = r; y[0         ] = 0;
   x[stacks - 1] = r; y[stacks - 1] = h;
 
-  auto dx = (stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0.0);
+  auto dx = (stacks > 2 ? (x[stacks - 1] - x[0])/(stacks - 1) : 0.0); // TODO: always 0
   auto dy = (stacks > 2 ? (y[stacks - 1] - y[0])/(stacks - 1) : 0.0);
 
   for (uint i = 1; i < stacks - 1; ++i) {
@@ -70,6 +140,88 @@ addCylinder(double r, double h)
 
   addBodyRev(&x[0], &y[0], stacks, slices);
 
+  //---
+
+  if (configData.cap_type != CapType::NONE) {
+    FaceData faceData;
+
+    auto pos = faceDatas_.back().pos + faceDatas_.back().len;
+
+    auto np = points_.size();
+
+    if      (configData.cap_type == CapType::NGON) {
+      faceData.glMode = GL_LINE_LOOP;
+
+      for (uint i = 0; i < slices; ++i)
+        indices_.push_back(i);
+
+      faceData.pos = pos;
+      faceData.len = slices;
+
+      faceDatas_.push_back(faceData);
+
+      pos += faceData.len;
+
+      int pi = np - slices;
+
+      for (uint i = 0; i < slices; ++i)
+        indices_.push_back(pi + i);
+
+      faceData.pos = pos;
+      faceData.len = slices;
+
+      faceDatas_.push_back(faceData);
+
+      pos += faceData.len;
+    }
+    else if (configData.cap_type == CapType::FAN) {
+      faceData.glMode = GL_TRIANGLES;
+
+      int ind1 = np;
+      int ind2 = np + 1;
+
+      points_.push_back(CVector3D(0, 0, 0));
+      points_.push_back(CVector3D(0, h, 0));
+
+      normals_.push_back(CVector3D(0, -1, 0));
+      normals_.push_back(CVector3D(0,  1, 0));
+
+      for (uint i = 0; i < slices; ++i) {
+        uint i1 = (i + 1) % slices;
+
+        indices_.push_back(i   );
+        indices_.push_back(ind1);
+        indices_.push_back(i1  );
+
+        faceData.pos = pos;
+        faceData.len = 3;
+
+        faceDatas_.push_back(faceData);
+
+        pos += faceData.len;
+      }
+
+      int pi = np - slices;
+
+      for (uint i = 0; i < slices; ++i) {
+        uint i1 = (i + 1) % slices;
+
+        indices_.push_back(pi + i1);
+        indices_.push_back(ind2   );
+        indices_.push_back(pi + i );
+
+        faceData.pos = pos;
+        faceData.len = 3;
+
+        faceDatas_.push_back(faceData);
+
+        pos += faceData.len;
+      }
+    }
+  }
+
+  //---
+
   delete geom_;
   geom_ = new CCylinder3D(r);
 }
@@ -78,6 +230,7 @@ void
 Shape3DData::
 addCube(double sx, double sy, double sz)
 {
+  // 6 faces
   static CVector3D cube_normal[6] = {
     {-1.0,  0.0,  0.0},
     { 0.0,  1.0,  0.0},
@@ -96,28 +249,28 @@ addCube(double sx, double sy, double sz)
     {7, 4, 0, 3}
   };
 
+  // 8 vertices
+  std::vector<CPoint3D> points; points.resize(8);
+
   double xs = sx/2.0;
   double ys = sy/2.0;
   double zs = sz/2.0;
 
-  struct Point {
-    float x;
-    float y;
-    float z;
-  };
+  points[0].x = points[1].x = points[2].x = points[3].x = -xs;
+  points[4].x = points[5].x = points[6].x = points[7].x =  xs;
+  points[0].y = points[1].y = points[4].y = points[5].y = -ys;
+  points[2].y = points[3].y = points[6].y = points[7].y =  ys;
+  points[0].z = points[3].z = points[4].z = points[7].z = -zs;
+  points[1].z = points[2].z = points[5].z = points[6].z =  zs;
 
-  std::vector<Point> v; v.resize(8);
+  points_.resize(points.size());
 
-  v[0].x = v[1].x = v[2].x = v[3].x = -xs;
-  v[4].x = v[5].x = v[6].x = v[7].x =  xs;
-  v[0].y = v[1].y = v[4].y = v[5].y = -ys;
-  v[2].y = v[3].y = v[6].y = v[7].y =  ys;
-  v[0].z = v[3].z = v[4].z = v[7].z = -zs;
-  v[1].z = v[2].z = v[5].z = v[6].z =  zs;
+  for (uint i = 0; i < points.size(); ++i)
+    points_[i] = points[i];
 
-  points_   .resize(36);
-  texCoords_.resize(36);
-  normals_  .resize(36);
+  //---
+
+  indices_.resize(36);
 
   faceDatas_.clear();
 
@@ -126,33 +279,70 @@ addCube(double sx, double sy, double sz)
   for (int i = 5; i >= 0; --i) {
     const auto &normal = cube_normal[i];
 
-    auto addPoint = [&](const Point &p, const CVector2D &t) {
-      points_   [k] = CVector3D(p.x, p.y, p.z);
-      texCoords_[k] = t;
-      normals_  [k] = normal;
-      ++k;
+    auto addFaceInd = [&](int ind) {
+      indices_[k++] = ind;
     };
 
     FaceData faceData;
 
-    faceData.pos = k;
-    faceData.len = 3;
+    faceData.pos    = k;
+    faceData.len    = 3;
+    faceData.normal = normal;
 
-    addPoint(v[cube_faces[i][0]], CVector2D(0.0, 0.0));
-    addPoint(v[cube_faces[i][1]], CVector2D(1.0, 0.0));
-    addPoint(v[cube_faces[i][2]], CVector2D(1.0, 1.0));
+    addFaceInd(cube_faces[i][0]);
+    addFaceInd(cube_faces[i][1]);
+    addFaceInd(cube_faces[i][2]);
 
     faceDatas_.push_back(faceData);
 
-    faceData.pos = k;
-    faceData.len = 3;
+    faceData.pos    = k;
+    faceData.len    = 3;
+    faceData.normal = normal;
 
-    addPoint(v[cube_faces[i][2]], CVector2D(1.0, 1.0));
-    addPoint(v[cube_faces[i][3]], CVector2D(0.0, 1.0));
-    addPoint(v[cube_faces[i][0]], CVector2D(0.0, 0.0));
+    addFaceInd(cube_faces[i][2]);
+    addFaceInd(cube_faces[i][3]);
+    addFaceInd(cube_faces[i][0]);
 
     faceDatas_.push_back(faceData);
   }
+
+  //---
+
+  // 12 edges
+  lineDatas_.clear();
+
+  auto addLine = [&](int i1, int i2) {
+    int ii1 = indices_.size();
+    indices_.push_back(i1);
+
+    int ii2 = indices_.size();
+    indices_.push_back(i2);
+
+    LineData lineData;
+
+    lineData.ind1 = ii1;
+    lineData.ind2 = ii2;
+
+    lineDatas_.push_back(lineData);
+  };
+
+  addLine(0, 1); addLine(1, 2); addLine(2, 3); addLine(3, 0);
+  addLine(0, 4); addLine(1, 5); addLine(2, 6); addLine(3, 7);
+  addLine(4, 5); addLine(5, 6); addLine(6, 7); addLine(7, 4);
+
+  //---
+
+  pointDatas_.clear();
+
+  for (uint i = 0; i < points_.size(); ++i) {
+    PointData pointData;
+
+    pointData.ind = i;
+
+    pointDatas_.push_back(pointData);
+  }
+
+  //---
 
   delete geom_;
   geom_ = new CBox3D(sx, sy, sz);
@@ -217,10 +407,59 @@ addBodyRev(double *x, double *y, uint num_xy, uint num_patches)
   for (uint i = 0; i < ni; i += 3) {
     FaceData faceData;
 
+    faceData.glMode = GL_TRIANGLES;
+
     faceData.pos = i;
     faceData.len = 3;
 
     faceDatas_.push_back(faceData);
+  }
+
+  //---
+
+  pointDatas_.clear();
+
+  for (uint i = 0; i < np; ++i) {
+    PointData pointData;
+
+    pointData.ind = i;
+
+    pointDatas_.push_back(pointData);
+  }
+
+  //---
+
+  lineDatas_.clear();
+
+  auto addLine = [&](int i1, int i2) {
+    int ii1 = indices_.size();
+    indices_.push_back(i1);
+
+    int ii2 = indices_.size();
+    indices_.push_back(i2);
+
+    LineData lineData;
+
+    lineData.ind1 = ii1;
+    lineData.ind2 = ii2;
+
+    lineDatas_.push_back(lineData);
+  };
+
+  for (uint j = 0; j < num_patches; ++j) {
+    auto j1 = j*num_xy;
+
+    for (uint i1 = num_xy - 1, i2 = 0; i2 < num_xy; i1 = i2++) {
+      addLine(i1 + j1, i2 + j1);
+    }
+
+    if (j < num_patches - 1) {
+      auto j2 = (j + 1)*num_xy;
+
+      for (uint i = 0; i < num_xy; ++i) {
+        addLine(i + j1, i + j2);
+      }
+    }
   }
 }
 
@@ -238,8 +477,8 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
   double theta_increment = 2.0*M_PI/num_patches;
 
   for (uint i = 0; i < num_patches; i++) {
-    c[i] = cos(theta);
-    s[i] = sin(theta);
+    c[i] = std::cos(theta);
+    s[i] = std::sin(theta);
 
     theta += theta_increment;
   }
@@ -255,9 +494,11 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
   uint *pindex2 = &index2[0];
 
   if (fabs(x[0]) < 1E-6) {
-    CVector3D p(0.0, float(y[0]), 0.0);
+    CVector3D p(0.0, y[0], 0.0);
 
-    vertexDatas.push_back(VertexData(p, p, CVector2D(0, 0)));
+    auto n = p;
+
+    vertexDatas.push_back(VertexData(p, n, CVector2D(0, 0)));
 
     for (uint i = 0; i <= num_patches; i++)
       pindex1[i] = num_vertices;
@@ -266,9 +507,12 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
   }
   else {
     for (uint i = 0; i < num_patches; i++) {
-      CVector3D p(float(x[0]*c[i]), float(y[0]), float(-x[0]*s[i]));
+      CVector3D p(x[0]*c[i], y[0], -x[0]*s[i]);
 
-      vertexDatas.push_back(VertexData(p, p, CVector2D(0, 0)));
+      //auto n = CVector3D(p.x(), 0, p.z());
+      auto n = p;
+
+      vertexDatas.push_back(VertexData(p, n, CVector2D(0, 0)));
 
       pindex1[i] = num_vertices;
 
@@ -282,9 +526,11 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
     double ty = (num_xy > 1 ? 1.0*j/(num_xy - 1) : 0.0);
 
     if (fabs(x[j]) < 1E-6) {
-      CVector3D p(0.0, float(y[j]), 0.0);
+      CVector3D p(0.0, y[j], 0.0);
 
-      vertexDatas.push_back(VertexData(p, p, CVector2D(0, float(ty))));
+      auto n = p;
+
+      vertexDatas.push_back(VertexData(p, n, CVector2D(0, ty)));
 
       for (uint i = 0; i <= num_patches; ++i)
         pindex2[i] = num_vertices;
@@ -295,9 +541,12 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
       for (uint i = 0; i < num_patches; i++) {
         double tx = (num_patches > 1 ? 1.0*i/(num_patches - 1) : 0.0);
 
-        CVector3D p(float(x[j]*c[i]), float(y[j]), float(-x[j]*s[i]));
+        CVector3D p(x[j]*c[i], y[j], -x[j]*s[i]);
 
-        vertexDatas.push_back(VertexData(p, p, CVector2D(float(tx), float(ty))));
+        //auto n = CVector3D(p.x(), 0, p.z());
+        auto n = p;
+
+        vertexDatas.push_back(VertexData(p, n, CVector2D(tx, ty)));
 
         pindex2[i] = num_vertices;
 
@@ -363,6 +612,12 @@ setBuffer(CQGLBuffer *buffer)
 {
   for (auto &faceData : faceDatas_)
     faceData.buffer = buffer;
+
+  for (auto &lineData : lineDatas_)
+    lineData.buffer = buffer;
+
+  for (auto &pointData : pointDatas_)
+    pointData.buffer = buffer;
 }
 
 }

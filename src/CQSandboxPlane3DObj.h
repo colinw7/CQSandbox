@@ -24,9 +24,17 @@ class Plane3DObj : public Object3D {
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
+  static ShaderProgram* shaderProgram() { return s_program; }
+
+  //---
+
   Plane3DObj(Canvas3D *canvas);
 
   const char *typeName() const override { return "plane"; }
+
+  void init() override;
+
+  //---
 
   const QColor &color() const { return color_; }
   void setColor(const QColor &c);
@@ -36,9 +44,11 @@ class Plane3DObj : public Object3D {
 
   void setTexture(CQGLTexture *texture) { texture_ = texture; }
 
-  void init() override;
+  //---
 
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  //---
 
   void initShader();
 

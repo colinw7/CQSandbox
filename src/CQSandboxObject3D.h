@@ -27,6 +27,7 @@ class Object3D;
 class Canvas3D;
 class Group3DObj;
 class BBox3DObj;
+class Modifier3DObj;
 
 //---
 
@@ -103,6 +104,7 @@ class Object3D : public QObject {
     JSON,
     LINE_LIST,
     MODEL,
+    MODIFIER,
     OTHELLO,
     PARTICLE_LIST,
     PATH,
@@ -129,7 +131,9 @@ class Object3D : public QObject {
     ALL       = (TRANSLATE | SCALE | ROTATE)
   };
 
-  using FaceDatas = std::vector<FaceData>;
+  using FaceDatas  = std::vector<FaceData>;
+  using LineDatas  = std::vector<LineData>;
+  using PointDatas = std::vector<PointData>;
 
   struct PointInd {
     uint bufferInd { 0 };
@@ -162,6 +166,8 @@ class Object3D : public QObject {
   using SelectedFaces  = std::map<uint, FaceSet>;
 
   using TclObjs = std::vector<Tcl_Obj *>;
+
+  using Modifiers = std::vector<Modifier3DObj *>;
 
  public:
   Object3D(Canvas3D *canvas, Type type);
@@ -201,7 +207,7 @@ class Object3D : public QObject {
   void setVisible(bool b) { visible_ = b; }
 
   bool isSelected() const { return selected_; }
-  void setSelected(bool b);
+  virtual void setSelected(bool b);
 
   bool isInside() const { return inside_; }
   void setInside(bool b) { inside_ = b; }
@@ -364,9 +370,12 @@ class Object3D : public QObject {
 
   virtual CQGLBuffer *getBuffer() const { return buffer_; }
 
-  virtual const FaceDatas &getFaceDatas() const { return faceDatas_; }
-
   virtual CQGLBuffer *getBufferByInd(uint ind) const;
+
+  virtual const FaceDatas  &getFaceDatas () const { return faceDatas_ ; }
+  virtual const LineDatas  &getLineDatas () const { return lineDatas_ ; }
+  virtual const PointDatas &getPointDatas() const { return pointDatas_; }
+
 
   //---
 
@@ -390,13 +399,16 @@ class Object3D : public QObject {
 
   //---
 
-  void clearSelection();
+  virtual void clearSelection();
 
-  void selectPoint(uint bufferInd, uint pointInd);
-  void selectFace (uint bufferInd, uint faceInd);
+  virtual void selectPoint(uint bufferInd, uint pointInd);
+  virtual void selectFace (uint bufferInd, uint faceInd);
 
   const SelectedPoints &selectedPoints() const { return selectedPoints_; }
   const SelectedFaces  &selectedFaces () const { return selectedFaces_; }
+
+  bool isPointSelected(uint bufferInd, uint pointInd) const;
+  bool isFaceSelected (uint bufferInd, uint faceInd) const;
 
   //---
 
@@ -405,6 +417,13 @@ class Object3D : public QObject {
   CPolygonOrientation getFaceOrient(int i) const;
 
   bool getFacePoints(int i, std::vector<CPoint3D> &points) const;
+
+  //---
+
+  const Modifiers &modifiers() const { return modifiers_; }
+
+  void addModifier(Modifier3DObj *obj);
+  void removeModifier(Modifier3DObj *obj);
 
  Q_SIGNALS:
   void transformChanged();
@@ -452,10 +471,14 @@ class Object3D : public QObject {
 
   CQGLBuffer* buffer_ { nullptr };
 
-  FaceDatas faceDatas_;
+  FaceDatas  faceDatas_;
+  LineDatas  lineDatas_;
+  PointDatas pointDatas_;
 
   SelectedPoints selectedPoints_;
   SelectedFaces  selectedFaces_;
+
+  Modifiers modifiers_;
 };
 
 }

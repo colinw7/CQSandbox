@@ -87,6 +87,12 @@ class Control3D : public QFrame {
 
   void bgColorSlot(const QColor &c);
 
+  void wireframeColorSlot(const QColor &c);
+  void wireframeAlphaSlot(double r);
+
+  void selectColorSlot(const QColor &c);
+  void selectAlphaSlot(double r);
+
   void enableShadowSlot(int b);
   void debugShadowSlot(int b);
 
@@ -190,11 +196,15 @@ class Control3D : public QFrame {
     QCheckBox*    cullFaceCheck    { nullptr };
     QCheckBox*    frontFaceCheck   { nullptr };
     CQColorEdit*  bgColorEdit      { nullptr };
-    CQBBox3DEdit* bboxEdit         { nullptr };
+    CQColorEdit*  wireframeColor   { nullptr };
+    CQRealSpin*   wireframeAlpha   { nullptr };
+    CQColorEdit*  selectColor      { nullptr };
+    CQRealSpin*   selectAlpha      { nullptr };
     QCheckBox*    showShadowCheck  { nullptr };
     QCheckBox*    debugShadowCheck { nullptr };
     QCheckBox*    showSkyboxCheck  { nullptr };
     QCheckBox*    debugSkyboxCheck { nullptr };
+    CQBBox3DEdit* bboxEdit         { nullptr };
   };
 
   ControlData controlData_;

@@ -2,11 +2,13 @@
 
 out vec4 FragColor;
 
-uniform bool isWireframe;
+uniform vec3  selectColor;
+uniform float selectAlpha;
+uniform bool  isWireframe;
 
 void main() {
   if (isWireframe)
-    FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+    FragColor = vec4(selectColor, selectAlpha);
   else
-    FragColor = vec4(1.0, 1.0, 0.0, 0.1);
+    FragColor = vec4(selectColor, 0.1);
 }

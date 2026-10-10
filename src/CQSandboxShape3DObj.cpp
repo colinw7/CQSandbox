@@ -1,6 +1,7 @@
 #include <CQSandboxShape3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxLight3D.h>
+#include <CQSandboxModifier3DObj.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -260,7 +261,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else if (! strs.empty())
       return app->errorMsg("Invalid dimensions for cone");
 
-    shapeData_.addCone(r, h);
+    shapeData_.addCone(r, h, configData_);
 
     setNeedsUpdate();
   }
@@ -317,7 +318,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else if (! strs.empty())
       return app->errorMsg("Invalid dimensions for cylinder");
 
-    shapeData_.addCylinder(r, h);
+    shapeData_.addCylinder(r, h, configData_);
 
     setNeedsUpdate();
   }
@@ -336,6 +337,34 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     setNeedsUpdate();
   }
+
+  else if (name == "cap_type") {
+    auto lstr = value.toLower();
+
+    if      (lstr == "none")
+      configData_.cap_type = Shape3DData::CapType::NONE;
+    else if (lstr == "ngon")
+      configData_.cap_type = Shape3DData::CapType::NGON;
+    else if (lstr == "fan")
+      configData_.cap_type = Shape3DData::CapType::FAN;
+    else
+      return false;
+  }
+  else if (name == "num_patches") {
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    configData_.num_patches = i;
+  }
+  else if (name == "num_xy") {
+    int i;
+    if (! Util::stringToInt(value, i))
+      return false;
+
+    configData_.num_xy = i;
+  }
+
   else
     return Object3D::setValue(name, value, args);
 
@@ -534,18 +563,30 @@ updateGL()
 
   calcBBox();
 
-  calcNormals();
-
   //---
 
   const auto &points  = shapeData_.points();
   const auto &indices = shapeData_.indices();
-  const auto &normals = shapeData_.normals();
 
   auto np = points.size();
   auto ni = indices.size();
 
-  assert(normals.size() == np);
+  //---
+
+  const auto &normals = shapeData_.normals();
+
+  auto nn = normals.size();
+
+  if (nn != np) {
+    if (s_normals_.size() != np) {
+      s_normals_.resize(np);
+
+      for (uint i = 0; i < np; ++i)
+        s_normals_[i] = CVector3D(0, 1, 0);
+    }
+  }
+  else
+    s_normals_.clear();
 
   //---
 
@@ -553,24 +594,22 @@ updateGL()
 
   auto nt = texCoords.size();
 
-  static Shape3DData::TexCoords s_texCoords;
-
   if (nt != np) {
-    if (s_texCoords.size() != np) {
-      s_texCoords.resize(np);
+    if (s_texCoords_.size() != np) {
+      s_texCoords_.resize(np);
 
       for (uint i = 0; i < np; ++i)
-        s_texCoords[i] = CVector2D(0, 0);
+        s_texCoords_[i] = CVector2D(0, 0);
     }
   }
+  else
+    s_texCoords_.clear();
 
   auto nc = colors_.size();
 
-  static Colors s_colors;
-
   if (nc != np) {
-    if (s_colors.size() != np)
-      s_colors.resize(np);
+    if (s_colors_.size() != np)
+      s_colors_.resize(np);
 
     auto c = material_->diffuseColor();
 
@@ -578,16 +617,25 @@ updateGL()
       c = Qt::yellow;
 
     for (uint i = 0; i < np; ++i)
-      s_colors[i] = Util::qcolorToColor(c);
+      s_colors_[i] = Util::qcolorToColor(c);
   }
+  else
+    s_colors_.clear();
 
   //---
 
   buffer_->clearBuffers();
 
-  for (uint i = 0; i < np; ++i) {
-    buffer_->addPoint (points [i]);
-    buffer_->addNormal(normals[i]);
+  for (uint i = 0; i < np; ++i)
+    buffer_->addPoint(points[i]);
+
+  if (nn == np) {
+    for (uint i = 0; i < np; ++i)
+      buffer_->addNormal(normals[i]);
+  }
+  else {
+    for (uint i = 0; i < np; ++i)
+      buffer_->addNormal(s_normals_[i]);
   }
 
   if (nt == np) {
@@ -596,7 +644,7 @@ updateGL()
   }
   else {
     for (uint i = 0; i < np; ++i)
-      buffer_->addTexturePoint(s_texCoords[i]);
+      buffer_->addTexturePoint(s_texCoords_[i]);
   }
 
   if (nc == np) {
@@ -605,7 +653,7 @@ updateGL()
   }
   else {
     for (uint i = 0; i < np; ++i)
-      buffer_->addColor(s_colors[i]);
+      buffer_->addColor(s_colors_[i]);
   }
 
   if (ni > 0) {
@@ -648,29 +696,25 @@ calcBBox()
   return bbox_;
 }
 
-void
-Shape3DObj::
-calcNormals()
-{
-  auto np = shapeData_.points().size();
-
-  if (shapeData_.normals().size() != np) {
-    Shape3DData::Points normals;
-
-    normals.resize(np);
-
-    for (uint i = 0; i < np; ++i)
-      normals[i] = CVector3D(0, 0, 1);
-
-    shapeData_.setNormals(normals);
-  }
-}
-
 const Shape3DObj::FaceDatas &
 Shape3DObj::
 getFaceDatas() const
 {
   return shapeData_.faceDatas();
+}
+
+const Shape3DObj::LineDatas &
+Shape3DObj::
+getLineDatas() const
+{
+  return shapeData_.lineDatas();
+}
+
+const Shape3DObj::PointDatas &
+Shape3DObj::
+getPointDatas() const
+{
+  return shapeData_.pointDatas();
 }
 
 void
@@ -692,18 +736,14 @@ render()
   auto *program = shaderProgram();
 
   setModelMatrix();
-  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+
+  auto modelMatrix = this->modelMatrix();
+
+  program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
 
   //---
 
-  program->setUniformValue("specularStrength", float(material_->specular()));
-  program->setUniformValue("emissiveStrength", float(material_->emission()));
-  program->setUniformValue("shininess"       , float(material_->shininess()));
-
-  program->setUniformValue("opacity", float(1.0 - material_->transparency()));
-
-  program->setUniformValue("reflectivity", float(material_->reflectivity()));
-  program->setUniformValue("refractivity", float(material_->refractivity()));
+  canvas_->setProgramMaterial(program, material_);
 
   //---
 
@@ -763,22 +803,103 @@ render()
 
   //---
 
+  program->setUniformValue("wireframeColor", CQGLUtil::toVector(canvas_->wireframeColor()));
+  program->setUniformValue("wireframeAlpha", float(canvas_->wireframeAlpha()));
+
+  program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
+  program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
+
+  //---
+
   auto drawBuffer = [&](bool wireframe) {
     program->setUniformValue("isWireframe", wireframe);
+    program->setUniformValue("isPoint"    , false);
+    program->setUniformValue("isLine"     , false);
 
     CQGLStateInst->setPolygonMode(wireframe ? GL_LINE : GL_FILL);
 
+    CQGLBuffer::DrawData drawData;
+
+    if      (shapeData_.isUseTriangleStrip())
+      drawData.mode = GL_TRIANGLE_STRIP;
+    else if (shapeData_.isUseTriangleFan())
+      drawData.mode = GL_TRIANGLE_FAN;
+    else
+      drawData.mode = GL_TRIANGLES;
+
     if (buffer_->hasIndices())
-      buffer_->drawTriangleIndices();
-    else {
-      if      (shapeData_.isUseTriangleStrip())
-        buffer_->drawTriangleStrip();
-      else if (shapeData_.isUseTriangleFan())
-        buffer_->drawTriangleFan();
-      else
-        buffer_->drawTriangles();
+      drawData.indexed = true;
+
+    for (const auto &faceData : getFaceDatas()) {
+      program->setUniformValue("useFaceNormal", ! s_normals_.empty());
+      program->setUniformValue("faceNormal"   , CQGLUtil::toVector(faceData.normal));
+
+      if (faceData.glMode >= 0)
+        drawData.mode = faceData.glMode;
+
+      drawData.pos = faceData.pos;
+      drawData.len = faceData.len;
+
+      buffer_->drawData(drawData);
+
+      for (auto *modifier : modifiers_)
+        modifier->drawData(program, buffer_, drawData, modelMatrix);
     }
   };
+
+  auto drawPoints = [&]() {
+    if (getPointDatas().empty())
+      return;
+
+    program->setUniformValue("isWireframe", false);
+    program->setUniformValue("isPoint"    , true);
+    program->setUniformValue("isLine"     , false);
+
+    CQGLBuffer::DrawData drawData;
+
+    CQGLStateInst->setPointSize(8);
+
+    program->setUniformValue("isPoint", true);
+
+    drawData.mode    = GL_POINTS;
+    drawData.indexed = false;
+    drawData.len     = 1;
+
+    for (const auto &pointData : getPointDatas()) {
+      drawData.pos = pointData.ind;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  auto drawLines = [&]() {
+    if (getLineDatas().empty())
+      return;
+
+    program->setUniformValue("isWireframe", false);
+    program->setUniformValue("isPoint"    , false);
+    program->setUniformValue("isLine"     , true);
+
+    CQGLBuffer::DrawData drawData;
+
+    CQGLStateInst->setPointSize(8);
+
+    program->setUniformValue("isPoint", true);
+
+    drawData.mode = GL_LINES;
+    drawData.len  = 2;
+
+    if (buffer_->hasIndices())
+      drawData.indexed = true;
+
+    for (const auto &lineData : getLineDatas()) {
+      drawData.pos = lineData.ind1;
+
+      buffer_->drawData(drawData);
+    }
+  };
+
+  //---
 
   bool wireframe = (wireframe_ || canvas_->isWireframe());
   bool solid     = (! wireframe_ && (canvas_->isSolid() || canvas_->isTextured()));
@@ -790,6 +911,12 @@ render()
   if (solid) {
     drawBuffer(false);
   }
+
+  if (canvas_->editType() == Canvas3D::EditType::POINT)
+    drawPoints();
+
+  if (canvas_->editType() == Canvas3D::EditType::LINE)
+    drawLines();
 
   //---
 

@@ -201,6 +201,9 @@ void
 CanvasToolbar3D::
 connectSlots(bool b)
 {
+  assert(b != connected_);
+  connected_ = b;
+
   if (b) {
     connect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
     connect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));
@@ -380,15 +383,14 @@ solidSlot()
 
   canvas_->setSolid(button->isChecked());
 
-  if (canvas_->isSolid()) {
+  if (canvas_->isSolid())
     canvas_->setTextured(false);
-
-    updateInfo();
-  }
 
   canvas_->update();
 
   connectSlots(true);
+
+  updateInfo();
 }
 
 void
@@ -401,15 +403,14 @@ texturedSlot()
 
   canvas_->setTextured(button->isChecked());
 
-  if (canvas_->isTextured()) {
+  if (canvas_->isTextured())
     canvas_->setSolid(false);
-
-    updateInfo();
-  }
 
   canvas_->update();
 
   connectSlots(true);
+
+  updateInfo();
 }
 
 void
@@ -638,6 +639,9 @@ void
 OverviewToolbar3D::
 connectSlots(bool b)
 {
+  assert(b != connected_);
+  connected_ = b;
+
   if (b) {
     connect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
     connect(modelButton_ , SIGNAL(clicked()), this, SLOT(modelSlot()));

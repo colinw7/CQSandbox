@@ -176,6 +176,15 @@ setAngles(const CPoint3D &p)
   setNeedsUpdate();
 }
 
+void
+Model3DObj::
+setSelected(bool b)
+{
+  object_->setSelected(b);
+
+  Object3D::setSelected(b);
+}
+
 //---
 
 bool
@@ -1327,6 +1336,56 @@ makeTexture(const CImagePtr &image) const
   texture->setFunctions(const_cast<Canvas3D *>(canvas_));
 
   return texture;
+}
+
+//---
+
+void
+Model3DObj::
+deselectAll()
+{
+  object_->setSelected(false);
+
+  for (auto *face : object_->getFaces()) {
+    face->setSelected(false);
+  }
+}
+
+void
+Model3DObj::
+clearSelection()
+{
+  object_->setSelected(false);
+
+  Object3D::clearSelection();
+}
+
+void
+Model3DObj::
+selectPoint(uint bufferInd, uint pointInd)
+{
+  auto *buffer = CQGLBufferMgrInst->getBuffer(bufferInd);
+
+  auto vertexInd = buffer->getInd(pointInd);
+
+  auto *vertex = object_->getVertexP(vertexInd);
+
+  vertex->setSelected(true);
+
+  Object3D::selectPoint(bufferInd, pointInd);
+}
+
+void
+Model3DObj::
+selectFace(uint bufferInd, uint faceInd)
+{
+  const auto &faceDatas = getFaceDatas();
+
+  auto *face = faceDatas[faceInd].face;
+
+  face->setSelected(true);
+
+  Object3D::selectFace(bufferInd, faceInd);
 }
 
 //---

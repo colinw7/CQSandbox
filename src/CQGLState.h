@@ -61,6 +61,7 @@ class CQGLState {
     setEnableLighting   (false  , /*force*/true);
     setSmoothShade      (true   , /*force*/true);
     setPolygonMode      (GL_FILL, /*force*/true);
+    setPointSize        (1      , /*force*/true);
 
     textureNum_.clear();
     clip_      .clear();
@@ -198,6 +199,34 @@ class CQGLState {
     }
 
     return mode;
+  }
+
+  //---
+
+  float getPointSize() const { return pointSize_; }
+
+  float setPointSize(float size, bool force=false) {
+    if (force || size != pointSize_) {
+      glPointSize(size);
+
+      std::swap(pointSize_, size);
+    }
+
+    return size;
+  }
+
+  //---
+
+  float getLineWidth() const { return lineWidth_; }
+
+  float setLineWidth(float width, bool force=false) {
+    if (force || width != lineWidth_) {
+      glLineWidth(width);
+
+      std::swap(lineWidth_, width);
+    }
+
+    return width;
   }
 
   //---
@@ -373,6 +402,8 @@ class CQGLState {
   BoolMap textureNum_;
   BoolMap clip_;
   int     polygonMode_       { GL_FILL };
+  float   pointSize_         { 1 };
+  float   lineWidth_         { 1 };
 };
 
 #endif
