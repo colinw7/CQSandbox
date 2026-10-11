@@ -42,6 +42,10 @@ class Modifier3DObj : public Object3D {
 
   CBBox3D calcBBox() override { return bbox_; }
 
+  void loadBuffer() override { }
+
+  void render() override { }
+
   //---
 
   void drawData(ShaderProgram *program, CQGLBuffer *buffer, const CQGLBuffer::DrawData &data,

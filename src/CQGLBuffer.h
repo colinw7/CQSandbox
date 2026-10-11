@@ -27,8 +27,12 @@ class CQGLBuffer {
 
     Point() { }
 
-    Point(float x, float y, float z) :
-     x(x), y(y), z(z) {
+    Point(float x1, float y1, float z1) :
+     x(x1), y(y1), z(z1) {
+    }
+
+    Point(const CPoint3D &p) :
+     x(p.x), y(p.y), z(p.z) {
     }
 
     CPoint3D point() const { return CPoint3D(x, y, z); }
@@ -372,16 +376,7 @@ class CQGLBuffer {
   };
 
   void getPointData(int i, PointData &data) const {
-    auto i1 = i;
-
-    if (hasIndices()) {
-      assert(i < int(data_.indices.size()));
-
-      i1 = data_.indices[i];
-    }
-    else {
-      assert(i < int(data_.points.size()));
-    }
+    auto i1 = mapInd(i);
 
     data.i = i;
 
@@ -395,6 +390,32 @@ class CQGLBuffer {
       data.boneId     = data_.boneIds[i1];
       data.boneWeight = data_.boneWeights[i1];
     }
+  }
+
+  void setPoint(int i, const CPoint3D &p, bool invalidate=true) {
+    auto i1 = mapInd(i);
+
+    assert(hasPointPart());
+
+    data_.points[i1] = p;
+
+    if (invalidate)
+      data_.dataValid = false;
+  }
+
+  int mapInd(int i) const {
+    auto i1 = i;
+
+    if (hasIndices()) {
+      assert(i < int(data_.indices.size()));
+
+      i1 = data_.indices[i];
+    }
+    else {
+      assert(i < int(data_.points.size()));
+    }
+
+    return i1;
   }
 
   //---

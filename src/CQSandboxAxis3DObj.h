@@ -27,6 +27,8 @@ class Axis3DObj : public Object3D {
 
   void tick() override;
 
+  void loadBuffer() override;
+
   void render() override;
 
  private:

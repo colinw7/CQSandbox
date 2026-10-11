@@ -43,7 +43,7 @@ class PointList3DObj : public Object3D {
 
   void init() override;
 
-  void initData();
+  void loadBuffer() override;
 
   void render() override;
 

@@ -335,7 +335,7 @@ updateTextData()
 
 void
 Text3DObj::
-initGLData()
+loadBuffer()
 {
   if (! glData_.vao)
     canvas_->glGenVertexArrays(1, &glData_.vao);
@@ -392,7 +392,7 @@ render()
   if (! textDataValid_) {
     updateTextData();
 
-    initGLData();
+    loadBuffer();
 
     textDataValid_ = true;
   }

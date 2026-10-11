@@ -190,9 +190,9 @@ initShader()
 
 void
 Plane3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -263,7 +263,7 @@ render()
 {
   initShader();
 
-  updateGL();
+  loadBuffer();
 
   //---
 

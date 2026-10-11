@@ -284,9 +284,9 @@ updatePoints()
 
 void
 Path3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -347,7 +347,7 @@ void
 Path3DObj::
 render()
 {
-  updateGL();
+  loadBuffer();
 
   //---
 

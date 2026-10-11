@@ -368,6 +368,14 @@ class Object3D : public QObject {
 
   //---
 
+  virtual bool setPointPosition(int ind, const CPoint3D &p);
+
+  virtual bool setLinePoints(int ind, const CPoint3D &p1, const CPoint3D &p2);
+
+  virtual bool setFacePoints(int ind, const std::vector<CPoint3D> &points);
+
+  //---
+
   virtual CQGLBuffer *getBuffer() const { return buffer_; }
 
   virtual CQGLBuffer *getBufferByInd(uint ind) const;
@@ -383,7 +391,9 @@ class Object3D : public QObject {
 
   virtual void preRender() { }
 
-  virtual void render();
+  virtual void render() = 0;
+
+  virtual void loadBuffer() = 0;
 
   virtual bool intersect(const CVector3D &, const CVector3D &, CPoint3D &, CPoint3D &) const {
     return false;

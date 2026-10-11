@@ -108,8 +108,6 @@ class Shape3DObj : public Object3D {
 
   void init() override;
 
-  void updateGL();
-
   bool intersect(const CVector3D &p1, const CVector3D &p2,
                  CPoint3D &pi1, CPoint3D &pi2) const override;
 
@@ -119,9 +117,15 @@ class Shape3DObj : public Object3D {
   const LineDatas  &getLineDatas () const override;
   const PointDatas &getPointDatas() const override;
 
+  void loadBuffer() override;
+
   void render() override;
 
   void addCube(double sx, double sy, double sz);
+
+  //---
+
+  bool setPointPosition(int ind, const CPoint3D &p) override;
 
   //---
 

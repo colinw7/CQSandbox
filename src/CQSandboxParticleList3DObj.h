@@ -76,6 +76,8 @@ class ParticleList3DObj : public Object3D {
 
   void tick() override;
 
+  void loadBuffer() override;
+
   void render() override;
 
   CBBox3D calcBBox() override;

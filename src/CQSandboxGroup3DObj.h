@@ -28,6 +28,8 @@ class Group3DObj : public Object3D {
   void addObject(Object3D *obj);
   void removeObject(Object3D *obj);
 
+  void loadBuffer() override;
+
   void render() override;
 
   CPoint3D origin() const override;

@@ -121,9 +121,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 void
 Point3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -161,7 +161,7 @@ void
 Point3DObj::
 render()
 {
-  updateGL();
+  loadBuffer();
 
   //---
 

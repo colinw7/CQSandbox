@@ -67,9 +67,9 @@ initShader()
 
 void
 BBox3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -144,7 +144,7 @@ void
 BBox3DObj::
 render()
 {
-  updateGL();
+  loadBuffer();
 
   //---
 

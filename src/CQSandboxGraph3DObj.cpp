@@ -345,6 +345,12 @@ updateTextObjs()
 
 void
 Graph3DObj::
+loadBuffer()
+{
+}
+
+void
+Graph3DObj::
 render()
 {
   canvas_->bindProgram(s_program1);

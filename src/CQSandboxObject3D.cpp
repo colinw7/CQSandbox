@@ -43,7 +43,7 @@ setSelected(bool b)
 {
   selected_ = b;
 
-  setNeedsUpdate();
+  canvas_->update();
 }
 
 //---
@@ -301,6 +301,108 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = (orient == CPolygonOrientation::CLOCKWISE ? "clockwise" : "anticlockwise");
   }
+  else if (name == "face.points") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(args[0], ind))
+      return false;
+
+    const auto &faceDatas = this->getFaceDatas();
+
+    if (ind < 0 || ind >= int(faceDatas.size()))
+      return false;
+
+    const auto &faceData = faceDatas[ind];
+
+    loadBuffer();
+
+    QStringList facePoints;
+
+    for (int i = 0; i < faceData.len; ++i) {
+      CQGLBuffer::PointData pointData;
+      faceData.buffer->getPointData(i, pointData);
+
+      auto str = Util::point3DToString(pointData.point->point());
+
+      facePoints.push_back(str);
+    }
+
+    value = facePoints;
+  }
+  else if (name == "lines") {
+    const auto &lines = getLineDatas();
+
+    QStringList lineIds;
+
+    for (uint i = 0; i < lines.size(); ++i)
+      lineIds.push_back(QString::number(i));
+
+    value = lineIds;
+  }
+  else if (name == "line.start" || name == "line.end") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(args[0], ind))
+      return false;
+
+    const auto &lines = getLineDatas();
+
+    if (ind < 0 || ind >= int(lines.size()))
+      return false;
+
+    const auto &line = lines[ind];
+
+    if (! line.buffer)
+      return false;
+
+    auto lind = (name == "line.start" ? line.ind1 : line.ind2);
+
+    loadBuffer();
+
+    CQGLBuffer::PointData pointData;
+    line.buffer->getPointData(lind, pointData);
+
+    value = Util::point3DToString(pointData.point->point());
+  }
+  else if (name == "points") {
+    const auto &points = getPointDatas();
+
+    QStringList pointIds;
+
+    for (uint i = 0; i < points.size(); ++i)
+      pointIds.push_back(QString::number(i));
+
+    value = pointIds;
+  }
+  else if (name == "point.position") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(args[0], ind))
+      return false;
+
+    const auto &points = getPointDatas();
+
+    if (ind < 0 || ind >= int(points.size()))
+      return false;
+
+    const auto &point = points[ind];
+
+    if (! point.buffer)
+      return false;
+
+    loadBuffer();
+
+    CQGLBuffer::PointData pointData;
+    point.buffer->getPointData(point.ind, pointData);
+
+    value = Util::point3DToString(pointData.point->point());
+  }
   else
     return app->errorMsg(QString("Invalid get name '%1'").arg(name));
 
@@ -309,7 +411,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
 bool
 Object3D::
-setValue(const QString &name, const QString &value, const QStringList &)
+setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *app = canvas()->app();
   auto *tcl = canvas()->tcl();
@@ -450,6 +552,74 @@ setValue(const QString &name, const QString &value, const QStringList &)
 
     setIgnoreWorld(b);
   }
+  else if (name == "point.position") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(value, ind))
+      return false;
+
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, args[0], p))
+      return false;
+
+    if (! setPointPosition(ind, p))
+      return false;
+  }
+  else if (name == "face.points") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(value, ind))
+      return false;
+
+    std::vector<CPoint3D> points;
+    if (! Util::stringToPoints3D(tcl, args[0], points))
+      return false;
+
+    if (! setFacePoints(ind, points))
+      return false;
+
+    return true;
+  }
+  else if (name == "line.start" || name == "line.end") {
+    if (args.size() < 1)
+      return false;
+
+    int ind;
+    if (! Util::stringToInt(value, ind))
+      return false;
+
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, args[0], p))
+      return false;
+
+    const auto &lines = getLineDatas();
+
+    if (ind < 0 || ind >= int(lines.size()))
+      return false;
+
+    const auto &line = lines[ind];
+
+    if (! line.buffer)
+      return false;
+
+    auto lind = (name == "line.start" ? line.ind1 : line.ind2);
+
+    CQGLBuffer::PointData pointData;
+    line.buffer->getPointData(lind, pointData);
+
+    auto p1 = p;
+    auto p2 = pointData.point->point();
+
+    if (name == "line.end")
+      std::swap(p1, p2);
+
+    if (! setLinePoints(ind, p1, p2))
+      return false;
+  }
   else
     return app->errorMsg(QString("Invalid set name '%1'").arg(name));
 
@@ -533,6 +703,80 @@ execTcl(const QString &op, const TclObjs &args, Tcl_Obj* &res)
     return false;
 
   res = tcl->variantToObj(res1);
+
+  return true;
+}
+
+//----
+
+bool
+Object3D::
+setPointPosition(int ind, const CPoint3D &p)
+{
+  const auto &points = getPointDatas();
+
+  if (ind < 0 || ind >= int(points.size()))
+    return false;
+
+  const auto &point = points[ind];
+
+  if (! point.buffer)
+    return false;
+
+  loadBuffer();
+
+  point.buffer->setPoint(point.ind, p);
+
+  point.buffer->load();
+
+  return true;
+}
+
+bool
+Object3D::
+setLinePoints(int ind, const CPoint3D &p1, const CPoint3D &p2)
+{
+  const auto &lines = getLineDatas();
+
+  if (ind < 0 || ind >= int(lines.size()))
+    return false;
+
+  const auto &line = lines[ind];
+
+  if (! line.buffer)
+    return false;
+
+  loadBuffer();
+
+  line.buffer->setPoint(line.ind1, p1, /*invalidate*/false);
+  line.buffer->setPoint(line.ind2, p2);
+
+  line.buffer->load();
+
+  return true;
+}
+
+bool
+Object3D::
+setFacePoints(int ind, const std::vector<CPoint3D> &points)
+{
+  const auto &faces = getFaceDatas();
+
+  if (ind < 0 || ind >= int(faces.size()))
+    return false;
+
+  const auto &face = faces[ind];
+
+  if (! face.buffer)
+    return false;
+
+  loadBuffer();
+
+  for (int i = 0; i < face.len; ++i) {
+    face.buffer->setPoint(face.pos + i, points[i], /*invalidate*/ i == face.len - 1);
+  }
+
+  face.buffer->load();
 
   return true;
 }
@@ -632,6 +876,8 @@ getFacePoints(int i, std::vector<CPoint3D> &points) const
 
   if (i < 0 || i >= int(faceDatas.size()))
     return false;
+
+  const_cast<Object3D *>(this)->loadBuffer();
 
   const auto &modelMatrix = this->modelMatrix();
   const auto &meshMatrix  = this->meshMatrix();

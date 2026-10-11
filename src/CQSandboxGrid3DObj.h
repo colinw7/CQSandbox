@@ -17,8 +17,12 @@ class Grid3DObj : public Object3D {
 
   const char *typeName() const override { return "grid"; }
 
+  //---
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
+
+  //---
 
   void init() override;
 
@@ -26,7 +30,9 @@ class Grid3DObj : public Object3D {
 
   CBBox3D calcBBox() override { return bbox_; }
 
-  void updateGL();
+  //---
+
+  void loadBuffer() override;
 
   void render() override;
 

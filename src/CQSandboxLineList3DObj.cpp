@@ -177,8 +177,7 @@ setLines(const Lines &lines)
 
   lines_ = lines;
 
-  needsUpdate_ = true;
-  bboxValid_   = false;
+  setNeedsUpdate();
 }
 
 void
@@ -201,8 +200,7 @@ setNumLines(int n)
     }
   }
 
-  bboxValid_   = false;
-  needsUpdate_ = true;
+  setNeedsUpdate();
 }
 
 void
@@ -265,9 +263,9 @@ calcBBox()
 
 void
 LineList3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -308,7 +306,7 @@ render()
 
   //---
 
-  updateGL();
+  loadBuffer();
 
   //---
 

@@ -126,7 +126,7 @@ void
 Axis3DObj::
 updateObjects()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -201,6 +201,12 @@ updateModelMatrix()
 
     setTextPos(i, CVector3D(x, y, z));
   }
+}
+
+void
+Axis3DObj::
+loadBuffer()
+{
 }
 
 void

@@ -80,9 +80,9 @@ initShader()
 
 void
 Grid3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -106,7 +106,7 @@ void
 Grid3DObj::
 render()
 {
-  updateGL();
+  loadBuffer();
 
   //---
 

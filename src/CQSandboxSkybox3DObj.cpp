@@ -90,7 +90,7 @@ load()
   if (! import_->read(file))
     return canvas_->app()->errorMsg(QString("Failed to load file '%1'").arg(filename));
 
-  needsUpdate_ = true;
+  setNeedsUpdate();
 
   return true;
 }
@@ -136,7 +136,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     texture_ = new CQGLTexture;
     texture_->setImage(images_[0]);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "cubemap") {
     useCubemap_ = Util::stringToBool(value);
@@ -149,9 +149,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 void
 Skybox3DObj::
-updateObjectData()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   // set up vertex data (and buffer(s)) and configure vertex attributes
@@ -242,7 +242,7 @@ render()
 {
   initShader();
 
-  updateObjectData();
+  loadBuffer();
 
   //---
 

@@ -112,6 +112,12 @@ setModelMatrix(uint matrixFlags)
 
 void
 Group3DObj::
+loadBuffer()
+{
+}
+
+void
+Group3DObj::
 render()
 {
   using MgrObjects = std::map<ObjectMgr3D *, Objects>;

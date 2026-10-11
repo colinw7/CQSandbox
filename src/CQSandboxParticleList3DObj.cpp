@@ -611,6 +611,12 @@ updateFireworks()
 
 void
 ParticleList3DObj::
+loadBuffer()
+{
+}
+
+void
+ParticleList3DObj::
 render()
 {
   if (canvas_->isShowBBox() || isSelected()) {

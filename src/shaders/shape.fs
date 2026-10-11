@@ -57,6 +57,7 @@ uniform TextureData emissiveTexture;
 
 //--- State
 
+uniform bool  isInside;
 uniform bool  isWireframe;
 uniform vec3  wireframeColor;
 uniform float wireframeAlpha;
@@ -242,6 +243,8 @@ void main() {
     FragColor = vec4(wireframeColor, wireframeAlpha);
   else if (isLine)
     FragColor = vec4(wireframeColor, wireframeAlpha);
+  else if (isInside)
+    FragColor = vec4(1.0, 1.0, 0.0, 0.1);
   else
     FragColor = vec4(result, opacity);
 }

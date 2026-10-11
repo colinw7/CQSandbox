@@ -45,7 +45,7 @@ init()
 
   initShader();
 
-  updateBuffer();
+  loadBuffer();
 }
 
 void
@@ -66,7 +66,7 @@ initShader()
 
 void
 Sprite3DObj::
-updateBuffer()
+loadBuffer()
 {
   delete buffer_;
 
@@ -185,7 +185,7 @@ void
 Sprite3DObj::
 updateObjects()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;

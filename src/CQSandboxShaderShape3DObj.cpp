@@ -259,9 +259,9 @@ intersect(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2
 
 void
 ShaderShape3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -498,7 +498,7 @@ render()
 
   //---
 
-  updateGL();
+  loadBuffer();
 
   if (wireframe_ || canvas_->isWireframe())
     CQGLStateInst->setPolygonMode(GL_LINE);

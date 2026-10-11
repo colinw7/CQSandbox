@@ -27,7 +27,7 @@ class BBox3DObj : public Object3D {
 
   CBBox3D calcBBox() override { return bbox_; }
 
-  void updateGL();
+  void loadBuffer() override;
 
   void render() override;
 

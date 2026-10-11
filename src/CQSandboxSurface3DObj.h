@@ -66,13 +66,13 @@ class Surface3DObj : public Object3D {
   void updateFlag();
 #endif
 
-  void updateGL();
-
   void initShader();
 
   void calcNormals();
 
   CBBox3D calcBBox() override { return bbox_; }
+
+  void loadBuffer() override;
 
   void render() override;
 

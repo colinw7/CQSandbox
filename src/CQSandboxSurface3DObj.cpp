@@ -393,9 +393,9 @@ updateFlag()
 
 void
 Surface3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -458,7 +458,7 @@ void
 Surface3DObj::
 render()
 {
-  updateGL();
+  loadBuffer();
 
   //---
 

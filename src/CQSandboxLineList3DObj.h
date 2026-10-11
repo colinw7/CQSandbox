@@ -39,9 +39,9 @@ class LineList3DObj : public Object3D {
 
   void init() override;
 
-  void updateGL();
-
   void initShader();
+
+  void loadBuffer() override;
 
   void render() override;
 

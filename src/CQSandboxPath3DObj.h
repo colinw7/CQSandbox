@@ -71,7 +71,7 @@ class Path3DObj : public Object3D {
 
   void init() override;
 
-  void updateGL();
+  void loadBuffer() override;
 
   CBBox3D calcBBox() override;
 

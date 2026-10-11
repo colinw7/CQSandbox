@@ -162,6 +162,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 void
 Othello3DObj::
+loadBuffer()
+{
+}
+
+void
+Othello3DObj::
 render()
 {
 }

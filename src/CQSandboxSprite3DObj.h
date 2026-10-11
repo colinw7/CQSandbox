@@ -29,11 +29,11 @@ class Sprite3DObj : public Object3D {
 
   void init() override;
 
-  void updateBuffer();
-
   void tick() override;
 
   CBBox3D calcBBox() override { return bbox_; }
+
+  void loadBuffer() override;
 
   void render() override;
 

@@ -108,6 +108,8 @@ class Model3DObj : public Object3D {
 
   const FaceDatas &getFaceDatas() const override;
 
+  void loadBuffer() override;
+
   void render() override;
 
   void deselectAll();
@@ -127,8 +129,6 @@ class Model3DObj : public Object3D {
   void updateObject(CGeomObject3D *object, ObjectData &objectData);
 
   void drawObject(CGeomObject3D *object);
-
-  void updateObjectData();
 
   //---
 

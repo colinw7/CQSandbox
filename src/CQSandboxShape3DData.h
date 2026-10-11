@@ -57,6 +57,11 @@ class Shape3DData {
   const Points &points() const { return points_; }
   void setPoints(const Points &points) { points_ = points; }
 
+  void setPoint(int i, const CPoint3D &p) {
+    assert(i >= 0 && i < int(points_.size()));
+    points_[i] = CVector3D(p);
+  }
+
   const Points &normals() const { return normals_; }
   void setNormals(const Points &normals) { normals_ = normals; }
 

@@ -317,7 +317,7 @@ init()
 
 void
 PointList3DObj::
-initData()
+loadBuffer()
 {
   if (dataInit_)
     return;
@@ -365,7 +365,7 @@ render()
 
   //---
 
-  initData();
+  loadBuffer();
 
   //---
 

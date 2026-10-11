@@ -67,6 +67,8 @@ class Text3DObj : public Object3D {
 
   CBBox3D calcBBox() override { return bbox_; }
 
+  void loadBuffer() override;
+
   void render() override;
 
  private:
@@ -77,8 +79,6 @@ class Text3DObj : public Object3D {
   bool readFile(const char *path, std::vector<uint8_t> &bytes) const;
 
   void updateTextData();
-
-  void initGLData();
 
   GlyphInfo makeGlyphInfo(uint32_t character, float offsetX, float offsetY) const;
 

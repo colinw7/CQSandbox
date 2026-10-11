@@ -263,6 +263,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     shapeData_.addCone(r, h, configData_);
 
+    shapeData_.setBuffer(buffer_);
+
     setNeedsUpdate();
   }
   // cube <sx> <sy> >sz>
@@ -292,6 +294,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     shapeData_.addCube(sx, sy, sz);
 
+    shapeData_.setBuffer(buffer_);
+
     setNeedsUpdate();
   }
   // cylinder <r> <h>
@@ -320,6 +324,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     shapeData_.addCylinder(r, h, configData_);
 
+    shapeData_.setBuffer(buffer_);
+
     setNeedsUpdate();
   }
   // sphere <r>
@@ -334,6 +340,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     }
 
     shapeData_.addSphere(r);
+
+    shapeData_.setBuffer(buffer_);
 
     setNeedsUpdate();
   }
@@ -376,6 +384,8 @@ Shape3DObj::
 addCube(double sx, double sy, double sz)
 {
   shapeData_.addCube(sx, sy, sz);
+
+  shapeData_.setBuffer(buffer_);
 
   setNeedsUpdate();
 }
@@ -552,9 +562,9 @@ intersect(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2
 
 void
 Shape3DObj::
-updateGL()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_ = false;
@@ -613,8 +623,10 @@ updateGL()
 
     auto c = material_->diffuseColor();
 
+#if 0
     if (isInside())
       c = Qt::yellow;
+#endif
 
     for (uint i = 0; i < np; ++i)
       s_colors_[i] = Util::qcolorToColor(c);
@@ -729,7 +741,7 @@ render()
 
   //---
 
-  updateGL();
+  loadBuffer();
 
   //---
 
@@ -802,6 +814,8 @@ render()
   }
 
   //---
+
+//program->setUniformValue("isSelected", isSelected());
 
   program->setUniformValue("wireframeColor", CQGLUtil::toVector(canvas_->wireframeColor()));
   program->setUniformValue("wireframeAlpha", float(canvas_->wireframeAlpha()));
@@ -901,6 +915,8 @@ render()
 
   //---
 
+  program->setUniformValue("isInside", false);
+
   bool wireframe = (wireframe_ || canvas_->isWireframe());
   bool solid     = (! wireframe_ && (canvas_->isSolid() || canvas_->isTextured()));
 
@@ -917,6 +933,12 @@ render()
 
   if (canvas_->editType() == Canvas3D::EditType::LINE)
     drawLines();
+
+  if (isInside()) {
+    program->setUniformValue("isInside", isInside());
+
+    drawBuffer(true);
+  }
 
   //---
 
@@ -956,6 +978,22 @@ termDraw(Canvas3D *canvas)
 {
   canvas->bindProgram(nullptr);
 }
+
+//---
+
+bool
+Shape3DObj::
+setPointPosition(int ind, const CPoint3D &p)
+{
+  if (! Object3D::setPointPosition(ind, p))
+    return false;
+
+  shapeData_.setPoint(ind, p);
+
+  return true;
+}
+
+//---
 
 void
 Shape3DObj::

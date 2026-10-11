@@ -306,6 +306,12 @@ updateObjs()
 
 void
 Dungeon3DObj::
+loadBuffer()
+{
+}
+
+void
+Dungeon3DObj::
 render()
 {
 }

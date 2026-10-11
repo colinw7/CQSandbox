@@ -3926,7 +3926,8 @@ mouseReleaseEvent(QMouseEvent *e)
       clickObjs.push_back(obj);
       obj->setInside(false);
 
-      obj->setNeedsUpdate();
+      //obj->setNeedsUpdate();
+      this->update();
     }
   }
 
@@ -3939,7 +3940,9 @@ mouseReleaseEvent(QMouseEvent *e)
 
   update();
 
-  if (clickObjs.size() == 1) {
+  //---
+
+  if (mouseData_.button == Qt::LeftButton && clickObjs.size() == 1) {
     auto *clickObj = clickObjs[0];
 
     for (auto *obj : objects())
@@ -4612,7 +4615,8 @@ setMousePos(double xpos, double ypos)
       if (inside != obj->isInside()) {
         obj->setInside(inside);
 
-        obj->setNeedsUpdate();
+        //obj->setNeedsUpdate();
+        this->update();
       }
 
       if (inside) {

@@ -320,22 +320,22 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   if      (name == "diffuse_texture") {
     diffuseTexture_ = fileToTexture(value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "specular_texture") {
     specularTexture_ = fileToTexture(value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "normal_texture") {
     normalTexture_ = fileToTexture(value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "emissive_texture") {
     emissiveTexture_ = fileToTexture(value);
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
   }
   else if (name == "vert_shader") {
     s_shaderData.vertShaderFile = value;
@@ -359,7 +359,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     geomObject1->setAnimName(value.toStdString());
 
-    needsUpdate_ = true;
+    setNeedsUpdate();
 
     canvas_->invalidateNodeMatrices();
   }
@@ -607,7 +607,7 @@ load(const QString &filename)
     scene1->addTexture(texture);
   }
 
-  needsUpdate_ = true;
+  setNeedsUpdate();
 
   return true;
 }
@@ -625,7 +625,7 @@ CBBox3D
 Model3DObj::
 calcBBox()
 {
-  updateObjectData();
+  loadBuffer();
 
   return bbox_;
 }
@@ -771,7 +771,7 @@ drawObject(CGeomObject3D *object)
 
   //---
 
-  updateObjectData();
+  loadBuffer();
 
   //---
 
@@ -958,9 +958,9 @@ drawObject(CGeomObject3D *object)
 
 void
 Model3DObj::
-updateObjectData()
+loadBuffer()
 {
-  if (! needsUpdate_)
+  if (! isNeedsUpdate())
     return;
 
   needsUpdate_    = false;

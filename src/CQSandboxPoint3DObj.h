@@ -54,9 +54,9 @@ class Point3DObj : public Object3D {
 
   void init() override;
 
-  void updateGL();
-
   CBBox3D calcBBox() override;
+
+  void loadBuffer() override;
 
   void render() override;
 

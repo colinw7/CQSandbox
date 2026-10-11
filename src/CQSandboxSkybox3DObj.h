@@ -51,9 +51,9 @@ class Skybox3DObj : public Object3D {
 
   void initShader();
 
-  void updateObjectData();
-
   CBBox3D calcBBox() override { return bbox_; }
+
+  void loadBuffer() override;
 
   void render() override;
 

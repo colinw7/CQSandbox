@@ -18,6 +18,13 @@ class Array3DObj : public Object3D {
 
   const char *typeName() const override { return "array"; }
 
+  //---
+
+  void loadBuffer() override { }
+  void render() override { }
+
+  //---
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 

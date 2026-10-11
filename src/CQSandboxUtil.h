@@ -466,6 +466,22 @@ inline CPoint3D stringToPoint3D(CQTcl *tcl, const QString &str) {
 }
 #endif
 
+inline bool stringToPoints3D(CQTcl *tcl, const QString &str, std::vector<CPoint3D> &points) {
+  QStringList strs;
+  if (! tcl->splitList(str, strs))
+    return false;
+
+  for (const auto &str : strs) {
+    CPoint3D p;
+    if (! stringToPoint3D(tcl, str, p))
+      return false;
+
+    points.push_back(p);
+  }
+
+  return true;
+}
+
 //---
 
 inline bool stringToVector2D(CQTcl *tcl, const QString &str, CVector2D &v) {

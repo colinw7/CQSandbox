@@ -71,6 +71,12 @@ tick()
 
 void
 Shader3DObj::
+loadBuffer()
+{
+}
+
+void
+Shader3DObj::
 render()
 {
   shaderToyProgram_->updateShader();
