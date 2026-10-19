@@ -9,6 +9,7 @@
 #include <CQSandboxBBox3DObj.h>
 #include <CQSandboxCsv3DObj.h>
 #include <CQSandboxCube3DObj.h>
+#include <CQSandboxGizmo3DObj.h>
 #include <CQSandboxGraph3DObj.h>
 #include <CQSandboxGrid3DObj.h>
 #include <CQSandboxGroup3DObj.h>
@@ -369,7 +370,7 @@ setEditMode(const EditMode &mode)
 
     update();
 
-    Q_EMIT typeChanged();
+    Q_EMIT editModeChanged();
   }
 }
 
@@ -538,6 +539,10 @@ addCommands()
 
   tcl->createObjCommand("sb3d::grid",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Grid3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::gizmo",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Gizmo3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::sprite",
@@ -1742,21 +1747,24 @@ objectCommandProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv
     }
   }
   else if (cmd == "set") {
-    if (args.size() > 2) {
-      auto name  = args[1];
-      auto value = args[2];
+    QString name, value;
 
-      QStringList args1;
-      for (int i = 3; i < args.length(); ++i)
-        args1.push_back(args[i]);
-
-      if (! obj->setValue(name, value, args1))
-        return TCL_ERROR;
-    }
-    else {
+    if (args.size() < 1) {
       (void) app->errorMsg("Missing args for set");
       return TCL_ERROR;
     }
+
+    name = args[1];
+
+    if (args.size() > 2)
+      value = args[2];
+
+    QStringList args1;
+    for (int i = 3; i < args.length(); ++i)
+      args1.push_back(args[i]);
+
+    if (! obj->setValue(name, value, args1))
+      return TCL_ERROR;
   }
   else if (cmd == "exec") {
     if (args.size() > 1) {
@@ -2849,8 +2857,11 @@ render()
 
   //---
 
-  if (isShowBBox())
+  if (isShowBBox() || isShowSelectedBBox())
     drawBBoxes();
+
+  if (type() == Type::MODEL)
+    drawGizmos();
 
   //---
 
@@ -2995,12 +3006,27 @@ drawBBoxes()
     if (! obj || ! obj->isVisible())
       continue;
 
-    if (obj->isSelected()) {
-      auto *bboxObj = obj->bboxObj();
+    auto *bboxObj = obj->bboxObj();
+    if (! bboxObj) continue;
 
-      if (bboxObj)
-        bboxObj->render();
-    }
+    if (isShowBBox() || (obj->isSelected() && isShowSelectedBBox()))
+      bboxObj->render();
+  }
+}
+
+void
+Canvas3D::
+drawGizmos()
+{
+  for (auto *obj : objects()) {
+    if (! obj || ! obj->isVisible())
+      continue;
+
+    auto *gizmoObj = obj->gizmoObj();
+    if (! gizmoObj) continue;
+
+    if (obj->isSelected())
+      gizmoObj->render();
   }
 }
 

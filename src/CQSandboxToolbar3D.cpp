@@ -143,6 +143,7 @@ CanvasToolbar3D(Canvas3D *canvas) :
   connectSlots(true);
 
   connect(canvas_, SIGNAL(typeChanged()), this, SLOT(updateInfo()));
+  connect(canvas_, SIGNAL(editModeChanged()), this, SLOT(updateInfo()));
   connect(canvas_, SIGNAL(lightChanged()), this, SLOT(updateInfo()));
   connect(canvas_, SIGNAL(loopStateChanged()), this, SLOT(updateInfo()));
 

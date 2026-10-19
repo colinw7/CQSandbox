@@ -98,6 +98,8 @@ class Model3DObj : public Object3D {
 
   CBBox3D calcBBox() override;
 
+  CBBox3D getRawBBox() override;
+
   virtual CQGLBuffer *getBuffer() const override;
 
   CQGLBuffer *getChildBufferByInd(CQGLBuffer *parent, uint ind) const;
@@ -107,6 +109,8 @@ class Model3DObj : public Object3D {
   CQGLBuffer *getBufferByInd(uint ind) const override;
 
   const FaceDatas &getFaceDatas() const override;
+
+  void updateBBox();
 
   void loadBuffer() override;
 
@@ -128,7 +132,9 @@ class Model3DObj : public Object3D {
 
   void updateObject(CGeomObject3D *object, ObjectData &objectData);
 
-  void drawObject(CGeomObject3D *object);
+  void drawObject(CGeomObject3D *object, bool isRoot);
+
+  CBBox3D getObjectRawBBox(CGeomObject3D *obj) const;
 
   //---
 
@@ -143,6 +149,8 @@ class Model3DObj : public Object3D {
   void calcTangents1(CGeomObject3D *object);
 
  protected:
+  using RefObjects = std::map<CGeomObject3D *, std::vector<Model3DObj *>>;
+
   struct TextureBuffer {
     CQGLTexture*   texture       { nullptr };
     ShaderProgram* shaderProgram { nullptr };
@@ -160,6 +168,8 @@ class Model3DObj : public Object3D {
 
   static ShaderData     s_shaderData;
   static Model3DObjMgr* s_objectMgr;
+  static RefObjects     s_refObjects;
+  static CQGLBuffer*    s_lastBuffer;
 
   QString filename_;
 

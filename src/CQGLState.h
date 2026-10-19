@@ -64,7 +64,11 @@ class CQGLState {
     setPointSize        (1      , /*force*/true);
 
     textureNum_.clear();
-    clip_      .clear();
+    activeTextureNum_ = -1;
+
+    activeTexture_.clear();
+
+    clip_.clear();
   };
 
   //---
@@ -316,20 +320,39 @@ class CQGLState {
 
   //---
 
+  bool setActiveTexture(int i, void *texture) {
+    auto pt = activeTexture_.find(i);
+
+    if (pt != activeTexture_.end()) {
+      if ((*pt).second == texture)
+        return false;
+
+      (*pt).second = texture;
+    }
+    else
+      activeTexture_[i] = texture;
+
+    return true;
+  }
+
   bool isActiveTextureNum(int i) const { return textureNum_.get(i); }
 
   bool setActiveTextureNum(int i, bool b) {
     if (b != textureNum_.get(i)) {
       if (b)
-        glActiveTexture(GL_TEXTURE0 + i);
+        activeTextureNum_ = i;
       else
-        glActiveTexture(GL_TEXTURE0);
+        activeTextureNum_ = -1;
+
+      glActiveTexture(GL_TEXTURE0 + std::max(activeTextureNum_, 0));
 
       b = textureNum_.set(i, b);
     }
 
     return b;
   }
+
+  int activeTextureNum() const { return activeTextureNum_; }
 
   //---
 
@@ -386,24 +409,28 @@ class CQGLState {
   CQGLState() { }
 
  private:
-  bool    depthTest_         { false };
-  bool    cullFace_          { false };
-  bool    blend_             { false };
-  bool    polygonOffsetLine_ { false };
-  bool    multiSample_       { false };
-  bool    stenclTest_        { false };
-  int     frontFace_         { GL_CCW };
-  int     depthFunc_         { GL_LESS };
-  bool    depthMask_         { true };   // default true
-  bool    texture_           { false };
-  bool    cubeMap_           { false };
-  bool    lighting_          { false };
-  bool    smooth_            { true };   // default enabled
-  BoolMap textureNum_;
-  BoolMap clip_;
-  int     polygonMode_       { GL_FILL };
-  float   pointSize_         { 1 };
-  float   lineWidth_         { 1 };
+  using TextureMap = std::map<int, void *>;
+
+  bool       depthTest_         { false };
+  bool       cullFace_          { false };
+  bool       blend_             { false };
+  bool       polygonOffsetLine_ { false };
+  bool       multiSample_       { false };
+  bool       stenclTest_        { false };
+  int        frontFace_         { GL_CCW };
+  int        depthFunc_         { GL_LESS };
+  bool       depthMask_         { true };   // default true
+  bool       texture_           { false };
+  bool       cubeMap_           { false };
+  bool       lighting_          { false };
+  bool       smooth_            { true };   // default enabled
+  BoolMap    textureNum_;
+  int        activeTextureNum_  { -1 };
+  TextureMap activeTexture_;
+  BoolMap    clip_;
+  int        polygonMode_       { GL_FILL };
+  float      pointSize_         { 1 };
+  float      lineWidth_         { 1 };
 };
 
 #endif

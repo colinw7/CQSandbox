@@ -47,11 +47,15 @@ class Shape3DObj : public Object3D {
     CONE,
     CUBE,
     CYLINDER,
-    SPHERE
+    SPHERE,
+    TORUS
   };
 
   //---
 
+  using ConfigData = Shape3DData::ConfigData;
+
+ public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
   static ShaderProgram* shaderProgram() { return s_program; }
@@ -78,6 +82,19 @@ class Shape3DObj : public Object3D {
   const ShapeType &shapeType() const { return shapeType_; }
 
   const Shape3DData &shapeData() const { return shapeData_; }
+
+  //---
+
+  void addCone(double r, double h, const ConfigData &configData=ConfigData());
+  void addCube(double sx, double sy, double sz);
+  void addCylinder(double r, double h, const ConfigData &configData=ConfigData());
+  void addSphere(double r, const ConfigData &configData=ConfigData());
+  void addTorus(double r0, double r1, double power1, double power2,
+                const ConfigData &configData=ConfigData());
+
+  //---
+
+  void setDiffuseColor(const QColor &c);
 
   //---
 
@@ -121,8 +138,6 @@ class Shape3DObj : public Object3D {
 
   void render() override;
 
-  void addCube(double sx, double sy, double sz);
-
   //---
 
   bool setPointPosition(int ind, const CPoint3D &p) override;
@@ -142,7 +157,7 @@ class Shape3DObj : public Object3D {
   ShapeType   shapeType_ { ShapeType::NONE };
   Shape3DData shapeData_;
 
-  Shape3DData::ConfigData configData_;
+  ConfigData configData_;
 
   Colors colors_;
   bool   wireframe_ { false };

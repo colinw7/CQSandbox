@@ -101,6 +101,8 @@ class OpenGLWindow : public QOpenGLWidget, public QOpenGLExtraFunctions {
  Q_SIGNALS:
   void typeChanged();
 
+  void editModeChanged();
+
  protected:
   QColor bgColor_ { 0, 0, 0 };
 
@@ -281,6 +283,9 @@ class Canvas3D : public OpenGLWindow {
 
   bool isShowBBox() const { return showBBox_; }
   void setShowBBox(bool b) { showBBox_ = b; }
+
+  bool isShowSelectedBBox() const { return showSelectedBBox_; }
+  void setShowSelectedBBox(bool b) { showSelectedBBox_ = b; }
 
   bool isEyeLineVisible() const { return eyeLineVisible_; }
   void setEyeLineVisible(bool b) { eyeLineVisible_ = b; }
@@ -521,6 +526,7 @@ class Canvas3D : public OpenGLWindow {
 
   void drawContents();
   void drawBBoxes();
+  void drawGizmos();
   void drawSelected();
 
   //---
@@ -826,18 +832,19 @@ class Canvas3D : public OpenGLWindow {
 
   SelectData selectData_;
 
-  bool polygonLine_    { false };
-  bool solid_          { false };
-  bool textured_       { true };
-  bool showBBox_       { false };
-  bool eyeLineVisible_ { false };
-  bool animEnabled_    { true };
-  bool lightsVisible_  { false };
-  bool selectionSolid_ { false };
+  bool polygonLine_      { false };
+  bool solid_            { false };
+  bool textured_         { true };
+  bool showBBox_         { false };
+  bool showSelectedBBox_ { false };
+  bool eyeLineVisible_   { false };
+  bool animEnabled_      { true };
+  bool lightsVisible_    { false };
+  bool selectionSolid_   { false };
 
   Type     type_     { Type::CAMERA };
   EditMode editMode_ { EditMode::MOVE };
-  EditType editType_ { EditType::POINT };
+  EditType editType_ { EditType::OBJECT };
 
   CameraType cameraType_ { CameraType::MODEL };
   Cameras    cameras_;

@@ -18,6 +18,11 @@ proc clamp { r rmin rmax } {
   return $r1
 }
 
+proc loadRefModel { name } {
+  set obj [loadModel "${::model_dir}/${name}.obj" "${name}_ref"  ]
+  return $obj
+}
+
 proc loadModel { filename name { s 1.0 } } {
   # echo "$filename $name"
 
@@ -34,11 +39,6 @@ proc loadModel { filename name { s 1.0 } } {
 
   # echo [$obj get anim.names]
 
-  return $obj
-}
-
-proc loadRefModel { name } {
-  set obj [loadModel "${::model_dir}/${name}.obj" "${name}_ref"  ]
   return $obj
 }
 

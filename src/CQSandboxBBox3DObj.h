@@ -21,6 +21,16 @@ class BBox3DObj : public Object3D {
 
   const char *typeName() const override { return "bbox"; }
 
+  //---
+
+  Object3D *parentObj() const { return parentObj_; }
+  void setParentObj(Object3D *o) { parentObj_ = o; }
+
+  const CBBox3D &parentBBox() const { return parentBBox_; }
+  void setParentBBox(const CBBox3D &v) { parentBBox_ = v; }
+
+  //---
+
   void init() override;
 
   void initShader();
@@ -31,15 +41,13 @@ class BBox3DObj : public Object3D {
 
   void render() override;
 
-  const CBBox3D &parentBBox() const { return parentBBox_; }
-  void setParentBBox(const CBBox3D &v) { parentBBox_ = v; }
-
  protected:
   static ShaderProgram* s_program;
 
   Points points_;
 
-  CBBox3D parentBBox_;
+  Object3D* parentObj_ { nullptr };
+  CBBox3D   parentBBox_;
 };
 
 }

@@ -8,5 +8,9 @@ uniform sampler2D textureId;
 void main() {
   vec4 tc = texture(textureId, uv0);
 
+  if (tc.r < 0.1) {
+    discard;
+  }
+
   gl_FragColor = vec4(col.r, col.g, col.b, tc.r);
 }

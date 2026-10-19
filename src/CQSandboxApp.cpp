@@ -8,6 +8,7 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxControl3D.h>
 #include <CQSandboxToolbar3D.h>
+#include <CQSandboxSideBar3D.h>
 #include <CQSandboxOverview3D.h>
 
 #include <CQSandboxStatus.h>
@@ -51,6 +52,10 @@
 
 #include <svg/settings_svg.h>
 #include <svg/console_svg.h>
+
+#include <svg/move_svg.h>
+#include <svg/rotate_svg.h>
+#include <svg/scale_svg.h>
 
 namespace CQSandbox {
 
@@ -159,11 +164,17 @@ add3DFrame(Frame3D &frame3D)
 
   //---
 
+  frame3D.sideBar = new SideBar3D(frame3D.canvas);
+
+  //---
+
   // view frame
   frame3D.frame = CQUtil::makeWidget<QFrame>("frame");
 
   auto *flayout = new QHBoxLayout(frame3D.frame);
   flayout->setMargin(0); flayout->setSpacing(0);
+
+  flayout->addWidget(frame3D.sideBar);
 
   flayout->addWidget(frame3D.canvasFrame);
 

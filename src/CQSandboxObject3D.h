@@ -23,11 +23,13 @@ class CQGLBuffer;
 
 namespace CQSandbox {
 
-class Object3D;
 class Canvas3D;
-class Group3DObj;
+
 class BBox3DObj;
+class Gizmo3DObj;
+class Group3DObj;
 class Modifier3DObj;
+class Object3D;
 
 //---
 
@@ -50,6 +52,8 @@ class ObjectMgr3D {
 
   virtual void initRender(Canvas3D *) { }
   virtual void termRender(Canvas3D *) { }
+
+  const std::vector<Object3D *> &objects() const { return objects_; }
 
   void addObject(Object3D *object) {
     objects_.push_back(object);
@@ -98,6 +102,7 @@ class Object3D : public QObject {
     CSV,
     DUNGEON,
     FIELD_RUNNERS,
+    GIZMO,
     GRAPH,
     GRID,
     GROUP,
@@ -214,6 +219,9 @@ class Object3D : public QObject {
 
   bool isPseudo() const { return pseudo_; }
   void setPseudo(bool b) { pseudo_ = b; }
+
+  bool isLighted() const { return lighted_; }
+  void setLighted(bool b) { lighted_ = b; }
 
   int layer() const { return layer_; }
   void setLayer(int i) { layer_ = i; }
@@ -366,6 +374,8 @@ class Object3D : public QObject {
 
   virtual Rect2D getBBox() const { return Rect2D(); } // TODO: for Quad Tree
 
+  virtual CBBox3D getRawBBox() { return rawBBox_; }
+
   //---
 
   virtual bool setPointPosition(int ind, const CPoint3D &p);
@@ -403,9 +413,15 @@ class Object3D : public QObject {
 
   //---
 
-  void createBBoxObj();
+  BBox3DObj *createBBoxObj();
 
   BBox3DObj *bboxObj() const { return bboxObj_; }
+
+  //---
+
+  Gizmo3DObj *createGizmoObj();
+
+  Gizmo3DObj *gizmoObj() const { return gizmoObj_; }
 
   //---
 
@@ -447,10 +463,11 @@ class Object3D : public QObject {
 
   QString id_;
 
-  bool visible_      { true };
-  bool selected_     { false };
-  bool inside_       { false };
-  bool pseudo_       { false };
+  bool visible_  { true };
+  bool selected_ { false };
+  bool inside_   { false };
+  bool pseudo_   { false };
+  bool lighted_  { true };
 
   int layer_ { -1 };
 
@@ -473,9 +490,12 @@ class Object3D : public QObject {
 
   Group3DObj *group_ { nullptr };
 
-  CBBox3D    bbox_;
-  BBox3DObj *bboxObj_   { nullptr };
-  bool       bboxValid_ { false };
+  CBBox3D bbox_;
+  bool    bboxValid_ { false };
+  CBBox3D rawBBox_;
+
+  BBox3DObj  *bboxObj_  { nullptr };
+  Gizmo3DObj *gizmoObj_ { nullptr };
 
   bool needsUpdate_ { true };
 

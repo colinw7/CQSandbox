@@ -185,19 +185,28 @@ class CQGLBuffer {
 
     data_.indices.clear();
     data_.indicesSet = false;
+
+    clearBBox();
   }
 
   void clearInds         () { data_.inds         .clear(); data_.dataValid = false; }
-  void clearPoints       () { data_.points       .clear(); data_.dataValid = false; }
+  void clearPoints       () { data_.points       .clear(); data_.dataValid = false; clearBBox(); }
   void clearNormals      () { data_.normals      .clear(); data_.dataValid = false; }
   void clearColors       () { data_.colors       .clear(); data_.dataValid = false; }
   void clearTexturePoints() { data_.texturePoints.clear(); data_.dataValid = false; }
   void clearBoneIds      () { data_.boneIds      .clear(); data_.dataValid = false; }
   void clearBoneWeights  () { data_.boneWeights  .clear(); data_.dataValid = false; }
 
+  void clearIndices() { data_.indices.clear(); data_.indicesSet = false; data_.dataValid = false; }
+
   void clearBuffers() {
     clearInds(); clearPoints(); clearNormals(); clearColors(); clearTexturePoints();
     clearBoneIds(); clearBoneWeights();
+    clearIndices();
+  }
+
+  void clearBBox() {
+    bbox_ = CBBox3D();
   }
 
   //---
@@ -252,6 +261,8 @@ class CQGLBuffer {
     data_.points.push_back(p);
 
     data_.dataValid = false;
+
+    bbox_.add(CPoint3D(p.x, p.y, p.z));
   }
 
   uint numPoints() const { return data_.points.size(); }
@@ -604,6 +615,8 @@ class CQGLBuffer {
 
   const std::vector<CQGLBuffer *> &children() const { return children_; }
 
+  const CBBox3D &bbox() const { return bbox_; }
+
  private:
   void init() {
     if (! data_.initialized) {
@@ -816,6 +829,8 @@ class CQGLBuffer {
   };
 
   Data data_;
+
+  CBBox3D bbox_;
 };
 
 //---

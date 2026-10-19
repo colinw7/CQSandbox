@@ -30,6 +30,8 @@ addCone(double r, double h, const ConfigData &configData)
   if (configData.num_patches > 0)
     slices = uint(configData.num_patches);
 
+  //---
+
   std::vector<double> x, y;
 
   x.resize(stacks);
@@ -120,6 +122,8 @@ addCylinder(double r, double h, const ConfigData &configData)
 
   if (configData.num_patches > 0)
     slices = uint(configData.num_patches);
+
+  //---
 
   // add cylinder (no end caps)
   std::vector<double> x, y;
@@ -350,10 +354,18 @@ addCube(double sx, double sy, double sz)
 
 void
 Shape3DData::
-addSphere(double radius)
+addSphere(double radius, const ConfigData &configData)
 {
   uint stacks = 20;
   uint slices = 20;
+
+  if (configData.num_xy > 0)
+    stacks = uint(configData.num_xy);
+
+  if (configData.num_patches > 0)
+    slices = uint(configData.num_patches);
+
+  //---
 
   std::vector<double> x, y;
 
@@ -375,6 +387,198 @@ addSphere(double radius)
 
   delete geom_;
   geom_ = new CSphere3D(radius);
+}
+
+void
+Shape3DData::
+addTorus(double r0, double r1, double power1, double power2, const ConfigData &configData)
+{
+  uint stacks = 20;
+  uint slices = 20;
+
+  if (configData.num_xy > 0)
+    stacks = uint(configData.num_xy);
+
+  if (configData.num_patches > 0)
+    slices = uint(configData.num_patches);
+
+  //---
+
+  resetShape();
+
+  //---
+
+  double xc = 0.0;
+  double yc = 0.0;
+  double zc = 0.0;
+
+  auto power = [](double f, double p) {
+    double absf = std::abs(f);
+
+    if (absf < 0.00001)
+      return 0.0;
+
+    double pp = std::pow(absf, p);
+
+    if (f < 0)
+      return -pp;
+    else
+      return pp;
+  };
+
+  auto findPoint = [&](const CPoint3D &p, uint &vind) {
+    uint i = 0;
+
+    for (auto &p1 : points_) {
+      if (p == p1.point()) {
+        vind = i;
+        return true;
+      }
+
+      ++i;
+    }
+
+    return false;
+  };
+
+  auto addPoint = [&](const CPoint3D &p) {
+    points_.push_back(CVector3D(p));
+    normals_.push_back(CVector3D(0, 1, 0));
+    return points_.size() - 1;
+  };
+
+  // rotate circle of radius r1 at radius r0 around center (xc, yc, zc)
+  double du = 360.0/stacks;
+  double dv = 360.0/slices;
+
+  auto u = 0.0;
+
+  for (uint iu = 0; iu < stacks; ++iu) {
+    auto v = 0.0;
+
+    for (uint iv = 0; iv < slices; ++iv) {
+      auto addUV = [&](double u1, double v1) {
+        auto theta  = CMathGen::DegToRad(u1);
+        auto ctheta = power(std::cos(theta), power1);
+        auto stheta = power(std::sin(theta), power1);
+
+        auto phi  = CMathGen::DegToRad(v1);
+        auto cphi = power(std::cos(phi), power2);
+        auto sphi = power(std::sin(phi), power2);
+
+        auto x = ctheta*(r0 + r1*cphi);
+        auto y = stheta*(r0 + r1*cphi);
+        auto z = r1*sphi;
+
+        auto point1 = CPoint3D(xc + x, yc + y, zc + z);
+
+        uint vind;
+        if (! findPoint(point1, vind)) {
+          vind = addPoint(point1);
+
+          auto x1 = ctheta*r0;
+          auto y1 = stheta*r0;
+          auto z1 = 0.0;
+
+          auto n = CVector3D(CPoint3D(xc + x1, yc + y1, zc + z1), point1);
+
+          normals_[vind] = n;
+
+          PointData pointData;
+
+          pointData.ind = vind;
+
+          pointDatas_.push_back(pointData);
+        }
+
+        return vind;
+      };
+
+      //----
+
+      auto vertex1 = addUV(u     , v     );
+      auto vertex2 = addUV(u + du, v     );
+      auto vertex3 = addUV(u + du, v + dv);
+      auto vertex4 = addUV(u     , v + dv);
+
+      //----
+
+      FaceData faceData;
+      LineData lineData;
+
+      faceData.len = 3;
+
+      //---
+
+      faceData.pos = indices_.size();
+
+      faceDatas_.push_back(faceData);
+
+      indices_.push_back(vertex1);
+      indices_.push_back(vertex2);
+      indices_.push_back(vertex3);
+
+      //---
+
+      // 1->2
+      lineData.ind1 = faceData.pos;
+      lineData.ind2 = lineData.ind1 + 1;
+
+      lineDatas_.push_back(lineData);
+
+      // 2->3
+      lineData.ind1 = faceData.pos + 1;
+      lineData.ind2 = lineData.ind1 + 1;
+
+      lineDatas_.push_back(lineData);
+
+      //---
+
+      faceData.pos = indices_.size();
+
+      faceDatas_.push_back(faceData);
+
+      indices_.push_back(vertex3);
+      indices_.push_back(vertex4);
+      indices_.push_back(vertex1);
+
+      //---
+
+      // 3->4
+      lineData.ind1 = faceData.pos;
+      lineData.ind2 = lineData.ind1 + 1;
+
+      lineDatas_.push_back(lineData);
+
+      // 1->4
+      indices_.push_back(vertex4);
+
+      lineData.ind1 = faceData.pos + 2;
+      lineData.ind2 = lineData.ind1 + 1;
+
+      lineDatas_.push_back(lineData);
+
+      //---
+
+      v += dv;
+    }
+
+    u += du;
+  }
+}
+
+void
+Shape3DData::
+resetShape()
+{
+  points_   .clear();
+  normals_  .clear();
+  indices_  .clear();
+  texCoords_.clear();
+
+  faceDatas_ .clear();
+  lineDatas_ .clear();
+  pointDatas_.clear();
 }
 
 void

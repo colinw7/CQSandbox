@@ -86,6 +86,8 @@ class CQGLTexture {
 
   //---
 
+  void bindTextureNum(int num);
+
   void bindTexture();
   void unbindTexture();
 
@@ -187,7 +189,8 @@ class CQGLTexture {
   std::vector<QImage>     images_;
   std::vector<ImageBytes> imageDatas_;
 
-  uint bindTextureId_        { 0 };
+  std::map<int, int> bindTextureId_;
+
   uint bindTextureCubeMapId_ { 0 };
   uint bindFrameBufferId_    { 0 };
 };

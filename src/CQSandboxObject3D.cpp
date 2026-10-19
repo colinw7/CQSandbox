@@ -2,6 +2,7 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxBBox3DObj.h>
+#include <CQSandboxGizmo3DObj.h>
 #include <CQSandboxCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -183,15 +184,17 @@ setModelMatrix(uint matrixFlags)
   modelMatrix_ = CMatrix3DH::identity();
 
   if (matrixFlags & ModelMatrixFlags::ROTATE) {
-    auto o = origin();
+    if (xAngle() != 0 || yAngle() != 0 || zAngle() != 0) {
+      auto o = origin();
 
-    modelMatrix_.translated(float(o.getX()), float(o.getY()), float(o.getZ()));
+      modelMatrix_.translated(float(o.getX()), float(o.getY()), float(o.getZ()));
 
-    modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
-    modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
-    modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
+      modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
+      modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
+      modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
 
-    modelMatrix_.translated(-float(o.getX()), -float(o.getY()), -float(o.getZ()));
+      modelMatrix_.translated(-float(o.getX()), -float(o.getY()), -float(o.getZ()));
+    }
   }
 
   if (matrixFlags & ModelMatrixFlags::TRANSLATE) {
@@ -231,14 +234,24 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = layer();
   }
 
-  else if (name == "position")
+  else if (name == "position") {
     value = Util::point3DToString(position());
-  else if (name == "x_angle")
+  }
+  else if (name == "x_angle") {
     value = Util::realToString(Util::radToDeg(xAngle()));
-  else if (name == "y_angle")
+  }
+  else if (name == "y_angle") {
     value = Util::realToString(Util::radToDeg(yAngle()));
-  else if (name == "z_angle")
+  }
+  else if (name == "z_angle") {
     value = Util::realToString(Util::radToDeg(zAngle()));
+  }
+  else if (name == "angles") {
+    auto a  = angles();
+    auto a1 = CPoint3D(Util::radToDeg(a.x), Util::radToDeg(a.y), Util::radToDeg(a.z));
+
+    value = Util::point3DToString(a1);
+  }
   else if (name == "group")
     value = (group() ? group()->calcId() : "");
   else if (name == "bbox") {
@@ -898,7 +911,9 @@ getFacePoints(int i, std::vector<CPoint3D> &points) const
   return true;
 }
 
-void
+//---
+
+BBox3DObj *
 Object3D::
 createBBoxObj()
 {
@@ -906,6 +921,8 @@ createBBoxObj()
     bboxObj_ = new BBox3DObj(canvas_);
 
     bboxObj_->init();
+
+    bboxObj_->setParentObj(this);
   }
 
   if (bbox_ != bboxObj_->parentBBox()) {
@@ -919,6 +936,25 @@ createBBoxObj()
 
     bboxObj_->setNeedsUpdate();
   }
+
+  return bboxObj_;
+}
+
+//---
+
+Gizmo3DObj *
+Object3D::
+createGizmoObj()
+{
+  if (! gizmoObj_) {
+    gizmoObj_ = new Gizmo3DObj(canvas_);
+
+    gizmoObj_->init();
+
+    gizmoObj_->setParentObj(this);
+  }
+
+  return gizmoObj_;
 }
 
 //---

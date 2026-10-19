@@ -153,7 +153,26 @@ render()
   canvas_->setProgramMatrices(s_program);
 
   setModelMatrix();
-  s_program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
+
+  CMatrix3DH mm;
+
+  if (parentObj_) {
+    auto bbox = parentObj_->bbox();
+
+    auto pos = bbox.getCenter();
+
+    mm = CMatrix3DH::identity();
+
+    mm.translated(pos.x, pos.y, pos.z);
+
+    auto s = 1.01;
+
+    mm.scaled(s*bbox.getXSize(), s*bbox.getYSize(), s*bbox.getZSize());
+  }
+  else
+    mm = modelMatrix();
+
+  s_program->setUniformValue("model", CQGLUtil::toQMatrix(mm));
 
   //---
 

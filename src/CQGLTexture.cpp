@@ -638,6 +638,18 @@ initImage(const QImage &image, bool flip)
 
 void
 CQGLTexture::
+bindTextureNum(int num)
+{
+  if (! CQGLStateInst->setActiveTexture(num, this))
+    return;
+
+  CQGLStateInst->setActiveTextureNum(num, true);
+
+  bindTexture();
+}
+
+void
+CQGLTexture::
 bindTexture()
 {
   assert(textureId_ > 0);
@@ -1203,13 +1215,26 @@ void
 CQGLTexture::
 glBindTexture2D(uint id) const
 {
+  int num = CQGLStateInst->activeTextureNum();
+
+#if 0
+  auto getBindTextureId = [&]() {
+    auto pn = bindTextureId_.find(num);
+    if (pn == bindTextureId_.end()) return 0;
+
+    return (*pn).second;
+  };
+#endif
+
   if (id > 0) {
-    assert(bindTextureId_ == 0);
+    //assert(getBindTextureId() == 0);
+    //assert(bindTextureId_ == 0);
 
     glBindTexture(GL_TEXTURE_2D, id);
   }
   else {
-    assert(bindTextureId_ > 0);
+    //assert(getBindTextureId() != 0);
+    //assert(bindTextureId_ > 0);
 
     glBindTexture(GL_TEXTURE_2D, 0);
   }
@@ -1217,7 +1242,8 @@ glBindTexture2D(uint id) const
   (void) checkError("glBindTexture");
 
   auto *th = const_cast<CQGLTexture *>(this);
-  th->bindTextureId_ = id;
+
+  th->bindTextureId_[num] = id;
 }
 
 void

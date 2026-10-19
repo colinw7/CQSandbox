@@ -93,12 +93,13 @@ class Shape3DData {
   void addCone(double r, double h, const ConfigData &configData=ConfigData());
   void addCylinder(double r, double h, const ConfigData &configData=ConfigData());
   void addCube(double sx, double sy, double sz);
-  void addSphere(double r);
+  void addSphere(double r, const ConfigData &configData=ConfigData());
+  void addTorus(double r0, double r1, double power1, double power2,
+                const ConfigData &configData=ConfigData());
 
   void addBodyRev(double *x, double *y, uint num_xy, uint num_patches);
 
-  static void addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
-                          std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices);
+  void resetShape();
 
   //---
 
@@ -107,6 +108,10 @@ class Shape3DData {
   //---
 
   void setBuffer(CQGLBuffer *buffer);
+
+ private:
+  static void addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
+                          std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices);
 
  private:
   Points    points_;

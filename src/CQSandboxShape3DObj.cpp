@@ -149,7 +149,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToQColor(tcl, value, c))
       return false;
 
-    material_->setDiffuseColor(c);
+    setDiffuseColor(c);
 
     setNeedsUpdate();
   }
@@ -239,8 +239,6 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
   // cone <r> <h>
   else if (name == "cone") {
-    shapeType_ = ShapeType::CONE;
-
     QStringList strs;
     (void) tcl->splitList(value, strs);
 
@@ -261,52 +259,44 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else if (! strs.empty())
       return app->errorMsg("Invalid dimensions for cone");
 
-    shapeData_.addCone(r, h, configData_);
-
-    shapeData_.setBuffer(buffer_);
-
-    setNeedsUpdate();
+    addCone(r, h, configData_);
   }
   // cube <sx> <sy> >sz>
   else if (name == "cube") {
-    shapeType_ = ShapeType::CUBE;
-
-    QStringList strs;
-    (void) tcl->splitList(value, strs);
-
     double sx = 1.0, sy = 1.0, sz = 1.0;
 
-    if      (strs.size() == 1) {
-      if (! Util::stringToReal(value, sx))
-        return false;
+    if (value != "") {
+      QStringList strs;
+      (void) tcl->splitList(value, strs);
 
-      sy = sx;
-      sz = sx;
+      double sx = 1.0, sy = 1.0, sz = 1.0;
+
+      if      (strs.size() == 1) {
+        if (! Util::stringToReal(value, sx))
+          return false;
+
+        sy = sx;
+        sz = sx;
+      }
+      else if (strs.size() == 3) {
+        if (! Util::stringToReal(strs[0], sx) ||
+            ! Util::stringToReal(strs[1], sy) ||
+            ! Util::stringToReal(strs[2], sz))
+          return false;
+      }
+      else if (! strs.empty())
+        return app->errorMsg("bad sizes for cube");
     }
-    else if (strs.size() == 3) {
-      if (! Util::stringToReal(strs[0], sx) ||
-          ! Util::stringToReal(strs[1], sy) ||
-          ! Util::stringToReal(strs[2], sz))
-        return false;
-    }
-    else if (! strs.empty())
-      return app->errorMsg("bad sizes for cube");
 
-    shapeData_.addCube(sx, sy, sz);
-
-    shapeData_.setBuffer(buffer_);
-
-    setNeedsUpdate();
+    addCube(sx, sy, sz);
   }
   // cylinder <r> <h>
   else if (name == "cylinder") {
-    shapeType_ = ShapeType::CYLINDER;
+    double r = 1.0;
+    double h = 1.0;
 
     QStringList strs;
     (void) tcl->splitList(value, strs);
-
-    double r = 1.0;
-    double h = 1.0;
 
     if      (strs.size() == 1) {
       if (! Util::stringToReal(value, r))
@@ -322,16 +312,10 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else if (! strs.empty())
       return app->errorMsg("Invalid dimensions for cylinder");
 
-    shapeData_.addCylinder(r, h, configData_);
-
-    shapeData_.setBuffer(buffer_);
-
-    setNeedsUpdate();
+    addCylinder(r, h, configData_);
   }
   // sphere <r>
   else if (name == "sphere") {
-    shapeType_ = ShapeType::SPHERE;
-
     double r = 1.0;
 
     if (value != "") {
@@ -339,11 +323,29 @@ setValue(const QString &name, const QString &value, const QStringList &args)
         return false;
     }
 
-    shapeData_.addSphere(r);
+    addSphere(r, configData_);
+  }
+  // torus <r>
+  else if (name == "torus") {
+    double r0     = 1.0;
+    double r1     = 1.0;
+    double power1 = 1.0;
+    double power2 = 1.0;
 
-    shapeData_.setBuffer(buffer_);
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
 
-    setNeedsUpdate();
+    if (strs.size() == 4) {
+      if (! Util::stringToReal(strs[0], r0) ||
+          ! Util::stringToReal(strs[1], r1) ||
+          ! Util::stringToReal(strs[2], power1) ||
+          ! Util::stringToReal(strs[3], power2))
+        return false;
+    }
+    else
+      return false;
+
+    addTorus(r0, r1, power1, power2, configData_);
   }
 
   else if (name == "cap_type") {
@@ -381,13 +383,76 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 void
 Shape3DObj::
+addCone(double r, double h, const ConfigData &configData)
+{
+  shapeType_ = ShapeType::CONE;
+
+  shapeData_.addCone(r, h, configData);
+
+  shapeData_.setBuffer(buffer_);
+
+  setNeedsUpdate();
+}
+
+void
+Shape3DObj::
 addCube(double sx, double sy, double sz)
 {
+  shapeType_ = ShapeType::CUBE;
+
   shapeData_.addCube(sx, sy, sz);
 
   shapeData_.setBuffer(buffer_);
 
   setNeedsUpdate();
+}
+
+void
+Shape3DObj::
+addCylinder(double r, double h, const ConfigData &configData)
+{
+  shapeType_ = ShapeType::CYLINDER;
+
+  shapeData_.addCylinder(r, h, configData);
+
+  shapeData_.setBuffer(buffer_);
+
+  setNeedsUpdate();
+}
+
+void
+Shape3DObj::
+addSphere(double r, const ConfigData &configData)
+{
+  shapeType_ = ShapeType::SPHERE;
+
+  shapeData_.addSphere(r, configData);
+
+  shapeData_.setBuffer(buffer_);
+
+  setNeedsUpdate();
+}
+
+void
+Shape3DObj::
+addTorus(double r0, double r1, double power1, double power2, const ConfigData &configData)
+{
+  shapeType_ = ShapeType::TORUS;
+
+  shapeData_.addTorus(r0, r1, power1, power2, configData);
+
+  shapeData_.setBuffer(buffer_);
+
+  setNeedsUpdate();
+}
+
+//---
+
+void
+Shape3DObj::
+setDiffuseColor(const QColor &c)
+{
+  material_->setDiffuseColor(c);
 }
 
 //---
@@ -687,19 +752,22 @@ calcBBox()
   if (! bboxValid_) {
     const auto &mm = modelMatrix();
 
-    bbox_ = CBBox3D();
+    rawBBox_ = CBBox3D();
+    bbox_    = CBBox3D();
 
     auto np = shapeData_.points().size();
 
     for (uint i = 0; i < np; ++i) {
       const auto &p = shapeData_.points()[i];
 
-      CPoint3D p1(p.x(), p.y(), p.z());
+      auto p1 = p.point();
+
+      rawBBox_ += p1;
 
       CPoint3D p2;
       mm.multiplyPoint(p1, p2);
 
-      bbox_ += CPoint3D(p2.x, p2.y, p2.z);
+      bbox_ += p2;
     }
 
     bboxValid_ = true;
@@ -737,6 +805,12 @@ render()
     calcBBox();
 
     createBBoxObj();
+  }
+
+  if (canvas_->type() == Canvas3D::Type::MODEL && isSelected()) {
+    calcBBox();
+
+    createGizmoObj();
   }
 
   //---
@@ -822,6 +896,8 @@ render()
 
   program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
   program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
+
+  program->setUniformValue("lighted", isLighted());
 
   //---
 
@@ -928,11 +1004,13 @@ render()
     drawBuffer(false);
   }
 
-  if (canvas_->editType() == Canvas3D::EditType::POINT)
-    drawPoints();
+  if (canvas_->type() == Canvas3D::Type::MODEL) {
+    if (canvas_->editType() == Canvas3D::EditType::POINT)
+      drawPoints();
 
-  if (canvas_->editType() == Canvas3D::EditType::LINE)
-    drawLines();
+    if (canvas_->editType() == Canvas3D::EditType::LINE)
+      drawLines();
+  }
 
   if (isInside()) {
     program->setUniformValue("isInside", isInside());

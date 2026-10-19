@@ -21,6 +21,7 @@ class Console2D;
 
 class Canvas3D;
 class CanvasToolbar3D;
+class SideBar3D;
 class Overview3D;
 class OverviewToolbar3D;
 class Control3D;
@@ -60,6 +61,7 @@ class App : public QFrame {
   // 3D
   Canvas3D          *canvas3D         () const { return frame3D_.canvas; }
   CanvasToolbar3D   *canvasToolbar3D  () const { return frame3D_.toolbar; }
+  SideBar3D         *sideBar3D        () const { return frame3D_.sideBar; }
   Control3D         *control3D        () const { return frame3D_.control; }
   Overview3D        *overview3D       () const { return frame3D_.overview; }
   OverviewToolbar3D *overviewToolbar3D() const { return frame3D_.overviewToolbar; }
@@ -99,6 +101,7 @@ class App : public QFrame {
     QFrame*            canvasFrame     { nullptr };
     Canvas3D*          canvas          { nullptr };
     CanvasToolbar3D*   toolbar         { nullptr };
+    SideBar3D*         sideBar         { nullptr };
     Control3D*         control         { nullptr };
     bool               overlayShown    { false };
     QFrame*            overviewFrame   { nullptr };

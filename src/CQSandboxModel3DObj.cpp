@@ -25,6 +25,10 @@ namespace CQSandbox {
 Model3DObj::ShaderData Model3DObj::s_shaderData;
 Model3DObjMgr*         Model3DObj::s_objectMgr = nullptr;
 
+Model3DObj::RefObjects Model3DObj::s_refObjects;
+
+CQGLBuffer*            Model3DObj::s_lastBuffer = nullptr;
+
 //---
 
 void
@@ -137,7 +141,7 @@ setPosition(const CPoint3D &p)
 
   object_->setTranslate(p.x, p.y, p.z);
 
-  setNeedsUpdate();
+  canvas_->update();
 }
 
 const CPoint3D &
@@ -155,7 +159,7 @@ setScales(const CPoint3D &p)
 
   object_->setScale(p.x, p.y, p.z);
 
-  setNeedsUpdate();
+  canvas_->update();
 }
 
 const CPoint3D &
@@ -173,7 +177,7 @@ setAngles(const CPoint3D &p)
 
   object_->setRotateAngles(angles_);
 
-  setNeedsUpdate();
+  canvas_->update();
 }
 
 void
@@ -630,6 +634,30 @@ calcBBox()
   return bbox_;
 }
 
+CBBox3D
+Model3DObj::
+getRawBBox()
+{
+  return getObjectRawBBox(object_);
+}
+
+CBBox3D
+Model3DObj::
+getObjectRawBBox(CGeomObject3D *obj) const
+{
+  auto *geomObj = dynamic_cast<GeomObject3D *>(obj);
+
+  CBBox3D bbox;
+
+  if (geomObj->getBuffer())
+    bbox += geomObj->getBuffer()->bbox();
+
+  for (auto *child : obj->children())
+    bbox += getObjectRawBBox(child);
+
+  return bbox;
+}
+
 CQGLBuffer *
 Model3DObj::
 getBuffer() const
@@ -718,7 +746,7 @@ render()
 
   bool oldCullFace = CQGLStateInst->setCullFace(isCullFace());
 
-  drawObject(object_);
+  drawObject(object_, /*isRoot*/true);
 
   CQGLStateInst->setCullFace(oldCullFace);
 }
@@ -752,12 +780,30 @@ initDraw(Canvas3D *canvas, double t)
   canvas->setProgramLightGlobals(program);
 
   canvas->setProgramLights(program);
+
+  //---
+
+#if 0
+  s_refObjects.clear();
+
+  for (auto *obj : s_objectMgr->objects()) {
+    auto *modelObj = dynamic_cast<Model3DObj *>(obj);
+
+    s_refObjects[modelObj->object_->refObject()].push_back(modelObj);
+  }
+#endif
 }
 
 void
 Model3DObj::
 termDraw(Canvas3D *canvas)
 {
+  if (s_lastBuffer) {
+    canvas->bindBuffer(nullptr);
+
+    s_lastBuffer = nullptr;
+  }
+
   canvas->bindProgram(nullptr);
 
   canvas->unsetProgramShadow();
@@ -765,7 +811,7 @@ termDraw(Canvas3D *canvas)
 
 void
 Model3DObj::
-drawObject(CGeomObject3D *object)
+drawObject(CGeomObject3D *object, bool isRoot)
 {
   auto *program = currentShaderProgram(canvas());
 
@@ -806,12 +852,22 @@ drawObject(CGeomObject3D *object)
 
   program->setUniformValue("meshMatrix", CQGLUtil::toQMatrix(meshMatrix));
 
+  if (isRoot)
+    meshMatrix_ = meshMatrix;
+
   //---
 
   // model matrix
   auto modelMatrix = CMatrix3DH(object->getHierTransform());
 
   program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
+
+  if (isRoot)
+    modelMatrix_ = modelMatrix;
+
+  //---
+
+  updateBBox();
 
   //---
 
@@ -830,13 +886,25 @@ drawObject(CGeomObject3D *object)
   // setup data buffer
   auto *buffer = geomObject1->getBuffer();
 
-  canvas_->bindBuffer(buffer);
+  if (buffer != s_lastBuffer) {
+    if (s_lastBuffer)
+      canvas_->bindBuffer(nullptr);
+
+    canvas_->bindBuffer(buffer);
+
+    s_lastBuffer = buffer;
+  }
 
   //---
 
   bool textured = canvas_->isTextured();
 
   //---
+
+  CQGLTexture *lastDiffuseTexture  = nullptr;
+  CQGLTexture *lastNormalTexture   = nullptr;
+  CQGLTexture *lastSpecularTexture = nullptr;
+  CQGLTexture *lastEmissiveTexture = nullptr;
 
   double transparency = 0.0;
 
@@ -848,15 +916,18 @@ drawObject(CGeomObject3D *object)
     if (! diffuseTexture)
       diffuseTexture = diffuseTexture_;
 
-    bool useDiffuseTexture = !!diffuseTexture;
+    if (diffuseTexture != lastDiffuseTexture) {
+      bool useDiffuseTexture = !!diffuseTexture;
 
-    program->setUniformValue("diffuseTexture.enabled", textured && useDiffuseTexture);
+      program->setUniformValue("diffuseTexture.enabled", textured && useDiffuseTexture);
 
-    if (useDiffuseTexture) {
-      CQGLStateInst->setActiveTextureNum(0, true);
-      diffuseTexture->bind();
+      if (useDiffuseTexture) {
+        diffuseTexture->bindTextureNum(0);
 
-      program->setUniformValue("diffuseTexture.texture", 0);
+        program->setUniformValue("diffuseTexture.texture", 0);
+      }
+
+      lastDiffuseTexture = diffuseTexture;
     }
 
     //---
@@ -867,15 +938,18 @@ drawObject(CGeomObject3D *object)
     if (! normalTexture)
       normalTexture = normalTexture_;
 
-    bool useNormalTexture = !!normalTexture;
+    if (normalTexture != lastNormalTexture) {
+      bool useNormalTexture = !!normalTexture;
 
-    program->setUniformValue("normalTexture.enabled", textured && useNormalTexture);
+      program->setUniformValue("normalTexture.enabled", textured && useNormalTexture);
 
-    if (useNormalTexture) {
-      CQGLStateInst->setActiveTextureNum(1, true);
-      normalTexture->bind();
+      if (useNormalTexture) {
+        normalTexture->bindTextureNum(1);
 
-      program->setUniformValue("normalTexture.texture", 1);
+        program->setUniformValue("normalTexture.texture", 1);
+      }
+
+      lastNormalTexture = normalTexture;
     }
 
     //---
@@ -886,15 +960,18 @@ drawObject(CGeomObject3D *object)
     if (! specularTexture)
       specularTexture = specularTexture_;
 
-    bool useSpecularTexture = !!specularTexture;
+    if (specularTexture != lastSpecularTexture) {
+      bool useSpecularTexture = !!specularTexture;
 
-    program->setUniformValue("specularTexture.enabled", textured && useSpecularTexture);
+      program->setUniformValue("specularTexture.enabled", textured && useSpecularTexture);
 
-    if (useSpecularTexture) {
-      CQGLStateInst->setActiveTextureNum(2, true);
-      specularTexture->bind();
+      if (useSpecularTexture) {
+        specularTexture->bindTextureNum(2);
 
-      program->setUniformValue("specularTexture.texture", 2);
+        program->setUniformValue("specularTexture.texture", 2);
+      }
+
+      lastSpecularTexture = specularTexture;
     }
 
     //---
@@ -905,15 +982,18 @@ drawObject(CGeomObject3D *object)
     if (! emissiveTexture)
       emissiveTexture = emissiveTexture_;
 
-    bool useEmissiveTexture = !!emissiveTexture;
+    if (emissiveTexture != lastEmissiveTexture) {
+      bool useEmissiveTexture = !!emissiveTexture;
 
-    program->setUniformValue("emissiveTexture.enabled", textured && useEmissiveTexture);
+      program->setUniformValue("emissiveTexture.enabled", textured && useEmissiveTexture);
 
-    if (useEmissiveTexture) {
-      CQGLStateInst->setActiveTextureNum(3, true);
-      emissiveTexture->bind();
+      if (useEmissiveTexture) {
+        emissiveTexture->bindTextureNum(3);
 
-      program->setUniformValue("emissiveTexture.texture", 3);
+        program->setUniformValue("emissiveTexture.texture", 3);
+      }
+
+      lastEmissiveTexture = emissiveTexture;
     }
 
     //---
@@ -942,9 +1022,33 @@ drawObject(CGeomObject3D *object)
 
       glDrawArrays(GL_TRIANGLE_FAN, faceData.pos, faceData.len);
     }
+
+    //---
+
+#if 0
+    if (useDiffuseTexture) {
+      CQGLStateInst->setActiveTextureNum(0, true);
+      diffuseTexture->unbind();
+    }
+
+    if (useNormalTexture) {
+      CQGLStateInst->setActiveTextureNum(1, true);
+      normalTexture->unbind();
+    }
+
+    if (useSpecularTexture) {
+      CQGLStateInst->setActiveTextureNum(2, true);
+      specularTexture->unbind();
+    }
+
+    if (useEmissiveTexture) {
+      CQGLStateInst->setActiveTextureNum(3, true);
+      emissiveTexture->unbind();
+    }
+#endif
   }
 
-  canvas_->bindBuffer(nullptr);
+  //canvas_->bindBuffer(nullptr);
 
   //---
 
@@ -952,8 +1056,24 @@ drawObject(CGeomObject3D *object)
     if (! child->getVisible())
       continue;
 
-    drawObject(child);
+    drawObject(child, /*isRoot*/false);
   }
+}
+
+void
+Model3DObj::
+updateBBox()
+{
+  auto pbbox = getRawBBox();
+
+  auto mm1 = modelMatrix();
+
+  auto points = pbbox.points();
+
+  bbox_ = CBBox3D();
+
+  for (const auto &p : points)
+    bbox_ += mm1*p;
 }
 
 void
@@ -976,7 +1096,8 @@ loadBuffer()
     ObjectData objectData;
     updateObject(object_, objectData);
 
-    bbox_ = objectData.bbox;
+    bbox_    = objectData.bbox;
+    rawBBox_ = objectData.bbox;
 
     modelMatrix_ = objectData.modelMatrix;
     meshMatrix_  = objectData.meshMatrix;

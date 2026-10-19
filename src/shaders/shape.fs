@@ -29,6 +29,8 @@ uniform Light light;
 
 uniform vec3 viewPos;
 
+uniform bool lighted;
+
 // --- Material
 uniform vec3  ambientColor;
 uniform float ambientStrength;
@@ -125,6 +127,34 @@ vec3 calcEmissionColor() {
 //---
 
 void main() {
+  // fixed color for state
+  if      (isWireframe) {
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+    return;
+  }
+  else if (isPoint) {
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+    return;
+  }
+  else if (isLine) {
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+    return;
+  }
+  else if (isInside) {
+    FragColor = vec4(1.0, 1.0, 0.0, 0.1);
+    return;
+  }
+
+  //---
+
+  // skip lighting
+  if (! lighted) {
+    FragColor = vec4(calcDiffuseColor(), 1);
+    return;
+  }
+
+  //---
+
   vec3 reflectColor = vec3(0, 0, 0);
   vec3 refractColor = vec3(0, 0, 0);
 
@@ -235,16 +265,5 @@ void main() {
 
   //---
 
-  // adjust color by state
-
-  if      (isWireframe)
-    FragColor = vec4(wireframeColor, wireframeAlpha);
-  else if (isPoint)
-    FragColor = vec4(wireframeColor, wireframeAlpha);
-  else if (isLine)
-    FragColor = vec4(wireframeColor, wireframeAlpha);
-  else if (isInside)
-    FragColor = vec4(1.0, 1.0, 0.0, 0.1);
-  else
-    FragColor = vec4(result, opacity);
+  FragColor = vec4(result, opacity);
 }
