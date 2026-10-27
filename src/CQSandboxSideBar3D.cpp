@@ -33,6 +33,7 @@ SideBar3D(Canvas3D *canvas) :
   };
 
   // edit mode buttons
+  selectButton_ = addIconCheckButton("select", "SELECT", "Select");
   moveButton_   = addIconCheckButton("move"  , "MOVE"  , "Move"  );
   rotateButton_ = addIconCheckButton("rotate", "ROTATE", "Rotate");
   scaleButton_  = addIconCheckButton("scale" , "SCALE" , "Scale" );
@@ -40,6 +41,8 @@ SideBar3D(Canvas3D *canvas) :
   ui.addStretch();
 
   connectSlots(true);
+
+  updateButtonState();
 }
 
 void
@@ -50,11 +53,23 @@ connectSlots(bool b)
     canvas_, SIGNAL(editModeChanged()), this, SLOT(updateButtonState()));
 
   CQUtil::connectDisconnect(b,
+    selectButton_, SIGNAL(toggled(bool)), this, SLOT(selectSlot(bool)));
+  CQUtil::connectDisconnect(b,
     moveButton_, SIGNAL(toggled(bool)), this, SLOT(moveSlot(bool)));
   CQUtil::connectDisconnect(b,
     rotateButton_, SIGNAL(toggled(bool)), this, SLOT(rotateSlot(bool)));
   CQUtil::connectDisconnect(b,
     scaleButton_, SIGNAL(toggled(bool)), this, SLOT(scaleSlot(bool)));
+}
+
+void
+SideBar3D::
+selectSlot(bool)
+{
+  if (canvas()->editMode() != Canvas3D::EditMode::SELECT)
+    canvas_->setEditMode(Canvas3D::EditMode::SELECT);
+
+  updateButtonState();
 }
 
 void
@@ -95,6 +110,7 @@ updateButtonState()
 
   auto editMode = canvas()->editMode();
 
+  selectButton_->setChecked(editMode == Canvas3D::EditMode::SELECT);
   moveButton_  ->setChecked(editMode == Canvas3D::EditMode::MOVE);
   rotateButton_->setChecked(editMode == Canvas3D::EditMode::ROTATE);
   scaleButton_ ->setChecked(editMode == Canvas3D::EditMode::SCALE);

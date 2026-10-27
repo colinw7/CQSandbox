@@ -83,7 +83,7 @@ removeObject(Object3D *obj)
 
 void
 Group3DObj::
-setModelMatrix(uint matrixFlags)
+setModelMatrix()
 {
   auto bbox = calcBBox();
 
@@ -91,21 +91,15 @@ setModelMatrix(uint matrixFlags)
 
   modelMatrix_ = CMatrix3DH::identity();
 
-  if (matrixFlags & ModelMatrixFlags::TRANSLATE)
-    modelMatrix_.translated(c.x + float(position().getX()),
-                            c.y + float(position().getY()),
-                            c.z + float(position().getZ()));
-  else
-    modelMatrix_.translated(c.x, c.y, c.z);
+  modelMatrix_.translated(c.x + float(position().getX()),
+                          c.y + float(position().getY()),
+                          c.z + float(position().getZ()));
 
-  if (matrixFlags & ModelMatrixFlags::SCALE)
-    modelMatrix_.scaled(xScale(), yScale(), zScale());
+  modelMatrix_.scaled(xScale(), yScale(), zScale());
 
-  if (matrixFlags & ModelMatrixFlags::ROTATE) {
-    modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
-    modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
-    modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
-  }
+  modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
+  modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
+  modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
 
   modelMatrix_.translated(-c.x, -c.y, -c.z);
 }

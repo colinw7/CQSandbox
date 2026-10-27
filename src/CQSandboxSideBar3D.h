@@ -19,6 +19,7 @@ class SideBar3D : public QFrame {
   Canvas3D *canvas() const { return canvas_; }
 
  private Q_SLOTS:
+  void selectSlot(bool state);
   void moveSlot  (bool state);
   void rotateSlot(bool state);
   void scaleSlot (bool state);
@@ -31,6 +32,7 @@ class SideBar3D : public QFrame {
  private:
   Canvas3D* canvas_ { nullptr };
 
+  CQIconButton* selectButton_ { nullptr };
   CQIconButton* moveButton_   { nullptr };
   CQIconButton* rotateButton_ { nullptr };
   CQIconButton* scaleButton_  { nullptr };

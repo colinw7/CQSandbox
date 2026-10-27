@@ -386,8 +386,8 @@ class CQGLBuffer {
     std::optional<Vector>       boneWeight;
   };
 
-  void getPointData(int i, PointData &data) const {
-    auto i1 = mapInd(i);
+  void getPointData(int i, PointData &data, bool map=true) const {
+    auto i1 = (map ? mapInd(i) : i);
 
     data.i = i;
 
@@ -583,6 +583,10 @@ class CQGLBuffer {
 
   void drawPoints() {
     glDrawArrays(GL_POINTS, 0, int(numPoints()));
+  }
+
+  void drawPoints(int pos, int len) {
+    glDrawArrays(GL_POINTS, pos, len);
   }
 
   void drawTriangleIndices() {

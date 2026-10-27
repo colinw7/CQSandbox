@@ -2,7 +2,6 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxBBox3DObj.h>
-#include <CQSandboxGizmo3DObj.h>
 #include <CQSandboxCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -16,6 +15,8 @@ Object3D(Canvas3D *canvas, Type type) :
  canvas_(canvas), type_(type)
 {
 }
+
+//---
 
 QString
 Object3D::
@@ -178,33 +179,37 @@ updateModelMatrix()
 
 void
 Object3D::
-setModelMatrix(uint matrixFlags)
+setModelMatrix()
 {
   // object centered at (0, 0). Moved to specified position
-  modelMatrix_ = CMatrix3DH::identity();
 
-  if (matrixFlags & ModelMatrixFlags::ROTATE) {
-    if (xAngle() != 0 || yAngle() != 0 || zAngle() != 0) {
-      auto o = origin();
+  auto pos = this->position();
+  auto o   = this->origin(); // rotation center
 
-      modelMatrix_.translated(float(o.getX()), float(o.getY()), float(o.getZ()));
+  auto mt1 = CMatrix3DH::translation( o.getX(),  o.getY(),  o.getZ());
+  auto mt2 = CMatrix3DH::translation(-o.getX(), -o.getY(), -o.getZ());
+  auto mt3 = CMatrix3DH::translation(pos.getX(), pos.getY(), pos.getZ());
 
-      modelMatrix_.rotated(xAngle(), CVector3D(1.0, 0.0, 0.0));
-      modelMatrix_.rotated(yAngle(), CVector3D(0.0, 1.0, 0.0));
-      modelMatrix_.rotated(zAngle(), CVector3D(0.0, 0.0, 1.0));
+  auto ms = CMatrix3DH::scale(xScale(), yScale(), zScale());
 
-      modelMatrix_.translated(-float(o.getX()), -float(o.getY()), -float(o.getZ()));
-    }
+  auto mr = anglesMatrix();
+
+  modelMatrix_ = mt1*mr*mt2*mt3*ms;
+}
+
+CMatrix3DH
+Object3D::
+anglesMatrix() const
+{
+  if (xAngle() != 0 || yAngle() != 0 || zAngle() != 0) {
+    auto mrx = CMatrix3DH::rotation(xAngle(), CVector3D(1.0, 0.0, 0.0));
+    auto mry = CMatrix3DH::rotation(yAngle(), CVector3D(0.0, 1.0, 0.0));
+    auto mrz = CMatrix3DH::rotation(zAngle(), CVector3D(0.0, 0.0, 1.0));
+
+    return mrx*mry*mrz;
   }
-
-  if (matrixFlags & ModelMatrixFlags::TRANSLATE) {
-    auto pos = this->position();
-
-    modelMatrix_.translated(float(pos.getX()), float(pos.getY()), float(pos.getZ()));
-  }
-
-  if (matrixFlags & ModelMatrixFlags::SCALE)
-    modelMatrix_.scaled(xScale(), yScale(), zScale());
+  else
+    return CMatrix3DH::identity();
 }
 
 //---
@@ -913,6 +918,15 @@ getFacePoints(int i, std::vector<CPoint3D> &points) const
 
 //---
 
+bool
+Object3D::
+intersectRay(const CVector3D &, const CVector3D &, CPoint3D &, CPoint3D &) const
+{
+  return false;
+}
+
+//---
+
 BBox3DObj *
 Object3D::
 createBBoxObj()
@@ -938,23 +952,6 @@ createBBoxObj()
   }
 
   return bboxObj_;
-}
-
-//---
-
-Gizmo3DObj *
-Object3D::
-createGizmoObj()
-{
-  if (! gizmoObj_) {
-    gizmoObj_ = new Gizmo3DObj(canvas_);
-
-    gizmoObj_->init();
-
-    gizmoObj_->setParentObj(this);
-  }
-
-  return gizmoObj_;
 }
 
 //---
@@ -986,6 +983,7 @@ Object3D::
 clearSelection()
 {
   selectedPoints_.clear();
+  selectedLines_ .clear();
   selectedFaces_ .clear();
 }
 
@@ -994,6 +992,13 @@ Object3D::
 selectPoint(uint bufferInd, uint pointInd)
 {
   selectedPoints_[bufferInd].insert(pointInd);
+}
+
+void
+Object3D::
+selectLine(uint bufferInd, uint lineInd)
+{
+  selectedLines_[bufferInd].insert(lineInd);
 }
 
 void

@@ -708,7 +708,7 @@ getChildBufferByInd(CQGLBuffer *parent, uint ind) const
   return nullptr;
 }
 
-const Model3DObj::FaceDatas &
+const FaceDatas &
 Model3DObj::
 getFaceDatas() const
 {
@@ -719,16 +719,16 @@ getFaceDatas() const
 
     for (auto *geomObject : geomObjects_) {
       for (const auto &faceData : geomObject->faceDatas())
-        th->faceDatas_.push_back(faceData);
+        th->faceDataList_.add(faceData);
     }
   }
 
-  return faceDatas_;
+  return faceDataList_.faceDatas;
 }
 
 void
 Model3DObj::
-setModelMatrix(uint /*matrixFlags*/)
+setModelMatrix()
 {
 }
 

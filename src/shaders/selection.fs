@@ -11,4 +11,6 @@ void main() {
     FragColor = vec4(selectColor, selectAlpha);
   else
     FragColor = vec4(selectColor, 0.1);
+
+  gl_FragDepth = 0.05;
 }

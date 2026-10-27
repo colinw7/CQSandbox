@@ -10,6 +10,7 @@
 #include <vector>
 
 class CShape3D;
+class CGLPath3D;
 
 namespace CQSandbox {
 
@@ -19,7 +20,6 @@ class Shape3DData {
   using Indices   = std::vector<unsigned int>;
   using TexCoords = std::vector<CVector2D>;
 
-  using FaceDatas  = std::vector<FaceData>;
   using LineDatas  = std::vector<LineData>;
   using PointDatas = std::vector<PointData>;
 
@@ -71,8 +71,8 @@ class Shape3DData {
   const TexCoords &texCoords() const { return texCoords_; }
   void setTexCoords(const TexCoords &texCoords) { texCoords_ = texCoords; }
 
-  const FaceDatas &faceDatas() const { return faceDatas_; }
-  void setFaceDatas(const FaceDatas &faceDatas) { faceDatas_ = faceDatas; }
+  const FaceDatas &faceDatas() const { return faceDataList_.faceDatas; }
+  void setFaceDatas(const FaceDatas &faceDatas) { faceDataList_.faceDatas = faceDatas; }
 
   const LineDatas &lineDatas() const { return lineDatas_; }
   void setLineDatas(const LineDatas &lineDatas) { lineDatas_ = lineDatas; }
@@ -96,6 +96,8 @@ class Shape3DData {
   void addSphere(double r, const ConfigData &configData=ConfigData());
   void addTorus(double r0, double r1, double power1, double power2,
                 const ConfigData &configData=ConfigData());
+  bool addGear(double r, int numTeeth, double toothSize, double rot);
+  bool addPath(const CGLPath3D &path, double w, double h);
 
   void addBodyRev(double *x, double *y, uint num_xy, uint num_patches);
 
@@ -116,12 +118,12 @@ class Shape3DData {
  private:
   Points    points_;
   Points    normals_;
-  Indices   indices_;
   TexCoords texCoords_;
+  Indices   indices_;
 
-  FaceDatas  faceDatas_;
-  LineDatas  lineDatas_;
-  PointDatas pointDatas_;
+  FaceDataList faceDataList_;
+  LineDatas    lineDatas_;
+  PointDatas   pointDatas_;
 
   CShape3D *geom_ { nullptr };
 

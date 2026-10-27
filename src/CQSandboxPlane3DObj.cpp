@@ -81,11 +81,11 @@ init()
   faceData.pos    = 0;
   faceData.len    = 3;
 
-  faceDatas_.push_back(faceData);
+  faceDataList_.add(faceData);
 
   faceData.pos += faceData.len;
 
-  faceDatas_.push_back(faceData);
+  faceDataList_.add(faceData);
 
   //---
 

@@ -40,7 +40,7 @@ class Group3DObj : public Object3D {
 
   void setAngles(const CPoint3D &p) override;
 
-  void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
+  void setModelMatrix() override;
 
  Q_SIGNALS:
   void objectsChanged();

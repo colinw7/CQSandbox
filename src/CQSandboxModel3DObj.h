@@ -125,7 +125,7 @@ class Model3DObj : public Object3D {
 
   void calcTangents();
 
-  void setModelMatrix(uint flags=ModelMatrixFlags::ALL) override;
+  void setModelMatrix() override;
 
  private:
   static ShaderProgram *currentShaderProgram(Canvas3D *canvas);

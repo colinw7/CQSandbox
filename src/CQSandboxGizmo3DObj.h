@@ -5,6 +5,7 @@
 
 namespace CQSandbox {
 
+class ShaderProgram;
 class Shape3DObj;
 
 class Gizmo3DObj : public Object3D {
@@ -13,6 +14,7 @@ class Gizmo3DObj : public Object3D {
  public:
   enum class EditType {
     NONE,
+    SELECT,
     MOVE,
     SCALE,
     ROTATE
@@ -20,6 +22,10 @@ class Gizmo3DObj : public Object3D {
 
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
+
+  static ShaderProgram* shaderProgram() { return s_program; }
+
+  //---
 
   Gizmo3DObj(Canvas3D *canvas);
 
@@ -40,6 +46,11 @@ class Gizmo3DObj : public Object3D {
 
   void init() override;
 
+  bool intersectRay(const CVector3D &p1, const CVector3D &p2,
+                    CPoint3D &pi1, CPoint3D &pi2) const override;
+
+  bool pressPoint(const CPoint2D &p) const;
+
   void loadBuffer() override;
 
   CBBox3D calcBBox() override;
@@ -55,21 +66,36 @@ class Gizmo3DObj : public Object3D {
   void updateModelMatrix() override;
 
  private:
+  struct ShapeData {
+    Shape3DObj* shape  { nullptr };
+    CPoint3D    angles;
+    CPoint3D    offset;
+    QColor      color;
+  };
+
+  static ShaderProgram* s_program;
+
   EditType editType_ { EditType::NONE };
 
   Object3D* parentObj_ { nullptr };
 
-  Shape3DObj* xCylinder_ { nullptr };
-  Shape3DObj* yCylinder_ { nullptr };
-  Shape3DObj* zCylinder_ { nullptr };
+  ShapeData xCylinder_;
+  ShapeData yCylinder_;
+  ShapeData zCylinder_;
 
-  Shape3DObj* xCone_ { nullptr };
-  Shape3DObj* yCone_ { nullptr };
-  Shape3DObj* zCone_ { nullptr };
+  ShapeData xCone_;
+  ShapeData yCone_;
+  ShapeData zCone_;
 
-  Shape3DObj* xTorus_ { nullptr };
-  Shape3DObj* yTorus_ { nullptr };
-  Shape3DObj* zTorus_ { nullptr };
+  ShapeData xCube_;
+  ShapeData yCube_;
+  ShapeData zCube_;
+
+  ShapeData xTorus_;
+  ShapeData yTorus_;
+  ShapeData zTorus_;
+
+  std::vector<ShapeData> shapes_;
 };
 
 }

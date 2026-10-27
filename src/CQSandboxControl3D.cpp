@@ -7,6 +7,7 @@
 #include <CQSandboxMaterial3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUI.h>
+#include <CQSandboxXml.h>
 #include <CQSandboxUtil.h>
 
 #include <CQColorEdit.h>
@@ -15,7 +16,6 @@
 #include <CQRealSpin.h>
 #include <CQPropertyViewTree.h>
 #include <CQUtil.h>
-#include <CQXml.h>
 
 #include <QTabWidget>
 #include <QGroupBox>
@@ -28,26 +28,10 @@
 
 namespace CQSandbox {
 
-class Xml3D : public CQXml {
+class Xml3D : public Xml {
  public:
   Xml3D(Control3D *control) :
-   CQXml(), control_(control) {
-  }
-
-  void execSlot(const QString &value, const QStringList &args) override {
-    auto *canvas = control_->canvas();
-
-    auto text = getExecData("text").toString();
-    canvas->tcl()->createVar("execText", text);
-
-    canvas->tcl()->createVar("execArgs", args);
-
-    auto cmd = value;
-
-    for (const auto &arg : args)
-      cmd += QString(" {%1}").arg(arg);
-
-    canvas->runTclCmd(cmd);
+   Xml(control->canvas()->tcl()), control_(control) {
   }
 
  private:
@@ -197,6 +181,16 @@ addControlFrame()
 
   controlData_.showSkyboxCheck  = ui.addLabelEdit("Visible", new QCheckBox);
   controlData_.debugSkyboxCheck = ui.addLabelEdit("Debug"  , new QCheckBox);
+
+  ui.endGroup();
+
+  //---
+
+  ui.startGroup("Orient");
+
+  controlData_.showOrientCheck = ui.addLabelEdit("Visible", new QCheckBox);
+
+  ui.endGroup();
 
   //---
 
@@ -848,6 +842,8 @@ updateControl()
   controlData_.showSkyboxCheck ->setChecked(canvas_->isShowSkybox());
   controlData_.debugSkyboxCheck->setChecked(canvas_->isDebugSkybox());
 
+  controlData_.showOrientCheck->setChecked(canvas_->isShowOrient());
+
   controlData_.bboxEdit->setValue(canvas_->bbox());
 
   connectControl(true);
@@ -887,6 +883,9 @@ connectControl(bool b)
             this, &Control3D::showSkyboxSlot);
     connect(controlData_.debugSkyboxCheck, &QCheckBox::stateChanged,
             this, &Control3D::debugSkyboxSlot);
+
+    connect(controlData_.showOrientCheck, &QCheckBox::stateChanged,
+            this, &Control3D::showOrientSlot);
   }
   else {
     disconnect(controlData_.depthTestCheck, &QCheckBox::stateChanged,
@@ -899,10 +898,10 @@ connectControl(bool b)
     disconnect(controlData_.bgColorEdit, &CQColorEdit::colorChanged,
                this, &Control3D::bgColorSlot);
 
-    connect(controlData_.wireframeColor, &CQColorEdit::colorChanged,
-            this, &Control3D::wireframeColorSlot);
-    connect(controlData_.wireframeAlpha, &CQRealSpin::realValueChanged,
-            this, &Control3D::wireframeAlphaSlot);
+    disconnect(controlData_.wireframeColor, &CQColorEdit::colorChanged,
+               this, &Control3D::wireframeColorSlot);
+    disconnect(controlData_.wireframeAlpha, &CQRealSpin::realValueChanged,
+               this, &Control3D::wireframeAlphaSlot);
 
     disconnect(controlData_.selectColor, &CQColorEdit::colorChanged,
                this, &Control3D::selectColorSlot);
@@ -918,6 +917,9 @@ connectControl(bool b)
                this, &Control3D::showSkyboxSlot);
     disconnect(controlData_.debugSkyboxCheck, &QCheckBox::stateChanged,
                this, &Control3D::debugSkyboxSlot);
+
+    disconnect(controlData_.showOrientCheck, &QCheckBox::stateChanged,
+              this, &Control3D::showOrientSlot);
   }
 }
 
@@ -1590,6 +1592,14 @@ debugSkyboxSlot(int b)
 
 void
 Control3D::
+showOrientSlot(int b)
+{
+  canvas_->setShowOrient(b);
+  canvas_->update();
+}
+
+void
+Control3D::
 ambientColorSlot(const QColor &c)
 {
   canvas_->setAmbientColor(Util::QColorToRGBA(c));
@@ -2119,7 +2129,8 @@ overviewWireframeSlot(int state)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setWireframe(state);
+  if (overview)
+    overview->setWireframe(state);
 }
 
 void
@@ -2128,7 +2139,8 @@ overviewSolidSlot(int state)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setSolid(state);
+  if (overview)
+    overview->setSolid(state);
 }
 
 void
@@ -2137,7 +2149,8 @@ overviewZClipSlot(int state)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setZClip(state);
+  if (overview)
+    overview->setZClip(state);
 }
 
 void
@@ -2146,7 +2159,8 @@ overviewShowCameraSlot(int state)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setCameraVisible(state);
+  if (overview)
+    overview->setCameraVisible(state);
 }
 
 void
@@ -2155,7 +2169,8 @@ overviewShowLightSlot(int state)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setLightsVisible(state);
+  if (overview)
+    overview->setLightsVisible(state);
 }
 
 void
@@ -2164,7 +2179,8 @@ overviewShowBasisSlot(int state)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setBasisVisible(state);
+  if (overview)
+    overview->setBasisVisible(state);
 }
 
 void
@@ -2173,7 +2189,8 @@ overviewBgColorSlot(const QColor &c)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setBgColor(c);
+  if (overview)
+    overview->setBgColor(c);
 }
 
 void
@@ -2182,7 +2199,8 @@ overviewStrokeColorSlot(const QColor &c)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setStrokeColor(c);
+  if (overview)
+    overview->setStrokeColor(c);
 }
 
 void
@@ -2191,7 +2209,8 @@ overviewStrokeAlphaSlot(double a)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setStrokeAlpha(a);
+  if (overview)
+    overview->setStrokeAlpha(a);
 }
 
 void
@@ -2200,7 +2219,8 @@ overviewFillColorSlot(const QColor &c)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setFillColor(c);
+  if (overview)
+    overview->setFillColor(c);
 }
 
 void
@@ -2209,7 +2229,8 @@ overviewFillAlphaSlot(double a)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setFillAlpha(a);
+  if (overview)
+    overview->setFillAlpha(a);
 }
 
 void
@@ -2218,7 +2239,8 @@ overviewSelectedColorSlot(const QColor &c)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setSelectedColor(c);
+  if (overview)
+    overview->setSelectedColor(c);
 }
 
 void
@@ -2227,7 +2249,8 @@ overviewPointSizeSlot(double s)
 {
   auto *overview = canvas_->app()->overview3D();
 
-  overview->setPointSize(s);
+  if (overview)
+    overview->setPointSize(s);
 }
 
 //---

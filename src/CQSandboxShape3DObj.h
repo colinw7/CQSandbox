@@ -14,6 +14,7 @@ class CShape3D;
 namespace CQSandbox {
 
 class ShaderProgram;
+class Path3DObj;
 
 //---
 
@@ -48,7 +49,9 @@ class Shape3DObj : public Object3D {
     CUBE,
     CYLINDER,
     SPHERE,
-    TORUS
+    TORUS,
+    GEAR,
+    PATH
   };
 
   //---
@@ -63,6 +66,7 @@ class Shape3DObj : public Object3D {
   static void initShader(Canvas3D *canvas);
 
   static void initDraw(Canvas3D *canvas);
+  static void initDraw(Canvas3D *canvas, ShaderProgram *program);
   static void termDraw(Canvas3D *canvas);
 
   //---
@@ -91,6 +95,8 @@ class Shape3DObj : public Object3D {
   void addSphere(double r, const ConfigData &configData=ConfigData());
   void addTorus(double r0, double r1, double power1, double power2,
                 const ConfigData &configData=ConfigData());
+  void addGear(double r, int numTeeth, double toothSize, double rot);
+  void addPath(Path3DObj *, double, double);
 
   //---
 
@@ -125,8 +131,8 @@ class Shape3DObj : public Object3D {
 
   void init() override;
 
-  bool intersect(const CVector3D &p1, const CVector3D &p2,
-                 CPoint3D &pi1, CPoint3D &pi2) const override;
+  bool intersectRay(const CVector3D &p1, const CVector3D &p2,
+                    CPoint3D &pi1, CPoint3D &pi2) const override;
 
   CBBox3D calcBBox() override;
 
@@ -137,6 +143,8 @@ class Shape3DObj : public Object3D {
   void loadBuffer() override;
 
   void render() override;
+
+  void render(ShaderProgram *program);
 
   //---
 
@@ -153,6 +161,7 @@ class Shape3DObj : public Object3D {
 
   static ShaderProgram* s_program;
   static Shape3DObjMgr* s_objectMgr;
+  static CMatrix3DH     s_pvMatrix;
 
   ShapeType   shapeType_ { ShapeType::NONE };
   Shape3DData shapeData_;

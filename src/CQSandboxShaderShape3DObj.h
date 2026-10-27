@@ -46,8 +46,8 @@ class ShaderShape3DObj : public Object3D {
 
   void init() override;
 
-  bool intersect(const CVector3D &p1, const CVector3D &p2,
-                 CPoint3D &pi1, CPoint3D &pi2) const override;
+  bool intersectRay(const CVector3D &p1, const CVector3D &p2,
+                    CPoint3D &pi1, CPoint3D &pi2) const override;
 
   CBBox3D calcBBox() override;
 

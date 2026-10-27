@@ -1242,7 +1242,7 @@ drawShape(Shape3DObj *obj)
       mode = faceData.glMode;
 
     if (mode != GL_LINE_LOOP)
-      assert(faceData.len == 3);
+      assert(faceData.len >= 3);
 
     std::vector<CPoint3D> poly;
 
@@ -2190,7 +2190,7 @@ selectObjectIn(const CPoint2D &p, const QRect &r, bool clear)
     update();
   }
   else if (selectType == SelectType::FACE) {
-    std::vector<CGeomFace3D *> selectGeomFaces;
+    //std::vector<CGeomFace3D *> selectGeomFaces;
 
     for (auto &pf : drawData_.geomObjFaces) {
       auto *geomObject = pf.first;
@@ -2211,14 +2211,18 @@ selectObjectIn(const CPoint2D &p, const QRect &r, bool clear)
         }
 
         if (poly.intersects(QPolygonF(r1))) {
-          auto *geomFace = faceDatas[face.ind].face;
+          auto &faceData = const_cast<FaceData &>(faceDatas[face.ind]);
 
-          selectGeomFaces.push_back(geomFace);
+          obj->selectFace(faceData.buffer->ind(), face.ind);
+
+          //auto *geomFace = faceData.face;
+
+          //selectGeomFaces.push_back(geomFace);
         }
       }
     }
 
-    canvas->selectFaces(selectGeomFaces, clear, /*update*/true);
+    //canvas->selectFaces(selectGeomFaces, clear, /*update*/true);
 
     for (auto &pf : drawData_.objFaces) {
       auto *obj = pf.first;

@@ -71,13 +71,9 @@ class Skybox3DObj : public Object3D {
     CGLTexture *normalTexture   { nullptr };
   };
 
-  using FaceDatas = std::vector<FaceData>;
-
-  //FaceDatas faceDatas;
-
   struct ObjectData {
-    CQGLBuffer* buffer { nullptr };
-    FaceDatas   faceDatas;
+    CQGLBuffer*           buffer { nullptr };
+    std::vector<FaceData> faceDatas;
   };
 
   using ObjectDatas = std::map<CGeomObject3D *, ObjectData *>;

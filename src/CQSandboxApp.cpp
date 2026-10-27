@@ -53,6 +53,7 @@
 #include <svg/settings_svg.h>
 #include <svg/console_svg.h>
 
+#include <svg/select_svg.h>
 #include <svg/move_svg.h>
 #include <svg/rotate_svg.h>
 #include <svg/scale_svg.h>
@@ -99,6 +100,7 @@ init(const QStringList &tclArgs)
   //---
 
   appFrame_ = new QFrame;
+  appFrame_->setObjectName("appFrame");
 
   appFrame_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
@@ -156,15 +158,19 @@ add3DFrame(Frame3D &frame3D)
   auto *clayout = new QVBoxLayout(frame3D.canvasFrame);
   clayout->setMargin(0); clayout->setSpacing(0);
 
+  auto *clayout1 = new QHBoxLayout;
+  clayout1->setMargin(0); clayout1->setSpacing(0);
+
   frame3D.canvas  = new Canvas3D(this);
   frame3D.toolbar = new CanvasToolbar3D(frame3D.canvas);
+  frame3D.sideBar = new SideBar3D(frame3D.canvas);
 
   clayout->addWidget(frame3D.toolbar);
-  clayout->addWidget(frame3D.canvas);
 
-  //---
+  clayout1->addWidget(frame3D.sideBar);
+  clayout1->addWidget(frame3D.canvas);
 
-  frame3D.sideBar = new SideBar3D(frame3D.canvas);
+  clayout->addLayout(clayout1);
 
   //---
 
@@ -173,8 +179,6 @@ add3DFrame(Frame3D &frame3D)
 
   auto *flayout = new QHBoxLayout(frame3D.frame);
   flayout->setMargin(0); flayout->setSpacing(0);
-
-  flayout->addWidget(frame3D.sideBar);
 
   flayout->addWidget(frame3D.canvasFrame);
 

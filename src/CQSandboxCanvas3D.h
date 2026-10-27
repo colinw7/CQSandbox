@@ -45,6 +45,7 @@ class Light3D;
 class Path3DObj;
 class ParticleList3DObj;
 class Skybox3DObj;
+class Gizmo3DObj;
 class Material3D;
 
 class Camera;
@@ -150,6 +151,7 @@ class Canvas3D : public OpenGLWindow {
   };
 
   enum class EditMode {
+    SELECT,
     MOVE,
     SCALE,
     ROTATE
@@ -272,6 +274,14 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  const CRGBA &editColor() const { return editData_.color; }
+  void setEditColor(const CRGBA &c) { editData_.color = c; }
+
+  double editAlpha() const { return editData_.alpha; }
+  void setEditAlpha(double r) { editData_.alpha = r; }
+
+  //---
+
   bool isPolygonLine() const { return polygonLine_; }
   void setPolygonLine(bool b) { polygonLine_ = b; }
 
@@ -298,6 +308,9 @@ class Canvas3D : public OpenGLWindow {
 
   bool isSelectionSolid() const { return selectionSolid_; }
   void setSelectionSolid(bool b) { selectionSolid_ = b; }
+
+  bool isShowOrient() const { return showOrient_; }
+  void setShowOrient(bool b) { showOrient_ = b; }
 
   //---
 
@@ -525,9 +538,14 @@ class Canvas3D : public OpenGLWindow {
   void setViewGlobals(CameraIFace *camera);
 
   void drawContents();
+
+  void drawViewport();
   void drawBBoxes();
-  void drawGizmos();
   void drawSelected();
+
+  void drawObjectPoints(Object3D *object);
+  void drawObjectLines (Object3D *object);
+  void drawObjectFaces (Object3D *object);
 
   //---
 
@@ -582,6 +600,13 @@ class Canvas3D : public OpenGLWindow {
     uint        point  { 0 };
   };
 
+  struct MinLineData {
+    Object3D*   object { nullptr };
+    CQGLBuffer* buffer { nullptr };
+    double      dist   { 0.0 };
+    uint        line   { 0 };
+  };
+
   struct MinFaceData {
     Object3D*   object { nullptr };
     CQGLBuffer* buffer { nullptr };
@@ -594,6 +619,11 @@ class Canvas3D : public OpenGLWindow {
   void selectNearestFace  (const CPoint2D &p, bool clear);
   void selectNearestObject(const CPoint2D &p, bool clear);
 
+  void updateMinFaceData(Object3D *object, const CPoint2D &p1, const QPointF &p2,
+                         MinFaceData &minFaceData) const;
+
+  void updateNearestBufferLine(Object3D *object, CQGLBuffer *buffer, const CMatrix3DH &matrix,
+                               const CPoint2D &p, MinLineData &minLineData);
   void updateNearestBufferPoint(Object3D *object, CQGLBuffer *buffer, const CMatrix3DH &matrix,
                                 const CPoint2D &p, MinPointData &minPointData);
 
@@ -604,6 +634,9 @@ class Canvas3D : public OpenGLWindow {
 
   void selectBufferPoints(Object3D *object, CQGLBuffer *buffer,
                           const CMatrix3DH &matrix, const CBBox2D &r);
+
+  void selectPrev();
+  void selectNext();
 
   QPolygonF getFacePoly(const FaceData &faceData, const CMatrix3DH &matrix) const;
 
@@ -626,9 +659,12 @@ class Canvas3D : public OpenGLWindow {
 
   void selectObjects(const std::vector<Object3D *> &objs, bool clear=false, bool update=true);
   void selectObject(Object3D *obj, bool clear=false, bool update=true);
+  void selectObject1(Object3D *obj);
 
+#if 0
   void selectFaces(const std::vector<CGeomFace3D *> &faces, bool clear=false, bool update=true);
   void selectFace(CGeomFace3D *face, bool clear=false, bool update=true);
+#endif
 
   void selectVertices(const std::vector<CGeomVertex3D *> &vertices,
                       bool clear=false, bool update=true);
@@ -638,6 +674,8 @@ class Canvas3D : public OpenGLWindow {
   void deselectObject(Object3D *obj);
 
   void setMousePos(double xpos, double ypos);
+
+  void addIntersectPoints(const CVector3D &v1, const CVector3D &v2, Object3D *obj);
 
   //---
 
@@ -784,6 +822,7 @@ class Canvas3D : public OpenGLWindow {
   using Points = std::vector<CVector3D>;
 
   using ObjectSelectedPoints = std::map<Object3D *, Object3D::SelectedPoints>;
+  using ObjectSelectedLines  = std::map<Object3D *, Object3D::SelectedLines>;
   using ObjectSelectedFaces  = std::map<Object3D *, Object3D::SelectedFaces>;
   using ObjectSelected       = std::set<Object3D *>;
 
@@ -832,6 +871,13 @@ class Canvas3D : public OpenGLWindow {
 
   SelectData selectData_;
 
+  struct EditData {
+    CRGBA  color { CRGBA::white() };
+    double alpha { 0.25 };
+  };
+
+  EditData editData_;
+
   bool polygonLine_      { false };
   bool solid_            { false };
   bool textured_         { true };
@@ -841,9 +887,10 @@ class Canvas3D : public OpenGLWindow {
   bool animEnabled_      { true };
   bool lightsVisible_    { false };
   bool selectionSolid_   { false };
+  bool showOrient_       { false };
 
   Type     type_     { Type::CAMERA };
-  EditMode editMode_ { EditMode::MOVE };
+  EditMode editMode_ { EditMode::SELECT };
   EditType editType_ { EditType::OBJECT };
 
   CameraType cameraType_ { CameraType::MODEL };
@@ -932,6 +979,7 @@ class Canvas3D : public OpenGLWindow {
 
   CMatrix3DH projectionMatrix_;
   CMatrix3DH viewMatrix_;
+  CMatrix3DH pvMatrix_;
   CVector3D  viewPos_;
 
   CBBox3D bbox_;
@@ -976,6 +1024,8 @@ class Canvas3D : public OpenGLWindow {
   bool          debugSkybox_ { false };
   TextureBuffer skyboxTextureBuffer;
 
+  Gizmo3DObj* gizmoObj_ { nullptr };
+
   Points intersectPoints_;
 
   QStringList modelDirs_;
@@ -1016,8 +1066,11 @@ class Canvas3D : public OpenGLWindow {
   CQGLBuffer*    selectionBuffer_  { nullptr };
 
   ObjectSelectedPoints objectSelectedPoints_;
+  ObjectSelectedLines  objectSelectedLines_;
   ObjectSelectedFaces  objectSelectedFaces_;
   ObjectSelected       objectSelected_;
+
+  Objects editObjects_;
 };
 
 }

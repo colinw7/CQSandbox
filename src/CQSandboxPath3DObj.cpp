@@ -113,7 +113,7 @@ bool
 Path3DObj::
 getValue(const QString &name, const QStringList &args, QVariant &value)
 {
-  if (name == "tpos") {
+  if      (name == "tpos") {
     if (args.size() < 1)
       return false;
 
@@ -121,11 +121,27 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (! Util::stringToReal(args[0], t))
       return false;
 
-    CPoint3D pos;
-    if (! path_.calc(t, numLines_, pos))
+    CPoint3D  pos;
+    CVector3D dir;
+    if (! path_.calc(t, numLines_, pos, dir))
       return false;
 
     value = Util::point3DToString(pos);
+  }
+  else if (name == "tdir") {
+    if (args.size() < 1)
+      return false;
+
+    double t;
+    if (! Util::stringToReal(args[0], t))
+      return false;
+
+    CPoint3D  pos;
+    CVector3D dir;
+    if (! path_.calc(t, numLines_, pos, dir))
+      return false;
+
+    value = Util::vector3DToString(dir.normalized());
   }
   else
     return Object3D::getValue(name, args, value);
@@ -139,6 +155,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 {
   auto *tcl = canvas()->tcl();
 
+  // 3d path
   if      (name == "path") {
     path_.clear();
 
@@ -189,6 +206,16 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
         path_.cubicTo(p1.point(), p2.point(), p3.point());
       }
+    }
+
+    updatePoints();
+
+    setNeedsUpdate();
+  }
+  else if (name == "svg_path") {
+    if (! path_.fromSvg(value.toStdString())) {
+      //std::cerr << "Invalid path: " << str.toStdString() << "\n";
+      return false;
     }
 
     updatePoints();

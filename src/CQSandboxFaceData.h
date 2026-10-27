@@ -50,16 +50,26 @@ struct FaceData {
 #endif
 };
 
+using FaceDatas = std::vector<FaceData>;
+
 struct FaceDataList {
   void clear() { faceDatas.clear(); pos = 0; }
 
-  void add(const FaceDataList &faceDataList) {
-    for (const auto &faceData : faceDataList.faceDatas)
-      faceDatas.push_back(faceData);
+  void add(const FaceData &faceData) {
+    //assert(faceData.pos == pos);
+
+    faceDatas.push_back(faceData);
+
+    pos += faceData.len;
   }
 
-  int                   pos { 0 };
-  std::vector<FaceData> faceDatas;
+  void add(const FaceDataList &faceDataList) {
+    for (const auto &faceData : faceDataList.faceDatas)
+      add(faceData);
+  }
+
+  int       pos { 0 };
+  FaceDatas faceDatas;
 };
 
 struct LineData {

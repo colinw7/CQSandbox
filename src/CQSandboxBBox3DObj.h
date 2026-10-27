@@ -6,6 +6,7 @@
 
 namespace CQSandbox {
 
+class Shape3DObj;
 class ShaderProgram;
 
 class BBox3DObj : public Object3D {
@@ -48,6 +49,8 @@ class BBox3DObj : public Object3D {
 
   Object3D* parentObj_ { nullptr };
   CBBox3D   parentBBox_;
+
+  Shape3DObj* originObj_ { nullptr };
 };
 
 }

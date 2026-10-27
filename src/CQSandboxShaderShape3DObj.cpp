@@ -233,7 +233,7 @@ setShaderToyTexture(const QString &file)
 
 bool
 ShaderShape3DObj::
-intersect(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
+intersectRay(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
 {
   if (! shapeData_.geom())
     return false;

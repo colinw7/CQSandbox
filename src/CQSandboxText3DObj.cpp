@@ -518,7 +518,7 @@ render()
 
 void
 Text3DObj::
-setModelMatrix(uint)
+setModelMatrix()
 {
   modelMatrix_ = CMatrix3DH::identity();
 

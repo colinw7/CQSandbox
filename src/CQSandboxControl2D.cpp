@@ -1,13 +1,10 @@
 #include <CQSandboxControl2D.h>
 #include <CQSandboxCanvas2D.h>
 #include <CQSandboxApp.h>
+#include <CQSandboxXml.h>
 #include <CQSandboxViewport.h>
 
-#include <CQXml.h>
 #include <CQTclUtil.h>
-#include <CQTclCheckBox.h>
-#include <CQTclIntegerSpin.h>
-#include <CQTclRealSpin.h>
 #include <CQPropertyViewTree.h>
 #include <CQUtil.h>
 
@@ -18,42 +15,10 @@
 
 namespace CQSandbox {
 
-class Xml2D : public CQXml {
+class Xml2D : public Xml {
  public:
   Xml2D(Control2D *control) :
-   CQXml(), control_(control) {
-  }
-
-  void createNotify(QWidget *w) override {
-    auto *check = qobject_cast<CQTclCheckBox *>(w);
-    auto *ispin = qobject_cast<CQTclIntegerSpin *>(w);
-    auto *rspin = qobject_cast<CQTclRealSpin *>(w);
-
-    if (check || ispin || rspin) {
-      auto *canvas = control_->canvas();
-
-      auto *interp = canvas->tcl()->interp();
-
-      if      (check) check->setInterp(interp);
-      else if (ispin) ispin->setInterp(interp);
-      else if (rspin) rspin->setInterp(interp);
-    }
-  }
-
-  void execSlot(const QString &value, const QStringList &args) override {
-    auto *canvas = control_->canvas();
-
-    auto text = getExecData("text").toString();
-    canvas->tcl()->createVar("execText", text);
-
-    canvas->tcl()->createVar("execArgs", args);
-
-    auto cmd = value;
-
-    for (const auto &arg : args)
-      cmd += QString(" {%1}").arg(arg);
-
-    canvas->runTclCmd(cmd);
+   Xml(control->canvas()->tcl()), control_(control) {
   }
 
  private:
@@ -303,13 +268,8 @@ bool
 Control2D::
 createUi(const QString &ui)
 {
-  if (! xml_) {
+  if (! xml_)
     xml_ = new Xml2D(this);
-
-    CQXmlAddWidgetFactoryT(xml_, CQTclCheckBox);
-    CQXmlAddWidgetFactoryT(xml_, CQTclIntegerSpin);
-    CQXmlAddWidgetFactoryT(xml_, CQTclRealSpin);
-  }
 
   return xml_->createWidgetsFromString(uiFrame_, ui.toStdString());
 }

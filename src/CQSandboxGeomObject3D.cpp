@@ -44,7 +44,7 @@ initBuffer(Canvas3D * /*canvas*/)
 
   buffer_->clearBuffers();
 
-  faceDatas_.clear();
+  faceDataList_.clear();
 
   return buffer_;
 }
@@ -53,7 +53,7 @@ void
 GeomObject3D::
 addFaceData(const FaceData &faceData)
 {
-  faceDatas_.push_back(faceData);
+  faceDataList_.add(faceData);
 }
 
 }

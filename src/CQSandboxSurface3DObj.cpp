@@ -238,7 +238,7 @@ resizePoints()
 
   indices_.resize(ni);
 
-  faceDatas_.clear();
+  faceDataList_.clear();
 
   //---
 
@@ -261,7 +261,7 @@ resizePoints()
       indices_[ii++] = ixy + 1;
       indices_[ii++] = ixy + nx_;
 
-      faceDatas_.push_back(faceData);
+      faceDataList_.add(faceData);
 
       //---
 
@@ -271,7 +271,7 @@ resizePoints()
       indices_[ii++] = ixy + nx_ + 1;
       indices_[ii++] = ixy + nx_;
 
-      faceDatas_.push_back(faceData);
+      faceDataList_.add(faceData);
     }
   }
 

@@ -26,7 +26,6 @@ namespace CQSandbox {
 class Canvas3D;
 
 class BBox3DObj;
-class Gizmo3DObj;
 class Group3DObj;
 class Modifier3DObj;
 class Object3D;
@@ -98,6 +97,7 @@ class Object3D : public QObject {
     ARRAY,
     ASTAR,
     AXIS,
+    BASIS,
     BBOX,
     CSV,
     DUNGEON,
@@ -128,15 +128,6 @@ class Object3D : public QObject {
     VECTOR
   };
 
-  enum ModelMatrixFlags : unsigned int {
-    NONE      = 0,
-    TRANSLATE = (1<<0),
-    SCALE     = (1<<1),
-    ROTATE    = (1<<2),
-    ALL       = (TRANSLATE | SCALE | ROTATE)
-  };
-
-  using FaceDatas  = std::vector<FaceData>;
   using LineDatas  = std::vector<LineData>;
   using PointDatas = std::vector<PointData>;
 
@@ -166,6 +157,9 @@ class Object3D : public QObject {
 
   using PointSet       = std::set<uint>;
   using SelectedPoints = std::map<uint, PointSet>;
+
+  using LineSet       = std::set<uint>;
+  using SelectedLines = std::map<uint, LineSet>;
 
   using FaceSet        = std::set<uint>;
   using SelectedFaces  = std::map<uint, FaceSet>;
@@ -203,6 +197,8 @@ class Object3D : public QObject {
 
   const QString &id() const { return id_; }
   void setId(const QString &s) { id_ = s; }
+
+  QString getCommandName() const;
 
   QString calcId() const;
 
@@ -336,7 +332,9 @@ class Object3D : public QObject {
 
   //---
 
-  virtual void setModelMatrix(uint flags=ModelMatrixFlags::ALL);
+  virtual void setModelMatrix();
+
+  CMatrix3DH anglesMatrix() const;
 
   //---
 
@@ -390,8 +388,8 @@ class Object3D : public QObject {
 
   virtual CQGLBuffer *getBufferByInd(uint ind) const;
 
-  virtual const FaceDatas  &getFaceDatas () const { return faceDatas_ ; }
-  virtual const LineDatas  &getLineDatas () const { return lineDatas_ ; }
+  virtual const FaceDatas  &getFaceDatas () const { return faceDataList_.faceDatas; }
+  virtual const LineDatas  &getLineDatas () const { return lineDatas_; }
   virtual const PointDatas &getPointDatas() const { return pointDatas_; }
 
 
@@ -405,11 +403,8 @@ class Object3D : public QObject {
 
   virtual void loadBuffer() = 0;
 
-  virtual bool intersect(const CVector3D &, const CVector3D &, CPoint3D &, CPoint3D &) const {
-    return false;
-  }
-
-  QString getCommandName() const;
+  virtual bool intersectRay(const CVector3D &p1, const CVector3D &p2,
+                            CPoint3D &pi1, CPoint3D &pi2) const;
 
   //---
 
@@ -419,18 +414,14 @@ class Object3D : public QObject {
 
   //---
 
-  Gizmo3DObj *createGizmoObj();
-
-  Gizmo3DObj *gizmoObj() const { return gizmoObj_; }
-
-  //---
-
   virtual void clearSelection();
 
   virtual void selectPoint(uint bufferInd, uint pointInd);
+  virtual void selectLine (uint bufferInd, uint lineInd);
   virtual void selectFace (uint bufferInd, uint faceInd);
 
   const SelectedPoints &selectedPoints() const { return selectedPoints_; }
+  const SelectedLines  &selectedLines () const { return selectedLines_; }
   const SelectedFaces  &selectedFaces () const { return selectedFaces_; }
 
   bool isPointSelected(uint bufferInd, uint pointInd) const;
@@ -494,18 +485,18 @@ class Object3D : public QObject {
   bool    bboxValid_ { false };
   CBBox3D rawBBox_;
 
-  BBox3DObj  *bboxObj_  { nullptr };
-  Gizmo3DObj *gizmoObj_ { nullptr };
+  BBox3DObj *bboxObj_ { nullptr };
 
   bool needsUpdate_ { true };
 
   CQGLBuffer* buffer_ { nullptr };
 
-  FaceDatas  faceDatas_;
-  LineDatas  lineDatas_;
-  PointDatas pointDatas_;
+  FaceDataList faceDataList_;
+  LineDatas    lineDatas_;
+  PointDatas   pointDatas_;
 
   SelectedPoints selectedPoints_;
+  SelectedLines  selectedLines_;
   SelectedFaces  selectedFaces_;
 
   Modifiers modifiers_;

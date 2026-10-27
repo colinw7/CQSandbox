@@ -15,9 +15,6 @@ class ShaderProgram;
 
 class GeomObject3D : public CGeomObject3D {
  public:
-  using FaceDatas = std::vector<FaceData>;
-
- public:
   GeomObject3D(CGeomScene3D *pscene, const std::string &name);
 
   GeomObject3D(const GeomObject3D &object);
@@ -35,7 +32,7 @@ class GeomObject3D : public CGeomObject3D {
 
   ShaderProgram* program() const { return program_; }
 
-  const FaceDatas &faceDatas() const { return faceDatas_; }
+  const FaceDatas &faceDatas() const { return faceDataList_.faceDatas; }
 
   CQGLBuffer *initBuffer(Canvas3D *canvas);
 
@@ -50,7 +47,7 @@ class GeomObject3D : public CGeomObject3D {
 
   ShaderProgram* program_ { nullptr };
 
-  FaceDatas faceDatas_;
+  FaceDataList faceDataList_;
 };
 
 }

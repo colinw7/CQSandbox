@@ -35,8 +35,6 @@ proc loadModel { filename name { s 1.0 } } {
     $obj set scale $s
   }
 
-  $obj set id $name
-
   # echo [$obj get anim.names]
 
   return $obj

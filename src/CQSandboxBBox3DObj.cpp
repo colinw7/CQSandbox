@@ -1,4 +1,5 @@
 #include <CQSandboxBBox3DObj.h>
+#include <CQSandboxShape3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxApp.h>
 
@@ -32,12 +33,31 @@ BBox3DObj::
 BBox3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::BBOX)
 {
+  auto createSphere = [&](const QColor &c) {
+    Shape3DData::ConfigData configData;
+
+    auto *sphere = new Shape3DObj(canvas);
+
+    sphere->addSphere(0.01, configData);
+
+    sphere->setDiffuseColor(c);
+
+    sphere->setPseudo(true);
+
+    sphere->setLighted(false);
+
+    return sphere;
+  };
+
+  originObj_ = createSphere(Qt::red);
 }
 
 void
 BBox3DObj::
 init()
 {
+  originObj_->init();
+
   Object3D::init();
 
   //---
@@ -69,6 +89,10 @@ void
 BBox3DObj::
 loadBuffer()
 {
+  originObj_->loadBuffer();
+
+  //---
+
   if (! isNeedsUpdate())
     return;
 
@@ -194,6 +218,20 @@ render()
 
   canvas_->bindBuffer(nullptr);
   canvas_->bindProgram(nullptr);
+
+  //---
+
+  if (parentObj()) {
+    Shape3DObj::initDraw(canvas_);
+
+    auto pos = parentObj_->origin();
+
+    originObj_->setPosition(pos);
+
+    originObj_->render();
+
+    Shape3DObj::termDraw(canvas_);
+  }
 }
 
 }

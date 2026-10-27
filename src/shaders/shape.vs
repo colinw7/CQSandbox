@@ -16,6 +16,8 @@ uniform bool isLine;
 uniform bool useFaceNormal;
 uniform vec3 faceNormal;
 
+uniform bool pseudo;
+
 out vec4 FragPos;
 out vec3 Normal;
 out vec3 Color;
@@ -38,10 +40,12 @@ void main() {
 
   gl_Position = projection*view*FragPos;
 
-  if      (isWireframe)
-    gl_Position += 0.01*vec4(norm, 1);
-  else if (isPoint)
-    gl_Position += 0.01*vec4(norm, 1);
-  else if (isLine)
-    gl_Position += 0.01*vec4(norm, 1);
+  if (! pseudo) {
+    if      (isWireframe)
+      gl_Position += 0.01*vec4(norm, 1);
+    else if (isPoint)
+      gl_Position += 0.01*vec4(norm, 1);
+    else if (isLine)
+      gl_Position += 0.01*vec4(norm, 1);
+  }
 }

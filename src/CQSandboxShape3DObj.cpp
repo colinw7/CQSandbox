@@ -2,6 +2,7 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxLight3D.h>
 #include <CQSandboxModifier3DObj.h>
+#include <CQSandboxPath3DObj.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -16,6 +17,7 @@ namespace CQSandbox {
 
 ShaderProgram* Shape3DObj::s_program   = nullptr;
 Shape3DObjMgr* Shape3DObj::s_objectMgr = nullptr;
+CMatrix3DH     Shape3DObj::s_pvMatrix;
 
 //---
 
@@ -325,7 +327,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     addSphere(r, configData_);
   }
-  // torus <r>
+  // torus <r0> <r1> <power1> <power2>
   else if (name == "torus") {
     double r0     = 1.0;
     double r1     = 1.0;
@@ -346,6 +348,51 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return false;
 
     addTorus(r0, r1, power1, power2, configData_);
+  }
+  // gear <r> <n> <ts> <rot>
+  else if (name == "gear") {
+    double r   = 1.0;
+    int    n   = 10;
+    double ts  = 5.0;
+    double rot = 0.0;
+
+    QStringList strs;
+    (void) tcl->splitList(value, strs);
+
+    if (strs.size() == 4) {
+      if (! Util::stringToReal(strs[0], r) ||
+          ! Util::stringToInt (strs[1], n) ||
+          ! Util::stringToReal(strs[2], ts) ||
+          ! Util::stringToReal(strs[3], rot))
+        return false;
+    }
+    else
+      return false;
+
+    addGear(r, n, ts, rot);
+  }
+  // path <path> <w> <h>
+  else if (name == "path") {
+    auto *pathObj = dynamic_cast<Path3DObj *>(canvas()->getObjectByName(value));
+    if (! pathObj) return false;
+
+    if (args.size() < 1)
+      return false;
+
+    QStringList strs;
+    (void) tcl->splitList(args[0], strs);
+
+    double w = 1, h = 1;
+
+    if (strs.size() == 2) {
+      if (! Util::stringToReal(strs[0], w) ||
+          ! Util::stringToReal(strs[1], h))
+        return false;
+    }
+    else
+      return false;
+
+    addPath(pathObj, w, h);
   }
 
   else if (name == "cap_type") {
@@ -440,6 +487,32 @@ addTorus(double r0, double r1, double power1, double power2, const ConfigData &c
   shapeType_ = ShapeType::TORUS;
 
   shapeData_.addTorus(r0, r1, power1, power2, configData);
+
+  shapeData_.setBuffer(buffer_);
+
+  setNeedsUpdate();
+}
+
+void
+Shape3DObj::
+addGear(double r, int numTeeth, double toothSize, double rot)
+{
+  shapeType_ = ShapeType::GEAR;
+
+  shapeData_.addGear(r, numTeeth, toothSize, rot);
+
+  shapeData_.setBuffer(buffer_);
+
+  setNeedsUpdate();
+}
+
+void
+Shape3DObj::
+addPath(Path3DObj *pathObj, double w, double h)
+{
+  shapeType_ = ShapeType::PATH;
+
+  shapeData_.addPath(pathObj->path(), w, h);
 
   shapeData_.setBuffer(buffer_);
 
@@ -601,7 +674,7 @@ setEmissionTexture(CQGLTexture *texture)
 
 bool
 Shape3DObj::
-intersect(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
+intersectRay(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2) const
 {
   if (! shapeData_.geom())
     return false;
@@ -624,6 +697,8 @@ intersect(const CVector3D &p1, const CVector3D &p2, CPoint3D &pi1, CPoint3D &pi2
 
   return true;
 }
+
+//---
 
 void
 Shape3DObj::
@@ -776,7 +851,7 @@ calcBBox()
   return bbox_;
 }
 
-const Shape3DObj::FaceDatas &
+const FaceDatas &
 Shape3DObj::
 getFaceDatas() const
 {
@@ -801,16 +876,21 @@ void
 Shape3DObj::
 render()
 {
-  if (canvas_->isShowBBox() || isSelected()) {
-    calcBBox();
+  auto *program = shaderProgram();
 
-    createBBoxObj();
-  }
+  render(program);
+}
 
-  if (canvas_->type() == Canvas3D::Type::MODEL && isSelected()) {
-    calcBBox();
+void
+Shape3DObj::
+render(ShaderProgram *program)
+{
+  if (! isPseudo()) {
+    if (canvas_->isShowBBox() || isSelected()) {
+      calcBBox();
 
-    createGizmoObj();
+      createBBoxObj();
+    }
   }
 
   //---
@@ -819,13 +899,13 @@ render()
 
   //---
 
-  auto *program = shaderProgram();
-
   setModelMatrix();
 
   auto modelMatrix = this->modelMatrix();
 
   program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
+
+  auto projectMatrix = s_pvMatrix*modelMatrix;
 
   //---
 
@@ -842,12 +922,19 @@ render()
   auto *specularTexture = material_->specularTexture();
   auto *emissionTexture = material_->emissionTexture();
 
-  bool useDiffuseTexture  = (diffuseTexture  && buffer_->hasTexturePart() && canvas_->isTextured());
-  bool useNormalTexture   = (normalTexture   && buffer_->hasTexturePart() && canvas_->isTextured());
-  bool useSpecularTexture = (specularTexture && buffer_->hasTexturePart() && canvas_->isTextured());
-  bool useEmissionTexture = (emissionTexture && buffer_->hasTexturePart() && canvas_->isTextured());
+  bool useDiffuseTexture  = (diffuseTexture  && buffer_->hasTexturePart());
+  bool useNormalTexture   = (normalTexture   && buffer_->hasTexturePart());
+  bool useSpecularTexture = (specularTexture && buffer_->hasTexturePart());
+  bool useEmissionTexture = (emissionTexture && buffer_->hasTexturePart());
 
   bool oldTexture = CQGLStateInst->setEnableTexture(useDiffuseTexture || useNormalTexture);
+
+  if (! canvas_->isTextured() || canvas_->isShowOrient()) {
+    useDiffuseTexture  = false;
+    useNormalTexture   = false;
+    useSpecularTexture = false;
+    useEmissionTexture = false;
+  }
 
   //---
 
@@ -898,6 +985,9 @@ render()
   program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
 
   program->setUniformValue("lighted", isLighted());
+  program->setUniformValue("pseudo", isPseudo());
+
+  program->setUniformValue("showOrient", canvas_->isShowOrient());
 
   //---
 
@@ -921,6 +1011,19 @@ render()
       drawData.indexed = true;
 
     for (const auto &faceData : getFaceDatas()) {
+      if (canvas_->isShowOrient()) {
+        auto points = canvas_->getFacePoints(faceData, projectMatrix);
+
+        auto orient = Util::pointsOrientation(points);
+
+        if      (orient == CPolygonOrientation::CLOCKWISE)
+          program->setUniformValue("orientColor", CQGLUtil::toVector(QColor(Qt::red)));
+        else if (orient == CPolygonOrientation::ANTICLOCKWISE)
+          program->setUniformValue("orientColor", CQGLUtil::toVector(QColor(Qt::green)));
+        else
+          program->setUniformValue("orientColor", CQGLUtil::toVector(QColor(Qt::blue)));
+      }
+
       program->setUniformValue("useFaceNormal", ! s_normals_.empty());
       program->setUniformValue("faceNormal"   , CQGLUtil::toVector(faceData.normal));
 
@@ -937,6 +1040,7 @@ render()
     }
   };
 
+#if 0
   auto drawPoints = [&]() {
     if (getPointDatas().empty())
       return;
@@ -961,7 +1065,9 @@ render()
       buffer_->drawData(drawData);
     }
   };
+#endif
 
+#if 0
   auto drawLines = [&]() {
     if (getLineDatas().empty())
       return;
@@ -972,7 +1078,7 @@ render()
 
     CQGLBuffer::DrawData drawData;
 
-    CQGLStateInst->setPointSize(8);
+    CQGLStateInst->setLineWidth(4);
 
     program->setUniformValue("isPoint", true);
 
@@ -988,13 +1094,18 @@ render()
       buffer_->drawData(drawData);
     }
   };
+#endif
 
   //---
 
   program->setUniformValue("isInside", false);
 
-  bool wireframe = (wireframe_ || canvas_->isWireframe());
-  bool solid     = (! wireframe_ && (canvas_->isSolid() || canvas_->isTextured()));
+  bool wireframe = false, solid = true;
+
+  if (! isPseudo()) {
+    wireframe = (wireframe_ || canvas_->isWireframe());
+    solid     = (! wireframe_ && (canvas_->isSolid() || canvas_->isTextured()));
+  }
 
   if (wireframe) {
     drawBuffer(true);
@@ -1005,11 +1116,15 @@ render()
   }
 
   if (canvas_->type() == Canvas3D::Type::MODEL) {
+#if 0
     if (canvas_->editType() == Canvas3D::EditType::POINT)
       drawPoints();
+#endif
 
+#if 0
     if (canvas_->editType() == Canvas3D::EditType::LINE)
       drawLines();
+#endif
   }
 
   if (isInside()) {
@@ -1033,6 +1148,13 @@ initDraw(Canvas3D *canvas)
 {
   auto *program = shaderProgram();
 
+  initDraw(canvas, program);
+}
+
+void
+Shape3DObj::
+initDraw(Canvas3D *canvas, ShaderProgram *program)
+{
   canvas->bindProgram(program);
 
   //---
@@ -1048,6 +1170,15 @@ initDraw(Canvas3D *canvas)
   //---
 
   canvas->setProgramLightGlobals(program);
+
+  //---
+
+  auto *camera = canvas->currentCamera();
+
+  const auto &projectionMatrix = camera->perspectiveMatrix();
+  const auto &viewMatrix       = camera->viewMatrix();
+
+  s_pvMatrix = projectionMatrix*viewMatrix;
 }
 
 void

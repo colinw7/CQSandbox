@@ -99,6 +99,8 @@ class Control3D : public QFrame {
   void showSkyboxSlot(int b);
   void debugSkyboxSlot(int b);
 
+  void showOrientSlot(int b);
+
   // camera
   void cameraTypeSlot(int i);
   void cameraOrthoTypeSlot(int i);
@@ -204,6 +206,7 @@ class Control3D : public QFrame {
     QCheckBox*    debugShadowCheck { nullptr };
     QCheckBox*    showSkyboxCheck  { nullptr };
     QCheckBox*    debugSkyboxCheck { nullptr };
+    QCheckBox*    showOrientCheck  { nullptr };
     CQBBox3DEdit* bboxEdit         { nullptr };
   };
 
