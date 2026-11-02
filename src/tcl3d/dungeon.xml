@@ -1,0 +1,29 @@
+<dungeon size="32 32">
+<room pos="10 4" size="5 5" ind="C"/>
+<room pos="20 6" size="5 3" ind="E"/>
+<room pos="19 16" size="3 3" ind="D"/>
+<room pos="8 18" size="7 11" ind="A"/>
+<cell pos="13 4" type="corridor"/>
+<cell pos="14 4" type="corridor"/>
+<cell pos="15 4" type="corridor"/>
+<cell pos="15 5" type="corridor"/>
+<cell pos="16 5" type="corridor"/>
+<cell pos="17 5" type="corridor"/>
+<cell pos="17 6" type="corridor"/>
+<cell pos="20 8" type="corridor"/>
+<cell pos="20 9" type="corridor"/>
+<cell pos="19 10" type="corridor"/>
+<cell pos="20 10" type="corridor"/>
+<cell pos="19 11" type="corridor"/>
+<cell pos="19 12" type="corridor"/>
+<cell pos="19 13" type="corridor"/>
+<cell pos="19 14" type="corridor"/>
+<cell pos="14 16" type="corridor"/>
+<cell pos="15 16" type="corridor"/>
+<cell pos="16 16" type="corridor"/>
+<cell pos="17 16" type="corridor"/>
+<cell pos="12 17" type="corridor"/>
+<cell pos="13 17" type="corridor"/>
+<cell pos="14 17" type="corridor"/>
+<cell pos="12 18" type="corridor"/>
+</dungeon>

@@ -5,6 +5,9 @@
 #include <CQSandboxOrthoCamera.h>
 #include <CQSandboxOverview3D.h>
 #include <CQSandboxMaterial3D.h>
+#include <CQSandboxTexture.h>
+#include <CQSandboxUVMap.h>
+#include <CQSandboxObjectsList.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUI.h>
 #include <CQSandboxXml.h>
@@ -15,6 +18,7 @@
 #include <CQPoint3DEdit.h>
 #include <CQRealSpin.h>
 #include <CQPropertyViewTree.h>
+#include <CQImagePreview.h>
 #include <CQUtil.h>
 
 #include <QTabWidget>
@@ -54,7 +58,7 @@ Control3D(CQSandbox::Canvas3D *canvas) :
 
   auto *layout = new QVBoxLayout(this);
 
-  tab_ = new QTabWidget;
+  tab_ = CQUtil::makeWidget<QTabWidget>("tab");
 
   layout->addWidget(tab_);
 
@@ -64,19 +68,23 @@ Control3D(CQSandbox::Canvas3D *canvas) :
   auto *cameraFrame    = addCameraFrame();
   auto *lightsFrame    = addLightsFrame();
   auto *materialsFrame = addMaterialsFrame();
-  auto *objectsFrame   = addObjectsFrame();
+  auto *texturesFrame  = addTexturesFrame();
   auto *overviewFrame  = addOverviewFrame();
+  auto *objectsFrame   = addObjectsFrame();
+  auto *selectionFrame = addSelectionFrame();
 
   tab_->addTab(controlFrame  , "General");
   tab_->addTab(cameraFrame   , "Camera");
   tab_->addTab(lightsFrame   , "Lights");
   tab_->addTab(materialsFrame, "Materials");
-  tab_->addTab(objectsFrame  , "Objects");
+  tab_->addTab(texturesFrame , "Textures");
   tab_->addTab(overviewFrame , "Overview");
+  tab_->addTab(objectsFrame  , "Objects");
+  tab_->addTab(selectionFrame, "Selection");
 
   //---
 
-  uiFrame_ = new QFrame;
+  uiFrame_ = CQUtil::makeWidget<QFrame>("uiFrame");
 
   tab_->addTab(uiFrame_, "UI");
 
@@ -85,7 +93,7 @@ Control3D(CQSandbox::Canvas3D *canvas) :
   auto *updateButton = new QPushButton("Update");
   auto *closeButton  = new QPushButton("Close");
 
-  auto *buttonFrame  = new QFrame(this);
+  auto *buttonFrame  = CQUtil::makeWidget<QFrame>(this, "buttonFrame");
   auto *buttonLayout = new QHBoxLayout(buttonFrame);
 
   layout->addWidget(buttonFrame);
@@ -124,6 +132,10 @@ init()
 
   connect(canvas_, SIGNAL(materialAdded()), this, SLOT(materialAddedSlot()));
 
+  connect(canvas_, SIGNAL(textureAdded()), this, SLOT(textureAddedSlot()));
+
+  connect(canvas_, SIGNAL(selectionChanged()), this, SLOT(selectionChangedSlot()));
+
   connect(canvas_, SIGNAL(uiUpdateSignal()), this, SLOT(uiSlot()));
 }
 
@@ -131,7 +143,7 @@ QFrame *
 Control3D::
 addControlFrame()
 {
-  auto *frame  = new QFrame(this);
+  auto *frame  = CQUtil::makeWidget<QFrame>(this, "frame");
   auto *layout = new QVBoxLayout(frame);
 
   UI ui(this, layout);
@@ -161,8 +173,9 @@ addControlFrame()
 
   ui.startGroup("Select");
 
-  controlData_.selectColor = ui.addLabelEdit("Color", new CQColorEdit);
-  controlData_.selectAlpha = ui.addLabelEdit("Alpha", new CQRealSpin);
+  controlData_.selectColor       = ui.addLabelEdit("Color", new CQColorEdit);
+  controlData_.selectAlpha       = ui.addLabelEdit("Alpha", new CQRealSpin);
+  controlData_.selectCenterCheck = ui.addLabelEdit("Face Center", new QCheckBox);
 
   ui.endGroup();
 
@@ -213,10 +226,10 @@ QFrame *
 Control3D::
 addCameraFrame()
 {
-  auto *frame  = new QFrame;
+  auto *frame  = CQUtil::makeWidget<QFrame>(this, "frame");
   auto *layout = new QVBoxLayout(frame);
 
-  auto *controlFrame  = new QFrame;
+  auto *controlFrame  = CQUtil::makeWidget<QFrame>("control");
   auto *controlLayout = new QGridLayout(controlFrame);
 
   layout->addWidget(controlFrame);
@@ -291,7 +304,7 @@ addCameraFrame()
 
   auto *resetButton = new QPushButton("Reset");
 
-  auto *buttonFrame  = new QFrame(this);
+  auto *buttonFrame  = CQUtil::makeWidget<QFrame>(this, "buttonFrame");
   auto *buttonLayout = new QHBoxLayout(buttonFrame);
 
   layout->addWidget(buttonFrame);
@@ -312,7 +325,7 @@ QFrame *
 Control3D::
 addLightsFrame()
 {
-  auto *frame  = new QFrame;
+  auto *frame  = CQUtil::makeWidget<QFrame>("frame");
   auto *layout = new QVBoxLayout(frame);
 
   //---
@@ -453,7 +466,7 @@ addLightsFrame()
 
   auto *resetButton = new QPushButton("Reset");
 
-  auto *buttonFrame  = new QFrame(this);
+  auto *buttonFrame  = CQUtil::makeWidget<QFrame>(this, "buttonFrame");
   auto *buttonLayout = new QHBoxLayout(buttonFrame);
 
   layout->addWidget(buttonFrame);
@@ -474,15 +487,30 @@ QFrame *
 Control3D::
 addMaterialsFrame()
 {
-  auto *frame  = new QFrame;
+  auto *frame  = CQUtil::makeWidget<QFrame>("frame");
   auto *layout = new QVBoxLayout(frame);
 
   //---
 
-  auto *controlFrame  = new QGroupBox("Materials");
+  auto *listFrame  = new QGroupBox("Materials");
+  auto *listLayout = new QVBoxLayout(listFrame);
+
+  materialsData_.list = new QListWidget;
+
+  materialsData_.list->setSelectionMode(QListWidget::SingleSelection);
+
+  listLayout->addWidget(materialsData_.list);
+
+  layout->addWidget(listFrame);
+
+  //---
+
+  auto *controlFrame  = new QGroupBox("Data");
   auto *controlLayout = new QGridLayout(controlFrame);
 
   layout->addWidget(controlFrame);
+
+  //---
 
   int materialsRow = 0;
 
@@ -508,12 +536,14 @@ addMaterialsFrame()
 
   //---
 
-  materialsData_.diffuseColorEdit = addColorEdit("Diffuse");
+  materialsData_.diffuseColorEdit  = addColorEdit("Diffuse");
+  materialsData_.specularColorEdit = addColorEdit("Specular");
+  materialsData_.emissionColorEdit = addColorEdit("Emission");
 
-  materialsData_.emissionEdit = addRealEdit("Emission");
+  materialsData_.emissionEdit = addRealEdit("Emission Strength");
   materialsData_.emissionEdit->setRange(0.0, 1.0);
 
-  materialsData_.specularEdit = addRealEdit("Specular");
+  materialsData_.specularEdit = addRealEdit("Specular Strength");
   materialsData_.specularEdit->setRange(0.0, 1.0);
 
   materialsData_.shininessEdit = addRealEdit("Shininess");
@@ -530,17 +560,57 @@ addMaterialsFrame()
 
   //---
 
-  materialsData_.list = new QListWidget;
-
-  materialsData_.list->setSelectionMode(QListWidget::SingleSelection);
-
-  controlLayout->addWidget(materialsData_.list, materialsRow, 0, 1, 2);
-
-  ++materialsRow;
-
-  //--
-
   connectMaterials(true);
+
+  return frame;
+}
+
+QFrame *
+Control3D::
+addTexturesFrame()
+{
+  auto *frame  = CQUtil::makeWidget<QFrame>("frame");
+  auto *layout = new QVBoxLayout(frame);
+
+  auto *controlFrame  = CQUtil::makeWidget<QFrame>("control");
+  auto *controlLayout = new QVBoxLayout(controlFrame);
+
+  layout->addWidget(controlFrame);
+
+  //---
+
+  auto *listFrame  = new QGroupBox("Textures");
+  auto *listLayout = new QVBoxLayout(listFrame);
+
+  texturesData_.list = new QListWidget;
+
+  texturesData_.list->setSelectionMode(QListWidget::SingleSelection);
+
+  listLayout->addWidget(texturesData_.list);
+
+  controlLayout->addWidget(listFrame);
+
+  listFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+  //---
+
+  texturesData_.image = new CQImagePreview;
+
+  controlLayout->addWidget(texturesData_.image);
+
+  //---
+
+  texturesData_.uvMap = new UVMap(canvas_);
+
+  controlLayout->addWidget(texturesData_.uvMap);
+
+  //---
+
+  //controlLayout->addStretch(1);
+
+  //---
+
+  connectTextures(true);
 
   return frame;
 }
@@ -549,19 +619,17 @@ QFrame *
 Control3D::
 addObjectsFrame()
 {
-  auto *frame  = new QFrame;
+  auto *frame  = CQUtil::makeWidget<QFrame>("frame");
   auto *layout = new QVBoxLayout(frame);
 
-  auto *controlFrame  = new QFrame;
+  auto *controlFrame  = CQUtil::makeWidget<QFrame>("control");
   auto *controlLayout = new QVBoxLayout(controlFrame);
 
   layout->addWidget(controlFrame);
 
   //---
 
-  objectsData_.list = new QListWidget;
-
-  objectsData_.list->setSelectionMode(QListWidget::SingleSelection);
+  objectsData_.list = new ObjectsList(canvas_);
 
   controlLayout->addWidget(objectsData_.list);
 
@@ -617,7 +685,7 @@ addObjectsFrame()
 
   //---
 
-  auto *buttonFrame  = new QFrame(this);
+  auto *buttonFrame  = CQUtil::makeWidget<QFrame>(this, "buttonFrame");
   auto *buttonLayout = new QHBoxLayout(buttonFrame);
 
   layout->addWidget(buttonFrame);
@@ -640,7 +708,7 @@ QFrame *
 Control3D::
 addOverviewFrame()
 {
-  auto *frame  = new QFrame;
+  auto *frame  = CQUtil::makeWidget<QFrame>("frame");
   auto *layout = new QGridLayout(frame);
 
   //---
@@ -695,6 +763,33 @@ addOverviewFrame()
   //---
 
   connectOverview(true);
+
+  return frame;
+}
+
+QFrame *
+Control3D::
+addSelectionFrame()
+{
+  auto *frame  = CQUtil::makeWidget<QFrame>("frame");
+  auto *layout = new QGridLayout(frame);
+
+  //---
+
+  auto *listFrame  = new QGroupBox("Selection");
+  auto *listLayout = new QVBoxLayout(listFrame);
+
+  selectionData_.list = new QListWidget;
+
+  selectionData_.list->setSelectionMode(QListWidget::SingleSelection);
+
+  listLayout->addWidget(selectionData_.list);
+
+  layout->addWidget(listFrame);
+
+  //---
+
+  connectSelection(true);
 
   return frame;
 }
@@ -763,7 +858,8 @@ objectAddedSlot()
   needsUpdate_    = true;
   objectsChanged_ = true;
 
-  uiSlot();
+  if (canvas_->isInited())
+    uiSlot();
 }
 
 void
@@ -774,7 +870,8 @@ lightAddedSlot()
 
   lightsData_.changed = true;
 
-  uiSlot();
+  if (canvas_->isInited())
+    uiSlot();
 }
 
 void
@@ -785,7 +882,32 @@ materialAddedSlot()
 
   materialsData_.changed = true;
 
-  uiSlot();
+  if (canvas_->isInited())
+    uiSlot();
+}
+
+void
+Control3D::
+textureAddedSlot()
+{
+  needsUpdate_ = true;
+
+  texturesData_.changed = true;
+
+  if (canvas_->isInited())
+    uiSlot();
+}
+
+void
+Control3D::
+selectionChangedSlot()
+{
+  needsUpdate_ = true;
+
+  selectionData_.changed = true;
+
+  if (canvas_->isInited())
+    uiSlot();
 }
 
 void
@@ -814,8 +936,10 @@ updateWidgets()
   updateCamera();
   updateLights();
   updateMaterials();
+  updateTextures();
   updateObjects();
   updateOverview();
+  updateSelection();
 }
 
 void
@@ -833,8 +957,9 @@ updateControl()
   controlData_.wireframeColor->setColor(Util::RGBAToQColor(canvas_->wireframeColor()));
   controlData_.wireframeAlpha->setValue(canvas_->wireframeAlpha());
 
-  controlData_.selectColor->setColor(Util::RGBAToQColor(canvas_->selectColor()));
-  controlData_.selectAlpha->setValue(canvas_->selectAlpha());
+  controlData_.selectColor      ->setColor  (Util::RGBAToQColor(canvas_->selectColor()));
+  controlData_.selectAlpha      ->setValue  (canvas_->selectAlpha());
+  controlData_.selectCenterCheck->setChecked(canvas_->isShowSelectedFaceCenter());
 
   controlData_.showShadowCheck ->setChecked(canvas_->isShadowed());
   controlData_.debugShadowCheck->setChecked(canvas_->isShadowDebug());
@@ -873,6 +998,8 @@ connectControl(bool b)
             this, &Control3D::selectColorSlot);
     connect(controlData_.selectAlpha, &CQRealSpin::realValueChanged,
             this, &Control3D::selectAlphaSlot);
+    connect(controlData_.selectCenterCheck, &QCheckBox::stateChanged,
+            this, &Control3D::selectFaceCenterSlot);
 
     connect(controlData_.showShadowCheck, &QCheckBox::stateChanged,
             this, &Control3D::enableShadowSlot);
@@ -907,6 +1034,8 @@ connectControl(bool b)
                this, &Control3D::selectColorSlot);
     disconnect(controlData_.selectAlpha, &CQRealSpin::realValueChanged,
                this, &Control3D::selectAlphaSlot);
+    disconnect(controlData_.selectCenterCheck, &QCheckBox::stateChanged,
+               this, &Control3D::selectFaceCenterSlot);
 
     disconnect(controlData_.showShadowCheck, &QCheckBox::stateChanged,
                this, &Control3D::enableShadowSlot);
@@ -1208,10 +1337,16 @@ updateMaterials()
   //---
 
   if (currentMaterial) {
-    materialsData_.diffuseColorEdit->setColor(currentMaterial->diffuseColor());
-    materialsData_.emissionEdit    ->setValue(currentMaterial->emission());
-    materialsData_.specularEdit    ->setValue(currentMaterial->specular());
-    materialsData_.shininessEdit   ->setValue(currentMaterial->shininess());
+    materialsData_.diffuseColorEdit->setColor(
+      Util::RGBAToQColor(currentMaterial->getDiffuse()));
+    materialsData_.specularColorEdit->setColor(
+      Util::RGBAToQColor(currentMaterial->getSpecular()));
+    materialsData_.emissionColorEdit->setColor(
+      Util::RGBAToQColor(currentMaterial->getEmission()));
+
+    materialsData_.emissionEdit    ->setValue(currentMaterial->emissiveStrength());
+    materialsData_.specularEdit    ->setValue(currentMaterial->specularStrength());
+    materialsData_.shininessEdit   ->setValue(currentMaterial->shininess().value_or(0.0));
     materialsData_.transparencyEdit->setValue(currentMaterial->transparency());
     materialsData_.reflectivityEdit->setValue(currentMaterial->reflectivity());
     materialsData_.refractivityEdit->setValue(currentMaterial->refractivity());
@@ -1227,7 +1362,9 @@ updateMaterials()
     QListWidgetItem *currentItem = nullptr;
 
     for (auto *material : canvas_->materials()) {
-      auto *item = new QListWidgetItem(material->name());
+      auto name = QString::fromStdString(material->name());
+
+      auto *item = new QListWidgetItem(name);
 
       materialsData_.list->addItem(item);
 
@@ -1253,6 +1390,10 @@ connectMaterials(bool b)
   if (b) {
     connect(materialsData_.diffuseColorEdit, &CQColorEdit::colorChanged,
             this, &Control3D::materialDiffuseColorSlot);
+    connect(materialsData_.specularColorEdit, &CQColorEdit::colorChanged,
+            this, &Control3D::materialSpecularColorSlot);
+    connect(materialsData_.emissionColorEdit, &CQColorEdit::colorChanged,
+            this, &Control3D::materialEmissionColorSlot);
 
     connect(materialsData_.emissionEdit, &CQRealSpin::realValueChanged,
             this, &Control3D::materialEmissionSlot);
@@ -1274,6 +1415,10 @@ connectMaterials(bool b)
   else {
     disconnect(materialsData_.diffuseColorEdit, &CQColorEdit::colorChanged,
                this, &Control3D::materialDiffuseColorSlot);
+    disconnect(materialsData_.specularColorEdit, &CQColorEdit::colorChanged,
+               this, &Control3D::materialSpecularColorSlot);
+    disconnect(materialsData_.emissionColorEdit, &CQColorEdit::colorChanged,
+               this, &Control3D::materialEmissionColorSlot);
 
     disconnect(materialsData_.emissionEdit, &CQRealSpin::realValueChanged,
                this, &Control3D::materialEmissionSlot);
@@ -1296,6 +1441,51 @@ connectMaterials(bool b)
 
 void
 Control3D::
+updateTextures()
+{
+  connectTextures(false);
+
+  //---
+
+  if (texturesData_.changed) {
+    texturesData_.changed = false;
+
+    texturesData_.list->clear();
+
+    for (auto *texture : TextureMgr::instance()->textures()) {
+      auto tname = QString::fromStdString(texture->name());
+
+      auto name = QString("%1.%2").arg(tname).arg(texture->id());
+
+      auto *item = new QListWidgetItem(name);
+
+      texturesData_.list->addItem(item);
+
+      item->setData(Qt::UserRole, int(texture->id()));
+    }
+  }
+
+  //---
+
+  connectTextures(true);
+}
+
+void
+Control3D::
+connectTextures(bool b)
+{
+  if (b) {
+    connect(texturesData_.list, &QListWidget::currentItemChanged,
+            this, &Control3D::textureSelectedSlot);
+  }
+  else {
+    disconnect(texturesData_.list, &QListWidget::currentItemChanged,
+               this, &Control3D::textureSelectedSlot);
+  }
+}
+
+void
+Control3D::
 updateObjects()
 {
   connectObjects(false);
@@ -1304,36 +1494,6 @@ updateObjects()
 
   if (objectsChanged_) {
     objectsChanged_ = false;
-
-    QListWidgetItem *currentItem = nullptr;
-
-    objectsData_.list->clear();
-
-    for (auto *object : canvas_->objects()) {
-      auto objectName = QString("%1.%2").arg(object->typeName()).arg(object->ind());
-
-      auto *item = new QListWidgetItem(objectName);
-
-      objectsData_.list->addItem(item);
-
-      item->setData(Qt::UserRole, int(object->ind()));
-
-      if (! currentItem)
-        currentItem = item;
-    }
-
-    if (currentItem)
-      objectsData_.list->setCurrentItem(currentItem, QItemSelectionModel::Select);
-
-    //---
-
-    auto items = objectsData_.list->selectedItems();
-
-    if (items.size() > 0)
-      currentItem = items[0];
-
-    if (currentItem)
-      objectSelectedSlot(currentItem, nullptr);
   }
 
   //---
@@ -1358,8 +1518,8 @@ Control3D::
 connectObjects(bool b)
 {
   if (b) {
-    connect(objectsData_.list, &QListWidget::currentItemChanged,
-            this, &Control3D::objectSelectedSlot);
+    connect(objectsData_.list, SIGNAL(currentItemChanged()),
+            this, SLOT(objectSelectedSlot()));
 
     connect(objectsData_.posEdit, &CQPoint3DEdit::editingFinished,
             this, &Control3D::objectPosSlot);
@@ -1369,8 +1529,8 @@ connectObjects(bool b)
             this, &Control3D::objectRotateSlot);
   }
   else {
-    disconnect(objectsData_.list, &QListWidget::currentItemChanged,
-               this, &Control3D::objectSelectedSlot);
+    disconnect(objectsData_.list, SIGNAL(currentItemChanged()),
+               this, SLOT(objectSelectedSlot()));
 
     disconnect(objectsData_.posEdit, &CQPoint3DEdit::editingFinished,
                this, &Control3D::objectPosSlot);
@@ -1478,21 +1638,86 @@ connectOverview(bool b)
 
 //---
 
+void
+Control3D::
+connectSelection(bool)
+{
+}
+
+void
+Control3D::
+updateSelection()
+{
+  connectSelection(false);
+
+  if (selectionData_.changed) {
+    auto addItem = [&](const QString &name, int ind) {
+      auto *item = new QListWidgetItem(name);
+
+      selectionData_.list->addItem(item);
+
+      item->setData(Qt::UserRole, ind);
+    };
+
+    selectionData_.changed = false;
+
+    selectionData_.list->clear();
+
+    for (auto *object : canvas_->objects()) {
+      if (! object || ! object->isVisible())
+        continue;
+
+      if      (canvas_->editType() == Canvas3D::EditType::POINT) {
+        const auto &selectedPoints = object->selectedPoints();
+
+        for (const auto &bufferInds : selectedPoints) {
+          for (auto ind : bufferInds.second) {
+            addItem(QString("Point %1").arg(ind), ind);
+          }
+        }
+      }
+      else if (canvas_->editType() == Canvas3D::EditType::LINE) {
+        const auto &selectedLines = object->selectedLines();
+
+        for (const auto &bufferInds : selectedLines) {
+          for (auto ind : bufferInds.second) {
+            addItem(QString("Line %1").arg(ind), ind);
+          }
+        }
+      }
+      else if (canvas_->editType() == Canvas3D::EditType::FACE) {
+        const auto &selectedFaces = object->selectedFaces();
+
+        for (const auto &bufferInds : selectedFaces) {
+          for (auto ind : bufferInds.second) {
+            addItem(QString("Face %1").arg(ind), ind);
+          }
+        }
+      }
+      else if (canvas_->editType() == Canvas3D::EditType::OBJECT) {
+        if (object->isSelected())
+          addItem(QString("Object: %1").arg(object->id()), object->ind());
+      }
+      else
+        continue;
+    }
+  }
+
+  connectSelection(true);
+}
+
+//---
+
 Object3D *
 Control3D::
 getCurrentObject() const
 {
-  auto items = objectsData_.list->selectedItems();
-  if (items.size() <= 0) return nullptr;
-
-  auto *currentItem = items[0];
-
-  int ind = currentItem->data(Qt::UserRole).toInt();
-
-  auto *indObj = canvas_->objectFromInd(ind);
+  auto *indObj = objectsData_.list->getObjectListSelected();
 
   return indObj;
 }
+
+//---
 
 void
 Control3D::
@@ -1560,6 +1785,14 @@ selectAlphaSlot(double r)
 
 void
 Control3D::
+selectFaceCenterSlot(int s)
+{
+  canvas_->setShowSelectedFaceCenter(s);
+  canvas_->update();
+}
+
+void
+Control3D::
 enableShadowSlot(int b)
 {
   canvas_->setShadowed(b);
@@ -1597,6 +1830,8 @@ showOrientSlot(int b)
   canvas_->setShowOrient(b);
   canvas_->update();
 }
+
+//---
 
 void
 Control3D::
@@ -1862,6 +2097,8 @@ resetCameraSlot()
   canvas_->resetCamera();
 }
 
+//---
+
 void
 Control3D::
 lightSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
@@ -1964,7 +2201,29 @@ materialDiffuseColorSlot(const QColor &c)
   auto *material = canvas_->currentMaterial();
   if (! material) return;
 
-  material->setDiffuseColor(c);
+  material->setDiffuse(Util::QColorToRGBA(c));
+  canvas_->update();
+}
+
+void
+Control3D::
+materialSpecularColorSlot(const QColor &c)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setSpecular(Util::QColorToRGBA(c));
+  canvas_->update();
+}
+
+void
+Control3D::
+materialEmissionColorSlot(const QColor &c)
+{
+  auto *material = canvas_->currentMaterial();
+  if (! material) return;
+
+  material->setEmission(Util::QColorToRGBA(c));
   canvas_->update();
 }
 
@@ -1975,7 +2234,7 @@ materialEmissionSlot(double r)
   auto *material = canvas_->currentMaterial();
   if (! material) return;
 
-  material->setEmission(r);
+  material->setEmissiveStrength(r);
   canvas_->update();
 }
 
@@ -1986,7 +2245,7 @@ materialSpecularSlot(double r)
   auto *material = canvas_->currentMaterial();
   if (! material) return;
 
-  material->setSpecular(r);
+  material->setSpecularStrength(r);
   canvas_->update();
 }
 
@@ -2045,18 +2304,37 @@ materialSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
   updateMaterials();
 }
 
+//---
+
 void
 Control3D::
-objectSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
+textureSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
 {
-  int ind = item->data(Qt::UserRole).toInt();
+  int id = item->data(Qt::UserRole).toInt();
 
-  auto *indObj = canvas_->objectFromInd(ind);
+  auto *texture = TextureMgr::instance()->getTexture(id);
+  if (! texture) return;
 
-#if 0
-  for (auto *obj : canvas_->objects())
-    obj->setSelected(obj == indObj);
-#endif
+  auto *glTexture = texture->glTexture(canvas_);
+  if (! glTexture) return;
+
+  auto image = glTexture->getImage();
+
+  texturesData_.image->clear();
+
+  texturesData_.image->addImage(glTexture->getImage());
+}
+
+//---
+
+void
+Control3D::
+objectSelectedSlot()
+{
+  auto *object = objectsData_.list->getObjectListSelected();
+  if (! object) return;
+
+  canvas_->selectObject(object, /*clear*/true);
 
   auto skipPropeties = QStringList() <<
     "xangle" << "yangle" << "zangle" <<
@@ -2065,14 +2343,14 @@ objectSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
 
   objectsData_.tree->clear();
 
-  if (indObj) {
-    auto properties = CQUtil::getPropertyList(indObj);
+  if (object) {
+    auto properties = CQUtil::getPropertyList(object);
 
     for (auto &prop : properties) {
       if (skipPropeties.contains(prop))
         continue;
 
-      objectsData_.tree->addProperty("", indObj, prop);
+      objectsData_.tree->addProperty("", object, prop);
     }
   }
 }

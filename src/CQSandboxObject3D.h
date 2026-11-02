@@ -29,6 +29,7 @@ class BBox3DObj;
 class Group3DObj;
 class Modifier3DObj;
 class Object3D;
+class Material3D;
 
 //---
 
@@ -78,6 +79,7 @@ class Object3D : public QObject {
   Q_PROPERTY(bool selected READ isSelected WRITE setSelected)
   Q_PROPERTY(bool inside   READ isInside   WRITE setInside)
   Q_PROPERTY(bool pseudo   READ isPseudo   WRITE setPseudo)
+  Q_PROPERTY(bool lighted  READ isLighted  WRITE setLighted)
   Q_PROPERTY(int  layer    READ layer      WRITE setLayer)
 
   Q_PROPERTY(double xangle  READ xAngleDeg WRITE setXAngleDeg)
@@ -108,6 +110,7 @@ class Object3D : public QObject {
     GROUP,
     JSON,
     LINE_LIST,
+    MATERIAL,
     MODEL,
     MODIFIER,
     OTHELLO,
@@ -125,8 +128,12 @@ class Object3D : public QObject {
     SPRITE,
     SURFACE,
     TEXT,
-    VECTOR
+    TEXTURE,
+    VECTOR2,
+    VECTOR3
   };
+
+  using OptBool = std::optional<bool>;
 
   using LineDatas  = std::vector<LineData>;
   using PointDatas = std::vector<PointData>;
@@ -224,10 +231,16 @@ class Object3D : public QObject {
 
   //---
 
-  bool isCullFace() const { return cullFace_; }
+  Object3D *parent() const { return parent_; }
+
+  const std::vector<Object3D *> &children() const { return children_; }
+
+  //---
+
+  const OptBool &isCullFace() const { return cullFace_; }
   void setCullFace(bool b) { cullFace_ = b; }
 
-  bool isFrontFace() { return frontFace_; }
+  const OptBool &isFrontFace() { return frontFace_; }
   void setFrontFace(bool b) { frontFace_ = b; }
 
   //---
@@ -392,6 +405,10 @@ class Object3D : public QObject {
   virtual const LineDatas  &getLineDatas () const { return lineDatas_; }
   virtual const PointDatas &getPointDatas() const { return pointDatas_; }
 
+  //---
+
+  virtual Material3D *material() const { return material_; }
+  virtual void setMaterial(Material3D *m) { material_ = m; }
 
   //---
 
@@ -462,8 +479,11 @@ class Object3D : public QObject {
 
   int layer_ { -1 };
 
-  bool cullFace_  { true };
-  bool frontFace_ { true };
+  Object3D*               parent_ { nullptr };
+  std::vector<Object3D *> children_;
+
+  OptBool cullFace_;
+  OptBool frontFace_;
 
   ProgramMatrixData programMatrixData_;
 
@@ -494,6 +514,8 @@ class Object3D : public QObject {
   FaceDataList faceDataList_;
   LineDatas    lineDatas_;
   PointDatas   pointDatas_;
+
+  Material3D* material_ { nullptr };
 
   SelectedPoints selectedPoints_;
   SelectedLines  selectedLines_;

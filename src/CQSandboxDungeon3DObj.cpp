@@ -3,6 +3,7 @@
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxShape3DObj.h>
 #include <CQSandboxCamera.h>
+#include <CQSandboxTexture.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -166,17 +167,21 @@ setTexture(const QString &id, const QString &filename)
     textures_.erase(p);
   }
 
-  auto *texture = new CQGLTexture;
+  auto *glTexture = new CQGLTexture;
 
-  if (! texture->load(filename, /*flip*/false)) {
-    delete texture;
+  if (! glTexture->load(filename, /*flip*/false)) {
+    delete glTexture;
     return;
   }
+
+  auto *texture = canvas_->createTexture();
+
+  texture->setGlTextures(canvas_, glTexture, nullptr);
 
   textures_[id] = texture;
 }
 
-CQGLTexture *
+Texture *
 Dungeon3DObj::
 getTexture(const QString &id) const
 {

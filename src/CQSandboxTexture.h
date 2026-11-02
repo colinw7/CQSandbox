@@ -8,48 +8,21 @@ class CQGLTexture;
 
 namespace CQSandbox {
 
+class Canvas3D;
+
 class Texture : public CGeomTexture {
  public:
-  Texture() { }
+  Texture(Canvas3D *canvas);
 
   bool isFlipped() const { return flipped_; }
   void setFlipped(bool b) { flipped_ = b; }
 
-  CQGLTexture *glTexture(Canvas3D *canvas) {
-    auto &canvasTexture = canvasTextureData_[canvas->ind()];
-
-    if (flipped_)
-      return canvasTexture.glTextureFlipped;
-    else
-      return canvasTexture.glTexture;
-  }
+  CQGLTexture *glTexture(Canvas3D *canvas);
 
   bool isWrapped() const { return wrapped_; }
+  void setWrapped(bool b);
 
-  void setWrapped(bool b) {
-    wrapped_ = b;
-
-    for (auto pw : canvasTextureData_) {
-      auto &textureData = pw.second;
-
-      if (textureData.glTexture)
-        textureData.glTexture->setWrapType(wrapped_ ?
-         CQGLTexture::WrapType::REPEAT : CQGLTexture::WrapType::CLAMP);
-
-      if (textureData.glTextureFlipped)
-        textureData.glTextureFlipped->setWrapType(wrapped_ ?
-         CQGLTexture::WrapType::REPEAT : CQGLTexture::WrapType::CLAMP);
-    }
-  }
-
-  void setGlTextures(Canvas3D *canvas, CQGLTexture *t1, CQGLTexture *t2) {
-    auto &textureData = canvasTextureData_[canvas->ind()];
-
-    textureData.glTexture        = t1;
-    textureData.glTextureFlipped = t2;
-
-    setWrapped(wrapped_);
-  }
+  void setGlTextures(Canvas3D *canvas, CQGLTexture *t1, CQGLTexture *t2);
 
  private:
   struct TextureData {
@@ -59,10 +32,52 @@ class Texture : public CGeomTexture {
 
   using CanvasTextureData = std::map<uint, TextureData>;
 
+  Canvas3D *canvas_ { nullptr };
+
   bool flipped_ { false }; // TODO: per canvas
 
   CanvasTextureData canvasTextureData_;
   bool              wrapped_ { true };
+};
+
+//---
+
+class TextureMgr {
+ public:
+  using Textures = std::vector<Texture *>;
+
+ public:
+  static TextureMgr *instance() {
+    static TextureMgr *inst;
+
+    if (! inst)
+      inst = new TextureMgr;
+
+    return inst;
+  }
+
+ ~TextureMgr() { }
+
+  void addTexture(Texture *texture) {
+    textures_.push_back(texture);
+  }
+
+  const Textures &textures() const { return textures_; }
+
+  Texture *getTexture(int id) const {
+    for (auto *texture : textures_) {
+      if (texture->id() == id)
+        return texture;
+    }
+
+    return nullptr;
+  }
+
+ private:
+  TextureMgr() { }
+
+ private:
+  Textures textures_;
 };
 
 }

@@ -15,7 +15,6 @@ class CFlag;
 
 namespace CQSandbox {
 
-class Material3D;
 class ShaderProgram;
 
 class Surface3DObj : public Object3D {
@@ -87,8 +86,6 @@ class Surface3DObj : public Object3D {
   int     ny_ { 0 };
 
   bool wireframe_ { false };
-
-  Material3D* material_ { nullptr };
 
 #ifdef CQSANDBOX_WATER_SURFACE
   CWaterSurface *waterSurface_ { nullptr };

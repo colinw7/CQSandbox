@@ -8,6 +8,7 @@
 #include <CVector3D.h>
 
 #include <vector>
+#include <optional>
 
 class CShape3D;
 class CGLPath3D;
@@ -17,16 +18,19 @@ namespace CQSandbox {
 class Shape3DData {
  public:
   using Points    = std::vector<CVector3D>;
-  using Indices   = std::vector<unsigned int>;
+  using Indices   = std::vector<uint>;
   using TexCoords = std::vector<CVector2D>;
 
   using LineDatas  = std::vector<LineData>;
   using PointDatas = std::vector<PointData>;
 
+  using OptVector3D = std::optional<CVector3D>;
+  using OptVector2D = std::optional<CVector2D>;
+
   struct VertexData {
-    CVector3D position;
-    CVector3D normal;
-    CVector2D texCoord;
+    OptVector3D position;
+    OptVector3D normal;
+    OptVector2D texCoord;
 
     VertexData(const CVector3D &position, const CVector3D &normal, const CVector2D &texCoord) :
      position(position), normal(normal), texCoord(texCoord) {

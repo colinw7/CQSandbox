@@ -1,48 +1,40 @@
 #include <CQSandboxMaterial3D.h>
-
-#include <CQGLTexture.h>
+#include <CQSandboxTexture.h>
 
 namespace CQSandbox {
 
 Material3D::
-Material3D()
+Material3D(Canvas3D *canvas) :
+ canvas_(canvas)
 {
 }
 
 void
 Material3D::
-setDiffuseTexture(CQGLTexture *t)
+setDiffuseTexture(CGeomTexture *t)
 {
-  delete diffuseTexture_;
-
-  diffuseTexture_ = t;
+  diffuseTexture_ = dynamic_cast<Texture *>(t);
 }
 
 void
 Material3D::
-setNormalTexture(CQGLTexture *t)
+setNormalTexture(CGeomTexture *t)
 {
-  delete normalTexture_;
-
-  normalTexture_ = t;
+  normalTexture_ = dynamic_cast<Texture *>(t);
 }
 
 void
 Material3D::
-setSpecularTexture(CQGLTexture *t)
+setSpecularTexture(CGeomTexture *t)
 {
-  delete specularTexture_;
-
-  specularTexture_ = t;
+  specularTexture_ = dynamic_cast<Texture *>(t);
 }
 
 void
 Material3D::
-setEmissionTexture(CQGLTexture *t)
+setEmissiveTexture(CGeomTexture *t)
 {
-  delete emissionTexture_;
-
-  emissionTexture_ = t;
+  emissiveTexture_ = dynamic_cast<Texture *>(t);
 }
 
 }

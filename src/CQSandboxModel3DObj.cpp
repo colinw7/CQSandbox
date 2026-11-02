@@ -2,6 +2,7 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxGeomObject3D.h>
 #include <CQSandboxTexture.h>
+#include <CQSandboxMaterial3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -189,6 +190,26 @@ setSelected(bool b)
   Object3D::setSelected(b);
 }
 
+Material3D *
+Model3DObj::
+material() const
+{
+  if (object_)
+    return dynamic_cast<Material3D *>(object_->getMaterialP());
+
+  return Object3D::material();
+}
+
+void
+Model3DObj::
+setMaterial(Material3D *m)
+{
+  if (object_)
+    object_->setMaterialP(m);
+
+  Object3D::setMaterial(m);
+}
+
 //---
 
 bool
@@ -297,7 +318,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     CFile imageFile(filename.toStdString());
 
     if (! imageFile.exists())
-      return static_cast<CQGLTexture *>(nullptr);
+      return static_cast<Texture *>(nullptr);
 
     CImageFileSrc src(imageFile);
 
@@ -308,7 +329,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     auto *texture = dynamic_cast<Texture *>(CGeometry3DInst->createTexture(image));
 
-    return texture->glTexture(canvas_);
+    return texture;
   };
 
   auto resetShader = [&]() {
@@ -611,9 +632,37 @@ load(const QString &filename)
     scene1->addTexture(texture);
   }
 
+  //---
+
+  setId(QString::fromStdString(object_->getName()));
+
+  addChildObjects();
+
+  //---
+
   setNeedsUpdate();
 
   return true;
+}
+
+void
+Model3DObj::
+addChildObjects()
+{
+  for (auto *child : object_->children()) {
+    auto *childObj = new Model3DObj(canvas_);
+
+    childObj->parent_ = this;
+    childObj->object_ = child;
+
+    children_.push_back(childObj);
+
+    childObj->addChildObjects();
+
+    childObj->setId(QString::fromStdString(child->getName()));
+
+    canvas_->setObjInd(childObj);
+  }
 }
 
 void
@@ -669,6 +718,9 @@ void
 Model3DObj::
 updateBuffer()
 {
+  if (! object_)
+    return;
+
   auto *geomObject  = dynamic_cast<GeomObject3D *>(object_);
   auto *geomObject1 = geomObject;
 
@@ -736,7 +788,7 @@ void
 Model3DObj::
 render()
 {
-  if (canvas_->isShowBBox() || isSelected()) {
+  if (canvas_->isShowBBox() || (canvas_->isShowSelectedBBox() && isSelected())) {
     calcBBox();
 
     createBBoxObj();
@@ -744,7 +796,9 @@ render()
 
   //---
 
-  bool oldCullFace = CQGLStateInst->setCullFace(isCullFace());
+  auto cullFace = isCullFace().value_or(canvas_->isCullFace());
+
+  bool oldCullFace = CQGLStateInst->setCullFace(cullFace);
 
   drawObject(object_, /*isRoot*/true);
 
@@ -782,6 +836,8 @@ initDraw(Canvas3D *canvas, double t)
   canvas->setProgramLights(program);
 
   //---
+
+  s_lastBuffer = nullptr;
 
 #if 0
   s_refObjects.clear();
@@ -892,6 +948,9 @@ drawObject(CGeomObject3D *object, bool isRoot)
 
     canvas_->bindBuffer(buffer);
 
+    buffer->setModelMatrix(modelMatrix);
+    buffer->setMeshMatrix (meshMatrix);
+
     s_lastBuffer = buffer;
   }
 
@@ -913,8 +972,8 @@ drawObject(CGeomObject3D *object, bool isRoot)
     // diffuse (texture 0)
     auto *diffuseTexture = faceData.diffuseTexture;
 
-    if (! diffuseTexture)
-      diffuseTexture = diffuseTexture_;
+    if (! diffuseTexture && diffuseTexture_)
+      diffuseTexture = diffuseTexture_->glTexture(canvas_);
 
     if (diffuseTexture != lastDiffuseTexture) {
       bool useDiffuseTexture = !!diffuseTexture;
@@ -935,8 +994,8 @@ drawObject(CGeomObject3D *object, bool isRoot)
     // normal (texture 1)
     auto *normalTexture = faceData.normalTexture;
 
-    if (! normalTexture)
-      normalTexture = normalTexture_;
+    if (! normalTexture && normalTexture_)
+      normalTexture = normalTexture_->glTexture(canvas_);
 
     if (normalTexture != lastNormalTexture) {
       bool useNormalTexture = !!normalTexture;
@@ -957,8 +1016,8 @@ drawObject(CGeomObject3D *object, bool isRoot)
     // specular (texture 2)
     auto *specularTexture = faceData.specularTexture;
 
-    if (! specularTexture)
-      specularTexture = specularTexture_;
+    if (! specularTexture && specularTexture_)
+      specularTexture = specularTexture_->glTexture(canvas_);
 
     if (specularTexture != lastSpecularTexture) {
       bool useSpecularTexture = !!specularTexture;
@@ -979,8 +1038,8 @@ drawObject(CGeomObject3D *object, bool isRoot)
     // emissive (texture 3)
     auto *emissiveTexture = faceData.emissiveTexture;
 
-    if (! emissiveTexture)
-      emissiveTexture = emissiveTexture_;
+    if (! emissiveTexture && emissiveTexture_)
+      emissiveTexture = emissiveTexture_->glTexture(canvas_);
 
     if (emissiveTexture != lastEmissiveTexture) {
       bool useEmissiveTexture = !!emissiveTexture;
@@ -1188,12 +1247,14 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
 
   auto *objectMaterial = object->getMaterialP();
 
-  auto *diffuseTexture  = object->getDiffuseTexture();
-  auto *specularTexture = object->getSpecularTexture();
-  auto *normalTexture   = object->getNormalTexture();
-  auto *emissiveTexture = object->getEmissiveTexture();
+  auto *diffuseTexture  = dynamic_cast<Texture *>(object->getDiffuseTexture());
+  auto *specularTexture = dynamic_cast<Texture *>(object->getSpecularTexture());
+  auto *normalTexture   = dynamic_cast<Texture *>(object->getNormalTexture());
+  auto *emissiveTexture = dynamic_cast<Texture *>(object->getEmissiveTexture());
 
   //---
+
+  bool allowInds = true;
 
   objectData.bbox = CBBox3D();
 
@@ -1225,10 +1286,10 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
     //---
 
     // set face textures
-    auto *diffuseTexture1  = face->getDiffuseTexture();
-    auto *normalTexture1   = face->getNormalTexture();
-    auto *specularTexture1 = face->getSpecularTexture();
-    auto *emissiveTexture1 = face->getEmissiveTexture();
+    auto *diffuseTexture1  = dynamic_cast<Texture *>(face->getDiffuseTexture());
+    auto *normalTexture1   = dynamic_cast<Texture *>(face->getNormalTexture());
+    auto *specularTexture1 = dynamic_cast<Texture *>(face->getSpecularTexture());
+    auto *emissiveTexture1 = dynamic_cast<Texture *>(face->getEmissiveTexture());
 
     if (! diffuseTexture1 ) diffuseTexture1  = diffuseTexture;
     if (! normalTexture1  ) normalTexture1   = normalTexture;
@@ -1236,10 +1297,14 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
     if (! emissiveTexture1) emissiveTexture1 = emissiveTexture;
 
     if (faceMaterial) {
-      if (faceMaterial->diffuseTexture ()) diffuseTexture1  = faceMaterial->diffuseTexture ();
-      if (faceMaterial->normalTexture  ()) normalTexture1   = faceMaterial->normalTexture  ();
-      if (faceMaterial->specularTexture()) specularTexture1 = faceMaterial->specularTexture();
-      if (faceMaterial->emissiveTexture()) emissiveTexture1 = faceMaterial->emissiveTexture();
+      if (faceMaterial->diffuseTexture ())
+        diffuseTexture1  = dynamic_cast<Texture *>(faceMaterial->diffuseTexture ());
+      if (faceMaterial->normalTexture  ())
+        normalTexture1   = dynamic_cast<Texture *>(faceMaterial->normalTexture  ());
+      if (faceMaterial->specularTexture())
+        specularTexture1 = dynamic_cast<Texture *>(faceMaterial->specularTexture());
+      if (faceMaterial->emissiveTexture())
+        emissiveTexture1 = dynamic_cast<Texture *>(faceMaterial->emissiveTexture());
     }
 
     if (diffuseTexture1)
@@ -1296,10 +1361,12 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
       auto normal1 = normal;
       auto color1  = color;
 
-      if      (face->hasVertexNormals())
-        normal1 = face->getVertexNormal(iv);
-      else if (vertex.hasNormal())
+      if      (vertex.hasNormal())
         normal1 = vertex.getNormal();
+      else if (face->hasVertexNormals()) {
+        normal1 = face->getVertexNormal(iv);
+        allowInds = false;
+      }
 
       if (vertex.hasColor())
         color1 = vertex.getColor();
@@ -1309,9 +1376,9 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
       if (faceData.normalTexture) {
         CPoint2D tpoint;
 
-        if (vertex.hasTextureMap())
+        if      (vertex.hasTextureMap())
           tpoint = vertex.getTextureMap();
-        else
+        else if (face->hasVertexTexturePoints())
           tpoint = face->getTexturePoint(vertex, iv);
 
         int tw = faceData.normalTexture->getWidth ();
@@ -1360,7 +1427,14 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
       //---
 
       if (faceData.diffuseTexture) {
-        const auto &tpoint = face->getTexturePoint(vertex, iv);
+        CPoint2D tpoint;
+
+        if      (vertex.hasTextureMap())
+          tpoint = vertex.getTextureMap();
+        else if (face->hasVertexTexturePoints()) {
+          tpoint = face->getTexturePoint(vertex, iv);
+          allowInds = false;
+        }
 
         buffer->addTexturePoint(tpoint);
       }
@@ -1380,6 +1454,9 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
 
     geomObject->addFaceData(faceData);
   }
+
+  if (! allowInds)
+    buffer->clearInds();
 
   //---
 
@@ -1415,18 +1492,15 @@ updateObject(CGeomObject3D *object, ObjectData &objectData)
 
 CQGLTexture *
 Model3DObj::
-getGLTexture(CGeomTexture *texture, bool /*add*/)
+getGLTexture(Texture *texture, bool /*add*/)
 {
-  auto *texture1 = dynamic_cast<Texture *>(texture);
-  assert(texture1);
-
-  if (! texture1->glTexture(canvas_)) {
+  if (! texture->glTexture(canvas_)) {
     //if (! add) return nullptr;
 
-    initGLTexture(texture1);
+    initGLTexture(texture);
   }
 
-  return texture1->glTexture(canvas_);
+  return texture->glTexture(canvas_);
 }
 
 void

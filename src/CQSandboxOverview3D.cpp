@@ -16,6 +16,7 @@
 
 #include <CQSandboxCamera.h>
 #include <CQSandboxLight3D.h>
+#include <CQSandboxTexture.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxStatus.h>
 #include <CQSandboxUtil.h>
@@ -119,8 +120,8 @@ init()
   connect(canvas, SIGNAL(cameraChangedSignal()), this, SLOT(cameraChangeSlot()));
   connect(canvas, SIGNAL(lightChanged()), this, SLOT(lightChangeSlot()));
 
-//connect(canvas_, SIGNAL(animStateChanged()), this, SLOT(invalidate()));
-//connect(canvas_, SIGNAL(animTimeChanged()), this, SLOT(invalidate()));
+//connect(canvas, SIGNAL(animStateChanged()), this, SLOT(invalidate()));
+//connect(canvas, SIGNAL(animTimeChanged()), this, SLOT(invalidate()));
 }
 
 void
@@ -1275,7 +1276,9 @@ drawSprite(Sprite3DObj *obj)
 
   auto pos = obj->position();
 
-  const auto &image = texture->getImage();
+  auto *canvas = app_->canvas3D();
+
+  const auto &image = texture->glTexture(canvas)->getImage();
 
   auto w = image.width ();
   auto h = image.height();

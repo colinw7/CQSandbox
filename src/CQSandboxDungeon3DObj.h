@@ -4,11 +4,11 @@
 #ifdef CQSANDBOX_DUNGEON
 #include <CQSandboxObject3D.h>
 
-class CQGLTexture;
-
 class CDungeon;
 
 namespace CQSandbox {
+
+class Texture;
 
 class Dungeon3DObj : public Object3D {
   Q_OBJECT
@@ -38,10 +38,10 @@ class Dungeon3DObj : public Object3D {
   void updatePlayerCamera(bool isGame);
 
   void setTexture(const QString &id, const QString &filename);
-  CQGLTexture *getTexture(const QString &id) const;
+  Texture *getTexture(const QString &id) const;
 
  private:
-  using Textures = std::map<QString, CQGLTexture *>;
+  using Textures = std::map<QString, Texture *>;
 
   CDungeon* dungeon_ { nullptr };
 

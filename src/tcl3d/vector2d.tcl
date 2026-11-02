@@ -2,7 +2,7 @@ proc printVector { v } {
   echo "[$v get x] [$v get y]"
 }
 
-set v [sb3d::vector]
+set v [sb3d::vector2]
 
 printVector $v
 

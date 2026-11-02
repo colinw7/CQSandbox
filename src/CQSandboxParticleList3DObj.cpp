@@ -104,7 +104,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     value = QVariant(particleSize());
   }
   else if (name == "cull_face") {
-    value = QVariant(isCullFace());
+    bool cullFace = isCullFace().value_or(canvas_->isCullFace());
+
+    value = QVariant(cullFace);
   }
   else
     return Object3D::getValue(name, args, value);
@@ -619,7 +621,7 @@ void
 ParticleList3DObj::
 render()
 {
-  if (canvas_->isShowBBox() || isSelected()) {
+  if (canvas_->isShowBBox() || (canvas_->isShowSelectedBBox() && isSelected())) {
     calcBBox();
 
     createBBoxObj();
@@ -627,7 +629,9 @@ render()
 
   //---
 
-  bool oldCullFace = CQGLStateInst->setCullFace(isCullFace());
+  bool cullFace = isCullFace().value_or(canvas_->isCullFace());
+
+  bool oldCullFace = CQGLStateInst->setCullFace(cullFace);
 
   s_program->bind();
 

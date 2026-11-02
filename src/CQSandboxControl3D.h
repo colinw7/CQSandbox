@@ -9,6 +9,7 @@ class CQColorEdit;
 class CQRealSpin;
 class CQPropertyViewTree;
 class CQXml;
+class CQImagePreview;
 
 class QListWidget;
 class QListWidgetItem;
@@ -20,6 +21,8 @@ namespace CQSandbox {
 
 class Canvas3D;
 class Object3D;
+class UVMap;
+class ObjectsList;
 
 class Control3D : public QFrame {
   Q_OBJECT
@@ -56,14 +59,19 @@ class Control3D : public QFrame {
   QFrame *addCameraFrame();
   QFrame *addLightsFrame();
   QFrame *addMaterialsFrame();
+  QFrame *addTexturesFrame();
   QFrame *addObjectsFrame();
   QFrame *addOverviewFrame();
+  QFrame *addSelectionFrame();
 
   void updateLights();
   void connectLights(bool b);
 
   void updateMaterials();
   void connectMaterials(bool b);
+
+  void updateTextures();
+  void connectTextures(bool b);
 
   void updateControl();
   void connectControl(bool b);
@@ -76,6 +84,9 @@ class Control3D : public QFrame {
 
   void updateOverview();
   void connectOverview(bool b);
+
+  void updateSelection();
+  void connectSelection(bool b);
 
   Object3D *getCurrentObject() const;
 
@@ -92,6 +103,7 @@ class Control3D : public QFrame {
 
   void selectColorSlot(const QColor &c);
   void selectAlphaSlot(double r);
+  void selectFaceCenterSlot(int s);
 
   void enableShadowSlot(int b);
   void debugShadowSlot(int b);
@@ -145,6 +157,8 @@ class Control3D : public QFrame {
 
   // materials
   void materialDiffuseColorSlot(const QColor &c);
+  void materialSpecularColorSlot(const QColor &c);
+  void materialEmissionColorSlot(const QColor &c);
   void materialEmissionSlot(double);
   void materialSpecularSlot(double);
   void materialShininessSlot(double);
@@ -154,8 +168,11 @@ class Control3D : public QFrame {
 
   void materialSelectedSlot(QListWidgetItem *, QListWidgetItem *);
 
+  // textures
+  void textureSelectedSlot(QListWidgetItem *, QListWidgetItem *);
+
   // objects
-  void objectSelectedSlot(QListWidgetItem *, QListWidgetItem *);
+  void objectSelectedSlot();
   void objectPosSlot();
   void objectScaleSlot();
   void objectRotateSlot();
@@ -183,6 +200,8 @@ class Control3D : public QFrame {
   void objectAddedSlot();
   void lightAddedSlot();
   void materialAddedSlot();
+  void textureAddedSlot();
+  void selectionChangedSlot();
 
   void uiSlot();
 
@@ -194,20 +213,21 @@ class Control3D : public QFrame {
   QTabWidget* tab_ { nullptr };
 
   struct ControlData {
-    QCheckBox*    depthTestCheck   { nullptr };
-    QCheckBox*    cullFaceCheck    { nullptr };
-    QCheckBox*    frontFaceCheck   { nullptr };
-    CQColorEdit*  bgColorEdit      { nullptr };
-    CQColorEdit*  wireframeColor   { nullptr };
-    CQRealSpin*   wireframeAlpha   { nullptr };
-    CQColorEdit*  selectColor      { nullptr };
-    CQRealSpin*   selectAlpha      { nullptr };
-    QCheckBox*    showShadowCheck  { nullptr };
-    QCheckBox*    debugShadowCheck { nullptr };
-    QCheckBox*    showSkyboxCheck  { nullptr };
-    QCheckBox*    debugSkyboxCheck { nullptr };
-    QCheckBox*    showOrientCheck  { nullptr };
-    CQBBox3DEdit* bboxEdit         { nullptr };
+    QCheckBox*    depthTestCheck    { nullptr };
+    QCheckBox*    cullFaceCheck     { nullptr };
+    QCheckBox*    frontFaceCheck    { nullptr };
+    CQColorEdit*  bgColorEdit       { nullptr };
+    CQColorEdit*  wireframeColor    { nullptr };
+    CQRealSpin*   wireframeAlpha    { nullptr };
+    CQColorEdit*  selectColor       { nullptr };
+    CQRealSpin*   selectAlpha       { nullptr };
+    QCheckBox*    selectCenterCheck { nullptr };
+    QCheckBox*    showShadowCheck   { nullptr };
+    QCheckBox*    debugShadowCheck  { nullptr };
+    QCheckBox*    showSkyboxCheck   { nullptr };
+    QCheckBox*    debugSkyboxCheck  { nullptr };
+    QCheckBox*    showOrientCheck   { nullptr };
+    CQBBox3DEdit* bboxEdit          { nullptr };
   };
 
   ControlData controlData_;
@@ -254,21 +274,32 @@ class Control3D : public QFrame {
   LightsData lightsData_;
 
   struct MaterialsData {
-    bool         changed          { true };
-    CQColorEdit* diffuseColorEdit { nullptr };
-    CQRealSpin*  emissionEdit     { nullptr };
-    CQRealSpin*  specularEdit     { nullptr };
-    CQRealSpin*  shininessEdit    { nullptr };
-    CQRealSpin*  transparencyEdit { nullptr };
-    CQRealSpin*  reflectivityEdit { nullptr };
-    CQRealSpin*  refractivityEdit { nullptr };
-    QListWidget* list             { nullptr };
+    bool         changed           { true };
+    CQColorEdit* diffuseColorEdit  { nullptr };
+    CQColorEdit* specularColorEdit { nullptr };
+    CQColorEdit* emissionColorEdit { nullptr };
+    CQRealSpin*  emissionEdit      { nullptr };
+    CQRealSpin*  specularEdit      { nullptr };
+    CQRealSpin*  shininessEdit     { nullptr };
+    CQRealSpin*  transparencyEdit  { nullptr };
+    CQRealSpin*  reflectivityEdit  { nullptr };
+    CQRealSpin*  refractivityEdit  { nullptr };
+    QListWidget* list              { nullptr };
   };
 
   MaterialsData materialsData_;
 
+  struct TexturesData {
+    bool            changed { true };
+    QListWidget*    list    { nullptr };
+    CQImagePreview* image   { nullptr };
+    UVMap*          uvMap   { nullptr };
+  };
+
+  TexturesData texturesData_;
+
   struct ObjectsData {
-    QListWidget*        list       { nullptr };
+    ObjectsList*        list       { nullptr };
     CQPropertyViewTree* tree       { nullptr };
     CQPoint3DEdit*      posEdit    { nullptr };
     CQPoint3DEdit*      scaleEdit  { nullptr };
@@ -296,6 +327,13 @@ class Control3D : public QFrame {
   };
 
   OverviewData overviewData_;
+
+  struct SelectionData {
+    bool         changed { true };
+    QListWidget* list    { nullptr };
+  };
+
+  SelectionData selectionData_;
 
   QFrame* uiFrame_ { nullptr };
   CQXml*  xml_     { nullptr };

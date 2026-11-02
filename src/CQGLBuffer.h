@@ -7,6 +7,7 @@
 
 #include <CBBox3D.h>
 #include <CPoint4D.h>
+#include <CMatrix3DH.h>
 #include <CRGBA.h>
 
 #include <QOpenGLShaderProgram>
@@ -621,6 +622,12 @@ class CQGLBuffer {
 
   const CBBox3D &bbox() const { return bbox_; }
 
+  const CMatrix3DH &modelMatrix() const { return modelMatrix_; }
+  void setModelMatrix(const CMatrix3DH &v) { modelMatrix_ = v; }
+
+  const CMatrix3DH &meshMatrix() const { return meshMatrix_; }
+  void setMeshMatrix(const CMatrix3DH &v) { meshMatrix_ = v; }
+
  private:
   void init() {
     if (! data_.initialized) {
@@ -834,7 +841,9 @@ class CQGLBuffer {
 
   Data data_;
 
-  CBBox3D bbox_;
+  CBBox3D    bbox_;
+  CMatrix3DH modelMatrix_;
+  CMatrix3DH meshMatrix_;
 };
 
 //---

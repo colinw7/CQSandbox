@@ -399,8 +399,11 @@ render()
 
   //---
 
-  auto oldFrontFace = CQGLStateInst->setFrontFaceFlag(isFrontFace());
-  auto oldCullFace  = CQGLStateInst->setCullFace(isCullFace());
+  bool frontFace = isFrontFace().value_or(canvas_->isFrontFace());
+  bool cullFace  = isCullFace ().value_or(canvas_->isCullFace ());
+
+  auto oldFrontFace = CQGLStateInst->setFrontFaceFlag(frontFace);
+  auto oldCullFace  = CQGLStateInst->setCullFace(cullFace);
 
   //---
 

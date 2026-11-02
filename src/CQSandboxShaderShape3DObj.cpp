@@ -490,7 +490,7 @@ void
 ShaderShape3DObj::
 render()
 {
-  if (canvas_->isShowBBox() || isSelected()) {
+  if (canvas_->isShowBBox() || (canvas_->isShowSelectedBBox() && isSelected())) {
     calcBBox();
 
     createBBoxObj();

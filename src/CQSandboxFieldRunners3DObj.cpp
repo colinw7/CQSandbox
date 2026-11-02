@@ -1,5 +1,7 @@
 #include <CQSandboxFieldRunners3DObj.h>
 #include <CQSandboxCanvas3D.h>
+#include <CQSandboxSprite3DObj.h>
+#include <CQSandboxTexture.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -52,7 +54,7 @@ void
 FieldRunners3DObj::
 tick()
 {
-  runners_->update();
+  runners_->tick();
 }
 
 bool
@@ -69,9 +71,7 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     bool isValid() { return (ix >= 0 && iy >= 0); }
   };
 
-  auto argsToIndex = [&]() {
-    Index ind;
-
+  auto argsToIndex = [&](Index &ind) {
     if (args.size() < 1)
       return app->errorMsg("Missing index for " + name);
 
@@ -84,14 +84,17 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     ind.ix = Util::stringToInt(strs[0]);
     ind.iy = Util::stringToInt(strs[1]);
 
-    return ind;
+    return true;
   };
 
   if (name == "cell_bg") {
-    (void) argsToIndex();
+    Index ind;
+    (void) argsToIndex(ind);
   }
   else
     return Object3D::getValue(name, args, value);
+
+  return true;
 }
 
 bool
@@ -107,12 +110,16 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       textures_.erase(p);
     }
 
-    auto *texture = new CQGLTexture;
+    auto *glTexture = new CQGLTexture;
 
-    if (! texture->load(filename, /*flip*/false)) {
-      delete texture;
+    if (! glTexture->load(filename, /*flip*/false)) {
+      delete glTexture;
       return;
     }
+
+    auto *texture = canvas_->createTexture();
+
+    texture->setGlTextures(canvas_, glTexture, nullptr);
 
     textures_[id] = texture;
   };
@@ -189,7 +196,7 @@ render()
       auto *sprite = bgSprites_[i];
 
       sprite->setPosition(CPoint3D(x, y, 1.0));
-      sprite->setScale   (dx, dy, 1.0);
+      sprite->setScales  (CPoint3D(dx, dy, 1.0));
 
       auto cellType    = CFieldRunners::CellType::EMPTY;
       auto cellSubType = CFieldRunners::CellSubType::NONE;
@@ -242,7 +249,7 @@ render()
     auto y = mapY(pos.row);
 
     sprite->setPosition(CPoint3D(x, y, 0.5));
-    sprite->setScale   (dx, dy, 1.0);
+    sprite->setScales  (CPoint3D(dx, dy, 1.0));
 
     QString id;
 

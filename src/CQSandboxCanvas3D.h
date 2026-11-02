@@ -40,18 +40,21 @@ class QTimer;
 namespace CQSandbox {
 
 class App;
-class ShaderToyProgram;
 class Light3D;
-class Path3DObj;
-class ParticleList3DObj;
-class Skybox3DObj;
-class Gizmo3DObj;
 class Material3D;
-
+class Texture;
 class Camera;
 class FPCamera;
 class OrthoCamera;
 class CameraIFace;
+class ShaderToyProgram;
+
+class Gizmo3DObj;
+class Material3DObj;
+class ParticleList3DObj;
+class Path3DObj;
+class Skybox3DObj;
+class Texture3DObj;
 
 //---
 
@@ -229,6 +232,10 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  bool isInited() const { return inited_; }
+
+  //---
+
   const CRGBA &ambientColor() const { return ambientColor_; }
   void setAmbientColor(const CRGBA &v) { ambientColor_ = v; }
 
@@ -271,6 +278,9 @@ class Canvas3D : public OpenGLWindow {
 
   double selectAlpha() const { return selectData_.alpha; }
   void setSelectAlpha(double r) { selectData_.alpha = r; }
+
+  bool isShowSelectedFaceCenter() const { return selectData_.showFaceCenter; }
+  void setShowSelectedFaceCenter(bool b) { selectData_.showFaceCenter = b; }
 
   //---
 
@@ -505,12 +515,15 @@ class Canvas3D : public OpenGLWindow {
 
   QString addNewObject(Object3D *obj);
 
+  void setObjInd(Object3D *obj);
+
   void addObject(Object3D *obj);
 
   void removeObject(Object3D *obj);
 
   //---
 
+  Object3D *getObjectByInd(uint ind) const;
   Object3D *getObjectByName(const QString &name) const;
 
   //---
@@ -519,11 +532,21 @@ class Canvas3D : public OpenGLWindow {
 
   Material3D *createMaterial();
 
-  const std::vector<Material3D *> materials() const { return materials_; }
+  const Materials &materials() const { return materials_; }
 
   Material3D *currentMaterial() const;
 
   void setMaterialId(uint id);
+
+  Material3DObj *materialObj(Material3D *material);
+
+  //---
+
+  // Textures
+
+  Texture *createTexture();
+
+  Texture3DObj *textureObj(Texture *texture);
 
   //---
 
@@ -657,6 +680,8 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  void selectAllObjects();
+
   void selectObjects(const std::vector<Object3D *> &objs, bool clear=false, bool update=true);
   void selectObject(Object3D *obj, bool clear=false, bool update=true);
   void selectObject1(Object3D *obj);
@@ -671,7 +696,7 @@ class Canvas3D : public OpenGLWindow {
   void selectVertex(CGeomVertex3D *vertex, bool clear=false, bool update=true);
 
   void deselectAll();
-  void deselectObject(Object3D *obj);
+  void deselectObject(Object3D *obj, bool update=true);
 
   void setMousePos(double xpos, double ypos);
 
@@ -785,7 +810,11 @@ class Canvas3D : public OpenGLWindow {
 
   void materialAdded();
 
+  void textureAdded();
+
   void loopStateChanged();
+
+  void selectionChanged();
 
  private:
   struct PaintData {
@@ -839,6 +868,9 @@ class Canvas3D : public OpenGLWindow {
   int     redrawTimeOut_ { 100 };
   uint    ticks_         { 0 };
 
+  bool ignoreChange_ { false };
+  bool inited_       { false };
+
   QStringList tclArgs_;
 
   bool commandRunning_     { false };
@@ -865,8 +897,9 @@ class Canvas3D : public OpenGLWindow {
   WireframeData wireframeData_;
 
   struct SelectData {
-    CRGBA  color { CRGBA::yellow() };
-    double alpha { 1.0 };
+    CRGBA  color          { CRGBA::yellow() };
+    double alpha          { 1.0 };
+    bool   showFaceCenter { true };
   };
 
   SelectData selectData_;
@@ -1031,13 +1064,21 @@ class Canvas3D : public OpenGLWindow {
   QStringList modelDirs_;
   QStringList moduleDirs_;
 
-  bool ignoreChange_ { false };
-
   //---
 
   // Materials
-  Materials materials_;
-  uint      materialId_ { 0 };
+  using MaterialObjs = std::map<Material3D *, Material3DObj *>;
+
+  Materials    materials_;
+  uint         materialId_ { 0 };
+  MaterialObjs materialObjs_;
+
+  //---
+
+  // Textures
+  using TextureObjs = std::map<Texture *, Texture3DObj *>;
+
+  TextureObjs textureObjs_;
 
   //---
 

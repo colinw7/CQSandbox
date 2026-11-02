@@ -1,5 +1,6 @@
 #include <CQSandboxSprite3DObj.h>
 #include <CQSandboxCanvas3D.h>
+#include <CQSandboxTexture.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -82,7 +83,7 @@ loadBuffer()
   buffer_->load();
 }
 
-CQGLTexture *
+Texture *
 Sprite3DObj::
 texture() const
 {
@@ -94,14 +95,14 @@ texture() const
 
 void
 Sprite3DObj::
-setTexture(CQGLTexture *texture)
+setTexture(Texture *texture)
 {
   textures_.clear();
 
   textures_.push_back(texture);
 }
 
-CQGLTexture *
+Texture *
 Sprite3DObj::
 currentTexture() const
 {
@@ -127,12 +128,18 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "add_image") {
-    auto *texture = new CQGLTexture;
+    auto *glTexture = new CQGLTexture;
 
-    if (texture->load(value, /*flip*/false))
-      textures_.push_back(texture);
-    else
-      delete texture;
+    if (glTexture->load(value, /*flip*/false)) {
+      delete glTexture;
+      return false;
+    }
+
+    auto *texture = canvas_->createTexture();
+
+    texture->setGlTextures(canvas_, glTexture, nullptr);
+
+    textures_.push_back(texture);
   }
   else if (name == "image_start") {
     textureStart_ = Util::stringToInt(value);
@@ -230,7 +237,7 @@ render()
   auto *texture = currentTexture();
 
   if (texture)
-    texture->bind();
+    texture->glTexture(canvas_)->bind();
 
   buffer_->drawTriangleStrip();
 

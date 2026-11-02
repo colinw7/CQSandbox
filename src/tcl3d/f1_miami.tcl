@@ -1,3 +1,7 @@
+proc randIn { min max } {
+  return [expr {rand()*($max - $min) + $min}]
+} 
+
 proc init { } {
   set ::path [sb3d::path]
 
@@ -18,11 +22,39 @@ proc init { } {
 # $::car set scales [list 2.0 1.0 4.0]
 
   setModelDir data
-  set ::car [loadModel "race_car.obj" "car"]
-  $::car set scales [list 0.8 0.8 0.8]
 
-  set ::car_x 0
-  set ::car_y 0
+  set ::refCarObj [loadRefModel "race_car"]
+
+  set ::playerCarObj [$::refCarObj get ref_object]
+  $::playerCarObj set scales [list 0.8 0.8 0.8]
+
+  set ::playerCarDist 0.0
+  set ::playerCarY    5
+  set ::playerCarPos  [sb3d::vector3 [$::path get tpos 0.0]]
+  set ::playerCarDir  [sb3d::vector3 [$::path get tdir 0.0]]
+  set ::playerCarYaw  0
+  set ::playerCarDYaw 6
+  set ::playerCarVel  0.0
+  set ::playerCarAcc  0.0
+  set ::playerCarDA   0.001
+
+  set ::playerCarDX  0
+  set ::playerCarDXV 0.1
+
+  set ::tickSpeed 0.1 ; # 1/10 second
+
+
+  #---
+
+  set ::numComputerCars 5
+
+  for {set i 0} {$i < $::numComputerCars} {incr i} {
+    set ::computerCarObj($i) [$::refCarObj get ref_object]
+    $::computerCarObj($i) set scales [list 0.8 0.8 0.8]
+
+    set ::computerCarPos($i) 0
+    set ::computerCarVel($i) [randIn 0.0001 0.001]
+  }
 
   # ---
 
@@ -35,15 +67,42 @@ proc init { } {
 
   $::floor set diffuse_texture "textures/grass_texture.jpg"
 
+  # ---
+
   set ::camera_x 0
   set ::camera_y 0
 
   sb3d::camera set disable_roll 1
 
-  set ::track_pos 0
-  set ::track_dlt 0.01
+  # ---
 
-  updateCar
+  addTexts
+
+  # ---
+
+  updatePlayerCar
+
+  updateComputerCars
+}
+
+proc addTexts { } {
+  set ::vel_text [sb3d::text]
+
+  $::vel_text set position      [list -0.99 0.92 0]
+  $::vel_text set color         white
+  $::vel_text set text          "Vel: 0"
+  $::vel_text set size          0.05
+  $::vel_text set align         left
+  $::vel_text set ignore_camera 1
+  $::vel_text set ignore_world  1
+}
+
+proc updateTexts { } {
+  set v [expr {100.0*$::playerCarVel/$::tickSpeed}]
+
+  set vstr [format "%3.1f" $v]
+
+  $::vel_text set text "Vel: $vstr"
 }
 
 proc setModelDir { dir } {
@@ -52,34 +111,36 @@ proc setModelDir { dir } {
   sb3d::canvas set model_dir $::model_dir
 }
 
+proc loadRefModel { name } {
+  set obj [loadModel "${::model_dir}/${name}.obj" "${name}_ref"  ]
+  return $obj
+}
+
 proc loadModel { filename name } {
-  set obj [sb3d::model $::model_dir/$filename]
+  set obj [sb3d::model $filename]
 
   $obj set id $name
 
   return $obj
 }
 
-proc updateCar { } {
-  set pos [$::path get tpos $::track_pos]
-  set dir [$::path get tdir $::track_pos]
+proc updatePlayerCar { } {
+  set py $::playerCarY
 
-  set dx [lindex $dir 0]
-  set dz [lindex $dir 2]
+  $::playerCarObj set position [list [$::playerCarPos get x] $py [$::playerCarPos get z]]
 
-  set da  [expr {atan2($dz, $dx)}]
-  set da1 [expr {180*$da/$::PI}]
-  set da2 [expr {$da1 + 90}]
-  set da3 [expr {-$da2}]
+  set ::playerCarYaw [carDirToYaw]
 
-  set px [lindex $pos 0]
-  set pz [lindex $pos 2]
-  set py 5
+  $::playerCarObj set angles [list 0 $::playerCarYaw 0]
 
-  # echo "$da1 $da2"
+  # ---
 
-  $::car set position [list $px $py $pz]
-  $::car set angles   [list 0 $da3 0]
+  set dx [$::playerCarDir get x]
+  set dz [$::playerCarDir get z]
+
+  set px [$::playerCarPos get x]
+  set pz [$::playerCarPos get z]
+  set py $::playerCarY
 
   set dc 5
 
@@ -90,25 +151,183 @@ proc updateCar { } {
   sb3d::camera set origin [list $cx $cy $cz]
 
   sb3d::camera set pitch 0
-  sb3d::camera set yaw $da2
+  sb3d::camera set yaw [expr {-$::playerCarYaw}]
+
+  # ---
+
+  set da1 [expr {$::playerCarYaw - 5}]
+  set da2 [expr {$::playerCarYaw + 5}]
+
+  set dir1 [carYawToDir1 $da1]
+  set dir2 [carYawToDir1 $da2]
+
+  set dl 10
+
+  sb3d::light set current 0
+  sb3d::light set enabled 1
+  sb3d::light set type point
+
+  set lx [expr {$px - $dl*$dx}]
+  set lz [expr {$pz - $dl*$dz}]
+  set ly 20
+
+  sb3d::light set position  [list $lx $ly $lz]
+  sb3d::light set direction [list $dx 0 $dz]
+
+  sb3d::light set point_radius 100
+
+  sb3d::light set current 1
+  sb3d::light set enabled 1
+  sb3d::light set type point
+  
+  set lx [expr {$px + $dl*[$dir1 get x]}]
+  set lz [expr {$pz + $dl*[$dir1 get z]}]
+  set ly 6
+  
+  sb3d::light set position  [list $lx $ly $lz]
+  sb3d::light set direction [list $dx 0 $dz]
+  
+  sb3d::light set point_radius 100
+
+  sb3d::light set current 2
+  sb3d::light set enabled 1
+  sb3d::light set type point
+
+  set lx [expr {$px + $dl*[$dir2 get x]}]
+  set lz [expr {$pz + $dl*[$dir2 get z]}]
+  set ly 6
+  
+  sb3d::light set position  [list $lx $ly $lz]
+  sb3d::light set direction [list $dx 0 $dz]
+  
+  sb3d::light set point_radius 100
 }
 
-proc keyPress { k } {
-  if       {$k == "up"} {
-    set ::track_pos [expr {$::track_pos + $::track_dlt}]
+proc carDirToYaw { } {
+  set dx [$::playerCarDir get x]
+  set dz [$::playerCarDir get z]
 
-    if {$::track_pos >= 1.0} {
-      set ::track_pos [expr {$::track_pos - 1.0}]
+  set da [expr {atan2($dz, $dx)}]
+  set da1 [expr {180*$da/$::PI}]
+
+  set da2 [expr {$da1 + 90}]
+  set da3 [expr {-$da2}]
+
+  return $da3
+}
+
+proc carYawToDir { } {
+  return [carYawToDir1 $::playerCarYaw]
+}
+
+proc carYawToDir1 { car_yaw } {
+  set a1 [expr {-$car_yaw - 90}]
+
+  return [yawToDir $a1]
+}
+
+proc yawToDir { yaw } {
+  set a [expr {$::PI*$yaw/180.0}]
+
+  set dx [expr {cos($a)}]
+  set dy [expr {sin($a)}]
+
+  return [sb3d::vector3 [list $dx 0 $dy]]
+}
+
+proc updateComputerCars { } {
+  for {set i 0} {$i < $::numComputerCars} {incr i} {
+    set ::computerCarPos($i) [expr {$::computerCarPos($i) + $::computerCarVel($i)}]
+
+    if {$::computerCarPos($i) >= 1.0} {
+      set ::computerCarPos($i) [expr {$::computerCarPos($i) - 1.0}]
     }
 
-    updateCar
-  } elseif {$k == "down"} {
-    set ::track_pos [expr {$::track_pos - $::track_dlt}]
+    set pos [$::path get tpos $::computerCarPos($i)]
+    set dir [$::path get tdir $::computerCarPos($i)]
 
-    if {$::track_pos < 0.0} {
-      set ::track_pos [expr {1.0 + $::track_pos}]
-    }
+    set dx [lindex $dir 0]
+    set dz [lindex $dir 2]
 
-    updateCar
+    set da  [expr {atan2($dz, $dx)}]
+    set da1 [expr {180*$da/$::PI}]
+    set da2 [expr {$da1 + 90}]
+    set da3 [expr {-$da2}]
+
+    set px [lindex $pos 0]
+    set pz [lindex $pos 2]
+    set py $::playerCarY
+
+    $::computerCarObj($i) set position [list $px $py $pz]
+    $::computerCarObj($i) set angles   [list 0 $da3 0]
   }
+}
+
+proc tick { args } {
+  if       {[sb3d::canvas get key "left"]} {
+if {0} {
+    set ::playerCarDX [expr {$::playerCarDX - $::playerCarDXV}]
+
+    if {$::playerCarDX < -1.0} {
+      set ::playerCarDX -1.0
+    }
+}
+    set ::playerCarYaw [expr {$::playerCarYaw + $::playerCarDYaw}]
+    set ::playerCarDir [carYawToDir]
+    # echo "$::playerCarYaw [$::playerCarDir get string] [carDirToYaw]"
+  } elseif {[sb3d::canvas get key "right"]} {
+if {0} {
+    set ::playerCarDX [expr {$::playerCarDX + $::playerCarDXV}]
+
+    if {$::playerCarDX > 1.0} {
+      set ::playerCarDX 1.0
+    }
+}
+    set ::playerCarYaw [expr {$::playerCarYaw - $::playerCarDYaw}]
+    set ::playerCarDir [carYawToDir]
+    # echo "$::playerCarYaw [$::playerCarDir get string] [carDirToYaw]"
+  }
+
+  if       {[sb3d::canvas get key "up"]} {
+    if {$::playerCarAcc < 0} {
+      set ::playerCarAcc 0
+    }
+    set ::playerCarAcc [expr {$::playerCarAcc + $::playerCarDA}]
+    #echo "$::playerCarAcc"
+  } elseif {[sb3d::canvas get key "down"]} {
+    if {$::playerCarAcc > 0} {
+      set ::playerCarAcc 0
+    }
+    set ::playerCarAcc [expr {$::playerCarAcc - 5*$::playerCarDA}]
+    #echo "$::playerCarAcc"
+  } else {
+    set ::playerCarAcc [expr {$::playerCarAcc - $::playerCarDA}]
+    #echo "$::playerCarAcc"
+  }
+
+  set ::playerCarVel [expr {$::playerCarVel + $::playerCarAcc}]
+
+  if       {$::playerCarVel >= 1.0} {
+    set ::playerCarVel 1.0
+  } elseif {$::playerCarVel < 0.0} {
+    set ::playerCarVel 0.0
+  }
+
+  set ::playerCarDist [expr {$::playerCarDist + $::playerCarVel}]
+
+  if       {$::playerCarDist >= 1.0} {
+    set ::playerCarDist [expr {$::playerCarDist - 1.0}]
+  } elseif {$::playerCarDist < 0.0} {
+    set ::playerCarDist [expr {1.0 + $::playerCarDist}]
+  }
+
+  set cv [sb3d::vector3 $::playerCarVel 1 $::playerCarVel]
+  set ::playerCarPos [$::playerCarPos exec + [$::playerCarDir exec * $cv]]
+  # echo [$::playerCarPos get string]
+
+  updatePlayerCar
+
+  updateComputerCars
+
+  updateTexts
 }

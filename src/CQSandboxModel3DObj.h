@@ -85,6 +85,20 @@ class Model3DObj : public Object3D {
 
   void setSelected(bool b) override;
 
+  Material3D *material() const override;
+  void setMaterial(Material3D *m) override;
+
+  //---
+
+  Texture* diffuseTexture () const { return diffuseTexture_; };
+  Texture* specularTexture() const { return specularTexture_; };
+  Texture* normalTexture  () const { return normalTexture_; };
+  Texture* emissiveTexture() const { return emissiveTexture_; };
+
+  //---
+
+  void addChildObjects();
+
   //---
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
@@ -138,7 +152,7 @@ class Model3DObj : public Object3D {
 
   //---
 
-  CQGLTexture *getGLTexture(CGeomTexture *texture, bool /*add*/);
+  CQGLTexture *getGLTexture(Texture *texture, bool /*add*/);
 
   void initGLTexture(Texture *texture);
 
@@ -175,10 +189,10 @@ class Model3DObj : public Object3D {
 
   CGeomObject3D* object_ { nullptr };
 
-  CQGLTexture* diffuseTexture_  { nullptr };
-  CQGLTexture* specularTexture_ { nullptr };
-  CQGLTexture* normalTexture_   { nullptr };
-  CQGLTexture* emissiveTexture_ { nullptr };
+  Texture* diffuseTexture_  { nullptr };
+  Texture* specularTexture_ { nullptr };
+  Texture* normalTexture_   { nullptr };
+  Texture* emissiveTexture_ { nullptr };
 
   CVector3D sceneSize_   { 1, 1, 1 };
   CPoint3D  sceneCenter_ { 0, 0, 0 };

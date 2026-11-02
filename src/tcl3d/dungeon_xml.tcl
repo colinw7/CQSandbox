@@ -44,10 +44,10 @@ proc addFloorTiles { } {
   if {! [info exists ::floorRefObj(0)]} {
     setModelDir "tcl3d/Dungeon_Assets/obj"
 
-    set ::floorRefObj(0) [loadRefModel "floor_wood_large"             ]
-    set ::floorRefObj(1) [loadRefModel "floor_wood_large_dark"        ]
-    set ::floorRefObj(2) [loadRefModel "floor_dirt_large"             ]
-    set ::floorRefObj(3) [loadRefModel "floor_dirt_large_rocky"       ]
+    set ::floorRefObj(0) [loadRefModel "floor_wood_large"      ]
+    set ::floorRefObj(1) [loadRefModel "floor_wood_large_dark" ]
+    set ::floorRefObj(2) [loadRefModel "floor_dirt_large"      ]
+    set ::floorRefObj(3) [loadRefModel "floor_dirt_large_rocky"]
   }
 
   set ::tile_group [sb3d::group "tile_group"]

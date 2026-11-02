@@ -1,59 +1,45 @@
 #ifndef CQSandboxMaterial3D_H
 #define CQSandboxMaterial3D_H
 
+#include <CQSandboxTexture.h>
+
+#include <CGeomMaterial.h>
+
 #include <QString>
 #include <QColor>
 
-class CQGLTexture;
-
 namespace CQSandbox {
 
-class Material3D {
+class Canvas3D;
+class Texture;
+
+class Material3D : public CGeomMaterial {
  public:
-  Material3D();
+  Material3D(Canvas3D *canvas);
 
   //---
 
-  const QString &name() const { return name_; }
-  void setName(const QString &s) { name_ = s; }
+  CGeomTexture *diffuseTexture() const override { return diffuseTexture_; }
+  void setDiffuseTexture(CGeomTexture *t) override;
 
-  const uint &id() const { return id_; }
-  void setId(const uint &v) { id_ = v; }
+  CGeomTexture *normalTexture() const override { return normalTexture_; }
+  void setNormalTexture(CGeomTexture *t) override;
 
-  //---
+  CGeomTexture *specularTexture() const override { return specularTexture_; }
+  void setSpecularTexture(CGeomTexture *t) override;
 
-  const QColor &diffuseColor() const { return diffuseColor_; }
-  void setDiffuseColor(const QColor &v) { diffuseColor_ = v; }
-
-  //---
-
-  CQGLTexture *diffuseTexture() const { return diffuseTexture_; }
-  void setDiffuseTexture(CQGLTexture *t);
-
-  CQGLTexture *normalTexture() const { return normalTexture_; }
-  void setNormalTexture(CQGLTexture *t);
-
-  CQGLTexture *specularTexture() const { return specularTexture_; }
-  void setSpecularTexture(CQGLTexture *t);
-
-  CQGLTexture *emissionTexture() const { return emissionTexture_; }
-  void setEmissionTexture(CQGLTexture *t);
+  CGeomTexture *emissiveTexture() const override { return emissiveTexture_; }
+  void setEmissiveTexture(CGeomTexture *t) override;
 
   //---
 
-  double emission() const { return emission_; }
-  void setEmission(double r) { emission_ = r; }
+  double emissiveStrength() const { return emissiveStrength_; }
+  void setEmissiveStrength(double r) { emissiveStrength_ = r; }
 
-  double specular() const { return specular_; }
-  void setSpecular(double r) { specular_ = r; }
-
-  double shininess() const { return shininess_; }
-  void setShininess(double r) { shininess_ = r; }
+  double specularStrength() const { return specularStrength_; }
+  void setSpecularStrength(double r) { specularStrength_ = r; }
 
   //---
-
-  double transparency() const { return transparency_; }
-  void setTransparency(double r) { transparency_ = r; }
 
   double reflectivity() const { return reflectivity_; }
   void setReflectivity(double r) { reflectivity_ = r; }
@@ -62,23 +48,18 @@ class Material3D {
   void setRefractivity(double r) { refractivity_ = r; }
 
  private:
-  QString name_;
-  uint    id_ { 0 };
+  Canvas3D* canvas_ { nullptr };
 
-  QColor diffuseColor_ { Qt::white };
+  Texture* diffuseTexture_  { nullptr };
+  Texture* normalTexture_   { nullptr };
+  Texture* specularTexture_ { nullptr };
+  Texture* emissiveTexture_ { nullptr };
 
-  CQGLTexture* diffuseTexture_  { nullptr };
-  CQGLTexture* normalTexture_   { nullptr };
-  CQGLTexture* specularTexture_ { nullptr };
-  CQGLTexture* emissionTexture_ { nullptr };
+  double emissiveStrength_ { 0.0 };
+  double specularStrength_ { 0.0 };
 
-  double emission_  { 0.0 };
-  double specular_  { 0.0 };
-  double shininess_ { 1.0 };
-
-  double transparency_ { 0 };
-  double reflectivity_ { 0 };
-  double refractivity_ { 0 };
+  double reflectivity_ { 0.0 };
+  double refractivity_ { 0.0 };
 };
 
 }

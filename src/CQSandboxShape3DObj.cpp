@@ -3,6 +3,8 @@
 #include <CQSandboxLight3D.h>
 #include <CQSandboxModifier3DObj.h>
 #include <CQSandboxPath3DObj.h>
+#include <CQSandboxTexture.h>
+#include <CQSandboxMaterial3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
@@ -65,8 +67,16 @@ Shape3DObj(Canvas3D *canvas) :
   }
 
   s_objectMgr->addObject(this);
+}
 
-  material_ = canvas_->createMaterial();
+Material3D *
+Shape3DObj::
+initMaterial()
+{
+  if (! material_)
+    material_ = canvas_->createMaterial();
+
+  return material_;
 }
 
 void
@@ -189,7 +199,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToReal(value, r))
       return false;
 
-    material_->setEmission(r);
+    initMaterial()->setEmissiveStrength(r);
 
     setNeedsUpdate();
   }
@@ -198,7 +208,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToReal(value, r))
       return false;
 
-    material_->setSpecular(r);
+    initMaterial()->setSpecularStrength(r);
 
     setNeedsUpdate();
   }
@@ -207,7 +217,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToReal(value, r))
       return false;
 
-    material_->setShininess(r);
+    initMaterial()->setShininess(r);
 
     setNeedsUpdate();
   }
@@ -216,7 +226,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToReal(value, r))
       return false;
 
-    material_->setTransparency(r);
+    initMaterial()->setTransparency(r);
 
     setNeedsUpdate();
   }
@@ -225,7 +235,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToReal(value, r))
       return false;
 
-    material_->setReflectivity(r);
+    initMaterial()->setReflectivity(r);
 
     setNeedsUpdate();
   }
@@ -234,7 +244,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToReal(value, r))
       return false;
 
-    material_->setRefractivity(r);
+    initMaterial()->setRefractivity(r);
 
     setNeedsUpdate();
   }
@@ -242,7 +252,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   // cone <r> <h>
   else if (name == "cone") {
     QStringList strs;
-    (void) tcl->splitList(value, strs);
+    if (! tcl->splitList(value, strs))
+      return false;
 
     double r = 1.0;
     double h = 1.0;
@@ -269,9 +280,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     if (value != "") {
       QStringList strs;
-      (void) tcl->splitList(value, strs);
-
-      double sx = 1.0, sy = 1.0, sz = 1.0;
+      if (! tcl->splitList(value, strs))
+        return false;
 
       if      (strs.size() == 1) {
         if (! Util::stringToReal(value, sx))
@@ -298,7 +308,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     double h = 1.0;
 
     QStringList strs;
-    (void) tcl->splitList(value, strs);
+    if (! tcl->splitList(value, strs))
+      return false;
 
     if      (strs.size() == 1) {
       if (! Util::stringToReal(value, r))
@@ -335,7 +346,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     double power2 = 1.0;
 
     QStringList strs;
-    (void) tcl->splitList(value, strs);
+    if (! tcl->splitList(value, strs))
+      return false;
 
     if (strs.size() == 4) {
       if (! Util::stringToReal(strs[0], r0) ||
@@ -357,7 +369,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     double rot = 0.0;
 
     QStringList strs;
-    (void) tcl->splitList(value, strs);
+    if (! tcl->splitList(value, strs))
+      return false;
 
     if (strs.size() == 4) {
       if (! Util::stringToReal(strs[0], r) ||
@@ -380,7 +393,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       return false;
 
     QStringList strs;
-    (void) tcl->splitList(args[0], strs);
+    if (! tcl->splitList(args[0], strs))
+      return false;
 
     double w = 1, h = 1;
 
@@ -525,7 +539,7 @@ void
 Shape3DObj::
 setDiffuseColor(const QColor &c)
 {
-  material_->setDiffuseColor(c);
+  initMaterial()->setDiffuse(Util::QColorToRGBA(c));
 }
 
 //---
@@ -534,140 +548,184 @@ QString
 Shape3DObj::
 diffuseTextureFile() const
 {
-  return (material_->diffuseTexture() ? material_->diffuseTexture()->fileName() : "");
+  if (! material_ || ! material_->diffuseTexture())
+    return "";
+
+  auto *glTexture = dynamic_cast<Texture *>(material_->diffuseTexture())->glTexture(canvas_);
+
+  return glTexture->fileName();
 }
 
 void
 Shape3DObj::
 setDiffuseTextureFile(const QString &filename)
 {
-  CQGLTexture *diffuseTexture { nullptr };
+  Texture *diffuseTexture { nullptr };
 
   if (filename != "") {
-    diffuseTexture = new CQGLTexture;
+    auto *glTexture = new CQGLTexture;
 
-    if (! diffuseTexture->load(filename, /*flip*/true)) {
-      delete diffuseTexture;
-      diffuseTexture = nullptr;
+    if (! glTexture->load(filename, /*flip*/true)) {
+      delete glTexture;
+      glTexture = nullptr;
+    }
+
+    if (glTexture) {
+      diffuseTexture = canvas_->createTexture();
+
+      diffuseTexture->setGlTextures(canvas_, glTexture, nullptr);
     }
   }
   else {
     diffuseTexture = nullptr;
   }
 
-  material_->setDiffuseTexture(diffuseTexture);
+  initMaterial()->setDiffuseTexture(diffuseTexture);
 }
 
 void
 Shape3DObj::
-setDiffuseTexture(CQGLTexture *texture)
+setDiffuseTexture(Texture *texture)
 {
-  material_->setDiffuseTexture(texture);
+  initMaterial()->setDiffuseTexture(texture);
 }
 
 QString
 Shape3DObj::
 normalTextureFile() const
 {
-  return (material_->normalTexture() ? material_->normalTexture()->fileName() : "");
+  if (! material_ || ! material_->normalTexture())
+    return "";
+
+  auto *glTexture = dynamic_cast<Texture *>(material_->normalTexture())->glTexture(canvas_);
+
+  return glTexture->fileName();
 }
 
 void
 Shape3DObj::
 setNormalTextureFile(const QString &filename)
 {
-  CQGLTexture *normalTexture { nullptr };
+  Texture *normalTexture { nullptr };
 
   if (filename != "") {
-    normalTexture = new CQGLTexture;
+    auto *glTexture = new CQGLTexture;
 
-    if (! normalTexture->load(filename, /*flip*/true)) {
-      delete normalTexture;
-      normalTexture = nullptr;
+    if (! glTexture->load(filename, /*flip*/true)) {
+      delete glTexture;
+      glTexture = nullptr;
+    }
+
+    if (glTexture) {
+      normalTexture = canvas_->createTexture();
+
+      normalTexture->setGlTextures(canvas_, glTexture, nullptr);
     }
   }
   else {
     normalTexture = nullptr;
   }
 
-  material_->setNormalTexture(normalTexture);
+  initMaterial()->setNormalTexture(normalTexture);
 }
 
 void
 Shape3DObj::
-setNormalTexture(CQGLTexture *texture)
+setNormalTexture(Texture *texture)
 {
-  material_->setNormalTexture(texture);
+  initMaterial()->setNormalTexture(texture);
 }
 
 QString
 Shape3DObj::
 specularTextureFile() const
 {
-  return (material_->specularTexture() ? material_->specularTexture()->fileName() : "");
+  if (! material_ || ! material_->specularTexture())
+    return "";
+
+  auto *glTexture = dynamic_cast<Texture *>(material_->specularTexture())->glTexture(canvas_);
+
+  return glTexture->fileName();
 }
 
 void
 Shape3DObj::
 setSpecularTextureFile(const QString &filename)
 {
-  CQGLTexture *specularTexture { nullptr };
+  Texture *specularTexture { nullptr };
 
   if (filename != "") {
-    specularTexture = new CQGLTexture;
+    auto *glTexture = new CQGLTexture;
 
-    if (! specularTexture->load(filename, /*flip*/true)) {
-      delete specularTexture;
-      specularTexture = nullptr;
+    if (! glTexture->load(filename, /*flip*/true)) {
+      delete glTexture;
+      glTexture = nullptr;
+    }
+
+    if (glTexture) {
+      specularTexture = canvas_->createTexture();
+
+      specularTexture->setGlTextures(canvas_, glTexture, nullptr);
     }
   }
   else {
     specularTexture = nullptr;
   }
 
-  material_->setSpecularTexture(specularTexture);
+  initMaterial()->setSpecularTexture(specularTexture);
 }
 
 void
 Shape3DObj::
-setSpecularTexture(CQGLTexture *texture)
+setSpecularTexture(Texture *texture)
 {
-  material_->setSpecularTexture(texture);
+  initMaterial()->setSpecularTexture(texture);
 }
 
 QString
 Shape3DObj::
 emissionTextureFile() const
 {
-  return (material_->emissionTexture() ? material_->emissionTexture()->fileName() : "");
+  if (! material_ || ! material_->emissiveTexture())
+    return "";
+
+  auto *glTexture = dynamic_cast<Texture *>(material_->emissiveTexture())->glTexture(canvas_);
+
+  return glTexture->fileName();
 }
 
 void
 Shape3DObj::
 setEmissionTextureFile(const QString &filename)
 {
-  CQGLTexture *emissionTexture { nullptr };
+  Texture *emissionTexture { nullptr };
 
   if (filename != "") {
-    emissionTexture = new CQGLTexture;
+    auto *glTexture = new CQGLTexture;
 
-    if (! emissionTexture->load(filename, /*flip*/true)) {
-      delete emissionTexture;
-      emissionTexture = nullptr;
+    if (! glTexture->load(filename, /*flip*/true)) {
+      delete glTexture;
+      glTexture = nullptr;
+    }
+
+    if (glTexture) {
+      emissionTexture = canvas_->createTexture();
+
+      emissionTexture->setGlTextures(canvas_, glTexture, nullptr);
     }
   }
   else {
     emissionTexture = nullptr;
   }
 
-  material_->setEmissionTexture(emissionTexture);
+  initMaterial()->setEmissiveTexture(emissionTexture);
 }
 
 void
 Shape3DObj::
-setEmissionTexture(CQGLTexture *texture)
+setEmissionTexture(Texture *texture)
 {
-  material_->setEmissionTexture(texture);
+  initMaterial()->setEmissiveTexture(texture);
 }
 
 //---
@@ -761,7 +819,10 @@ loadBuffer()
     if (s_colors_.size() != np)
       s_colors_.resize(np);
 
-    auto c = material_->diffuseColor();
+    QColor c;
+
+    if (material_)
+      c = Util::RGBAToQColor(material_->getDiffuse());
 
 #if 0
     if (isInside())
@@ -886,7 +947,7 @@ Shape3DObj::
 render(ShaderProgram *program)
 {
   if (! isPseudo()) {
-    if (canvas_->isShowBBox() || isSelected()) {
+    if (canvas_->isShowBBox() || (canvas_->isShowSelectedBBox() && isSelected())) {
       calcBBox();
 
       createBBoxObj();
@@ -903,13 +964,17 @@ render(ShaderProgram *program)
 
   auto modelMatrix = this->modelMatrix();
 
+  buffer_->setModelMatrix(modelMatrix);
+  buffer_->setMeshMatrix(CMatrix3DH::identity());
+
   program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix));
 
   auto projectMatrix = s_pvMatrix*modelMatrix;
 
   //---
 
-  canvas_->setProgramMaterial(program, material_);
+  if (material_)
+    canvas_->setProgramMaterial(program, material_);
 
   //---
 
@@ -917,10 +982,17 @@ render(ShaderProgram *program)
 
   //---
 
-  auto *diffuseTexture  = material_->diffuseTexture ();
-  auto *normalTexture   = material_->normalTexture  ();
-  auto *specularTexture = material_->specularTexture();
-  auto *emissionTexture = material_->emissionTexture();
+  Texture *diffuseTexture  { nullptr };
+  Texture *normalTexture   { nullptr };
+  Texture *specularTexture { nullptr };
+  Texture *emissionTexture { nullptr };
+
+  if (material_) {
+    diffuseTexture  = dynamic_cast<Texture *>(material_->diffuseTexture ());
+    normalTexture   = dynamic_cast<Texture *>(material_->normalTexture  ());
+    specularTexture = dynamic_cast<Texture *>(material_->specularTexture());
+    emissionTexture = dynamic_cast<Texture *>(material_->emissiveTexture());
+  }
 
   bool useDiffuseTexture  = (diffuseTexture  && buffer_->hasTexturePart());
   bool useNormalTexture   = (normalTexture   && buffer_->hasTexturePart());
@@ -944,7 +1016,7 @@ render(ShaderProgram *program)
   if (useDiffuseTexture) {
     CQGLStateInst->setActiveTextureNum(0, true);
 
-    diffuseTexture->bind();
+    diffuseTexture->glTexture(canvas_)->bind();
   }
 
   program->setUniformValue("normalTexture.enabled", useNormalTexture);
@@ -953,7 +1025,7 @@ render(ShaderProgram *program)
   if (useNormalTexture) {
     CQGLStateInst->setActiveTextureNum(1, true);
 
-    normalTexture->bind();
+    normalTexture->glTexture(canvas_)->bind();
   }
 
   program->setUniformValue("specularTexture.enabled", useSpecularTexture);
@@ -962,7 +1034,7 @@ render(ShaderProgram *program)
   if (useSpecularTexture) {
     CQGLStateInst->setActiveTextureNum(2, true);
 
-    specularTexture->bind();
+    specularTexture->glTexture(canvas_)->bind();
   }
 
   program->setUniformValue("emissionTexture.enabled", useEmissionTexture);
@@ -971,7 +1043,7 @@ render(ShaderProgram *program)
   if (useEmissionTexture) {
     CQGLStateInst->setActiveTextureNum(3, true);
 
-    emissionTexture->bind();
+    emissionTexture->glTexture(canvas_)->bind();
   }
 
   //---

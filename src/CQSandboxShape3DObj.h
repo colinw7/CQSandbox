@@ -3,18 +3,17 @@
 
 #include <CQSandboxObject3D.h>
 #include <CQSandboxShape3DData.h>
-#include <CQSandboxMaterial3D.h>
 
 #include <CGLVector2D.h>
 #include <CGLColor.h>
 
-class CQGLTexture;
 class CShape3D;
 
 namespace CQSandbox {
 
 class ShaderProgram;
 class Path3DObj;
+class Texture;
 
 //---
 
@@ -107,22 +106,22 @@ class Shape3DObj : public Object3D {
   QString diffuseTextureFile() const;
   void setDiffuseTextureFile(const QString &filename);
 
-  void setDiffuseTexture(CQGLTexture *texture);
+  void setDiffuseTexture(Texture *texture);
 
   QString normalTextureFile() const;
   void setNormalTextureFile(const QString &filename);
 
-  void setNormalTexture(CQGLTexture *texture);
+  void setNormalTexture(Texture *texture);
 
   QString specularTextureFile() const;
   void setSpecularTextureFile(const QString &filename);
 
-  void setSpecularTexture(CQGLTexture *texture);
+  void setSpecularTexture(Texture *texture);
 
   QString emissionTextureFile() const;
   void setEmissionTextureFile(const QString &filename);
 
-  void setEmissionTexture(CQGLTexture *texture);
+  void setEmissionTexture(Texture *texture);
 
   //---
 
@@ -154,6 +153,9 @@ class Shape3DObj : public Object3D {
 
   void applyMatrix(const CMatrix3DH &m) override;
 
+ private:
+  Material3D *initMaterial();
+
  protected:
   using Normals   = std::vector<CVector3D>;
   using TexCoords = std::vector<CVector2D>;
@@ -170,8 +172,6 @@ class Shape3DObj : public Object3D {
 
   Colors colors_;
   bool   wireframe_ { false };
-
-  Material3D* material_ { nullptr };
 
   Normals   s_normals_;
   TexCoords s_texCoords_;

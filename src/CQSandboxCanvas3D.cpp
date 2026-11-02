@@ -16,6 +16,7 @@
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxJson3DObj.h>
 #include <CQSandboxLineList3DObj.h>
+#include <CQSandboxMaterial3DObj.h>
 #include <CQSandboxModel3DObj.h>
 #include <CQSandboxModifier3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
@@ -32,11 +33,16 @@
 #include <CQSandboxSprite3DObj.h>
 #include <CQSandboxSurface3DObj.h>
 #include <CQSandboxText3DObj.h>
+#include <CQSandboxTexture3DObj.h>
 #include <CQSandboxVector3DObj.h>
 #include <CQSandboxXML3DObj.h>
 
 #ifdef CQSANDBOX_OTHELLO
 #include <CQSandboxOthello3DObj.h>
+#endif
+
+#ifdef CQSANDBOX_FIELD_RUNNERS
+#include <CQSandboxFieldRunners3DObj.h>
 #endif
 
 #ifdef CQSANDBOX_DUNGEON
@@ -51,6 +57,7 @@
 #include <CQSandboxControl3D.h>
 #include <CQSandboxGeomObject3D.h>
 #include <CQSandboxTexture.h>
+#include <CQSandboxMaterial3D.h>
 #include <CQSandboxUtil.h>
 #include <CQSandboxShaderToyProgram.h>
 
@@ -104,7 +111,11 @@ class GeomFactory : public CGeometryFactory {
   }
 
   CGeomTexture *createTexture() const override {
-    return new Texture;
+    return canvas_->createTexture();
+  }
+
+  CGeomMaterial *createMaterial() const override {
+    return canvas_->createMaterial();
   }
 
  private:
@@ -421,8 +432,12 @@ addCommands()
   //---
 
   // data
-  tcl->createObjCommand("sb3d::vector",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Vector3DObj>),
+  tcl->createObjCommand("sb3d::vector2",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Vector2Obj3D>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::vector3",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Vector3Obj3D>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::array",
@@ -563,6 +578,14 @@ addCommands()
 
   //---
 
+  tcl->createObjCommand("sb3d::material",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Material3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
+  tcl->createObjCommand("sb3d::texture",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Texture3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb3d::shlib",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Shlib3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
@@ -642,7 +665,7 @@ addNewObject(Object3D *obj)
 
   allObjects_.push_back(obj);
 
-  obj->setInd(++lastInd_);
+  setObjInd(obj);
 
   if (obj->isTclCmd())
     createObjTclCommand(obj);
@@ -659,6 +682,13 @@ addNewObject(Object3D *obj)
   connect(obj, SIGNAL(transformChanged()), this, SIGNAL(objectTransformChanged()));
 
   return id;
+}
+
+void
+Canvas3D::
+setObjInd(Object3D *obj)
+{
+  obj->setInd(++lastInd_);
 }
 
 void
@@ -695,6 +725,18 @@ removeObject(Object3D *obj)
 
 Object3D *
 Canvas3D::
+getObjectByInd(uint ind) const
+{
+  for (auto *obj : allObjects_) {
+    if (ind == obj->ind())
+      return obj;
+  }
+
+  return nullptr;
+}
+
+Object3D *
+Canvas3D::
 getObjectByName(const QString &name) const
 {
   if (name.left(6) != "sb3d::")
@@ -719,13 +761,13 @@ Material3D *
 Canvas3D::
 createMaterial()
 {
-  auto *material = new Material3D;
+  auto *material = new Material3D(this);
 
   uint id = materials_.size() + 1;
 
   material->setId(id);
 
-  material->setName(QString("material.%1").arg(material->id()));
+  material->setName(QString("material.%1").arg(material->id()).toStdString());
 
   materials_.push_back(material);
 
@@ -754,6 +796,61 @@ Canvas3D::
 setMaterialId(uint id)
 {
   materialId_ = id;
+}
+
+Material3DObj *
+Canvas3D::
+materialObj(Material3D *material)
+{
+  auto pm = materialObjs_.find(material);
+
+  if (pm != materialObjs_.end())
+    return (*pm).second;
+
+  auto *materialObj = new Material3DObj(this);
+
+  materialObj->setMaterial(material);
+
+  materialObjs_[material] = materialObj;
+
+  (void) addNewObject(materialObj);
+
+  return materialObj;
+}
+
+//---
+
+Texture *
+Canvas3D::
+createTexture()
+{
+  auto *texture = new Texture(this);
+
+  TextureMgr::instance()->addTexture(texture);
+
+  Q_EMIT textureAdded();
+
+  return texture;
+}
+
+Texture3DObj *
+Canvas3D::
+textureObj(Texture *texture)
+{
+  auto pm = textureObjs_.find(texture);
+
+  if (pm != textureObjs_.end())
+    return (*pm).second;
+
+  auto *textureObj = new Texture3DObj(this);
+
+  textureObj->setTexture(texture);
+
+  textureObjs_[texture] = textureObj;
+
+  (void) addNewObject(textureObj);
+
+  return textureObj;
 }
 
 //---
@@ -1224,6 +1321,28 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = getKeyPressed(args[0]);
   }
+  else if (name == "materials") {
+    QStringList names;
+
+    for (auto *material : materials()) {
+      auto *obj = materialObj(material);
+
+      names.push_back(obj->getCommandName());
+    }
+
+    value = names;
+  }
+  else if (name == "textures") {
+    QStringList names;
+
+    for (auto *texture : TextureMgr::instance()->textures()) {
+      auto *obj = textureObj(texture);
+
+      names.push_back(obj->getCommandName());
+    }
+
+    value = names;
+  }
   else
     return app_->errorMsg(QString("Invalid value name '%1'").arg(name));
 
@@ -1657,6 +1776,13 @@ setLightValue(const QString &name, const QString &value, const QStringList &args
 
     setLightNum(n);
   }
+  else if (name == "enabled") {
+    bool b;
+    if (! Util::stringToBool(value, b))
+      return false;
+
+    light->setEnabled(b);
+  }
   else if (name == "position") {
     CVector3D pos;
     if (! Util::stringToVector3D(tcl, value, pos))
@@ -1906,6 +2032,10 @@ initialize()
   runTclCmd("init");
 
   ignoreChange_ = false;
+
+  //---
+
+  inited_ = true;
 }
 
 void
@@ -2182,9 +2312,9 @@ void
 Canvas3D::
 setProgramMaterial(ShaderProgram *program, Material3D *material)
 {
-  program->setUniformValue("specularStrength", float(material->specular()));
-  program->setUniformValue("emissiveStrength", float(material->emission()));
-  program->setUniformValue("shininess"       , float(material->shininess()));
+  program->setUniformValue("specularStrength", float(material->specularStrength()));
+  program->setUniformValue("emissiveStrength", float(material->emissiveStrength()));
+  program->setUniformValue("shininess"       , float(material->shininess().value_or(0.0)));
 
   program->setUniformValue("opacity", float(1.0 - material->transparency()));
 
@@ -2506,7 +2636,6 @@ setProgramLight(ShaderProgram *program, Light3D *light, const QString &lightName
 
     program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
   }
-#if 0
   else if (light->getType() == CGeomLight3DType::FLASHLIGHT) {
     // eye direction
     auto cutOffCos      = std::cos(CMathGen::DegToRad(light->getSpotCutOffAngle()));
@@ -2517,7 +2646,6 @@ setProgramLight(ShaderProgram *program, Light3D *light, const QString &lightName
 
     program->setUniformValue(STR(lightName + ".exponent"), float(light->getSpotExponent()));
   }
-#endif
 
   //---
 
@@ -3024,19 +3152,19 @@ drawContents()
       obj->render();
 
       if      (editType() == EditType::POINT) {
-        auto &selectedPoints = obj->selectedPoints();
+        const auto &selectedPoints = obj->selectedPoints();
 
         if (! selectedPoints.empty())
           objectSelectedPoints_[obj] = selectedPoints;
       }
       else if (editType() == EditType::LINE) {
-        auto &selectedLines = obj->selectedLines();
+        const auto &selectedLines = obj->selectedLines();
 
         if (! selectedLines.empty())
           objectSelectedLines_[obj] = selectedLines;
       }
       else if (editType() == EditType::FACE) {
-        auto &selectedFaces = obj->selectedFaces();
+        const auto &selectedFaces = obj->selectedFaces();
 
         if (! selectedFaces.empty())
           objectSelectedFaces_[obj] = selectedFaces;
@@ -3138,7 +3266,7 @@ drawSelected()
 
       auto matrix = modelMatrix*meshMatrix;
 
-      for (auto bufferInds : po.second) {
+      for (const auto &bufferInds : po.second) {
         auto *buffer = object->getBufferByInd(bufferInds.first);
 
         for (auto ind : bufferInds.second) {
@@ -3192,7 +3320,7 @@ drawSelected()
 
       auto matrix = modelMatrix*meshMatrix;
 
-      for (auto bufferInds : po.second) {
+      for (const auto &bufferInds : po.second) {
         auto *buffer = object->getBufferByInd(bufferInds.first);
 
         for (auto ind : bufferInds.second) {
@@ -3252,14 +3380,21 @@ drawSelected()
       const auto &faceDatas = object->getFaceDatas();
       assert(! faceDatas.empty());
 
-      const auto &modelMatrix = object->modelMatrix();
-      const auto &meshMatrix  = object->meshMatrix();
+      CQGLBuffer* lastBuffer = nullptr;
+      CMatrix3DH  matrix;
 
-      auto matrix = modelMatrix*meshMatrix;
-
-      for (auto bufferInds : po.second) {
+      for (const auto &bufferInds : po.second) {
         for (auto ind : bufferInds.second) {
           const auto &faceData = faceDatas[ind];
+
+          if (faceData.buffer != lastBuffer) {
+            const auto &modelMatrix = faceData.buffer->modelMatrix();
+            const auto &meshMatrix  = faceData.buffer->meshMatrix();
+
+            matrix = modelMatrix*meshMatrix;
+
+            lastBuffer = faceData.buffer;
+          }
 
           for (int i = 0; i < faceData.len; ++i) {
             CQGLBuffer::PointData pointData;
@@ -3327,12 +3462,19 @@ drawSelected()
       const auto &faceDatas = object->getFaceDatas();
       if (faceDatas.empty()) continue;
 
-      const auto &modelMatrix = object->modelMatrix();
-      const auto &meshMatrix  = object->meshMatrix();
-
-      auto matrix = modelMatrix*meshMatrix;
+      CQGLBuffer* lastBuffer = nullptr;
+      CMatrix3DH  matrix;
 
       for (const auto &faceData : faceDatas) {
+        if (faceData.buffer != lastBuffer) {
+          const auto &modelMatrix = faceData.buffer->modelMatrix();
+          const auto &meshMatrix  = faceData.buffer->meshMatrix();
+
+          matrix = modelMatrix*meshMatrix;
+
+          lastBuffer = faceData.buffer;
+        }
+
         for (int i = 0; i < faceData.len; ++i) {
           CQGLBuffer::PointData pointData;
           faceData.buffer->getPointData(faceData.pos + i, pointData);
@@ -3500,13 +3642,11 @@ void
 Canvas3D::
 drawObjectFaces(Object3D *object)
 {
-  if (object->getFaceDatas().empty())
-    return;
+  auto faceDatas = object->getFaceDatas();
+  if (faceDatas.empty()) return;
 
-  const auto &modelMatrix = object->modelMatrix();
-  const auto &meshMatrix  = object->meshMatrix();
-
-  auto matrix = modelMatrix*meshMatrix;
+  CQGLBuffer* lastBuffer = nullptr;
+  CMatrix3DH  matrix;
 
   initSelectionProgram();
 
@@ -3515,7 +3655,16 @@ drawObjectFaces(Object3D *object)
   std::vector<CPoint3D> centers;
   int                   centerPos = 0;
 
-  for (const auto &faceData : object->getFaceDatas()) {
+  for (const auto &faceData : faceDatas) {
+    if (faceData.buffer != lastBuffer) {
+      const auto &modelMatrix = faceData.buffer->modelMatrix();
+      const auto &meshMatrix  = faceData.buffer->meshMatrix();
+
+      matrix = modelMatrix*meshMatrix;
+
+      lastBuffer = faceData.buffer;
+    }
+
     CPoint3D c;
 
     for (int i = 0; i < faceData.len; ++i) {
@@ -3529,15 +3678,19 @@ drawObjectFaces(Object3D *object)
       c += pp;
     }
 
-    c /= faceData.len;
+    if (isShowSelectedFaceCenter()) {
+      c /= faceData.len;
 
-    centers.push_back(c);
+      centers.push_back(c);
 
-    centerPos += faceData.len;
+      centerPos += faceData.len;
+    }
   }
 
-  for (const auto &c : centers)
-    selectionBuffer_->addPoint(c);
+  if (isShowSelectedFaceCenter()) {
+    for (const auto &c : centers)
+      selectionBuffer_->addPoint(c);
+  }
 
   selectionBuffer_->load();
 
@@ -3558,12 +3711,14 @@ drawObjectFaces(Object3D *object)
 
   CQGLStateInst->setPolygonMode(GL_LINE);
 
-  for (const auto &faceData : object->getFaceDatas())
+  for (const auto &faceData : faceDatas)
     glDrawArrays(GL_TRIANGLES, faceData.pos, faceData.len);
 
-  CQGLStateInst->setPointSize(8);
+  if (isShowSelectedFaceCenter()) {
+    CQGLStateInst->setPointSize(8);
 
-  glDrawArrays(GL_POINTS, centerPos, centers.size());
+    glDrawArrays(GL_POINTS, centerPos, centers.size());
+  }
 
   bindBuffer(nullptr);
 
@@ -4351,6 +4506,8 @@ mouseReleaseEvent(QMouseEvent *e)
           else if (editType() == EditType::OBJECT)
             selectObjectsInside(bbox, clear);
         }
+
+        Q_EMIT selectionChanged();
       }
     }
   }
@@ -4409,12 +4566,12 @@ Canvas3D::
 deselectAll()
 {
   for (auto *obj : objects())
-    deselectObject(obj);
+    deselectObject(obj, /*update*/false);
 }
 
 void
 Canvas3D::
-deselectObject(Object3D *obj)
+deselectObject(Object3D *obj, bool update)
 {
   obj->setSelected(false);
 
@@ -4424,6 +4581,16 @@ deselectObject(Object3D *obj)
 
   if (model3DObj)
     model3DObj->deselectAll();
+
+  if (update)
+    this->update();
+}
+
+void
+Canvas3D::
+selectAllObjects()
+{
+  selectObjects(objects(), /*clear*/true, /*update*/true);
 }
 
 void
@@ -4459,35 +4626,6 @@ selectObject1(Object3D *obj)
 {
   obj->setSelected(true);
 }
-
-#if 0
-void
-Canvas3D::
-selectFaces(const std::vector<CGeomFace3D *> &faces, bool clear, bool update)
-{
-  if (clear)
-    deselectAll();
-
-  for (auto *face : faces)
-    face->setSelected(true);
-
-  if (update)
-    this->update();
-}
-
-void
-Canvas3D::
-selectFace(CGeomFace3D *face, bool clear, bool update)
-{
-  if (clear)
-    deselectAll();
-
-  face->setSelected(true);
-
-  if (update)
-    this->update();
-}
-#endif
 
 void
 Canvas3D::
@@ -4673,14 +4811,21 @@ selectNearestFace(const CPoint2D &p, bool clear)
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
 
-    const auto &modelMatrix = object->modelMatrix();
-    const auto &meshMatrix  = object->meshMatrix();
-
-    auto matrix = pvMatrix_*modelMatrix*meshMatrix;
+    CQGLBuffer* lastBuffer = nullptr;
+    CMatrix3DH  matrix;
 
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
+      if (faceData.buffer != lastBuffer) {
+        const auto &modelMatrix = faceData.buffer->modelMatrix();
+        const auto &meshMatrix  = faceData.buffer->meshMatrix();
+
+        matrix = pvMatrix_*modelMatrix*meshMatrix;
+
+        lastBuffer = faceData.buffer;
+      }
+
       auto points = getFacePoints(faceData, matrix);
       auto orient = Util::pointsOrientation(points);
 
@@ -4770,14 +4915,21 @@ updateMinFaceData(Object3D *object, const CPoint2D &p1, const QPointF &p2,
   const auto &faceDatas = object->getFaceDatas();
   if (faceDatas.empty()) return;
 
-  const auto &modelMatrix = object->modelMatrix();
-  const auto &meshMatrix  = object->meshMatrix();
-
-  auto matrix = pvMatrix_*modelMatrix*meshMatrix;
+  CQGLBuffer* lastBuffer = nullptr;
+  CMatrix3DH  matrix;
 
   uint ii = 0;
 
   for (const auto &faceData : faceDatas) {
+    if (faceData.buffer != lastBuffer) {
+      const auto &modelMatrix = faceData.buffer->modelMatrix();
+      const auto &meshMatrix  = faceData.buffer->meshMatrix();
+
+      matrix = pvMatrix_*modelMatrix*meshMatrix;
+
+      lastBuffer = faceData.buffer;
+    }
+
     auto points = getFacePoints(faceData, matrix);
 
     QPolygonF poly;
@@ -4919,14 +5071,21 @@ selectFacesInside(const CBBox2D &r, bool clear)
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
 
-    const auto &modelMatrix = object->modelMatrix();
-    const auto &meshMatrix  = object->meshMatrix();
-
-    auto matrix = pvMatrix_*modelMatrix*meshMatrix;
+    CQGLBuffer* lastBuffer = nullptr;
+    CMatrix3DH  matrix;
 
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
+      if (faceData.buffer != lastBuffer) {
+        const auto &modelMatrix = faceData.buffer->modelMatrix();
+        const auto &meshMatrix  = faceData.buffer->meshMatrix();
+
+        matrix = pvMatrix_*modelMatrix*meshMatrix;
+
+        lastBuffer = faceData.buffer;
+      }
+
       auto poly = getFacePoly(faceData, matrix);
 
       if (poly.intersects(r1))
@@ -4955,16 +5114,23 @@ selectObjectsInside(const CBBox2D &r, bool clear)
     const auto &faceDatas = object->getFaceDatas();
     if (faceDatas.empty()) continue;
 
-    const auto &modelMatrix = object->modelMatrix();
-    const auto &meshMatrix  = object->meshMatrix();
-
-    auto matrix = pvMatrix_*modelMatrix*meshMatrix;
+    CQGLBuffer* lastBuffer = nullptr;
+    CMatrix3DH  matrix;
 
     bool inside = false;
 
     uint ii = 0;
 
     for (const auto &faceData : faceDatas) {
+      if (faceData.buffer != lastBuffer) {
+        const auto &modelMatrix = faceData.buffer->modelMatrix();
+        const auto &meshMatrix  = faceData.buffer->meshMatrix();
+
+        matrix = pvMatrix_*modelMatrix*meshMatrix;
+
+        lastBuffer = faceData.buffer;
+      }
+
       auto poly = getFacePoly(faceData, matrix);
 
       if (poly.intersects(r1)) {

@@ -4,10 +4,12 @@
 #ifdef CQSANDBOX_FIELD_RUNNERS
 #include <CQSandboxObject3D.h>
 
-class CQGLTexture;
 class CFieldRunners;
 
 namespace CQSandbox {
+
+class Sprite3DObj;
+class Texture;
 
 class FieldRunners3DObj : public Object3D {
   Q_OBJECT
@@ -24,13 +26,15 @@ class FieldRunners3DObj : public Object3D {
 
   void init() override;
 
+  void loadBuffer() override { }
+
   void tick() override;
 
   void render() override;
 
  private:
   using Sprites  = std::vector<Sprite3DObj *>;
-  using Textures = std::map<QString, CQGLTexture *>;
+  using Textures = std::map<QString, Texture *>;
 
   CFieldRunners* runners_ { nullptr };
 

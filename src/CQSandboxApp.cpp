@@ -58,6 +58,11 @@
 #include <svg/rotate_svg.h>
 #include <svg/scale_svg.h>
 
+#include <svg/selected_svg.h>
+#include <svg/deselected_svg.h>
+#include <svg/visible_svg.h>
+#include <svg/invisible_svg.h>
+
 namespace CQSandbox {
 
 //---

@@ -94,8 +94,9 @@ addCone(double r, double h, const ConfigData &configData)
 
       int ind1 = np;
 
-      points_ .push_back(CVector3D(0,  0, 0));
-      normals_.push_back(CVector3D(0, -1, 0));
+      points_   .push_back(CVector3D(0,  0, 0));
+      normals_  .push_back(CVector3D(0, -1, 0));
+      texCoords_.push_back(CVector2D(0, 0));
 
       for (uint i = 0; i < slices; ++i) {
         uint i1 = (i + 1) % slices;
@@ -194,11 +195,13 @@ addCylinder(double r, double h, const ConfigData &configData)
       int ind1 = np;
       int ind2 = np + 1;
 
-      points_.push_back(CVector3D(0, 0, 0));
-      points_.push_back(CVector3D(0, h, 0));
+      points_   .push_back(CVector3D(0, 0, 0));
+      normals_  .push_back(CVector3D(0, -1, 0));
+      texCoords_.push_back(CVector2D(0, 0));
 
-      normals_.push_back(CVector3D(0, -1, 0));
-      normals_.push_back(CVector3D(0,  1, 0));
+      points_   .push_back(CVector3D(0, h, 0));
+      normals_  .push_back(CVector3D(0,  1, 0));
+      texCoords_.push_back(CVector2D(0, 0));
 
       for (uint i = 0; i < slices; ++i) {
         uint i1 = (i + 1) % slices;
@@ -463,8 +466,9 @@ addTorus(double r0, double r1, double power1, double power2, const ConfigData &c
   };
 
   auto addPoint = [&](const CPoint3D &p) {
-    points_.push_back(CVector3D(p));
-    normals_.push_back(CVector3D(0, 1, 0));
+    points_   .push_back(CVector3D(p));
+    normals_  .push_back(CVector3D(0, 1, 0));
+    texCoords_.push_back(CVector2D(0, 0));
     return points_.size() - 1;
   };
 
@@ -659,20 +663,23 @@ addGear(double r, int numTeeth, double toothSize, double rot)
 
   // bottom points
   for (const auto &line : lines) {
-    indices_.push_back(points_.size());
-    points_ .push_back(CVector3D(c));
-    normals_.push_back(CVector3D(0, -1, 0));
+    indices_  .push_back(points_.size());
+    points_   .push_back(CVector3D(c));
+    normals_  .push_back(CVector3D(0, -1, 0));
+    texCoords_.push_back(CVector2D(0, 0));
 
     auto p1 = line.start();
     auto p2 = line.end  ();
 
-    indices_.push_back(points_.size());
-    points_ .push_back(CVector3D(p1));
-    normals_.push_back(CVector3D(0, -1, 0));
+    indices_  .push_back(points_.size());
+    points_   .push_back(CVector3D(p1));
+    normals_  .push_back(CVector3D(0, -1, 0));
+    texCoords_.push_back(CVector2D(0, 0));
 
-    indices_.push_back(points_.size());
-    points_ .push_back(CVector3D(p2));
-    normals_.push_back(CVector3D(0, -1, 0));
+    indices_  .push_back(points_.size());
+    points_   .push_back(CVector3D(p2));
+    normals_  .push_back(CVector3D(0, -1, 0));
+    texCoords_.push_back(CVector2D(0, 0));
 
     //---
 
@@ -705,17 +712,20 @@ addGear(double r, int numTeeth, double toothSize, double rot)
     auto p2 = points_[i1 + 1]; p2.setY(0.1);
     auto p3 = points_[i1 + 2]; p3.setY(0.1);
 
-    indices_.push_back(points_.size());
-    points_ .push_back(p1);
-    normals_.push_back(CVector3D(0, 1, 0));
+    indices_  .push_back(points_.size());
+    points_   .push_back(p1);
+    normals_  .push_back(CVector3D(0, 1, 0));
+    texCoords_.push_back(CVector2D(0, 0));
 
-    indices_.push_back(points_.size());
-    points_ .push_back(p3);
-    normals_.push_back(CVector3D(0, 1, 0));
+    indices_  .push_back(points_.size());
+    points_   .push_back(p3);
+    normals_  .push_back(CVector3D(0, 1, 0));
+    texCoords_.push_back(CVector2D(0, 0));
 
-    indices_.push_back(points_.size());
-    points_ .push_back(p2);
-    normals_.push_back(CVector3D(0, 1, 0));
+    indices_  .push_back(points_.size());
+    points_   .push_back(p2);
+    normals_  .push_back(CVector3D(0, 1, 0));
+    texCoords_.push_back(CVector2D(0, 0));
   }
 
   //---
@@ -952,8 +962,9 @@ resetShape()
 {
   points_   .clear();
   normals_  .clear();
-  indices_  .clear();
   texCoords_.clear();
+
+  indices_.clear();
 
   faceDataList_.clear();
   lineDatas_   .clear();
@@ -970,15 +981,19 @@ addBodyRev(double *x, double *y, uint num_xy, uint num_patches)
   addBodyRevI(&x[0], &y[0], num_xy, num_patches, vertices, indices);
 
   auto np = vertices.size();
+
+  points_   .resize(np);
+  normals_  .resize(np);
+  texCoords_.resize(np);
+
   auto ni = indices.size();
 
-  points_ .resize(np);
-  normals_.resize(np);
   indices_.resize(ni);
 
   for (uint i = 0; i < np; ++i) {
-    points_ [i] = vertices[i].position;
-    normals_[i] = vertices[i].normal;
+    points_   [i] = *vertices[i].position;
+    normals_  [i] = *vertices[i].normal;
+    texCoords_[i] = *vertices[i].texCoord;
   }
 
   for (uint i = 0; i < ni; ++i) {

@@ -3,10 +3,10 @@
 
 #include <CQSandboxObject3D.h>
 
-class CQGLTexture;
 
 namespace CQSandbox {
 
+class Texture;
 class ShaderProgram;
 
 class Sprite3DObj : public Object3D {
@@ -19,10 +19,10 @@ class Sprite3DObj : public Object3D {
 
   const char *typeName() const override { return "sprite"; }
 
-  CQGLTexture *texture() const;
-  void setTexture(CQGLTexture *texture);
+  Texture *texture() const;
+  void setTexture(Texture *texture);
 
-  CQGLTexture *currentTexture() const;
+  Texture *currentTexture() const;
 
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
@@ -47,12 +47,12 @@ class Sprite3DObj : public Object3D {
  private:
   static ShaderProgram* s_program;
 
-  std::vector<CQGLTexture *> textures_;
-  int                        textureNum_ { 0 };
-  int                        textureStart_ { 0 };
-  int                        textureEnd_ { -1 };
-  double                     xv_ { 0.0 };
-  double                     yv_ { 0.0 };
+  std::vector<Texture *> textures_;
+  int                    textureNum_ { 0 };
+  int                    textureStart_ { 0 };
+  int                    textureEnd_ { -1 };
+  double                 xv_ { 0.0 };
+  double                 yv_ { 0.0 };
 };
 
 }

@@ -1,0 +1,18 @@
+/--------\
+|++++++++|
+|++++++++|
+|++++++++|
+|++++++++|
+|++++++++|
+|++++++++|
+|++++++++|
+|++++++++|
+(--------)
+
++ tile floor_wood_large.obj r0
+- wall wall.obj r0
+| wall wall.obj r90
+/ wall_corner wall_corner.obj r0
+\ wall_corner wall_corner.obj r90
+( wall_corner wall_corner.obj r180
+) wall_corner wall_corner.obj r270
