@@ -103,7 +103,14 @@ class Control3D : public QFrame {
 
   void selectColorSlot(const QColor &c);
   void selectAlphaSlot(double r);
+  void selectPointSizeSlot(double r);
+  void selectLineWidthSlot(double r);
   void selectFaceCenterSlot(int s);
+
+  void editColorSlot(const QColor &c);
+  void editFaceAlphaSlot(double r);
+  void editPointSizeSlot(double r);
+  void editLineWidthSlot(double r);
 
   void enableShadowSlot(int b);
   void debugShadowSlot(int b);
@@ -194,6 +201,9 @@ class Control3D : public QFrame {
   void overviewSelectedColorSlot(const QColor &c);
   void overviewPointSizeSlot(double a);
 
+  // selection
+  void selectionSelectedSlot(QListWidgetItem *, QListWidgetItem *);
+
  private Q_SLOTS:
   void updateSlot();
 
@@ -221,7 +231,13 @@ class Control3D : public QFrame {
     CQRealSpin*   wireframeAlpha    { nullptr };
     CQColorEdit*  selectColor       { nullptr };
     CQRealSpin*   selectAlpha       { nullptr };
+    CQRealSpin*   selectPointSize   { nullptr };
+    CQRealSpin*   selectLineWidth   { nullptr };
     QCheckBox*    selectCenterCheck { nullptr };
+    CQColorEdit*  editColor         { nullptr };
+    CQRealSpin*   editFaceAlpha     { nullptr };
+    CQRealSpin*   editPointSize     { nullptr };
+    CQRealSpin*   editLineWidth     { nullptr };
     QCheckBox*    showShadowCheck   { nullptr };
     QCheckBox*    debugShadowCheck  { nullptr };
     QCheckBox*    showSkyboxCheck   { nullptr };
@@ -299,6 +315,7 @@ class Control3D : public QFrame {
   TexturesData texturesData_;
 
   struct ObjectsData {
+    bool                changed    { true };
     ObjectsList*        list       { nullptr };
     CQPropertyViewTree* tree       { nullptr };
     CQPoint3DEdit*      posEdit    { nullptr };
@@ -338,9 +355,8 @@ class Control3D : public QFrame {
   QFrame* uiFrame_ { nullptr };
   CQXml*  xml_     { nullptr };
 
-  bool shown_          { false };
-  bool needsUpdate_    { false };
-  bool objectsChanged_ { true };
+  bool shown_       { false };
+  bool needsUpdate_ { false };
 };
 
 }

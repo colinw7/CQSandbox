@@ -106,6 +106,10 @@ class Model3DObj : public Object3D {
 
   bool exec(const QString &op, const QStringList &args, QVariant &res) override;
 
+  //---
+
+  void replaceFaceMaterial(CGeomObject3D *object, Material3D *material1, Material3D *material2);
+
   bool load(const QString &filename);
 
   void tick() override;

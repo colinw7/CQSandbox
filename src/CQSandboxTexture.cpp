@@ -9,13 +9,40 @@ Texture(Canvas3D *canvas) :
 {
 }
 
+bool
+Texture::
+load(const QString &filename, bool flip)
+{
+  if (filename == "")
+    return false;
+
+  auto *glTexture1 = new CQGLTexture;
+
+  if (! glTexture1->load(filename, flip)) {
+    delete glTexture1;
+    return false;
+  }
+
+  auto *glTexture2 = new CQGLTexture;
+
+  if (! glTexture2->load(filename, ! flip)) {
+    delete glTexture1;
+    delete glTexture2;
+    return false;
+  }
+
+  setGlTextures(canvas_, glTexture1, glTexture2);
+
+  return true;
+}
+
 CQGLTexture *
 Texture::
 glTexture(Canvas3D *canvas)
 {
   auto &canvasTexture = canvasTextureData_[canvas->ind()];
 
-  if (flipped_)
+  if (flipped_ && canvasTexture.glTextureFlipped)
     return canvasTexture.glTextureFlipped;
   else
     return canvasTexture.glTexture;

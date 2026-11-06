@@ -1,6 +1,7 @@
 #include <CQSandboxModel3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxGeomObject3D.h>
+#include <CQSandboxMaterial3DObj.h>
 #include <CQSandboxTexture.h>
 #include <CQSandboxMaterial3D.h>
 #include <CQSandboxApp.h>
@@ -236,6 +237,32 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
       scene->addObject(child);
     }
 
+    //scene->addObject(object1);
+
+    QStringList args;
+    auto *obj = dynamic_cast<Model3DObj *>(create(canvas_, args));
+    if (! obj) return false;
+
+    obj->object_ = object1;
+
+    value = obj->getCommandName();
+  }
+  else if (name == "child_object") {
+    if (! object_)
+      return false;
+
+    if (args.size() != 1)
+      return false;
+
+    auto *child = object_->getChildOfName(args[0].toStdString());
+    if (! child) return false;
+
+    auto *object1 = child->dup();
+
+    object1->setInd(CGeometry3DInst->nextObjectId());
+
+    auto *scene = canvas_->scene();
+
     scene->addObject(object1);
 
     QStringList args;
@@ -243,6 +270,8 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     if (! obj) return false;
 
     obj->object_ = object1;
+
+    value = obj->getCommandName();
   }
   else if (name == "transformed_model_bbox") {
     CBBox3D bbox;
@@ -443,7 +472,19 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     if (! Util::stringToPoint3D(tcl, args[0], p))
       return false;
 
-    object_->setTranslate(p.x, p.y, p.z);
+    bool apply = false;
+
+    if (args.size() > 1) {
+      if (args[1] == "apply")
+        apply = true;
+      else
+        return false;
+    }
+
+    if (! apply)
+      object_->setTranslate(p.x, p.y, p.z);
+    else
+      object_->translate(p.x, p.y, p.z, /*hier*/true);
 
     transformed_ = true;
 
@@ -543,10 +584,39 @@ exec(const QString &op, const QStringList &args, QVariant &res)
       }
     }
   }
+  else if (op == "replace_material") {
+    if (args.size() != 2)
+      return false;
+
+    auto *material1Obj = dynamic_cast<Material3DObj *>(canvas()->getObjectByName(args[0]));
+    if (! material1Obj) return false;
+
+    auto *material2Obj = dynamic_cast<Material3DObj *>(canvas()->getObjectByName(args[1]));
+    if (! material2Obj) return false;
+
+    replaceFaceMaterial(object_, material1Obj->material(), material2Obj->material());
+
+    setNeedsUpdate();
+  }
   else
     return Object3D::exec(op, args, res);
 
   return true;
+}
+
+void
+Model3DObj::
+replaceFaceMaterial(CGeomObject3D *object, Material3D *material1, Material3D *material2)
+{
+  const auto &faces = object->getFaces();
+
+  for (auto *face : faces) {
+    if (face->getMaterialP() == material1)
+      face->setMaterialP(material2);
+  }
+
+  for (auto *child : object->children())
+    replaceFaceMaterial(child, material1, material2);
 }
 
 bool
@@ -571,6 +641,8 @@ load(const QString &filename)
 
   if (! im)
     return app->errorMsg(QString("Invalid model type for '%1'").arg(filename_));
+
+  im->setTriangulate(true); // TODO: config
 
   for (const auto &dir : canvas_->modelDirs())
     im->addModelDir(dir.toStdString());
@@ -631,6 +703,8 @@ load(const QString &filename)
   for (auto *texture : scene->textures()) {
     scene1->addTexture(texture);
   }
+
+  canvas_->fixMaterialNames();
 
   //---
 
@@ -800,7 +874,8 @@ render()
 
   bool oldCullFace = CQGLStateInst->setCullFace(cullFace);
 
-  drawObject(object_, /*isRoot*/true);
+  if (object_)
+    drawObject(object_, /*isRoot*/true);
 
   CQGLStateInst->setCullFace(oldCullFace);
 }

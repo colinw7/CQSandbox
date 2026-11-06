@@ -13,6 +13,8 @@
 #include <CQSandboxXml.h>
 #include <CQSandboxUtil.h>
 
+#include <CQGLBuffer.h>
+
 #include <CQColorEdit.h>
 #include <CQBBox3DEdit.h>
 #include <CQPoint3DEdit.h>
@@ -175,7 +177,20 @@ addControlFrame()
 
   controlData_.selectColor       = ui.addLabelEdit("Color", new CQColorEdit);
   controlData_.selectAlpha       = ui.addLabelEdit("Alpha", new CQRealSpin);
+  controlData_.selectPointSize   = ui.addLabelEdit("Point Size", new CQRealSpin);
+  controlData_.selectLineWidth   = ui.addLabelEdit("Line Width", new CQRealSpin);
   controlData_.selectCenterCheck = ui.addLabelEdit("Face Center", new QCheckBox);
+
+  ui.endGroup();
+
+  //---
+
+  ui.startGroup("Edit");
+
+  controlData_.editColor       = ui.addLabelEdit("Color", new CQColorEdit);
+  controlData_.editFaceAlpha   = ui.addLabelEdit("Face Alpha", new CQRealSpin);
+  controlData_.editPointSize   = ui.addLabelEdit("Point Size", new CQRealSpin);
+  controlData_.editLineWidth   = ui.addLabelEdit("Line Width", new CQRealSpin);
 
   ui.endGroup();
 
@@ -855,8 +870,9 @@ void
 Control3D::
 objectAddedSlot()
 {
-  needsUpdate_    = true;
-  objectsChanged_ = true;
+  needsUpdate_ = true;
+
+  objectsData_.changed = true;
 
   if (canvas_->isInited())
     uiSlot();
@@ -904,6 +920,7 @@ selectionChangedSlot()
 {
   needsUpdate_ = true;
 
+  objectsData_.changed   = true;
   selectionData_.changed = true;
 
   if (canvas_->isInited())
@@ -959,7 +976,14 @@ updateControl()
 
   controlData_.selectColor      ->setColor  (Util::RGBAToQColor(canvas_->selectColor()));
   controlData_.selectAlpha      ->setValue  (canvas_->selectAlpha());
+  controlData_.selectPointSize  ->setValue  (canvas_->selectPointSize());
+  controlData_.selectLineWidth  ->setValue  (canvas_->selectLineWidth());
   controlData_.selectCenterCheck->setChecked(canvas_->isShowSelectedFaceCenter());
+
+  controlData_.editColor    ->setColor  (Util::RGBAToQColor(canvas_->editColor()));
+  controlData_.editFaceAlpha->setValue  (canvas_->editFaceAlpha());
+  controlData_.editPointSize->setValue  (canvas_->editPointSize());
+  controlData_.editLineWidth->setValue  (canvas_->editLineWidth());
 
   controlData_.showShadowCheck ->setChecked(canvas_->isShadowed());
   controlData_.debugShadowCheck->setChecked(canvas_->isShadowDebug());
@@ -998,8 +1022,21 @@ connectControl(bool b)
             this, &Control3D::selectColorSlot);
     connect(controlData_.selectAlpha, &CQRealSpin::realValueChanged,
             this, &Control3D::selectAlphaSlot);
+    connect(controlData_.selectPointSize, &CQRealSpin::realValueChanged,
+            this, &Control3D::selectPointSizeSlot);
+    connect(controlData_.selectLineWidth, &CQRealSpin::realValueChanged,
+            this, &Control3D::selectLineWidthSlot);
     connect(controlData_.selectCenterCheck, &QCheckBox::stateChanged,
             this, &Control3D::selectFaceCenterSlot);
+
+    connect(controlData_.editColor, &CQColorEdit::colorChanged,
+            this, &Control3D::editColorSlot);
+    connect(controlData_.editFaceAlpha, &CQRealSpin::realValueChanged,
+            this, &Control3D::editFaceAlphaSlot);
+    connect(controlData_.editPointSize, &CQRealSpin::realValueChanged,
+            this, &Control3D::editPointSizeSlot);
+    connect(controlData_.editLineWidth, &CQRealSpin::realValueChanged,
+            this, &Control3D::editLineWidthSlot);
 
     connect(controlData_.showShadowCheck, &QCheckBox::stateChanged,
             this, &Control3D::enableShadowSlot);
@@ -1034,8 +1071,21 @@ connectControl(bool b)
                this, &Control3D::selectColorSlot);
     disconnect(controlData_.selectAlpha, &CQRealSpin::realValueChanged,
                this, &Control3D::selectAlphaSlot);
+    disconnect(controlData_.selectPointSize, &CQRealSpin::realValueChanged,
+               this, &Control3D::selectPointSizeSlot);
+    disconnect(controlData_.selectLineWidth, &CQRealSpin::realValueChanged,
+               this, &Control3D::selectLineWidthSlot);
     disconnect(controlData_.selectCenterCheck, &QCheckBox::stateChanged,
                this, &Control3D::selectFaceCenterSlot);
+
+    disconnect(controlData_.editColor, &CQColorEdit::colorChanged,
+               this, &Control3D::editColorSlot);
+    disconnect(controlData_.editFaceAlpha, &CQRealSpin::realValueChanged,
+               this, &Control3D::editFaceAlphaSlot);
+    disconnect(controlData_.editPointSize, &CQRealSpin::realValueChanged,
+               this, &Control3D::editPointSizeSlot);
+    disconnect(controlData_.editLineWidth, &CQRealSpin::realValueChanged,
+               this, &Control3D::editLineWidthSlot);
 
     disconnect(controlData_.showShadowCheck, &QCheckBox::stateChanged,
                this, &Control3D::enableShadowSlot);
@@ -1492,11 +1542,13 @@ updateObjects()
 
   //---
 
-  if (objectsChanged_) {
-    objectsChanged_ = false;
+  if (objectsData_.changed) {
+    objectsData_.changed = false;
   }
 
   //---
+
+  objectsData_.list->updateAll();
 
   auto *currentObj = getCurrentObject();
 
@@ -1640,8 +1692,16 @@ connectOverview(bool b)
 
 void
 Control3D::
-connectSelection(bool)
+connectSelection(bool b)
 {
+  if (b) {
+    connect(selectionData_.list, &QListWidget::currentItemChanged,
+            this, &Control3D::selectionSelectedSlot);
+  }
+  else {
+    disconnect(selectionData_.list, &QListWidget::currentItemChanged,
+               this, &Control3D::selectionSelectedSlot);
+  }
 }
 
 void
@@ -1651,12 +1711,17 @@ updateSelection()
   connectSelection(false);
 
   if (selectionData_.changed) {
-    auto addItem = [&](const QString &name, int ind) {
+    auto addItem = [&](const QString &name, int objectInd, int bufferInd, int ind) {
       auto *item = new QListWidgetItem(name);
 
       selectionData_.list->addItem(item);
 
-      item->setData(Qt::UserRole, ind);
+      QStringList ids;
+      ids << QString::number(objectInd);
+      ids << QString::number(bufferInd);
+      ids << QString::number(ind);
+
+      item->setData(Qt::UserRole, ids);
     };
 
     selectionData_.changed = false;
@@ -1672,7 +1737,7 @@ updateSelection()
 
         for (const auto &bufferInds : selectedPoints) {
           for (auto ind : bufferInds.second) {
-            addItem(QString("Point %1").arg(ind), ind);
+            addItem(QString("Point: %1").arg(ind), object->ind(), bufferInds.first, ind);
           }
         }
       }
@@ -1681,7 +1746,7 @@ updateSelection()
 
         for (const auto &bufferInds : selectedLines) {
           for (auto ind : bufferInds.second) {
-            addItem(QString("Line %1").arg(ind), ind);
+            addItem(QString("Line: %1").arg(ind), object->ind(), bufferInds.first, ind);
           }
         }
       }
@@ -1690,13 +1755,13 @@ updateSelection()
 
         for (const auto &bufferInds : selectedFaces) {
           for (auto ind : bufferInds.second) {
-            addItem(QString("Face %1").arg(ind), ind);
+            addItem(QString("Face: %1").arg(ind), object->ind(), bufferInds.first, ind);
           }
         }
       }
       else if (canvas_->editType() == Canvas3D::EditType::OBJECT) {
         if (object->isSelected())
-          addItem(QString("Object: %1").arg(object->id()), object->ind());
+          addItem(QString("Object: %1").arg(object->id()), object->ind(), 0, 0);
       }
       else
         continue;
@@ -1785,9 +1850,59 @@ selectAlphaSlot(double r)
 
 void
 Control3D::
+selectPointSizeSlot(double r)
+{
+  canvas_->setSelectPointSize(r);
+  canvas_->update();
+}
+
+
+void
+Control3D::
+selectLineWidthSlot(double r)
+{
+  canvas_->setSelectLineWidth(r);
+  canvas_->update();
+}
+
+void
+Control3D::
 selectFaceCenterSlot(int s)
 {
   canvas_->setShowSelectedFaceCenter(s);
+  canvas_->update();
+}
+
+void
+Control3D::
+editColorSlot(const QColor &c)
+{
+  canvas_->setEditColor(Util::QColorToRGBA(c));
+  canvas_->update();
+}
+
+void
+Control3D::
+editFaceAlphaSlot(double r)
+{
+  canvas_->setEditFaceAlpha(r);
+  canvas_->update();
+}
+
+void
+Control3D::
+editPointSizeSlot(double r)
+{
+  canvas_->setEditPointSize(r);
+  canvas_->update();
+}
+
+
+void
+Control3D::
+editLineWidthSlot(double r)
+{
+  canvas_->setEditLineWidth(r);
   canvas_->update();
 }
 
@@ -2529,6 +2644,54 @@ overviewPointSizeSlot(double s)
 
   if (overview)
     overview->setPointSize(s);
+}
+
+//---
+
+void
+Control3D::
+selectionSelectedSlot(QListWidgetItem *item, QListWidgetItem *)
+{
+  auto ids = item->data(Qt::UserRole).toStringList();
+
+  auto objectInd = ids[0].toInt();
+  auto bufferInd = ids[1].toInt();
+  auto ind       = ids[2].toInt();
+
+  std::cerr << objectInd << " " << bufferInd << " " << ind << "\n";
+
+  auto *object = canvas_->getObjectByInd(objectInd);
+  if (! object) return;
+
+  auto *buffer = CQGLBufferMgrInst->getBuffer(bufferInd);
+  if (! buffer) return;
+
+  if      (canvas_->editType() == Canvas3D::EditType::POINT) {
+    auto *pointData = object->getPointData(ind);
+    if (! pointData) return;
+
+    CQGLBuffer::PointData pointData1;
+    buffer->getPointData(pointData->ind, pointData1);
+
+    std::cerr << "I: " << pointData->ind << " ";
+    pointData1.print(std::cerr);
+  }
+  else if (canvas_->editType() == Canvas3D::EditType::LINE) {
+  }
+  else if (canvas_->editType() == Canvas3D::EditType::FACE) {
+    auto *faceData = object->getFaceData(ind);
+    if (! faceData) return;
+
+    for (int i = 0; i < faceData->len; ++i) {
+      CQGLBuffer::PointData pointData;
+      buffer->getPointData(faceData->pos + i, pointData);
+
+      std::cerr << "I: " << faceData->pos + i << " ";
+      pointData.print(std::cerr);
+    }
+  }
+  else if (canvas_->editType() == Canvas3D::EditType::OBJECT) {
+  }
 }
 
 //---

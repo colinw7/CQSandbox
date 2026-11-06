@@ -14,6 +14,8 @@ class Texture : public CGeomTexture {
  public:
   Texture(Canvas3D *canvas);
 
+  bool load(const QString &filename, bool flip);
+
   bool isFlipped() const { return flipped_; }
   void setFlipped(bool b) { flipped_ = b; }
 
@@ -73,11 +75,14 @@ class TextureMgr {
     return nullptr;
   }
 
+  uint getNextId() { return ++lastId_; }
+
  private:
   TextureMgr() { }
 
  private:
   Textures textures_;
+  uint     lastId_ { 0 };
 };
 
 }

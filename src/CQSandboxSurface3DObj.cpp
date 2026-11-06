@@ -524,7 +524,7 @@ render()
 
     CQGLBuffer::DrawData drawData;
 
-    CQGLStateInst->setPointSize(8);
+    CQGLStateInst->setPointSize(canvas_->editPointSize());
 
     drawData.mode    = GL_POINTS;
     drawData.indexed = false;
@@ -547,7 +547,7 @@ render()
 
     CQGLBuffer::DrawData drawData;
 
-    CQGLStateInst->setLineWidth(8);
+    CQGLStateInst->setLineWidth(canvas_->editLineWidth());
 
     drawData.mode = GL_LINES;
     drawData.len  = 2;

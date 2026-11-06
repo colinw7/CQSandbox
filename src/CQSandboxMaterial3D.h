@@ -17,6 +17,8 @@ class Material3D : public CGeomMaterial {
  public:
   Material3D(Canvas3D *canvas);
 
+  virtual ~Material3D() { }
+
   //---
 
   CGeomTexture *diffuseTexture() const override { return diffuseTexture_; }
@@ -55,8 +57,8 @@ class Material3D : public CGeomMaterial {
   Texture* specularTexture_ { nullptr };
   Texture* emissiveTexture_ { nullptr };
 
-  double emissiveStrength_ { 0.0 };
-  double specularStrength_ { 0.0 };
+  double emissiveStrength_ { 0.1 };
+  double specularStrength_ { 0.2 };
 
   double reflectivity_ { 0.0 };
   double refractivity_ { 0.0 };

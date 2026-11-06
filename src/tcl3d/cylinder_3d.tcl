@@ -15,9 +15,11 @@ proc addCylinder { cap patches xy r h pos c } {
 }
 
 proc init { } {
-  set ::shape1 [addCylinder NONE 16  8 0.2 0.5 {0 0 0} "#ff0000"]
-  set ::shape2 [addCylinder NGON 8  16 0.3 0.5 {1 0 0} "#00ff00"]
-  set ::shape3 [addCylinder FAN  10 10 0.4 0.5 {2 0 0} "#0000ff"]
+# set ::shape1 [addCylinder NONE 16  8 0.2 0.5 {0 0 0} "#ff0000"]
+# set ::shape2 [addCylinder NGON 8  16 0.3 0.5 {1 0 0} "#00ff00"]
+# set ::shape3 [addCylinder FAN  10 10 0.4 0.5 {2 0 0} "#0000ff"]
+
+  set ::shape [addCylinder FAN 5 3 1.0 1.0 {0 0 0} "#0000ff"]
 
 # $::shape1 set wireframe 1
 }

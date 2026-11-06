@@ -54,7 +54,7 @@ addCone(double r, double h, const ConfigData &configData)
     y[i] = y[i - 1] + dy;
   }
 
-  addBodyRev(&x[0], &y[0], stacks, slices);
+  addBodyRev(x, y, stacks, slices);
 
   //---
 
@@ -76,7 +76,7 @@ addCone(double r, double h, const ConfigData &configData)
   if (configData.cap_type != CapType::NONE) {
     FaceData faceData;
 
-    auto pos = faceDataList_.faceDatas.back().pos + faceDataList_.faceDatas.back().len;
+    auto pos = indices_.size();
 
     if      (configData.cap_type == CapType::NGON) {
       faceData.glMode = GL_LINE_LOOP;
@@ -96,7 +96,12 @@ addCone(double r, double h, const ConfigData &configData)
 
       points_   .push_back(CVector3D(0,  0, 0));
       normals_  .push_back(CVector3D(0, -1, 0));
-      texCoords_.push_back(CVector2D(0, 0));
+      texCoords_.push_back(CVector2D(0.5, 0));
+
+      PointData pointData;
+
+      pointData.ind = ind1;
+      pointDatas_.push_back(pointData);
 
       for (uint i = 0; i < slices; ++i) {
         uint i1 = (i + 1) % slices;
@@ -153,14 +158,14 @@ addCylinder(double r, double h, const ConfigData &configData)
     y[i] = y[i - 1] + dy;
   }
 
-  addBodyRev(&x[0], &y[0], stacks, slices);
+  addBodyRev(x, y, stacks, slices);
 
   //---
 
   if (configData.cap_type != CapType::NONE) {
     FaceData faceData;
 
-    auto pos = faceDataList_.faceDatas.back().pos + faceDataList_.faceDatas.back().len;
+    auto pos = indices_.size();
 
     auto np = points_.size();
 
@@ -192,19 +197,28 @@ addCylinder(double r, double h, const ConfigData &configData)
     else if (configData.cap_type == CapType::FAN) {
       faceData.glMode = GL_TRIANGLES;
 
-      int ind1 = np;
-      int ind2 = np + 1;
+      int ind1 = np    ; // middle bottom
+      int ind2 = np + 1; // middle top
 
       points_   .push_back(CVector3D(0, 0, 0));
       normals_  .push_back(CVector3D(0, -1, 0));
-      texCoords_.push_back(CVector2D(0, 0));
+      texCoords_.push_back(CVector2D(0.5, 0));
 
       points_   .push_back(CVector3D(0, h, 0));
       normals_  .push_back(CVector3D(0,  1, 0));
-      texCoords_.push_back(CVector2D(0, 0));
+      texCoords_.push_back(CVector2D(0.5, 1));
+
+      PointData pointData;
+
+      pointData.ind = ind1;
+      pointDatas_.push_back(pointData);
+
+      pointData.ind = ind2;
+      pointDatas_.push_back(pointData);
 
       for (uint i = 0; i < slices; ++i) {
-        uint i1 = (i + 1) % slices;
+        //uint i1 = (i + 1) % slices;
+        uint i1 = i + 1;
 
         indices_.push_back(i   );
         indices_.push_back(ind1);
@@ -218,10 +232,11 @@ addCylinder(double r, double h, const ConfigData &configData)
         pos += faceData.len;
       }
 
-      int pi = np - slices;
+      int pi = np - slices - 1;
 
       for (uint i = 0; i < slices; ++i) {
-        uint i1 = (i + 1) % slices;
+        //uint i1 = (i + 1) % slices;
+        uint i1 = i + 1;
 
         indices_.push_back(pi + i1);
         indices_.push_back(ind2   );
@@ -284,15 +299,8 @@ addCube(double sx, double sy, double sz)
   points[0].z = points[3].z = points[4].z = points[7].z = -zs;
   points[1].z = points[2].z = points[5].z = points[6].z =  zs;
 
-  points_   .resize(points.size());
-  texCoords_.resize(points.size());
-
-  for (uint i = 0; i < points.size(); ++i) {
-    points_[i] = points[i];
-
-    texCoords_[i].setX(points[i].x < 0 ? 0 : 1);
-    texCoords_[i].setY(points[i].z < 0 ? 0 : 1);
-  }
+  points_   .resize(36);
+  texCoords_.resize(36);
 
   //---
 
@@ -303,8 +311,12 @@ addCube(double sx, double sy, double sz)
   for (int i = 5; i >= 0; --i) {
     const auto &normal = cube_normal[i];
 
-    auto addFaceInd = [&](int ind) {
-      indices_[k++] = ind;
+    auto addFaceInd = [&](int ind, const CPoint2D &tp) {
+      points_   [k] = points[ind];
+      texCoords_[k] = tp;
+      indices_  [k] = k;
+
+      ++k;
     };
 
     FaceData faceData;
@@ -313,9 +325,9 @@ addCube(double sx, double sy, double sz)
     faceData.len    = 3;
     faceData.normal = normal;
 
-    addFaceInd(cube_faces[i][0]);
-    addFaceInd(cube_faces[i][1]);
-    addFaceInd(cube_faces[i][2]);
+    addFaceInd(cube_faces[i][0], CPoint2D(0, 0));
+    addFaceInd(cube_faces[i][1], CPoint2D(1, 0));
+    addFaceInd(cube_faces[i][2], CPoint2D(1, 1));
 
     faceDataList_.add(faceData);
 
@@ -323,9 +335,9 @@ addCube(double sx, double sy, double sz)
     faceData.len    = 3;
     faceData.normal = normal;
 
-    addFaceInd(cube_faces[i][2]);
-    addFaceInd(cube_faces[i][3]);
-    addFaceInd(cube_faces[i][0]);
+    addFaceInd(cube_faces[i][2], CPoint2D(1, 1));
+    addFaceInd(cube_faces[i][3], CPoint2D(0, 1));
+    addFaceInd(cube_faces[i][0], CPoint2D(0, 0));
 
     faceDataList_.add(faceData);
   }
@@ -407,7 +419,7 @@ addSphere(double radius, const ConfigData &configData)
     a += da;
   }
 
-  addBodyRev(&x[0], &y[0], stacks, slices);
+  addBodyRev(x, y, stacks, slices);
 
   delete geom_;
   geom_ = new CSphere3D(radius);
@@ -973,12 +985,13 @@ resetShape()
 
 void
 Shape3DData::
-addBodyRev(double *x, double *y, uint num_xy, uint num_patches)
+addBodyRev(const std::vector<double> &x, const std::vector<double> &y,
+           uint num_xy, uint num_patches)
 {
   std::vector<VertexData>   vertices;
   std::vector<unsigned int> indices;
 
-  addBodyRevI(&x[0], &y[0], num_xy, num_patches, vertices, indices);
+  addBodyRevI(x, y, num_xy, num_patches, vertices, indices);
 
   auto np = vertices.size();
 
@@ -1079,18 +1092,22 @@ addBodyRev(double *x, double *y, uint num_xy, uint num_patches)
 
 void
 Shape3DData::
-addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
-            std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices)
+addBodyRevI(const std::vector<double> &x, const std::vector<double> &y, uint num_xy,
+            uint num_patches, std::vector<VertexData> &vertexDatas,
+            std::vector<unsigned int> &indices)
 {
   std::vector<double> c, s;
 
-  c.resize(num_patches);
-  s.resize(num_patches);
+//auto max_patches = (num_patches - 1);
+  auto max_patches = num_patches;
+
+  c.resize(max_patches + 1);
+  s.resize(max_patches + 1);
 
   double theta           = 0.0;
-  double theta_increment = 2.0*M_PI/num_patches;
+  double theta_increment = 2.0*M_PI/max_patches;
 
-  for (uint i = 0; i < num_patches; i++) {
+  for (uint i = 0; i <= max_patches; i++) {
     c[i] = std::cos(theta);
     s[i] = std::sin(theta);
 
@@ -1101,45 +1118,54 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
 
   std::vector<uint> index1, index2;
 
-  index1.resize(num_patches + 1);
-  index2.resize(num_patches + 1);
+  index1.resize(max_patches + 1);
+  index2.resize(max_patches + 1);
 
   uint *pindex1 = &index1[0];
   uint *pindex2 = &index2[0];
 
-  if (fabs(x[0]) < 1E-6) {
+  auto collapseZero = false;
+
+  //auto collapseZero = (fabs(x[0]) < 1E-6);
+
+  if (collapseZero) {
     CVector3D p(0.0, y[0], 0.0);
 
     auto n = p;
 
     vertexDatas.push_back(VertexData(p, n, CVector2D(0, 0)));
 
-    for (uint i = 0; i <= num_patches; i++)
+    for (uint i = 0; i <= max_patches; i++)
       pindex1[i] = num_vertices;
 
     num_vertices++;
   }
   else {
-    for (uint i = 0; i < num_patches; i++) {
+    for (uint i = 0; i <= max_patches; i++) {
+      double tx = 1.0*i/max_patches;
+
       CVector3D p(x[0]*c[i], y[0], -x[0]*s[i]);
 
       //auto n = CVector3D(p.x(), 0, p.z());
       auto n = p;
 
-      vertexDatas.push_back(VertexData(p, n, CVector2D(0, 0)));
+      vertexDatas.push_back(VertexData(p, n, CVector2D(tx, 0)));
 
-      pindex1[i] = num_vertices;
-
-      num_vertices++;
+      pindex1[i] = num_vertices++;
     }
 
-    pindex1[num_patches] = pindex1[0];
+    if (max_patches == num_patches - 1)
+      pindex1[num_patches] = pindex1[0];
   }
 
-  for (uint j = 1; j < num_xy; j++) {
-    double ty = (num_xy > 1 ? 1.0*j/(num_xy - 1) : 0.0);
+  auto max_xy = num_xy - 1;
 
-    if (fabs(x[j]) < 1E-6) {
+  for (uint j = 1; j <= max_xy; j++) {
+    double ty = 1.0*j/max_xy;
+
+    //auto collapseZero = (fabs(x[j]) < 1E-6);
+
+    if (collapseZero) {
       CVector3D p(0.0, y[j], 0.0);
 
       auto n = p;
@@ -1152,8 +1178,8 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
       ++num_vertices;
     }
     else {
-      for (uint i = 0; i < num_patches; i++) {
-        double tx = (num_patches > 1 ? 1.0*i/(num_patches - 1) : 0.0);
+      for (uint i = 0; i <= max_patches; i++) {
+        double tx = 1.0*i/max_patches;
 
         CVector3D p(x[j]*c[i], y[j], -x[j]*s[i]);
 
@@ -1162,37 +1188,32 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
 
         vertexDatas.push_back(VertexData(p, n, CVector2D(tx, ty)));
 
-        pindex2[i] = num_vertices;
-
-        num_vertices++;
+        pindex2[i] = num_vertices++;
       }
 
-      pindex2[num_patches] = pindex2[0];
+      if (max_patches == num_patches - 1)
+        pindex2[num_patches] = pindex2[0];
     }
 
-    if (pindex1[0] != pindex1[1]) {
-      if (pindex2[0] == pindex2[1]) {
-        for (uint i = 0; i < num_patches; ++i) {
+    for (uint i = 0; i < max_patches; ++i) {
+      if (pindex1[i] != pindex1[i + 1]) {
+        if (pindex2[i] != pindex2[i + 1]) {
+          indices.push_back(pindex1[i + 1]);
+          indices.push_back(pindex2[i + 1]);
+          indices.push_back(pindex2[i    ]);
+
+          indices.push_back(pindex1[i + 1]);
+          indices.push_back(pindex2[i    ]);
+          indices.push_back(pindex1[i    ]);
+        }
+        else {
           indices.push_back(pindex1[i + 1]);
           indices.push_back(pindex2[i    ]);
           indices.push_back(pindex1[i    ]);
         }
       }
       else {
-        for (uint i = 0; i < num_patches; ++i) {
-          indices.push_back(pindex1[i + 1]);
-          indices.push_back(pindex2[i + 1]);
-          indices.push_back(pindex2[i    ]);
-
-          indices.push_back(pindex1[i + 1]);
-          indices.push_back(pindex2[i    ]);
-          indices.push_back(pindex1[i    ]);
-        }
-      }
-    }
-    else {
-      if (pindex2[0] != pindex2[1]) {
-        for (uint i = 0; i < num_patches; ++i) {
+        if (pindex2[i] != pindex2[i + 1]) {
           indices.push_back(pindex2[i + 1]);
           indices.push_back(pindex2[i    ]);
           indices.push_back(pindex1[i    ]);
@@ -1200,10 +1221,7 @@ addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
       }
     }
 
-    uint *pindex = pindex2;
-
-    pindex2 = pindex1;
-    pindex1 = pindex;
+    std::swap(pindex1, pindex2);
   }
 }
 

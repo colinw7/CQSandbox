@@ -128,16 +128,9 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   auto *tcl = canvas()->tcl();
 
   if      (name == "add_image") {
-    auto *glTexture = new CQGLTexture;
-
-    if (glTexture->load(value, /*flip*/false)) {
-      delete glTexture;
+    Texture *texture;
+    if (! canvas_->loadTexture(value, texture, /*flip*/false))
       return false;
-    }
-
-    auto *texture = canvas_->createTexture();
-
-    texture->setGlTextures(canvas_, glTexture, nullptr);
 
     textures_.push_back(texture);
   }

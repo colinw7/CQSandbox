@@ -421,6 +421,12 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = Util::point3DToString(pointData.point->point());
   }
+  else if (name == "model_matrix") {
+    value = Util::matrixToString(modelMatrix());
+  }
+  else if (name == "mesh_matrix") {
+    value = Util::matrixToString(meshMatrix());
+  }
   else
     return app->errorMsg(QString("Invalid get name '%1'").arg(name));
 
@@ -650,7 +656,7 @@ exec(const QString &op, const QStringList &args, QVariant &res)
 {
   auto *app = canvas()->app();
 
-  if (op == "intersect") {
+  if      (op == "intersect") {
     if (args.size() < 1)
       return false;
 
@@ -664,6 +670,9 @@ exec(const QString &op, const QStringList &args, QVariant &res)
     auto overlap = bbox1.overlaps(bbox2);
 
     res = overlap;
+  }
+  else if (op == "apply_transform") {
+    applyTransform();
   }
   else
     return false;

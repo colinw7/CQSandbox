@@ -279,6 +279,12 @@ class Canvas3D : public OpenGLWindow {
   double selectAlpha() const { return selectData_.alpha; }
   void setSelectAlpha(double r) { selectData_.alpha = r; }
 
+  double selectPointSize() const { return selectData_.pointSize; }
+  void setSelectPointSize(double r) { selectData_.pointSize = r; }
+
+  double selectLineWidth() const { return selectData_.lineWidth; }
+  void setSelectLineWidth(double r) { selectData_.lineWidth = r; }
+
   bool isShowSelectedFaceCenter() const { return selectData_.showFaceCenter; }
   void setShowSelectedFaceCenter(bool b) { selectData_.showFaceCenter = b; }
 
@@ -287,8 +293,20 @@ class Canvas3D : public OpenGLWindow {
   const CRGBA &editColor() const { return editData_.color; }
   void setEditColor(const CRGBA &c) { editData_.color = c; }
 
-  double editAlpha() const { return editData_.alpha; }
-  void setEditAlpha(double r) { editData_.alpha = r; }
+  double editFaceAlpha() const { return editData_.faceAlpha; }
+  void setEditFaceAlpha(double r) { editData_.faceAlpha = r; }
+
+  double editLineAlpha() const { return editData_.lineAlpha; }
+  void setEditLineAlpha(double r) { editData_.lineAlpha = r; }
+
+  double editPointAlpha() const { return editData_.pointAlpha; }
+  void setEditPointAlpha(double r) { editData_.pointAlpha = r; }
+
+  double editPointSize() const { return editData_.pointSize; }
+  void setEditPointSize(double r) { editData_.pointSize = r; }
+
+  double editLineWidth() const { return editData_.lineWidth; }
+  void setEditLineWidth(double r) { editData_.lineWidth = r; }
 
   //---
 
@@ -540,9 +558,13 @@ class Canvas3D : public OpenGLWindow {
 
   Material3DObj *materialObj(Material3D *material);
 
+  void fixMaterialNames();
+
   //---
 
   // Textures
+
+  bool loadTexture(const QString &filename, Texture* &texture, bool flip=false) ;
 
   Texture *createTexture();
 
@@ -641,6 +663,8 @@ class Canvas3D : public OpenGLWindow {
   void selectNearestLine  (const CPoint2D &p, bool clear);
   void selectNearestFace  (const CPoint2D &p, bool clear);
   void selectNearestObject(const CPoint2D &p, bool clear);
+
+  Object3D *getNearestObject(const CPoint2D &p) const;
 
   void updateMinFaceData(Object3D *object, const CPoint2D &p1, const QPointF &p2,
                          MinFaceData &minFaceData) const;
@@ -754,6 +778,8 @@ class Canvas3D : public OpenGLWindow {
   //---
 
   bool runTclCmd(const QString &cmd);
+
+  bool errorMsg(const QString &msg) const;
 
  protected:
   void addEyeLine();
@@ -899,14 +925,20 @@ class Canvas3D : public OpenGLWindow {
   struct SelectData {
     CRGBA  color          { CRGBA::yellow() };
     double alpha          { 1.0 };
+    double pointSize      { 8 };
+    double lineWidth      { 4 };
     bool   showFaceCenter { true };
   };
 
   SelectData selectData_;
 
   struct EditData {
-    CRGBA  color { CRGBA::white() };
-    double alpha { 0.25 };
+    CRGBA  color      { CRGBA::white() };
+    double faceAlpha  { 0.25 };
+    double lineAlpha  { 1.00 };
+    double pointAlpha { 1.00 };
+    double pointSize  { 5 };
+    double lineWidth  { 4 };
   };
 
   EditData editData_;

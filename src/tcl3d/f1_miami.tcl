@@ -23,9 +23,9 @@ proc init { } {
 
   setModelDir data
 
-  set ::refCarObj [loadRefModel "race_car"]
+  set ::playerRefCarObj [loadRefModel "race_car"]
 
-  set ::playerCarObj [$::refCarObj get ref_object]
+  set ::playerCarObj [$::playerRefCarObj get ref_object]
   $::playerCarObj set scales [list 0.8 0.8 0.8]
 
   set ::playerCarDist 0.0
@@ -43,13 +43,25 @@ proc init { } {
 
   set ::tickSpeed 0.1 ; # 1/10 second
 
-
   #---
+
+  set ::computerRefCarObj [loadRefModel "race_car"]
+
+  set carMaterial [sb3d::canvas get material "CarPaint.1"]
+echo "$carMaterial"
+
+  set computerCarMaterial [sb3d::material]
+  $computerCarMaterial set name "computerCarMaterial"
+echo "$computerCarMaterial"
+
+  $computerCarMaterial set diffuse blue
+
+  $::computerRefCarObj exec replace_material $carMaterial $computerCarMaterial
 
   set ::numComputerCars 5
 
   for {set i 0} {$i < $::numComputerCars} {incr i} {
-    set ::computerCarObj($i) [$::refCarObj get ref_object]
+    set ::computerCarObj($i) [$::computerRefCarObj get ref_object]
     $::computerCarObj($i) set scales [list 0.8 0.8 0.8]
 
     set ::computerCarPos($i) 0

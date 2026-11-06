@@ -104,22 +104,22 @@ class Shape3DObj : public Object3D {
   //---
 
   QString diffuseTextureFile() const;
-  void setDiffuseTextureFile(const QString &filename);
+  bool setDiffuseTextureFile(const QString &filename);
 
   void setDiffuseTexture(Texture *texture);
 
   QString normalTextureFile() const;
-  void setNormalTextureFile(const QString &filename);
+  bool setNormalTextureFile(const QString &filename);
 
   void setNormalTexture(Texture *texture);
 
   QString specularTextureFile() const;
-  void setSpecularTextureFile(const QString &filename);
+  bool setSpecularTextureFile(const QString &filename);
 
   void setSpecularTexture(Texture *texture);
 
   QString emissionTextureFile() const;
-  void setEmissionTextureFile(const QString &filename);
+  bool setEmissionTextureFile(const QString &filename);
 
   void setEmissionTexture(Texture *texture);
 

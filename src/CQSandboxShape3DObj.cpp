@@ -1,8 +1,10 @@
 #include <CQSandboxShape3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxLight3D.h>
+#include <CQSandboxMaterial3DObj.h>
 #include <CQSandboxModifier3DObj.h>
 #include <CQSandboxPath3DObj.h>
+#include <CQSandboxTexture3DObj.h>
 #include <CQSandboxTexture.h>
 #include <CQSandboxMaterial3D.h>
 #include <CQSandboxApp.h>
@@ -120,7 +122,6 @@ bool
 Shape3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  auto *app = canvas_->app();
   auto *tcl = canvas()->tcl();
 
   if      (name == "points") {
@@ -166,7 +167,14 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setNeedsUpdate();
   }
   else if (name == "texture" || name == "diffuse_texture") {
-    setDiffuseTextureFile(value);
+    auto *textureObj = dynamic_cast<Texture3DObj *>(canvas()->getObjectByName(value));
+
+    if (textureObj)
+      setDiffuseTexture(textureObj->texture());
+    else {
+      if (! setDiffuseTextureFile(value))
+        return canvas()->errorMsg("Bad diffuse texture file '" + value + "'");
+    }
 
     setNeedsUpdate();
   }
@@ -184,6 +192,11 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     setEmissionTextureFile(value);
 
     setNeedsUpdate();
+  }
+  else if (name == "material") {
+    auto *materialObj = dynamic_cast<Material3DObj *>(canvas()->getObjectByName(value));
+
+    setMaterial(materialObj->material());
   }
   else if (name == "wireframe") {
     bool b;
@@ -270,7 +283,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
         return false;
     }
     else if (! strs.empty())
-      return app->errorMsg("Invalid dimensions for cone");
+      return canvas()->errorMsg("Invalid dimensions for cone");
 
     addCone(r, h, configData_);
   }
@@ -297,7 +310,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
           return false;
       }
       else if (! strs.empty())
-        return app->errorMsg("bad sizes for cube");
+        return canvas()->errorMsg("bad sizes for cube");
     }
 
     addCube(sx, sy, sz);
@@ -323,7 +336,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
         return false;
     }
     else if (! strs.empty())
-      return app->errorMsg("Invalid dimensions for cylinder");
+      return canvas()->errorMsg("Invalid dimensions for cylinder");
 
     addCylinder(r, h, configData_);
   }
@@ -556,31 +569,18 @@ diffuseTextureFile() const
   return glTexture->fileName();
 }
 
-void
+bool
 Shape3DObj::
 setDiffuseTextureFile(const QString &filename)
 {
   Texture *diffuseTexture { nullptr };
 
-  if (filename != "") {
-    auto *glTexture = new CQGLTexture;
+  if (! canvas_->loadTexture(filename, diffuseTexture))
+    return false;
 
-    if (! glTexture->load(filename, /*flip*/true)) {
-      delete glTexture;
-      glTexture = nullptr;
-    }
+  setDiffuseTexture(diffuseTexture);
 
-    if (glTexture) {
-      diffuseTexture = canvas_->createTexture();
-
-      diffuseTexture->setGlTextures(canvas_, glTexture, nullptr);
-    }
-  }
-  else {
-    diffuseTexture = nullptr;
-  }
-
-  initMaterial()->setDiffuseTexture(diffuseTexture);
+  return true;
 }
 
 void
@@ -602,31 +602,18 @@ normalTextureFile() const
   return glTexture->fileName();
 }
 
-void
+bool
 Shape3DObj::
 setNormalTextureFile(const QString &filename)
 {
   Texture *normalTexture { nullptr };
 
-  if (filename != "") {
-    auto *glTexture = new CQGLTexture;
-
-    if (! glTexture->load(filename, /*flip*/true)) {
-      delete glTexture;
-      glTexture = nullptr;
-    }
-
-    if (glTexture) {
-      normalTexture = canvas_->createTexture();
-
-      normalTexture->setGlTextures(canvas_, glTexture, nullptr);
-    }
-  }
-  else {
-    normalTexture = nullptr;
-  }
+  if (! canvas_->loadTexture(filename, normalTexture))
+    return false;
 
   initMaterial()->setNormalTexture(normalTexture);
+
+  return true;
 }
 
 void
@@ -648,31 +635,18 @@ specularTextureFile() const
   return glTexture->fileName();
 }
 
-void
+bool
 Shape3DObj::
 setSpecularTextureFile(const QString &filename)
 {
   Texture *specularTexture { nullptr };
 
-  if (filename != "") {
-    auto *glTexture = new CQGLTexture;
-
-    if (! glTexture->load(filename, /*flip*/true)) {
-      delete glTexture;
-      glTexture = nullptr;
-    }
-
-    if (glTexture) {
-      specularTexture = canvas_->createTexture();
-
-      specularTexture->setGlTextures(canvas_, glTexture, nullptr);
-    }
-  }
-  else {
-    specularTexture = nullptr;
-  }
+  if (! canvas_->loadTexture(filename, specularTexture))
+    return false;
 
   initMaterial()->setSpecularTexture(specularTexture);
+
+  return true;
 }
 
 void
@@ -694,31 +668,18 @@ emissionTextureFile() const
   return glTexture->fileName();
 }
 
-void
+bool
 Shape3DObj::
 setEmissionTextureFile(const QString &filename)
 {
   Texture *emissionTexture { nullptr };
 
-  if (filename != "") {
-    auto *glTexture = new CQGLTexture;
-
-    if (! glTexture->load(filename, /*flip*/true)) {
-      delete glTexture;
-      glTexture = nullptr;
-    }
-
-    if (glTexture) {
-      emissionTexture = canvas_->createTexture();
-
-      emissionTexture->setGlTextures(canvas_, glTexture, nullptr);
-    }
-  }
-  else {
-    emissionTexture = nullptr;
-  }
+  if (! canvas_->loadTexture(filename, emissionTexture))
+    return false;
 
   initMaterial()->setEmissiveTexture(emissionTexture);
+
+  return true;
 }
 
 void
@@ -1123,7 +1084,7 @@ render(ShaderProgram *program)
 
     CQGLBuffer::DrawData drawData;
 
-    CQGLStateInst->setPointSize(8);
+    CQGLStateInst->setPointSize(canvas_->editPointSize());
 
     program->setUniformValue("isPoint", true);
 
@@ -1150,7 +1111,7 @@ render(ShaderProgram *program)
 
     CQGLBuffer::DrawData drawData;
 
-    CQGLStateInst->setLineWidth(4);
+    CQGLStateInst->setLineWidth(canvas_->editLineWidth());
 
     program->setUniformValue("isPoint", true);
 

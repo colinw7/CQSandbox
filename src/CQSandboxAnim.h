@@ -239,7 +239,7 @@ class AnimatePoint3D : public AnimateData<CPoint3D> {
 
     p.x = CMathUtil::map(d, 0.0, 1.0, p1.x, p2.x);
     p.y = CMathUtil::map(d, 0.0, 1.0, p1.y, p2.y);
-    p.y = CMathUtil::map(d, 0.0, 1.0, p1.z, p2.z);
+    p.z = CMathUtil::map(d, 0.0, 1.0, p1.z, p2.z);
 
     return p;
   }

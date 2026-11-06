@@ -385,6 +385,19 @@ class CQGLBuffer {
     std::optional<TexturePoint> texturePoint;
     std::optional<IVector>      boneId;
     std::optional<Vector>       boneWeight;
+
+    void print(std::ostream &os) {
+      bool needsSpacer = false;
+      auto header = [&](const char *str) {
+       if (! needsSpacer) { std::cerr << " "; needsSpacer = true; }
+       std::cerr << str << ": ";
+      };
+      if (ind         ) { header("I"); os << *ind; }
+      if (point       ) { header("P"); os << point->point(); }
+      if (normal      ) { header("N"); os << normal->point(); }
+      if (texturePoint) { header("T"); os << texturePoint->point(); }
+      std::cerr << "\n";
+    }
   };
 
   void getPointData(int i, PointData &data, bool map=true) const {

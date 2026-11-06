@@ -84,6 +84,7 @@ proc addObject { model name { pos {0 0 0} } } {
   # echo "addObject $model $name $pos"
 
   set obj [$model get ref_object]
+echo "$model : $obj"
   $obj set visible 1
 
   $obj exec translate $pos

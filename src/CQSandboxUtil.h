@@ -9,6 +9,7 @@
 #include <CGLVector3D.h>
 #include <CBBox3D.h>
 #include <CBBox2D.h>
+#include <CMatrix3DH.h>
 #include <CGLColor.h>
 #include <CWindowRange2D.h>
 #include <CMathGeom2D.h>
@@ -717,6 +718,23 @@ inline QString bbox3DToString(const CBBox3D &bbox) {
   auto z2str = QString::number(bbox.getZMax());
 
   return x1str + " " + y1str + " " + z1str + " " + x2str + " " + y2str + " " + z2str;
+}
+
+//---
+
+inline QString matrixToString(const CMatrix3DH &m) {
+  QString str;
+
+  for (int i = 0; i < 16; ++i) {
+    auto r = m.getData()[i];
+
+    if (i > 0)
+      str += " ";
+
+    str += QString::number(r);
+  }
+
+  return str;
 }
 
 //---

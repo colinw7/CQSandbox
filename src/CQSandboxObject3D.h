@@ -95,6 +95,7 @@ class Object3D : public QObject {
  public:
   enum class Type {
     NONE,
+    ANIM_POINT,
     ANIM_REAL,
     ARRAY,
     ASTAR,
@@ -404,6 +405,20 @@ class Object3D : public QObject {
   virtual const FaceDatas  &getFaceDatas () const { return faceDataList_.faceDatas; }
   virtual const LineDatas  &getLineDatas () const { return lineDatas_; }
   virtual const PointDatas &getPointDatas() const { return pointDatas_; }
+
+  FaceData *getFaceData(int i) const {
+    const auto &faceDatas = getFaceDatas();
+    if (i < 0 || i >= int(faceDatas.size())) return nullptr;
+
+    return const_cast<FaceData *>(&faceDatas[i]);
+  }
+
+  PointData *getPointData(int i) const {
+    const auto &pointDatas = getPointDatas();
+    if (i < 0 || i >= int(pointDatas.size())) return nullptr;
+
+    return const_cast<PointData *>(&pointDatas[i]);
+  }
 
   //---
 

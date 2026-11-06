@@ -1,5 +1,6 @@
 #include <CQSandboxMaterial3DObj.h>
 #include <CQSandboxMaterial3D.h>
+#include <CQSandboxTexture3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -65,7 +66,47 @@ bool
 Material3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  return Object3D::setValue(name, value, args);
+  auto *tcl = canvas_->tcl();
+
+  if      (name == "name") {
+    if (! material_)
+      return false;
+
+    material_->setName(value.toStdString());
+  }
+  else if (name == "color" || name == "diffuse") {
+    if (! material_)
+      return false;
+
+    CRGBA c;
+    if (! Util::stringToRGBA(tcl, value, c))
+      return false;
+
+    material_->setDiffuse(c);
+  }
+  else if (name == "texture" || name == "diffuse_texture") {
+    if (! material_)
+      return false;
+
+    auto *textureObj = dynamic_cast<Texture3DObj *>(canvas()->getObjectByName(value));
+
+    Texture *texture { nullptr };
+
+    if (textureObj)
+      texture = textureObj->texture();
+    else {
+      if (! canvas()->loadTexture(value, texture))
+        return false;
+    }
+
+    material_->setDiffuseTexture(texture);
+
+    setNeedsUpdate();
+  }
+  else
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 }

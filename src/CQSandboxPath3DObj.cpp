@@ -404,7 +404,7 @@ render()
 
     CQGLBuffer::DrawData drawData;
 
-    CQGLStateInst->setPointSize(8);
+    CQGLStateInst->setPointSize(canvas_->editPointSize());
 
     drawData.mode    = GL_POINTS;
     drawData.indexed = buffer_->hasIndices();

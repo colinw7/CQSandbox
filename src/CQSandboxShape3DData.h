@@ -103,7 +103,8 @@ class Shape3DData {
   bool addGear(double r, int numTeeth, double toothSize, double rot);
   bool addPath(const CGLPath3D &path, double w, double h);
 
-  void addBodyRev(double *x, double *y, uint num_xy, uint num_patches);
+  void addBodyRev(const std::vector<double> &x, const std::vector<double> &y,
+                  uint num_xy, uint num_patches);
 
   void resetShape();
 
@@ -116,8 +117,9 @@ class Shape3DData {
   void setBuffer(CQGLBuffer *buffer);
 
  private:
-  static void addBodyRevI(double *x, double *y, uint num_xy, uint num_patches,
-                          std::vector<VertexData> &vertexDatas, std::vector<unsigned int> &indices);
+  static void addBodyRevI(const std::vector<double> &x, const std::vector<double> &y, uint num_xy,
+                          uint num_patches, std::vector<VertexData> &vertexDatas,
+                          std::vector<unsigned int> &indices);
 
  private:
   Points    points_;

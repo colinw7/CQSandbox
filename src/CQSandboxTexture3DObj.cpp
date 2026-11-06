@@ -12,9 +12,6 @@ Object3D *
 Texture3DObj::
 create(Canvas3D *canvas, const QStringList &args)
 {
-  if (args.size() != 0)
-    return nullptr;
-
   auto *tcl = canvas->tcl();
 
   auto *obj = new Texture3DObj(canvas);
@@ -24,6 +21,17 @@ create(Canvas3D *canvas, const QStringList &args)
   obj->init();
 
   obj->setTexture(canvas->createTexture());
+
+  if (! args.empty()) {
+    if (args.size() == 1) {
+      if (! obj->texture_->load(args[0], /*flip*/true)) {
+        (void) canvas->errorMsg("Invalid texture file '" + args[0] + "'");
+      }
+    }
+    else {
+      (void) canvas->errorMsg("Invalid texture args");
+    }
+  }
 
   tcl->setResult(name);
 
@@ -54,7 +62,14 @@ bool
 Texture3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
-  return Object3D::setValue(name, value, args);
+  if (name == "name") {
+    if (texture_)
+      texture_->setName(value.toStdString());
+  }
+  else
+    return Object3D::setValue(name, value, args);
+
+  return true;
 }
 
 }
