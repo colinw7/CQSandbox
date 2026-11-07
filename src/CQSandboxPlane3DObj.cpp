@@ -248,10 +248,19 @@ CBBox3D
 Plane3DObj::
 calcBBox()
 {
+  const auto &mm = modelMatrix();
+
   bbox_ = CBBox3D();
 
   for (const auto &p : points_) {
-    bbox_ += CPoint3D(p.x(), p.y(), p.z());
+    const auto &p1 = CPoint3D(p.x(), p.y(), p.z());
+
+    rawBBox_ += p1;
+
+    CPoint3D p2;
+    mm.multiplyPoint(p1, p2);
+
+    bbox_ += p2;
   }
 
   return bbox_;
@@ -303,6 +312,8 @@ render()
 
   program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
   program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
+
+  program->setUniformValue("alpha", float(color().alphaF()));
 
   //---
 

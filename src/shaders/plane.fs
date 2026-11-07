@@ -1,6 +1,6 @@
 #version 330 core
 
-in vec4 Color;
+in vec3 Color;
 in vec2 TexCoord;
 
 out vec4 FragColor;
@@ -8,6 +8,7 @@ out vec4 FragColor;
 uniform sampler2D textureId;
 uniform bool      useTexture;
 
+uniform float alpha;
 uniform bool  isWireframe;
 uniform vec3  wireframeColor;
 uniform float wireframeAlpha;
@@ -25,7 +26,7 @@ void main() {
     if (useTexture) {
       FragColor = texture(textureId, TexCoord);
     } else {
-      FragColor = Color;
+      FragColor = vec4(Color, alpha);
     }
   }
 }

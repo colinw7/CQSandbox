@@ -259,20 +259,16 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   }
   else if (name == "group")
     value = (group() ? group()->calcId() : "");
-  else if (name == "bbox") {
-    QStringList strs;
 
-    strs << QString::number(bbox_.getXMin());
-    strs << QString::number(bbox_.getYMin());
-    strs << QString::number(bbox_.getZMin());
-    strs << QString::number(bbox_.getXMax());
-    strs << QString::number(bbox_.getYMax());
-    strs << QString::number(bbox_.getZMax());
-
-    value = strs.join(" ");
-  }
+  else if (name == "bbox")
+    value = Util::bbox3DToString(bbox_);
   else if (name == "bbox.center")
     value = Util::point3DToString(bbox_.getCenter());
+  else if (name == "bbox.min")
+    value = Util::point3DToString(bbox_.getMin());
+  else if (name == "bbox.max")
+    value = Util::point3DToString(bbox_.getMax());
+
   else if (name == "faces") {
     const auto &faces = getFaceDatas();
 

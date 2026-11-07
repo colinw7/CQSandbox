@@ -1,3 +1,19 @@
+proc randIn { min max } {
+  return [expr {rand()*($max - $min) + $min}]
+}
+
+proc mapReal { r min1 max1 min2 max2 } {
+  return [expr {($max2 - $min2)*($r - $min1)/($max1 - $min1) + $min2}]
+}
+
+proc distance { p1 p2 } {
+  set dx [expr {[lindex $p1 0] - [lindex $p2 0]}]
+  set dy [expr {[lindex $p1 1] - [lindex $p2 1]}]
+  set dz [expr {[lindex $p1 2] - [lindex $p2 2]}]
+
+  return [expr {sqrt($dx*$dx + $dy*$dy + $dz*$dz)}]
+}
+
 proc init { } {
   sb3d::canvas set model_dir hanoi
   set ::hanoi_obj [sb3d::model hanoi/hanoi_block.obj]
@@ -7,7 +23,7 @@ proc init { } {
   set ::column_dy 0.55
 
 # set ::num_blocks 8
-  set ::num_blocks 3
+  set ::num_blocks 7
 
   set y 0
 
@@ -38,6 +54,15 @@ proc init { } {
 
   # ---
 
+  set ::planeObj [sb3d::plane]
+
+  $::planeObj set position [list 0 2.5 0]
+  $::planeObj set scales   [list 10 5 1]
+  $::planeObj set color    [list 0 0 1 0.1]
+  $::planeObj set visible 1
+
+  # ---
+
   sb3d::canvas set camera.type first_person
 
   sb3d::camera set pitch    -90
@@ -46,25 +71,37 @@ proc init { } {
 
   # ---
 
+  # set ::point_list [sb3d::point_list]
+  # $::point_list set point.size 1
+  # $::point_list set visible 0
+
+  # ---
+
   set ::placed 0
 
   set ::solveList {}
+
+  sb3d::canvas set mode game
 }
 
 proc bboxChanged { } {
   if {$::placed == 0} {
     sb3d::light exec reset 1
 
-    for {set i 0} {$i < $::num_blocks} {incr i} {
-      moveBlockToColumn $i 0
-    }
-
-    updateColumnBlocks
-
-    positionColumnBlocks 0
+    resetBlocks
 
     set ::placed 1
   }
+}
+
+proc resetBlocks { } {
+  for {set i 0} {$i < $::num_blocks} {incr i} {
+    moveBlockToColumn $i 0
+  }
+
+  updateColumnBlocks
+
+  positionColumnBlocks 0
 }
 
 proc tick { } {
@@ -75,7 +112,7 @@ proc tick { } {
       $::block_anim_pos($i) exec step
 
       set pos [$::block_anim_pos($i) get value]
-      echo "Move block $i to $pos"
+      # echo "Move block $i to $pos"
 
       $::block_obj($i) set position $pos
 
@@ -90,7 +127,7 @@ proc tick { } {
   set ns [llength $::solveList]
 
   if {$ns > 0} {
-    echo "$ns Solves"
+    # echo "$ns Solves"
 
     set solveList1 $::solveList
     set ::solveList {}
@@ -99,7 +136,7 @@ proc tick { } {
 
     foreach solve $solveList1 {
       if {$first} {
-        echo "Anim Move Block $solve"
+        # echo "Anim Move Block $solve"
         moveBlock {*}$solve
         set first 0
       } else {
@@ -110,7 +147,7 @@ proc tick { } {
 }
 
 proc moveBlockToColumn { blockNum columnNum } {
-  echo "moveBlockToColumn block:$blockNum column:$columnNum"
+  # echo "moveBlockToColumn block:$blockNum column:$columnNum"
 
   set ::block_column($blockNum) $columnNum
 }
@@ -130,7 +167,7 @@ proc updateColumnBlocks { } {
 }
 
 proc positionColumnBlocks { anim } {
-  echo "positionColumnBlocks $anim"
+  # echo "positionColumnBlocks $anim"
 
   for {set i 0} {$i < 3} {incr i} {
     set c [$::column_obj($i) get bbox.center]
@@ -152,12 +189,14 @@ proc positionColumnBlocks { anim } {
 
             $::block_obj($j) set position $newPos
           } else {
-            echo "Anim Move block $j from $oldPos to $newPos"
+            # echo "Anim Move block $j from $oldPos to $newPos"
 
             $::block_anim_pos($j) set value $oldPos
             $::block_anim_pos($j) set target $newPos
-            $::block_anim_pos($j) set steps 10
+            $::block_anim_pos($j) set steps 5
             $::block_anim_pos($j) set style one_shot
+
+            sb3d::canvas set loop.enabled 1
           }
         }
 
@@ -170,36 +209,176 @@ proc positionColumnBlocks { anim } {
 proc gamePress { x y obj } {
   # echo "gamePress $x $y $obj"
 
+  # $::point_list set visible 1
+  # updatePoints $x $y
+
+  #---
+
+  set ::planeObjPos [planeObjPosition $x $y]
+  # echo "planeObjPosition: $::planeObjPos"
+
   if {$obj != ""} {
     set ::pressColumn [objectColumn $obj]
   } else {
     set ::pressColumn ""
   }
 
-  if {0} {
+  if {$::pressColumn != ""} {
+    set ::pressBlock [topBlock $::pressColumn]
+  } else {
+    set ::pressBlock ""
+  }
+
+  if {$::pressBlock != ""} {
+    # set c [$::block_obj($::pressBlock) get bbox.center]
+    # set pc [sb3d::canvas get point.project $c]
+    # set pv [sb3d::canvas get point.view    $c]
+    # echo "Block $::pressBlock : $c (Project: $pc) (View: $pv)"
+
+if {0} {
+    set pv1 [list $x $y 0.1]
+    set pv2 [list $x $y 10]
+    set pi1 [sb3d::canvas get point.unproject $pv1]
+    set pi2 [sb3d::canvas get point.unproject $pv2]
+    echo "Unproject $pv1 -> $pi1"
+    echo "Unproject $pv2 -> $pi2"
+
+    set pv1 [list $x $y 0.1]
+    set pv2 [list $x $y 10]
+    set pi1 [sb3d::canvas get point.unview $pv1]
+    set pi2 [sb3d::canvas get point.unview $pv2]
+    echo "Unview $pv1 -> $pi1"
+    echo "Unview $pv2 -> $pi2"
+}
+
+if {0} {
+    set pv [list $x $y 0.99]
+    set pi1 [sb3d::canvas get point.unproject $pv]
+    set pi2 [sb3d::canvas get point.unview $pv]
+    echo "Unproject $pv -> $pi1"
+    echo "Unview $pv -> $pi2"
+}
+  }
+
+if {0} {
   for {set i 0} {$i < 3} {incr i} {
     set c [$::column_obj($i) get bbox.center]
 
     echo "Column $i : [sb3d::canvas get point.project $c]"
   }
+}
+}
+
+proc gameMove { x y } {
+  # echo "gameMove $x $y"
+
+  # updatePoints $x $y
+
+  set ::planeObjPos [planeObjPosition $x $y]
+  # echo "planeObjPosition: $::planeObjPos"
+
+  # ---
+
+  if {$::pressBlock != ""} {
+    # $::block_obj($::pressBlock) set position $::mouse_pos
+    $::block_obj($::pressBlock) set position $::planeObjPos
   }
 }
 
 proc gameRelease { x y obj } {
   # echo "gameRelease $x $y $obj"
-  if {$obj != ""} {
-    set ::releaseColumn [objectColumn $obj]
+
+  # $::point_list set visible 0
+
+  # ---
+
+  if {$::pressBlock != ""} {
+    set minDist   0
+    set minColumn -1
+
+    for {set i 0} {$i < 3} {incr i} {
+      set c [$::column_obj($i) get bbox.center]
+
+      set d [distance $::planeObjPos $c]
+
+      if {$minColumn < 0 || $d < $minDist} {
+        set minColumn $i
+        set minDist   $d
+      }
+    }
+
+    set ::releaseColumn $minColumn
+
+    #set ::releaseColumn [objectColumn $obj]
   } else {
     set ::releaseColumn ""
   }
 
   if {$::pressColumn != "" && $::releaseColumn != "" && $::pressColumn != $::releaseColumn} {
     moveBlock $::pressColumn $::releaseColumn
+
+    positionColumnBlocks 0
+  } else {
+    positionColumnBlocks 0
   }
 }
 
-proc gameMove { x y } {
-  # echo "gameMove $x $y"
+proc planeObjPosition { x y } {
+  set pmin [$::planeObj get bbox.min]
+  set pmax [$::planeObj get bbox.max]
+
+  set ppmin [sb3d::canvas get point.project $pmin]
+  set ppmax [sb3d::canvas get point.project $pmax]
+
+  # echo "$pmin $ppmin"
+  # echo "$pmax $ppmax"
+
+  set x [mapReal $x [lindex $ppmin 0] [lindex $ppmax 0] [lindex $pmin 0] [lindex $pmax 0]]
+  set y [mapReal $y [lindex $ppmin 1] [lindex $ppmax 1] [lindex $pmin 1] [lindex $pmax 1]]
+  set z [mapReal $x [lindex $ppmin 0] [lindex $ppmax 0] [lindex $pmin 2] [lindex $pmax 2]]
+
+  return [list $x $y $z]
+}
+
+proc updatePoints { x y } {
+  #echo "updatePoints $x $y"
+
+  set n 100
+
+  # $::point_list set list.size $n
+
+# set xmin  10000
+# set zmin  10000
+# set xmax -10000
+# set zmax -10000
+
+  for {set i 0} {$i < $n} {incr i} {
+    set z [randIn 0.999 0.99999]
+  # set z 0.999999
+
+    set p [list $x $y $z]
+
+#   set p1 [sb3d::canvas get point.unproject $p]
+    set p2 [sb3d::canvas get point.unview $p]
+
+    # $::point_list set point.position $p2 $i
+    # $::point_list set point.color green $i
+
+#   set x1 [lindex $p2 0]
+#   set z1 [lindex $p2 2]
+
+#   if {$x1 < $xmin} { set xmin $x1; set zmin $z }
+#   if {$x1 > $xmax} { set xmax $x1; set zmax $z }
+  }
+
+# echo "XMin: $xmin, ZMin: $zmin"
+# echo "XMax: $xmax, ZMax: $zmax"
+
+  sb3d::canvas exec update
+
+  set z 0.99999
+  set p [list $x $y $z]
+  set ::mouse_pos [sb3d::canvas get point.unview $p]
 }
 
 proc keyPress { k } {
@@ -209,6 +388,8 @@ proc keyPress { k } {
     moveBlock 1 2
   } elseif {$k == "3"} {
     moveBlock 2 0
+  } elseif {$k == "r"} {
+    resetBlocks
   } elseif {$k == "s"} {
     solve
   }
@@ -228,7 +409,7 @@ proc objectColumn { obj } {
 }
 
 proc moveBlock { fromColumn toColumn { update 1 } } {
-  echo "moveBlock $fromColumn $toColumn"
+  # echo "moveBlock $fromColumn $toColumn"
 
   set block1 [topBlock $fromColumn]
 
@@ -239,7 +420,8 @@ proc moveBlock { fromColumn toColumn { update 1 } } {
 
   set block2 [topBlock $toColumn]
   if {$block2 != ""} {
-    echo "$block1 $block2"
+    #echo "$block1 $block2"
+
     if {$block1 < $block2} {
       echo "Destination Block Larger than Source"
       return
@@ -290,7 +472,7 @@ proc bottomBlock { column } {
 }
 
 proc solve { } {
-  echo "solve"
+  # echo "solve"
 
   set column1 0
   set column2 2
@@ -315,14 +497,16 @@ proc solve { } {
 
   updateColumnBlocks
 
+  if {0} {
   echo "solved"
   foreach solve $::solveList {
     echo "  moveBlock $solve"
   }
+  }
 }
 
 proc solve1 { block column1 column2 depth } {
-  echo "solve1 $block $column1 $column2 $depth"
+  # echo "solve1 $block $column1 $column2 $depth"
 
   if {[topBlock $column1] == $block} {
     moveBlock $column1 $column2 0

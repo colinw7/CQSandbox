@@ -118,7 +118,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else
       return app->errorMsg("Missing index for position");
 
-    bboxValid_ = false;
+    needsUpdate_ = true;
+    bboxValid_   = false;
   }
   else if (name == "line.end") {
     // get index from args
@@ -137,7 +138,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     else
       return app->errorMsg("Missing index for position");
 
-    bboxValid_ = false;
+    needsUpdate_ = true;
+    bboxValid_   = false;
   }
   else if (name == "line.color") {
     // get index from args
@@ -155,6 +157,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     }
     else
       return app->errorMsg("Missing index for color");
+
+    needsUpdate_ = true;
   }
   else if (name == "line.width") {
     double r;
@@ -328,6 +332,8 @@ render()
   bool oldCullFace = CQGLStateInst->setCullFace(false);
 
   CQGLStateInst->setPolygonMode(GL_LINE);
+
+  CQGLStateInst->setLineWidth(lineWidth());
 
   buffer_->drawLines();
 

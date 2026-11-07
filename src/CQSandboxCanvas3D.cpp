@@ -1273,43 +1273,40 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
   }
   // range
   else if (name == "xmap") {
-    if (args.size() >= 1) {
-      double x;
-      if (! Util::stringToReal(args[0], x))
-        return false;
-
-      auto x1 = xrange_.map(x, -0.5, 0.5);
-
-      value = QVariant(x1);
-    }
-    else
+    if (args.size() < 1)
       return errorMsg(QString("Missing value for '%1'").arg(name));
+
+    double x;
+    if (! Util::stringToReal(args[0], x))
+      return false;
+
+    auto x1 = xrange_.map(x, -0.5, 0.5);
+
+    value = QVariant(x1);
   }
   else if (name == "ymap") {
-    if (args.size() >= 1) {
-      double y;
-      if (! Util::stringToReal(args[0], y))
-        return false;
-
-      auto y1 = yrange_.map(y, -0.5, 0.5);
-
-      value = QVariant(y1);
-    }
-    else
+    if (args.size() < 1)
       return errorMsg(QString("Missing value for '%1'").arg(name));
+
+    double y;
+    if (! Util::stringToReal(args[0], y))
+      return false;
+
+    auto y1 = yrange_.map(y, -0.5, 0.5);
+
+    value = QVariant(y1);
   }
   else if (name == "zmap") {
-    if (args.size() >= 1) {
-      double z;
-      if (! Util::stringToReal(args[0], z))
-        return false;
-
-      auto z1 = zrange_.map(z, -0.5, 0.5);
-
-      value = QVariant(z1);
-    }
-    else
+    if (args.size() < 1)
       return errorMsg(QString("Missing value for '%1'").arg(name));
+
+    double z;
+    if (! Util::stringToReal(args[0], z))
+      return false;
+
+    auto z1 = zrange_.map(z, -0.5, 0.5);
+
+    value = QVariant(z1);
   }
   else if (name == "lights.simple") {
     value = QVariant(isSimpleLights());
@@ -1424,9 +1421,9 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
 
     value = names;
   }
-  else if (name == "point.project") {
-    if (args.size() != 1)
-      return false;
+  else if (name == "point.view") {
+    if (args.size() < 1)
+      return errorMsg(QString("Invalid value name '%1'").arg(name));
 
     CPoint3D p;
     if (! Util::stringToPoint3D(tcl, args[0], p))
@@ -1435,14 +1432,66 @@ getValue(const QString &name, const QStringList &args, QVariant &value)
     auto *camera = currentCamera();
     if (! camera) return false;
 
-    const auto &projectionMatrix = camera->perspectiveMatrix();
-    const auto &viewMatrix       = camera->viewMatrix();
+    const auto &viewMatrix = camera->viewMatrix();
 
-    auto pvMatrix = projectionMatrix*viewMatrix;
+    auto p1 = viewMatrix*p;
+
+    value = Util::point3DToString(p1);
+  }
+  else if (name == "point.project") {
+    if (args.size() < 1)
+      return errorMsg(QString("Invalid value name '%1'").arg(name));
+
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, args[0], p))
+      return false;
+
+    auto pvMatrix = projectionMatrix_*viewMatrix_;
 
     auto p1 = pvMatrix*p;
 
     value = Util::point3DToString(p1);
+  }
+  else if (name == "point.unproject") {
+    if (args.size() < 1)
+      return errorMsg(QString("Invalid value name '%1'").arg(name));
+
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, args[0], p))
+      return false;
+
+    auto imatrix1 = projectionMatrix_.inverse();
+
+    double xp, yp, zp;
+    imatrix1.multiplyPoint(p.x, p.y, p.z, &xp, &yp, &zp);
+
+    value = Util::point3DToString(CPoint3D(xp, yp, zp));
+  }
+  else if (name == "point.unview") {
+    if (args.size() < 1)
+      return errorMsg(QString("Invalid value name '%1'").arg(name));
+
+    CPoint3D p;
+    if (! Util::stringToPoint3D(tcl, args[0], p))
+      return false;
+
+    //auto z = p.z;
+
+    auto imatrix1 = projectionMatrix_.inverse();
+
+    //p.z = 1;
+
+    double xp, yp, zp;
+    imatrix1.multiplyPoint(p.x, p.y, p.z, &xp, &yp, &zp);
+
+    auto imatrix2 = viewMatrix_.inverse();
+
+    //zp = p.z;
+
+    double xv, yv, zv;
+    imatrix2.multiplyPoint(xp, yp, zp, &xv, &yv, &zv);
+
+    value = Util::point3DToString(CPoint3D(xv, yv, zv));
   }
   else
     return errorMsg(QString("Invalid value name '%1'").arg(name));
@@ -5642,7 +5691,6 @@ setMousePos(double xpos, double ypos)
 
   double xv1, yv1, zv1;
   imatrix2.multiplyPoint(xp1, yp1, zp1, &xv1, &yv1, &zv1);
-
   double xv2, yv2, zv2;
   imatrix2.multiplyPoint(xp2, yp2, zp2, &xv2, &yv2, &zv2);
 
