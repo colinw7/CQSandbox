@@ -1,46 +1,18 @@
 #version 330 core
 
-in vec4 FragPos;
-in vec3 Normal;
-in vec3 Color;
-in vec2 TexCoord;
+#include "shaders/buffer_data.fs"
 
 out vec4 FragColor;
 
 //--- Lights
-
-struct Light {
-  int   type;
-  bool  enabled;
-  vec3  position;
-  vec3  direction;
-  vec3  color;
-  float radius;
-  float cutoff;
-  float outerCutoff;
-  float exponent;
-  float attenuation0;
-  float attenuation1;
-  float attenuation2;
-  float power;
-};
-
-uniform Light light;
+#include "shaders/single_light.fs"
 
 uniform vec3 viewPos;
 
 uniform bool lighted;
-uniform bool pseudo;
 
 // --- Material
-uniform vec3  ambientColor;
-uniform float ambientStrength;
-uniform float diffuseStrength;
-uniform vec3  specularColor;
-uniform float specularStrength;
-uniform vec3  emissionColor;
-uniform float emissiveStrength;
-uniform float shininess;
+#include "shaders/material_global.fs"
 
 //--- Skybox
 uniform samplerCube cubeMap;
@@ -48,24 +20,17 @@ uniform bool        useCubeMap;
 
 //--- Textures
 
-struct TextureData {
-  bool      enabled;
-  sampler2D texture;
-};
-
-uniform TextureData diffuseTexture;
-uniform TextureData normalTexture;
-uniform TextureData specularTexture;
-uniform TextureData emissiveTexture;
+#include "shaders/texture_data.fs"
 
 //--- State
 
-uniform bool  isInside;
-uniform bool  isWireframe;
-uniform vec3  wireframeColor;
-uniform float wireframeAlpha;
-uniform bool  isPoint;
-uniform bool  isLine;
+uniform bool pseudo;
+
+uniform bool isInside;
+uniform bool isPoint;
+uniform bool isLine;
+
+#include "shaders/wireframe_globals.fs"
 
 uniform bool showOrient;
 uniform vec3 orientColor;
@@ -80,53 +45,7 @@ uniform float refractivity;
 
 //---
 
-vec3 calcNormal() {
-  if (normalTexture.enabled) {
-    vec3 norm = texture(normalTexture.texture, TexCoord).rgb;
-    norm = normalize(norm*2.0 - 1.0); // this normal is in tangent space
-    return norm;
-  }
-  else
-    return normalize(Normal);
-}
-
-float calcDiffuseFactor(vec3 lightDir, vec3 nrm) {
-  float diffAmt = max(0.0, dot(nrm, lightDir));
-  return diffAmt;
-}
-
-vec3 calcDiffuseColor() {
-  vec3 diffColor;
-  if (diffuseTexture.enabled)
-    diffColor = texture(diffuseTexture.texture, TexCoord).rgb;
-  else
-    diffColor = Color;
-
-  vec3 diffuse = diffuseStrength*diffColor;
-
-  return diffuse;
-}
-
-float calcSpecularFactor(vec3 lightDir, vec3 viewDir, vec3 nrm, float shininess) {
-  vec3 reflectDir = reflect(-lightDir, nrm);
-  float specAmt = max(0.0, dot(viewDir, reflectDir));
-
-  return pow(specAmt, shininess);
-}
-
-vec3 calcSpecularColor() {
-  if (specularTexture.enabled)
-    return texture(specularTexture.texture, TexCoord).rgb;
-
-  return specularStrength*specularColor;
-}
-
-vec3 calcEmissionColor() {
-  if (emissiveTexture.enabled)
-    return texture(emissiveTexture.texture, TexCoord).rgb;
-
-  return emissiveStrength*emissionColor;
-}
+#include "shaders/light_calc.fs"
 
 //---
 
@@ -202,7 +121,7 @@ void main() {
   // ambient
   vec3 ambient = ambientStrength*ambientColor;
 
-  // diffuse colot
+  // diffuse color
   vec3 diffuseColor = calcDiffuseColor();
 
   // specular color

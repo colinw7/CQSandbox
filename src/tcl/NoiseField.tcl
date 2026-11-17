@@ -99,8 +99,8 @@ $::Particle proc update { p } {
   set position [$p get position]
   set velocity [$p get velocity]
 
-  $velocity set x [expr {20*[sb::noise [expr {$::mouseX/10 + [$position get y]/100}]] -0.5}]
-  $velocity set y [expr {20*[sb::noise [expr {$::mouseY/10 + [$position get x]/100}]] -0.5}]
+  $velocity set x [expr {20*[sb::perlin_noise [expr {$::mouseX/10 + [$position get y]/100}]] -0.5}]
+  $velocity set y [expr {20*[sb::perlin_noise [expr {$::mouseY/10 + [$position get x]/100}]] -0.5}]
 
   $position exec add $velocity
 

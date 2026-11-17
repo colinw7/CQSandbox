@@ -41,6 +41,10 @@
 #include <CCircleFactor.h>
 #endif
 
+#include <CPerlinNoise.h>
+#include <CSimplexNoise.h>
+#include <CSolidNoise.h>
+
 #include <CFile.h>
 
 #include <QFile>
@@ -375,9 +379,16 @@ addCommands()
     static_cast<CQTcl::ObjCmdData>(this));
 #endif
 
-  tcl->createObjCommand("sb::noise",
-    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::noiseProc),
+  tcl->createObjCommand("sb::perlin_noise",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::perlinNoiseProc),
     static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::simplex_noise",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::simplexNoiseProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb::solid_noise",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::solidNoiseProc),
+    static_cast<CQTcl::ObjCmdData>(this));
+
   tcl->createObjCommand("sb::hypot",
     reinterpret_cast<CQTcl::ObjCmdProc>(&Canvas2D::hypotProc),
     static_cast<CQTcl::ObjCmdData>(this));
@@ -2480,7 +2491,7 @@ fmaProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv)
 
 int
 Canvas2D::
-noiseProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+perlinNoiseProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
 {
   auto *th = static_cast<Canvas2D *>(clientData);
   assert(th);
@@ -2507,7 +2518,83 @@ noiseProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
     z = x + y;
   }
 
-  auto n = CMathGen::noise(x, y, z);
+  //auto n = CMathGen::perlinNoise(x, y, z);
+
+  auto n = CPerlinNoiseInst->noise(x, y, z);
+
+  tcl->setResult(n);
+
+  return TCL_OK;
+}
+
+int
+Canvas2D::
+simplexNoiseProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas2D *>(clientData);
+  assert(th);
+
+  auto *tcl = th->tcl();
+
+  double x { 0 }, y { 0 };
+  if (objc > 1) {
+    if (! tcl->getRealFromObj(objv[1], x))
+      return TCL_ERROR;
+    y = x;
+  }
+
+  if (objc > 2) {
+    if (! tcl->getRealFromObj(objv[2], y))
+      return TCL_ERROR;
+  }
+
+  CSimplexNoise2D noise;
+  auto n = noise.noise(CVector2D(x, y));
+
+  tcl->setResult(n);
+
+  return TCL_OK;
+}
+
+int
+Canvas2D::
+solidNoiseProc(void *clientData, Tcl_Interp *, int objc, const Tcl_Obj **objv)
+{
+  auto *th = static_cast<Canvas2D *>(clientData);
+  assert(th);
+
+  auto *tcl = th->tcl();
+
+  double x { 0 }, y { 0 }, z { 0 };
+  if (objc > 1) {
+    if (! tcl->getRealFromObj(objv[1], x))
+      return TCL_ERROR;
+    y = x;
+    z = x;
+  }
+
+  if (objc > 2) {
+    if (! tcl->getRealFromObj(objv[2], y))
+      return TCL_ERROR;
+    z = x + y;
+  }
+
+  if (objc > 3) {
+    if (! tcl->getRealFromObj(objv[3], z))
+      return TCL_ERROR;
+    z = x + y;
+  }
+
+  double n;
+
+  if (objc > 3) {
+    CSolidNoise3D noise;
+    n = noise.noise(CVector3D(x, y, z));
+  }
+  else {
+    CSolidNoise2D noise;
+    n = noise.noise(CVector2D(x, y));
+  }
 
   tcl->setResult(n);
 

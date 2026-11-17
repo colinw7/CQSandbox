@@ -30,6 +30,7 @@ class Group3DObj;
 class Modifier3DObj;
 class Object3D;
 class Material3D;
+class ShaderProgram;
 
 //---
 
@@ -123,6 +124,7 @@ class Object3D : public QObject {
     QUAD_TREE,
     SHADER,
     SHADER_SHAPE,
+    SHADER_TOY,
     SHAPE,
     SHLIB,
     SKYBOX,
@@ -537,6 +539,8 @@ class Object3D : public QObject {
   SelectedFaces  selectedFaces_;
 
   Modifiers modifiers_;
+
+  ShaderProgram *shaderProgram_ { nullptr };
 };
 
 }

@@ -27,10 +27,15 @@ uniform TextureData diffuseTexture;
 uniform TextureData specularTexture;
 uniform TextureData normalTexture;
 
-uniform bool isWireframe;
+#include "shaders/wireframe_globals.fs"
 
 void main()
 {
+  if (isWireframe) {
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+    return;
+  }
+
   // normal
   vec3 norm;
   if (normalTexture.enabled) {
@@ -70,5 +75,5 @@ void main()
 
   vec3 result = ambient + diffuse + specular;
 
-  FragColor = (isWireframe ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(result, 1.0));
+  FragColor = vec4(result, 1.0));
 }

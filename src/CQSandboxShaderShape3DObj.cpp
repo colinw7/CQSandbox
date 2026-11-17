@@ -127,7 +127,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   }
   else if (name == "shader_texture") {
     QStringList strs;
-    (void) tcl->splitList(value, strs);
+    if (! tcl->splitList(value, strs))
+      return false;
 
     if (strs.length() != 2)
       return app->errorMsg("Invalid number of values shader_texture <id> <file>");
@@ -153,7 +154,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   // cone <r> <h>
   else if (name == "cone") {
     QStringList strs;
-    (void) tcl->splitList(value, strs);
+    if (! tcl->splitList(value, strs))
+      return false;
 
     if (strs.size() != 2)
       return app->errorMsg("Invalid dimensions for cone");
@@ -168,7 +170,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   // cylinder <r> <h>
   else if (name == "cylinder") {
     QStringList strs;
-    (void) tcl->splitList(value, strs);
+    if (! tcl->splitList(value, strs))
+      return false;
 
     if (strs.size() != 2)
       return app->errorMsg("Invalid dimensions for cylinder");
@@ -191,7 +194,8 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   // cube <sx> <sy> >sz>
   else if (name == "cube") {
     QStringList strs;
-    (void) tcl->splitList(value, strs);
+    if (! tcl->splitList(value, strs))
+      return false;
 
     double sx = 1.0, sy = 1.0, sz = 1.0;
 
@@ -451,7 +455,14 @@ preRender()
 
     //---
 
-    shaderToyData_.program->setShaderToyUniforms(shaderWidth_, shaderHeight_, elapsed_, ticks_);
+    ShaderToyProgram::UniformData uniformData;
+
+    uniformData.w       = shaderWidth_;
+    uniformData.h       = shaderHeight_;
+    uniformData.elapsed = elapsed_;
+    uniformData.ticks   = ticks_;
+
+    shaderToyData_.program->setShaderToyUniforms(uniformData);
 
     //---
 

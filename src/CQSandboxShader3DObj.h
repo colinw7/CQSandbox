@@ -5,7 +5,7 @@
 
 namespace CQSandbox {
 
-class ShaderToyProgram;
+class ShaderProgram;
 
 class Shader3DObj : public Object3D {
   Q_OBJECT
@@ -17,23 +17,29 @@ class Shader3DObj : public Object3D {
 
   const char *typeName() const override { return "shader"; }
 
+  void init() override;
+
+  //--
+
+  ShaderProgram *shaderProgram() const { return shaderProgram_; }
+
+  //--
+
   bool getValue(const QString &name, const QStringList &args, QVariant &value) override;
   bool setValue(const QString &name, const QString &value, const QStringList &args) override;
 
-  void init() override;
+  bool exec(const QString &op, const QStringList &args, QVariant &res) override;
+
+  //--
 
   void updateShaders();
 
-  void tick() override;
+  void loadBuffer() override { }
 
-  CBBox3D calcBBox() override { return bbox_; }
-
-  void loadBuffer() override;
-
-  void render() override;
+  void render() override { }
 
  private:
-  ShaderToyProgram* shaderToyProgram_ { nullptr };
+  ShaderProgram* shaderProgram_ { nullptr };
 };
 
 }

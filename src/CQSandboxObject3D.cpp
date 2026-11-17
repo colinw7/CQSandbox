@@ -2,6 +2,7 @@
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxGroup3DObj.h>
 #include <CQSandboxBBox3DObj.h>
+#include <CQSandboxShader3DObj.h>
 #include <CQSandboxCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -640,6 +641,19 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! setLinePoints(ind, p1, p2))
       return false;
   }
+
+  else if (name == "shader") {
+    if (value != "none") {
+      auto *shaderObj = dynamic_cast<Shader3DObj *>(canvas()->getObjectByName(value));
+      if (! shaderObj)
+        return app->errorMsg(QString("Failed to find shader '%1'").arg(args[0]));
+
+      shaderProgram_ = shaderObj->shaderProgram();
+    }
+    else
+      shaderProgram_ = nullptr;
+  }
+
   else
     return app->errorMsg(QString("Invalid set name '%1'").arg(name));
 

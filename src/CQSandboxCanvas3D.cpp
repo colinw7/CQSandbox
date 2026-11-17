@@ -29,6 +29,7 @@
 #include <CQSandboxQuadTree3DObj.h>
 #include <CQSandboxShader3DObj.h>
 #include <CQSandboxShaderShape3DObj.h>
+#include <CQSandboxShaderToy3DObj.h>
 #include <CQSandboxShape3DObj.h>
 #include <CQSandboxShlib3DObj.h>
 #include <CQSandboxSkybox3DObj.h>
@@ -61,7 +62,6 @@
 #include <CQSandboxTexture.h>
 #include <CQSandboxMaterial3D.h>
 #include <CQSandboxUtil.h>
-#include <CQSandboxShaderToyProgram.h>
 
 #include <CQRubberBand.h>
 #include <CQGLUtil.h>
@@ -554,6 +554,9 @@ addCommands()
 
   tcl->createObjCommand("sb3d::shader",
     reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<Shader3DObj>),
+    static_cast<CQTcl::ObjCmdData>(this));
+  tcl->createObjCommand("sb3d::shader_toy",
+    reinterpret_cast<CQTcl::ObjCmdProc>(&createObjectProc<ShaderToy3DObj>),
     static_cast<CQTcl::ObjCmdData>(this));
 
   tcl->createObjCommand("sb3d::graph",
@@ -1528,6 +1531,12 @@ setValue(const QString &name, const QString &value, const QStringList &args)
   else if (name == "loop.timeout") {
     setRedrawTimeOut(Util::stringToInt(value));
   }
+
+  // mouse
+  else if (name == "mouse.tracking") {
+    setMouseTracking(Util::stringToBool(value));
+  }
+
   // range
   else if (name == "xrange") {
     QStringList strs;

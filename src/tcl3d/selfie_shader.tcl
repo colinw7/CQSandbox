@@ -9,7 +9,7 @@ proc read_file { f } {
 }
 
 proc init { } {
-  set ::shader [sb3d::shader]
+  set ::shader [sb3d::shader_toy]
 
   set data ""
 

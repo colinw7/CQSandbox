@@ -8,6 +8,8 @@ proc init { } {
 
   $::surface set size [list $n $n]
 
+  $::surface set position [list -0.5 -0.5 0]
+
 # $::surface set wireframe 1
 
   for {set iy 0} {$iy < $n} {incr iy} {

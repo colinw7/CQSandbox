@@ -116,23 +116,29 @@ void main() {\n\
 
 void
 ShaderToyProgram::
-setShaderToyUniforms(int w, int h, float elapsed, int ticks)
+setShaderToyUniforms(const UniformData &data)
 {
   auto *program = this->program();
 
   int elapsedLocation = program->uniformLocation("iTime");
-  program->setUniformValue(elapsedLocation, GLfloat(elapsed));
+  program->setUniformValue(elapsedLocation, GLfloat(data.elapsed));
 
   //---
 
   int frameLocation = program->uniformLocation("iFrame");
-  program->setUniformValue(frameLocation, GLint(ticks));
+  program->setUniformValue(frameLocation, GLint(data.ticks));
 
   //---
 
   int resLocation = program->uniformLocation("iResolution");
+  program->setUniformValue(resLocation, GLfloat(data.w), GLfloat(data.h), 1.0f);
 
-  program->setUniformValue(resLocation, GLfloat(w), GLfloat(h), 1.0f);
+  //---
+
+  int mouseLocation = program->uniformLocation("iMouse");
+  program->setUniformValue(mouseLocation,
+    GLfloat(data.mousePress.x), GLfloat(data.mousePress.y),
+    GLfloat(data.mouseMove .x), GLfloat(data.mouseMove .y));
 }
 
 }

@@ -8,15 +8,14 @@ out vec4 FragColor;
 uniform sampler2D textureId;
 uniform bool      useTexture;
 
+#include "shaders/wireframe_globals.fs"
+
 uniform float alpha;
-uniform bool  isWireframe;
-uniform vec3  wireframeColor;
-uniform float wireframeAlpha;
 uniform bool  isPoint;
 uniform bool  isLine;
 
 void main() {
-    if      (isWireframe)
+  if      (isWireframe)
     FragColor = vec4(wireframeColor, wireframeAlpha);
   else if (isPoint)
     FragColor = vec4(wireframeColor, wireframeAlpha);

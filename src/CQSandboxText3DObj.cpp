@@ -164,9 +164,7 @@ Text3DObj::
 readFile(const char *path, std::vector<uint8_t> &bytes) const
 {
   std::ifstream file(path, std::ios::binary | std::ios::ate);
-
-  if (! file.is_open())
-    return false;
+  if (! file.is_open()) return false;
 
   const auto size = file.tellg();
 

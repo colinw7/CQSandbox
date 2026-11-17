@@ -44,9 +44,9 @@ init()
 
   //---
 
-  initShader();
+  auto *program = shaderProgram();
 
-  buffer_ = s_program->createBuffer();
+  buffer_ = program->createBuffer();
 
   //---
 
@@ -172,10 +172,13 @@ setTextureFile(const QString &filename)
   setNeedsUpdate();
 }
 
-void
+ShaderProgram *
 Plane3DObj::
-initShader()
+shaderProgram()
 {
+  if (shaderProgram_)
+    return shaderProgram_;
+
   if (! s_program) {
     auto *app = canvas_->app();
 
@@ -186,6 +189,8 @@ initShader()
 
     s_program->link();
   }
+
+  return s_program;
 }
 
 void
@@ -270,13 +275,13 @@ void
 Plane3DObj::
 render()
 {
-  initShader();
+  auto *program = shaderProgram();
 
   loadBuffer();
 
-  //---
+  buffer_->setProgram(program->program());
 
-  auto *program = shaderProgram();
+  //---
 
   canvas_->bindProgram(program);
 
@@ -284,6 +289,8 @@ render()
   program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   canvas_->setProgramMatrices(program, programMatrixData());
+
+  program->loadUniforms();
 
   //---
 

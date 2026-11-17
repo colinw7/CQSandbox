@@ -1,7 +1,7 @@
 #include <CQSandboxShader3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxApp.h>
-#include <CQSandboxShaderToyProgram.h>
+#include <CQSandboxShaderProgram.h>
 
 #include <CQTclUtil.h>
 
@@ -38,7 +38,7 @@ init()
 
   //---
 
-  shaderToyProgram_ = new ShaderToyProgram(this);
+  shaderProgram_ = new ShaderProgram(this);
 }
 
 bool
@@ -52,67 +52,118 @@ bool
 Shader3DObj::
 setValue(const QString &name, const QString &value, const QStringList &args)
 {
+  auto *tcl = canvas()->tcl();
+
   if      (name == "vertex_shader")
-    shaderToyProgram_->setVertexShader(value);
+    shaderProgram_->addVertexFile(value);
+  else if (name == "geometry_shader")
+    shaderProgram_->addGeometryFile(value);
   else if (name == "fragment_shader")
-    shaderToyProgram_->setFragmentShader(value);
+    shaderProgram_->addFragmentFile(value);
+
+  else if (name == "uniform_int") {
+    if (args.size() != 1)
+      return false;
+
+    int i;
+    if (! Util::stringToInt(args[0], i))
+      return false;
+
+    auto *uniform = new ShaderUniformT<int>(shaderProgram_, value);
+
+    uniform->setValue(i);
+
+    shaderProgram_->addUniform(uniform);
+  }
+  else if (name == "uniform_real") {
+    if (args.size() != 1)
+      return false;
+
+    double r;
+    if (! Util::stringToReal(args[0], r))
+      return false;
+
+    auto *uniform = new ShaderUniformT<double>(shaderProgram_, value);
+
+    uniform->setValue(r);
+
+    shaderProgram_->addUniform(uniform);
+  }
+  else if (name == "uniform_color") {
+    if (args.size() != 1)
+      return false;
+
+    CRGBA c;
+    if (! Util::stringToRGBA(tcl, args[0], c))
+      return false;
+
+    auto *uniform = new ShaderUniformT<CRGBA>(shaderProgram_, value);
+
+    uniform->setValue(c);
+
+    shaderProgram_->addUniform(uniform);
+  }
+  else if (name == "uniform_real_array") {
+    if (args.size() != 1)
+      return false;
+
+    std::vector<double> reals;
+    if (! Util::stringToRealArray(tcl, args[0], reals))
+      return false;
+
+    auto *uniform = new ShaderUniformArrayT<double>(shaderProgram_, value);
+
+    uniform->setValue(reals);
+
+    shaderProgram_->addUniform(uniform);
+  }
+  else if (name == "uniform_point2d_array") {
+    if (args.size() != 1)
+      return false;
+
+    QStringList strs;
+    if (! tcl->splitList(args[0], strs))
+      return false;
+
+    std::vector<CPoint2D> points;
+
+    for (const auto  &s : strs) {
+      std::vector<double> reals;
+      if (! Util::stringToRealArray(tcl, s, reals))
+        return false;
+
+      if (reals.size() != 2)
+        return false;
+
+      auto p = CPoint2D(reals[0], reals[1]);
+
+      points.push_back(p);
+    }
+
+    auto *uniform = new ShaderUniformArrayT<CPoint2D>(shaderProgram_, value);
+
+    uniform->setValue(points);
+
+    shaderProgram_->addUniform(uniform);
+  }
+
   else
     return Object3D::setValue(name, value, args);
 
   return true;
 }
 
-void
+bool
 Shader3DObj::
-tick()
+exec(const QString &op, const QStringList &args, QVariant &res)
 {
-  Object3D::tick();
-}
+  if (op == "link") {
+    shaderProgram_->link();
+  }
+  else
+    return Object3D::exec(op, args, res);
 
-void
-Shader3DObj::
-loadBuffer()
-{
-}
-
-void
-Shader3DObj::
-render()
-{
-  shaderToyProgram_->updateShader();
-
-  auto *program = shaderToyProgram_->program();
-
-  canvas_->bindProgram(program);
-
-  //---
-
-  shaderToyProgram_->setShaderToyUniforms(canvas_->width(), canvas_->height(), elapsed_, ticks_);
-
-  //---
-
-  // draw shader to screen rect
-  QVector3D vertices[] = {
-    QVector3D(-1.0f, -1.0f, 1.0f),
-    QVector3D( 1.0f, -1.0f, 1.0f),
-    QVector3D( 1.0f,  1.0f, 1.0f),
-
-    QVector3D( 1.0f,  1.0f, 1.0f),
-    QVector3D(-1.0f,  1.0f, 1.0f),
-    QVector3D(-1.0f, -1.0f, 1.0f)
-  };
-
-  int coordsLocation = program->attributeLocation("a_Coordinates");
-
-  program->enableAttributeArray(coordsLocation);
-
-  program->setAttributeArray(coordsLocation, vertices);
-
-  glDrawArrays(GL_TRIANGLES, 0, 6);
-
-  program->disableAttributeArray(coordsLocation);
-
-  canvas_->bindProgram(nullptr);
+  return true;
 }
 
 }

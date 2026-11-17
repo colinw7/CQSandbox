@@ -553,18 +553,18 @@ updateSurface(Surface3DObj *obj)
 
   if (ni > 0) {
     for (uint i = 0; i < ni; i += 3) {
-      drawData_.bbox += mm*points[inds[i + 0]].point();
-      drawData_.bbox += mm*points[inds[i + 1]].point();
-      drawData_.bbox += mm*points[inds[i + 2]].point();
+      drawData_.bbox += mm*points[inds[i + 0]];
+      drawData_.bbox += mm*points[inds[i + 1]];
+      drawData_.bbox += mm*points[inds[i + 2]];
     }
   }
   else {
     auto np = points.size();
 
     for (uint i = 0; i < np; i += 3) {
-      drawData_.bbox += mm*points[i + 0].point();
-      drawData_.bbox += mm*points[i + 1].point();
-      drawData_.bbox += mm*points[i + 2].point();
+      drawData_.bbox += mm*points[i + 0];
+      drawData_.bbox += mm*points[i + 1];
+      drawData_.bbox += mm*points[i + 2];
     }
   }
 }
@@ -1303,9 +1303,9 @@ drawSurface(Surface3DObj *obj)
     for (uint i = 0; i < ni; i += 3) {
       std::vector<CPoint3D> poly;
 
-      poly.push_back(points[inds[i + 0]].point());
-      poly.push_back(points[inds[i + 1]].point());
-      poly.push_back(points[inds[i + 2]].point());
+      poly.push_back(points[inds[i + 0]]);
+      poly.push_back(points[inds[i + 1]]);
+      poly.push_back(points[inds[i + 2]]);
 
       drawModelPolygon(poly, /*selected*/false);
     }
@@ -1316,9 +1316,9 @@ drawSurface(Surface3DObj *obj)
     for (uint i = 0; i < np; i += 3) {
       std::vector<CPoint3D> poly;
 
-      poly.push_back(points[i + 0].point());
-      poly.push_back(points[i + 1].point());
-      poly.push_back(points[i + 2].point());
+      poly.push_back(points[i + 0]);
+      poly.push_back(points[i + 1]);
+      poly.push_back(points[i + 2]);
 
       drawModelPolygon(poly, /*selected*/false);
     }

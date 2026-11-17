@@ -7,7 +7,7 @@ uniform highp mat4 projection;
 uniform highp mat4 view;
 uniform highp mat4 model;
 
-out vec4 Color;
+out vec3 Color;
 
 void main() {
   Color = aColor;

@@ -900,7 +900,10 @@ render()
 {
   auto *program = shaderProgram();
 
-  render(program);
+  if (shaderProgram_)
+    render(shaderProgram_);
+  else
+    render(program);
 }
 
 void
@@ -918,6 +921,14 @@ render(ShaderProgram *program)
   //---
 
   loadBuffer();
+
+  if (program != s_program) {
+    buffer_->setProgram(program->program());
+
+    termDraw(canvas_);
+
+    initDraw(canvas_, program);
+  }
 
   //---
 
@@ -1171,6 +1182,12 @@ render(ShaderProgram *program)
   CQGLStateInst->setEnableTexture(oldTexture);
 
   //---
+
+  if (program != s_program) {
+    termDraw(canvas_);
+
+    initDraw(canvas_, s_program);
+  }
 
   canvas_->bindBuffer(nullptr);
 }

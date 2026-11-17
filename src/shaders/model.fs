@@ -1,51 +1,17 @@
 #version 330 core
 
-in vec4 FragPos;
-in vec3 Normal;
-in vec3 Color;
-in vec2 TexCoord;
+#include "shaders/buffer_data.fs"
 
 out vec4 FragColor;
 
 //--- Lights
 
-// type:
-//  0 : Directional (direction)
-//  1 : Point (position)
-//  2 : Spot (position, direction, cutoff, outer cutoff, exponent)
-//  3 : FlashLight (cutoff, outer cutoff, exponent)
-struct Light {
-  int   type;
-  bool  enabled;
-  vec3  position;
-  vec3  direction;
-  vec3  color;
-  float radius;
-  float cutoff;
-  float outerCutoff;
-  float exponent;
-  float attenuation0;
-  float attenuation1;
-  float attenuation2;
-  float power;
-  mat4  matrix;
-};
-
-#define NUM_LIGHTS 5
-
-uniform Light lights[NUM_LIGHTS];
+#include "shaders/multi_light.fs"
 
 uniform vec3 viewPos;
 
 // --- Material
-uniform vec3  ambientColor;
-uniform float ambientStrength;
-uniform float diffuseStrength;
-uniform vec3  specularColor;
-uniform float specularStrength;
-uniform vec3  emissionColor;
-uniform float emissiveStrength;
-uniform float shininess;
+#include "shaders/material_global.fs"
 
 //--- Shadows
 
@@ -77,19 +43,12 @@ uniform bool        useCubeMap;
 
 //--- Textures
 
-struct TextureData {
-  bool      enabled;
-  sampler2D texture;
-};
-
-uniform TextureData diffuseTexture;
-uniform TextureData normalTexture;
-uniform TextureData specularTexture;
-uniform TextureData emissiveTexture;
+#include "shaders/texture_data.fs"
 
 //--- State
 
-uniform bool  isWireframe;
+#include "shaders/wireframe_globals.fs"
+
 uniform float transparency;
 
 uniform bool  reflectionMap;
@@ -100,56 +59,7 @@ uniform float refractivity;
 
 //---
 
-vec3 calcNormal() {
-  if (normalTexture.enabled) {
-    vec3 norm = texture(normalTexture.texture, TexCoord).rgb;
-    norm = normalize(norm*2.0 - 1.0); // this normal is in tangent space
-    return norm;
-  }
-  else
-    return normalize(Normal);
-}
-
-float calcDiffuseFactor(vec3 lightDir, vec3 nrm) {
-  float diffAmt = max(0.0, dot(nrm, lightDir));
-  return diffAmt;
-}
-
-vec3 calcDiffuseColor() {
-  vec3 diffuseColor;
-  if (diffuseTexture.enabled)
-    diffuseColor = texture(diffuseTexture.texture, TexCoord).rgb;
-  else
-    diffuseColor = Color;
-
-  vec3 diffuse = diffuseStrength*diffuseColor;
-
-  return diffuse;
-}
-
-float calcSpecularFactor(vec3 lightDir, vec3 viewDir, vec3 nrm, float shininess) {
-  //vec3 reflectDir = reflect(-viewDir, norm);
-  //float specAmt = max(0.0, dot(viewDir, reflectDir));
-
-  vec3 halfVec = normalize(viewDir + lightDir);
-  float specAmt = max(0.0, dot(halfVec, nrm));
-
-  return pow(specAmt, shininess);
-}
-
-vec3 calcSpecularColor() {
-  if (specularTexture.enabled)
-    return texture(specularTexture.texture, TexCoord).rgb;
-
-  return specularStrength*specularColor;
-}
-
-vec3 calcEmissionColor() {
-  if (emissiveTexture.enabled)
-    return texture(emissiveTexture.texture, TexCoord).rgb;
-
-  return emissiveStrength*emissionColor;
-}
+#include "shaders/light_calc.fs"
 
 //---
 
@@ -359,6 +269,11 @@ void main() {
     return;
   }
 
+  if (isWireframe) {
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+    return;
+  }
+
   //---
 
   vec3 reflectColor = vec3(0, 0, 0);
@@ -454,9 +369,7 @@ void main() {
 
   //---
 
-  // adjust color by state
-
-  FragColor = (isWireframe ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(result, transparency));
+  FragColor = vec4(result, transparency);
 
 /*
   if (shadowMapDebug) {

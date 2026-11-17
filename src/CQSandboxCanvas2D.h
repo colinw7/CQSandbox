@@ -336,7 +336,10 @@ class Canvas2D : public QFrame {
   static int fmaProc (void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 #endif
 
-  static int noiseProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int perlinNoiseProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int simplexNoiseProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+  static int solidNoiseProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
+
   static int hypotProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);
 
   static int helpProc(void *, Tcl_Interp *interp, int objc, const Tcl_Obj **objv);

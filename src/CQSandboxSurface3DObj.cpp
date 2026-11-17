@@ -1,10 +1,15 @@
 #include <CQSandboxSurface3DObj.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxLight3D.h>
+#include <CQSandboxMaterial3DObj.h>
+#include <CQSandboxTexture3DObj.h>
+#include <CQSandboxMaterial3D.h>
+#include <CQSandboxTexture.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
 
 #include <CQGLBuffer.h>
+#include <CQGLTexture.h>
 #include <CQGLUtil.h>
 #include <CQGLState.h>
 #include <CQTclUtil.h>
@@ -136,6 +141,43 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     updateFlag();
   }
 #endif
+
+  else if (name == "map.texture") {
+    if (value != "none") {
+      textureObj_ = dynamic_cast<Texture3DObj *>(canvas()->getObjectByName(value));
+      if (! textureObj_) return false;
+    }
+    else
+      textureObj_ = nullptr;
+
+    updateTexture();
+  }
+  else if (name == "map.channel") {
+    auto lstr = value.toLower();
+
+    if      (lstr == "r" || lstr == "red")
+      textureComponent_ = Component::RED;
+    else if (lstr == "g" || lstr == "green")
+      textureComponent_ = Component::GREEN;
+    else if (lstr == "b" || lstr == "blue")
+      textureComponent_ = Component::GREEN;
+    else if (lstr == "gray" || lstr == "grey")
+      textureComponent_ = Component::GRAY;
+    else
+      return false;
+
+    updateTexture();
+  }
+  else if (name == "map.scale") {
+    double r;
+    if (! Util::stringToReal(value, r))
+      return false;
+
+    textureScale_ = r;
+
+    updateTexture();
+  }
+
   else if (name == "point") {
     int ix = -1, iy = -1;
 
@@ -158,7 +200,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
       if (! Util::stringToReal(value, z))
         return false;
 
-      points_[ixy].setZ(z);
+      points_[ixy].setY(z);
     }
     else
       return app->errorMsg("Missing index for point");
@@ -192,13 +234,20 @@ setValue(const QString &name, const QString &value, const QStringList &args)
           ! Util::stringToReal(cstrs[2], b))
         return false;
 
-      colors_[ixy] = CGLVector3D(r, g, b);
+      colors_[ixy] = CRGBA(r, g, b);
     }
     else
       return app->errorMsg("Missing index for color");
 
     setNeedsUpdate();
   }
+
+  else if (name == "material") {
+    auto *materialObj = dynamic_cast<Material3DObj *>(canvas()->getObjectByName(value));
+
+    setMaterial(materialObj->material());
+  }
+
   else if (name == "wireframe") {
     bool b;
     if (! Util::stringToBool(value, b))
@@ -216,11 +265,52 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 void
 Surface3DObj::
+updateTexture()
+{
+  if (! textureObj_)
+    return;
+
+  auto *texture = textureObj_->texture();
+
+  auto *glTexture = texture->glTexture(canvas_);
+
+  auto image = glTexture->getImage();
+
+  if (nx_ != image.width() || ny_ != image.height())
+    image = image.scaled(nx_, ny_);
+
+  int ip = 0;
+
+  for (int iy = 0; iy < ny_; ++iy) {
+    for (int ix = 0; ix < nx_; ++ix) {
+      auto p = image.pixel(ix, iy);
+
+      double y = 0.0;
+
+      if      (textureComponent_ == Component::RED)
+        y = qRed(p)/255.0;
+      else if (textureComponent_ == Component::GREEN)
+        y = qGreen(p)/255.0;
+      else if (textureComponent_ == Component::BLUE)
+        y = qBlue(p)/255.0;
+      else if (textureComponent_ == Component::GRAY)
+        y = qGray(p)/255.0;
+
+      points_[ip].y = y*textureScale_;
+
+      ++ip;
+    }
+  }
+}
+
+void
+Surface3DObj::
 resizePoints()
 {
   auto np = nx_*ny_;
 
-  points_.resize(np);
+  points_ .resize(np);
+  tpoints_.resize(np);
 
   int ip = 0;
 
@@ -230,7 +320,10 @@ resizePoints()
     for (int ix = 0; ix < nx_; ++ix) {
       auto x = CMathUtil::map(ix, 0, nx_ - 1, 0.0, 1.0);
 
-      points_[ip++] = CGLVector3D(x, y, 0.0);
+      points_ [ip] = CPoint3D(x, 0.0, y);
+      tpoints_[ip] = CPoint2D(x, y);
+
+      ++ip;
     }
   }
 
@@ -293,7 +386,7 @@ resizePoints()
   colors_.resize(np);
 
   for (int i = 0; i < np; ++i)
-    colors_[i] = CGLVector3D(0.5, 0.7, 0.4);
+    colors_[i] = CRGBA(0.5, 0.7, 0.4);
 }
 
 void
@@ -304,28 +397,30 @@ init()
 
   //---
 
-  initShader();
+  auto *program = shaderProgram();
 
-  //---
-
-  buffer_ = s_program->createBuffer();
+  buffer_ = program->createBuffer();
 }
 
-void
+ShaderProgram *
 Surface3DObj::
-initShader()
+shaderProgram()
 {
-  if (s_program)
-    return;
+  if (shaderProgram_)
+    return shaderProgram_;
 
-  auto *app = canvas_->app();
+  if (! s_program) {
+    auto *app = canvas_->app();
 
-  s_program = new ShaderProgram(this);
+    s_program = new ShaderProgram(this);
 
-  s_program->addVertexFile  (app->buildDir() + "/shaders/surface.vs");
-  s_program->addFragmentFile(app->buildDir() + "/shaders/surface.fs");
+    s_program->addVertexFile  (app->buildDir() + "/shaders/surface.vs");
+    s_program->addFragmentFile(app->buildDir() + "/shaders/surface.fs");
 
-  s_program->link();
+    s_program->link();
+  }
+
+  return s_program;
 }
 
 void
@@ -414,9 +509,10 @@ loadBuffer()
   buffer_->clearBuffers();
 
   for (uint i = 0; i < np; ++i) {
-    buffer_->addPoint (points_ [i]);
-    buffer_->addNormal(normals_[i]);
-    buffer_->addColor (colors_ [i]);
+    buffer_->addPoint       (points_ [i]);
+    buffer_->addNormal      (normals_[i]);
+    buffer_->addColor       (colors_ [i]);
+    buffer_->addTexturePoint(tpoints_[i]);
   }
 
   for (uint i = 0; i < ni; ++i)
@@ -441,8 +537,8 @@ calcNormals()
       const auto &v2 = points_[ixy + 1];
       const auto &v3 = points_[ixy + nx_];
 
-      CGLVector3D diff1(v1, v2);
-      CGLVector3D diff2(v2, v3);
+      CVector3D diff1(v1, v2);
+      CVector3D diff2(v2, v3);
 
       auto n = diff1.crossProduct(diff2).normalized();
 
@@ -458,11 +554,13 @@ void
 Surface3DObj::
 render()
 {
+  auto *program = shaderProgram();
+
   loadBuffer();
 
-  //---
+  buffer_->setProgram(program->program());
 
-  auto *program = shaderProgram();
+  //---
 
   canvas_->bindProgram(program);
 
@@ -475,6 +573,14 @@ render()
   setModelMatrix();
   program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
+  program->loadUniforms();
+
+  //---
+
+  auto cullFace = isCullFace().value_or(canvas_->isCullFace());
+
+  bool oldCullFace = CQGLStateInst->setCullFace(cullFace);
+
   //---
 
   canvas_->bindBuffer(buffer_);
@@ -486,6 +592,23 @@ render()
 
   program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
   program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
+
+  //---
+
+  if (material_ && material_->diffuseTexture()) {
+    auto *diffuseTexture = dynamic_cast<Texture *>(material_->diffuseTexture());
+
+    program->setUniformValue("diffuseTexture.enabled", !!diffuseTexture);
+    program->setUniformValue("diffuseTexture.texture", 0);
+
+    CQGLStateInst->setActiveTextureNum(0, true);
+
+    diffuseTexture->glTexture(canvas_)->bind();
+  }
+  else {
+    program->setUniformValue("diffuseTexture.enabled", false);
+    program->setUniformValue("diffuseTexture.texture", 0);
+  }
 
   //---
 
@@ -586,6 +709,10 @@ render()
   canvas_->bindBuffer(nullptr);
 
   canvas_->bindProgram(nullptr);
+
+  //---
+
+  CQGLStateInst->setCullFace(oldCullFace);
 }
 
 }

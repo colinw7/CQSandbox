@@ -27,6 +27,24 @@ namespace CQSandbox {
 
 namespace Util {
 
+struct IntArray {
+  std::vector<int> integers;
+
+  IntArray(const std::vector<int> &i) :
+   integers(i) {
+  }
+};
+
+struct RealArray {
+  std::vector<double> reals;
+
+  RealArray(const std::vector<double> &r) :
+   reals(r) {
+  }
+};
+
+//---
+
 inline QString intToString(int i) {
   return QString::number(i);
 }
@@ -768,6 +786,26 @@ inline bool stringToUIntArray(CQTcl *tcl, const QString &str, std::vector<uint> 
       return false;
 
     integers.push_back(i);
+  }
+
+  return true;
+}
+
+//---
+
+inline bool stringToRealArray(CQTcl *tcl, const QString &str, std::vector<double> &a) {
+  QStringList strs;
+  if (! tcl->splitList(str, strs))
+    return false;
+
+  a.resize(strs.size());
+
+  for (int i = 0; i < strs.size(); ++i) {
+    double r;
+    if (! stringToReal(strs[i], r))
+      return false;
+
+    a[i] = r;
   }
 
   return true;

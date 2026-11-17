@@ -24,7 +24,7 @@ class Plane3DObj : public Object3D {
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
-  static ShaderProgram* shaderProgram() { return s_program; }
+  static ShaderProgram* s_shaderProgram() { return s_program; }
 
   //---
 
@@ -33,6 +33,8 @@ class Plane3DObj : public Object3D {
   const char *typeName() const override { return "plane"; }
 
   void init() override;
+
+  ShaderProgram *shaderProgram();
 
   //---
 

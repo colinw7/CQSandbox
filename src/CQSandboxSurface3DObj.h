@@ -15,20 +15,29 @@ class CFlag;
 
 namespace CQSandbox {
 
-class ShaderProgram;
+class Texture3DObj;
 
 class Surface3DObj : public Object3D {
   Q_OBJECT
 
  public:
-  using Points  = std::vector<CGLVector3D>;
-  using Colors  = std::vector<CGLVector3D>;
+  enum class Component {
+    RED,
+    GREEN,
+    BLUE,
+    GRAY
+  };
+
+  using Points  = std::vector<CPoint3D>;
+  using Normals = std::vector<CVector3D>;
+  using Colors  = std::vector<CRGBA>;
   using Indices = std::vector<unsigned int>;
+  using TPoints = std::vector<CPoint2D>;
 
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
 
-  static ShaderProgram* shaderProgram() { return s_program; }
+  static ShaderProgram* s_shaderProgram() { return s_program; }
 
   //---
 
@@ -38,9 +47,14 @@ class Surface3DObj : public Object3D {
 
   void init() override;
 
+  ShaderProgram *shaderProgram();
+
+  //---
+
   const Points  &points () const { return points_ ; }
-  const Points  &normals() const { return normals_; }
+  const Normals &normals() const { return normals_; }
   const Colors  &colors () const { return colors_ ; }
+  const TPoints &tpoints() const { return tpoints_; }
   const Indices &indices() const { return indices_; }
 
   int nx() const { return nx_; }
@@ -75,15 +89,22 @@ class Surface3DObj : public Object3D {
 
   void render() override;
 
+  void updateTexture();
+
  private:
   static ShaderProgram* s_program;
 
   Points  points_;
-  Points  normals_;
+  Normals normals_;
   Colors  colors_;
   Indices indices_;
+  TPoints tpoints_;
   int     nx_ { 0 };
   int     ny_ { 0 };
+
+  Texture3DObj *textureObj_       { nullptr };
+  Component     textureComponent_ { Component::RED };
+  double        textureScale_     { 1.0 };
 
   bool wireframe_ { false };
 

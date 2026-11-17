@@ -9,7 +9,7 @@ proc read_file { f } {
 }
 
 proc init { } {
-  set ::shader [sb3d::shader]
+  set ::shader [sb3d::shader_toy]
 
 # $::shader set fragment_shader [read_file shader3d/jupiter_io_A.fs]
   $::shader set fragment_shader [read_file shader3d/jupiter_io_B.fs]

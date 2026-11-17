@@ -3,6 +3,7 @@
 in vec4 FragPos;
 in vec3 Normal;
 in vec3 Color;
+in vec2 TexCoord;
 
 out vec4 FragColor;
 
@@ -10,37 +11,101 @@ uniform vec3 viewPos;
 uniform vec3 lightPos;
 uniform vec3 lightColor;
 
+// --- Material
 uniform vec3  ambientColor;
 uniform float ambientStrength;
 uniform float diffuseStrength;
+uniform vec3  specularColor;
 uniform float specularStrength;
 uniform float shininess;
 
-uniform bool  isWireframe;
-uniform vec3  wireframeColor;
-uniform float wireframeAlpha;
+//--- Textures
+
+struct TextureData {
+  bool      enabled;
+  sampler2D texture;
+};
+
+uniform TextureData diffuseTexture;
+
+//--- State
+
+#include "shaders/wireframe_globals.fs"
+
+//---
+
+float calcDiffuseFactor(vec3 lightDir, vec3 nrm) {
+  float diffAmt = max(0.0, dot(nrm, lightDir));
+  return diffAmt;
+}
+
+vec3 calcDiffuseColor() {
+  vec3 diffColor;
+  if (diffuseTexture.enabled)
+    diffColor = texture(diffuseTexture.texture, TexCoord).rgb;
+  else
+    diffColor = Color;
+
+  vec3 diffuse = diffuseStrength*diffColor;
+
+  return diffuse;
+}
+
+float calcSpecularFactor(vec3 lightDir, vec3 viewDir, vec3 nrm, float shininess) {
+  vec3 reflectDir = reflect(-lightDir, nrm);
+  float specAmt = max(0.0, dot(viewDir, reflectDir));
+  
+  return pow(specAmt, shininess);
+}
+
+vec3 calcSpecularColor() {
+  return specularStrength*specularColor;
+}
+
+//---
 
 void main() {
+  if (isWireframe) {
+    FragColor = vec4(wireframeColor, wireframeAlpha);
+    return;
+  }
+
+  //---
+
+  // normal
   vec3 norm = normalize(Normal);
-  vec3 lightDir = normalize(lightPos - vec3(FragPos));
 
-  float diff = max(dot(norm, lightDir), 0.0);
-  vec3 diffuseColor = Color;
-  vec3 diffuse = diffuseStrength*diff*diffuseColor;
+  // view direction
+  vec3 viewDir = normalize(viewPos - vec3(FragPos));
 
+  //---
+
+  // global colors
+
+  // ambient
   vec3 ambient = ambientStrength*ambientColor;
 
-  vec3 viewDir = normalize(viewPos - vec3(FragPos));
-  vec3 reflectDir = reflect(-lightDir, norm);
+  // diffuse color
+  vec3 diffuseColor = calcDiffuseColor();
 
-  float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-  vec3 specColor = lightColor;
-  vec3 specular = specularStrength*spec*specColor;
+  // specular color
+  vec3 specColor = calcSpecularColor();
 
-  vec3 result = ambient + diffuse + specular;
+  //---
 
-  if (isWireframe)
-    FragColor = vec4(wireframeColor, wireframeAlpha);
-  else
-    FragColor = vec4(result, 1.0f);
+  vec3 result = ambient;
+
+  // diffuse and specular color (per light)
+  vec3 lightDir = normalize(lightPos - vec3(FragPos));
+
+  float diffAmt = calcDiffuseFactor(lightDir, norm);
+  float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
+
+  result += diffAmt*lightColor*diffuseColor +
+            specAmt*lightColor*specColor;
+
+  //---
+
+//FragColor = vec4(result, 1.0f);
+  FragColor = vec4(diffuseColor, 1.0f);
 }

@@ -202,7 +202,23 @@ class Canvas3D : public OpenGLWindow {
     FrameMatrix frameMatrix;
   };
 
+  //---
+
   using Cameras = std::vector<CameraIFace *>;
+
+  //---
+
+  struct MouseData {
+    bool            pressed   { false };
+    bool            isShift   { false };
+    bool            isControl { false };
+    Qt::MouseButton button    { Qt::NoButton };
+    CPoint2D        press     { 0.0, 0.0 };
+    CPoint2D        move1     { 0.0, 0.0 };
+    CPoint2D        move2     { 0.0, 0.0 };
+    int             key       { 0 };
+    QString         keyStr;
+  };
 
  private:
   struct TextureBuffer;
@@ -515,6 +531,10 @@ class Canvas3D : public OpenGLWindow {
   const CVector3D &viewPos() const { return viewPos_; }
 
   const CBBox3D &bbox() const { return bbox_; }
+
+  //---
+
+  const MouseData &mouseData() const { return mouseData_; }
 
   //---
 
@@ -854,20 +874,6 @@ class Canvas3D : public OpenGLWindow {
       nodeMatrices .clear();
       nodeQMatrices.clear();
     }
-  };
-
-  //---
-
-  struct MouseData {
-    bool            pressed   { false };
-    bool            isShift   { false };
-    bool            isControl { false };
-    Qt::MouseButton button    { Qt::NoButton };
-    CPoint2D        press     { 0.0, 0.0 };
-    CPoint2D        move1     { 0.0, 0.0 };
-    CPoint2D        move2     { 0.0, 0.0 };
-    int             key       { 0 };
-    QString         keyStr;
   };
 
   //---

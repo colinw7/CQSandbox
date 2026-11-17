@@ -1,13 +1,8 @@
 #version 330 core
 
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal;
-layout (location = 2) in vec3 aColor;
-layout (location = 3) in vec2 aTexCoord;
+#include "shaders/buffer_data.vs"
 
-uniform highp mat4 projection;
-uniform highp mat4 view;
-uniform highp mat4 model;
+#include "shaders/world_matrix.vs"
 
 uniform bool isWireframe;
 uniform bool isPoint;
@@ -17,11 +12,6 @@ uniform bool useFaceNormal;
 uniform vec3 faceNormal;
 
 uniform bool pseudo;
-
-out vec4 FragPos;
-out vec3 Normal;
-out vec3 Color;
-out vec2 TexCoord;
 
 void main() {
   vec3 position = aPos;
