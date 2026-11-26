@@ -169,7 +169,7 @@ initShader()
   if (! s_program) {
     auto *app = canvas_->app();
 
-    s_program = new ShaderProgram;
+    s_program = new ShaderProgram(app);
 
     s_program->addVertexFile  (app->buildDir() + "/shaders/light.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/light.fs");

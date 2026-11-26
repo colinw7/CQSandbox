@@ -21,5 +21,6 @@ proc init { } {
 # $::shader set fragment_shader [read_file shader3d/test_random.fs]
 # $::shader set fragment_shader [read_file shader3d/test_noise.fs]
 # $::shader set fragment_shader [read_file shader3d/test_cellular.fs]
-  $::shader set fragment_shader [read_file shader3d/test_fractal.fs]
+# $::shader set fragment_shader [read_file shader3d/test_fractal.fs]
+  $::shader set fragment_shader [read_file shader3d/test_bumps.fs]
 }

@@ -52,6 +52,7 @@ class CanvasToolbar3D : public QFrame {
   void stepSlot();
 
   void settingsSlot();
+  void consoleSlot();
 
 #ifdef CQSANDBOX_META_EDIT
   void metaEditSlot();
@@ -89,6 +90,7 @@ class CanvasToolbar3D : public QFrame {
   QToolButton* stepButton_  { nullptr };
 
   QToolButton* settingsButton_ { nullptr };
+  QToolButton *consoleButton_  { nullptr };
 
   QLabel* infoLabel_ { nullptr };
   QLabel* posLabel_  { nullptr };

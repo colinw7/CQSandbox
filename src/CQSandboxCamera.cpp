@@ -120,6 +120,7 @@ reset(const CBBox3D &bbox)
   auto direction = CVector3D(0, maxSize1/2.0, maxSize1);
   auto pos       = CVector3D(center + direction);
 
+  setDistance(maxSize1);
   setPosition(pos);
 
   setPitch(-M_PI/6.0);
@@ -423,6 +424,17 @@ calcViewMatrix()
 #endif
 
   viewMatrix_.setLookAt(position.point(), front(), up(), right());
+}
+
+void
+Camera::
+setDistance(double r)
+{
+  if (distance_ != r) {
+    distance_ = r;
+
+    stateChanged();
+  }
 }
 
 void

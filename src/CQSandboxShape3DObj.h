@@ -99,6 +99,7 @@ class Shape3DObj : public Object3D {
 
   //---
 
+  const QColor &diffuseColor();
   void setDiffuseColor(const QColor &c);
 
   //---

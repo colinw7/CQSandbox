@@ -362,6 +362,10 @@ class Canvas3D : public OpenGLWindow {
 
   //---
 
+  void setProgramState(ShaderProgram *program);
+
+  void setProgramStateColors(ShaderProgram *program);
+
   void setProgramShadow(ShaderProgram *program);
   void unsetProgramShadow();
 
@@ -419,7 +423,7 @@ class Canvas3D : public OpenGLWindow {
   void setProgramLightGlobals(ShaderProgram *program);
   void setProgramSimpleLight(ShaderProgram *program);
   void setProgramLights(ShaderProgram *program);
-  void setProgramLight(ShaderProgram *program, Light3D *light, const QString &lightName);
+  void setProgramLight(ShaderProgram *program, Light3D *light, int ind, const QString &lightName);
 
   const std::vector<Light3D *> lights() const { return lights_; }
 
@@ -899,6 +903,7 @@ class Canvas3D : public OpenGLWindow {
   QTimer *uiTimer_       { nullptr };
   int     redrawTimeOut_ { 100 };
   uint    ticks_         { 0 };
+  double  elapsed_       { 0.0 };
 
   bool ignoreChange_ { false };
   bool inited_       { false };
@@ -1077,6 +1082,7 @@ class Canvas3D : public OpenGLWindow {
   uint                   lightNum_     { 1 };
   bool                   simpleLights_ { false };
   uint                   maxNumLights_ { 5 };
+  Light3D*               shadowLight_  { nullptr };
 
   ParticleList3DObj* intersectParticles_ { nullptr };
 

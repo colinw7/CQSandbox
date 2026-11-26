@@ -103,7 +103,7 @@ initShader(Canvas3D *canvas)
 
   auto *app = canvas->app();
 
-  s_program = new ShaderProgram(canvas);
+  s_program = new ShaderProgram(app);
 
   s_program->addVertexFile  (app->buildDir() + "/shaders/shape.vs");
   s_program->addFragmentFile(app->buildDir() + "/shaders/shape.fs");
@@ -148,7 +148,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     setNeedsUpdate();
   }
-  else if (name == "tex_coords") {
+  else if (name == "texture_coords" || name == "tex_coords") {
     std::vector<CVector2D> vectors;
     if (! Util::stringToVectors2D(tcl, value, vectors))
       return false;
@@ -932,6 +932,10 @@ render(ShaderProgram *program)
 
   //---
 
+  canvas_->setProgramShadow(program);
+
+  //---
+
   setModelMatrix();
 
   auto modelMatrix = this->modelMatrix();
@@ -944,6 +948,10 @@ render(ShaderProgram *program)
   auto projectMatrix = s_pvMatrix*modelMatrix;
 
   //---
+
+  canvas_->setProgramState(program);
+
+  canvas_->setProgramStateColors(program);
 
   if (material_)
     canvas_->setProgramMaterial(program, material_);
@@ -1021,12 +1029,6 @@ render(ShaderProgram *program)
   //---
 
 //program->setUniformValue("isSelected", isSelected());
-
-  program->setUniformValue("wireframeColor", CQGLUtil::toVector(canvas_->wireframeColor()));
-  program->setUniformValue("wireframeAlpha", float(canvas_->wireframeAlpha()));
-
-  program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
-  program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
 
   program->setUniformValue("lighted", isLighted());
   program->setUniformValue("pseudo", isPseudo());
@@ -1183,6 +1185,10 @@ render(ShaderProgram *program)
 
   //---
 
+  canvas_->unsetProgramShadow();
+
+  //---
+
   if (program != s_program) {
     termDraw(canvas_);
 
@@ -1209,17 +1215,18 @@ initDraw(Canvas3D *canvas, ShaderProgram *program)
 
   //---
 
-  canvas->setProgramMatrices(program);
-
   canvas->setProgramSkybox(program, 5);
 
-  //---
-
-  canvas->setProgramSimpleLight(program);
+  canvas->setProgramMatrices(program);
 
   //---
 
+  // light data
   canvas->setProgramLightGlobals(program);
+
+  canvas->setProgramLights(program);
+
+  program->loadUniforms();
 
   //---
 

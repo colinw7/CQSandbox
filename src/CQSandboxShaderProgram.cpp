@@ -1,14 +1,18 @@
 #include <CQSandboxShaderProgram.h>
+
 #include <CQGLBuffer.h>
+#include <CStrParse.h>
+#include <CStrUtil.h>
 
 #include <iostream>
 
 namespace CQSandbox {
 
 ShaderProgram::
-ShaderProgram(QObject *parent)
+ShaderProgram(App *app) :
+ app_(app)
 {
-  program_ = new QOpenGLShaderProgram(parent);
+  program_ = new QOpenGLShaderProgram(app);
 }
 
 CQGLBuffer *
@@ -97,12 +101,8 @@ bool
 ShaderProgram::
 addVertexCode(const QString &code, const QString &filename)
 {
-  if (! program_->addShaderFromSourceCode(QOpenGLShader::Vertex, code)) {
-    if (filename != "")
-      std::cerr << "File: '" << filename.toStdString() << "'\n";
-    std::cerr << program_->log().toStdString() << "\n";
-    return false;
-  }
+  if (! program_->addShaderFromSourceCode(QOpenGLShader::Vertex, code))
+    return showError(code, filename);
 
   return true;
 }
@@ -111,12 +111,8 @@ bool
 ShaderProgram::
 addGeometryCode(const QString &code, const QString &filename)
 {
-  if (! program_->addShaderFromSourceCode(QOpenGLShader::Geometry, code)) {
-    if (filename != "")
-      std::cerr << "File: '" << filename.toStdString() << "'\n";
-    std::cerr << program_->log().toStdString() << "\n";
-    return false;
-  }
+  if (! program_->addShaderFromSourceCode(QOpenGLShader::Geometry, code))
+    return showError(code, filename);
 
   return true;
 }
@@ -125,14 +121,59 @@ bool
 ShaderProgram::
 addFragmentCode(const QString &code, const QString &filename)
 {
-  if (! program_->addShaderFromSourceCode(QOpenGLShader::Fragment, code)) {
-    if (filename != "")
-      std::cerr << "File: '" << filename.toStdString() << "'\n";
-    std::cerr << program_->log().toStdString() << "\n";
-    return false;
-  }
+  if (! program_->addShaderFromSourceCode(QOpenGLShader::Fragment, code))
+    return showError(code, filename);
 
   return true;
+}
+
+bool
+ShaderProgram::
+showError(const QString &code, const QString &filename) const
+{
+  if (filename != "")
+    std::cerr << "File: '" << filename.toStdString() << "'\n";
+  auto logStr = program_->log();
+
+  std::vector<std::string> lines;
+  CStrUtil::addLines(logStr.toStdString(), lines);
+
+  auto parseLine = [&](const std::string &line) {
+    CStrParse parse(line);
+    parse.skipSpace();
+
+    int i1;
+    if (! parse.readInteger(&i1))
+      return false;
+
+    if (! parse.isChar(':'))
+      return false;
+
+    parse.skipChar();
+
+    int i2;
+    if (! parse.readInteger(&i2))
+      return false;
+
+    std::cerr << "Line " << i2 << ": ";
+
+    std::vector<std::string> lines;
+    CStrUtil::addLines(code.toStdString(), lines);
+
+    if (i2 >= 0 && i2 < int(lines.size()))
+      std::cerr << lines[i2];
+
+    std::cerr << "\n";
+
+    return true;
+  };
+
+  parseLine(lines[0]);
+
+  for (const auto &line : lines)
+    std::cerr << line << "\n";
+
+  return false;
 }
 
 void
@@ -167,6 +208,9 @@ fileToCode(const QString &filename, QString &code) const
     return false;
   }
 
+  bool version_found = false;
+  bool globals_added = false;
+
   std::vector<std::string> lines;
   file.toLines(lines);
 
@@ -189,7 +233,7 @@ fileToCode(const QString &filename, QString &code) const
 
       auto len = line.size() - i;
 
-      if (len >= 7 && strncmp(&line[i], "include", 7) == 0) {
+      if      (len >= 7 && strncmp(&line[i], "include", 7) == 0) {
         auto invalidLine = [&]() {
           std::cerr << "Invalid '#include' line '" + line << "'\n";
           return false;
@@ -221,16 +265,30 @@ fileToCode(const QString &filename, QString &code) const
 
         ++i;
 
+        auto ifile1 = app_->buildDir().toStdString() + "/" + ifile;
+
         QString code1;
-        if (! fileToCode(QString::fromStdString(ifile), code1))
+        if (! fileToCode(QString::fromStdString(ifile1), code1))
           return false;
 
         code += code1;
+      }
+      else if (len >= 7 && strncmp(&line[i], "version", 7) == 0) {
+        version_found = true;
       }
     }
 
     if (! has_include)
       code += QString::fromStdString(line) + "\n";
+
+    if (version_found) {
+      if (! globals_added) {
+        code += "uniform float iTime;\n";
+        code += "uniform vec3  iResolution;\n";
+
+        globals_added = true;
+      }
+    }
   }
 
   return true;

@@ -103,7 +103,7 @@ init()
   if (! s_program1) {
     auto *app = canvas_->app();
 
-    s_program1 = new ShaderProgram(this);
+    s_program1 = new ShaderProgram(app);
 
     s_program1->addVertexFile  (app->buildDir() + "/shaders/graph1.vs");
     s_program1->addGeometryFile(app->buildDir() + "/shaders/graph1.gs");
@@ -113,7 +113,7 @@ init()
 
     //---
 
-    s_program2 = new ShaderProgram(this);
+    s_program2 = new ShaderProgram(app);
 
     s_program2->addVertexFile  (app->buildDir() + "/shaders/graph2.vs");
     s_program2->addFragmentFile(app->buildDir() + "/shaders/graph2.fs");

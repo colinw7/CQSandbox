@@ -10,6 +10,7 @@
 #include <CQGLUtil.h>
 
 #include <CGeomScene3D.h>
+#include <CGeomFace3D.h>
 #include <CImportBase.h>
 #include <CQTclUtil.h>
 #include <CFile.h>
@@ -58,7 +59,7 @@ initShader()
   if (! s_program) {
     auto *app = canvas_->app();
 
-    s_program = new ShaderProgram(this);
+    s_program = new ShaderProgram(app);
 
     s_program->addVertexFile  (app->buildDir() + "/shaders/skybox.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/skybox.fs");

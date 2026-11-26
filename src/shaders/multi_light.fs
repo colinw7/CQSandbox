@@ -5,6 +5,7 @@
 //  3 : FlashLight (cutoff, outer cutoff, exponent)
 struct Light {
   int   type;
+  int   ind;
   bool  enabled;
   vec3  position;
   vec3  direction;

@@ -1,6 +1,9 @@
 proc init { } {
   set ::shape [sb3d::shape]
 
+  $::shape set num_patches 64
+  $::shape set num_xy      64
+
   $::shape set sphere 0.4
 
   $::shape set color white

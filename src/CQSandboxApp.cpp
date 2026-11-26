@@ -10,6 +10,7 @@
 #include <CQSandboxToolbar3D.h>
 #include <CQSandboxSideBar3D.h>
 #include <CQSandboxOverview3D.h>
+#include <CQSandboxConsole3D.h>
 
 #include <CQSandboxStatus.h>
 
@@ -358,6 +359,19 @@ console2D() const
   }
 
   return console2D_;
+}
+
+Console3D *
+App::
+console3D() const
+{
+  if (! console3D_) {
+    auto *th = const_cast<App *>(this);
+
+    th->console3D_ = new Console3D(canvas3D());
+  }
+
+  return console3D_;
 }
 
 bool

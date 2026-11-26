@@ -5,22 +5,24 @@
 out vec4 FragColor;
 
 //--- Lights
-#include "shaders/single_light.fs"
+
+#include "shaders/multi_light.fs"
 
 uniform vec3 viewPos;
 
 uniform bool lighted;
 
 // --- Material
-#include "shaders/material_global.fs"
 
-//--- Skybox
-uniform samplerCube cubeMap;
-uniform bool        useCubeMap;
+#include "shaders/material_global.fs"
 
 //--- Textures
 
 #include "shaders/texture_data.fs"
+
+//--- Shadows
+
+#include "shaders/shadow_data.fs"
 
 //--- State
 
@@ -37,19 +39,35 @@ uniform vec3 orientColor;
 
 uniform float opacity;
 
+//--- Reflection/Refraction
+
+uniform samplerCube cubeMap;    // Skybox
+uniform bool        useCubeMap;
+
 uniform bool  reflectionMap;
 uniform float reflectivity;
 
 uniform bool  refractionMap;
 uniform float refractivity;
 
-//---
+//----
 
+// Shadow Procs
+#include "shaders/shadow_procs.fs"
+
+// Light Procs
 #include "shaders/light_calc.fs"
+#include "shaders/light_type_calc.fs"
 
 //---
 
 void main() {
+  if (isShadow) {
+    return;
+  }
+
+  //---
+
   if (! pseudo) {
     // fixed color for state
     if      (isWireframe) {
@@ -139,53 +157,37 @@ void main() {
 
   //---
 
-  float shadow = 0.0;
-
-  //---
-
   vec3 result = ambient;
 
-  // diffuse and specular color (per light)
-/*
-  vec3 lightDir = normalize(light.position - vec3(FragPos));
+  bool lit = false;
 
-  float diffAmt = calcDiffuseFactor(-lightDir, norm);
-  float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
+  // lights
+  for (int i = 0; i < NUM_LIGHTS; ++i) {
+    if (! lights[i].enabled) {
+      continue;
+    }
 
-  result += diffAmt*light.color*diffuseColor*light.power +
-            specAmt*light.color*specColor;
-*/
-  if      (light.type == 0) { // directional
-    //vec3 lightDir = normalize(light.position - vec3(FragPos));
-    vec3 lightDir = normalize(-light.direction);
+    lit = true;
 
-    float diffAmt = calcDiffuseFactor(lightDir, norm);
-    float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
-
-    result += (1 - shadow)*(diffAmt*light.color*diffuseColor +
-                            specAmt*light.color*specColor);
+    if      (lights[i].type == 0) { // directional
+      result += calcShadowDirectionalLight(lights[i], norm, diffuseColor, specColor, viewDir);
+    }
+    else if (lights[i].type == 1) { // point
+      result += calcShadowPointLight(lights[i], norm, diffuseColor, specColor, viewDir);
+    }
+    else if (lights[i].type == 2) { // spot
+      result += calcSpotLight(lights[i], norm, diffuseColor, specColor, viewDir);
+    }
+    else if (lights[i].type == 3) { // flashlight
+      result += calcFlashLight(lights[i], norm, diffuseColor, specColor, viewDir);
+    }
   }
-  else if (light.type == 1) { // point
-    vec3 toLight = light.position - vec3(FragPos);
-    vec3 lightDir = normalize(toLight);
-    float distToLight = length(toLight);
-    float falloff = max(0.0, 1.0 - (distToLight/light.radius));
-  
-    float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
-    float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess)*falloff;
 
-    result += diffAmt*light.color*diffuseColor + specAmt*light.color*specColor;
-  }
-  else if (light.type == 2) { // spot
-    vec3 toLight = light.position - vec3(FragPos);
-    vec3 lightDir = normalize(toLight);
-    float angle = dot(light.direction, -lightDir);
-    float falloff = (angle > light.cutoff ? 1.0 : 0.0);
+  // baked diffuse lighting if none
+  if (! lit) {
+    float diffFactor = max(dot(norm, viewDir), 0.0);
 
-    float diffAmt = calcDiffuseFactor(lightDir, norm)*falloff;
-    float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess)*falloff;
-
-    result += diffAmt*light.color*diffuseColor + specAmt*light.color*specColor;
+    result += diffFactor*diffuseColor;
   }
 
   //---

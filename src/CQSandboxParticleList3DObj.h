@@ -96,8 +96,8 @@ class ParticleList3DObj : public Object3D {
  protected:
   class ParticleListShaderProgram : public ShaderProgram {
    public:
-    ParticleListShaderProgram(QObject *parent) :
-     ShaderProgram(parent) {
+    ParticleListShaderProgram(App *app) :
+     ShaderProgram(app) {
     }
 
     GLint positionAttr { 0 };

@@ -14,12 +14,16 @@ class CQGLTexture;
 namespace CQSandbox {
 
 class ShaderProgram;
+class Texture;
 
 class Plane3DObj : public Object3D {
   Q_OBJECT
 
-  Q_PROPERTY(QColor  color   READ color       WRITE setColor      )
-  Q_PROPERTY(QString texture READ textureFile WRITE setTextureFile)
+  Q_PROPERTY(QColor  diffuseColor   READ diffuseColor       WRITE setDiffuseColor)
+  Q_PROPERTY(QString diffuseTexture READ diffuseTextureFile WRITE setDiffuseTextureFile)
+
+ public:
+  using Points = std::vector<CGLVector3D>;
 
  public:
   static Object3D *create(Canvas3D *canvas, const QStringList &args);
@@ -38,13 +42,20 @@ class Plane3DObj : public Object3D {
 
   //---
 
-  const QColor &color() const { return color_; }
-  void setColor(const QColor &c);
+  const Points &points() const { return points_; }
 
-  const QString &textureFile() const { return textureFile_; }
-  void setTextureFile(const QString &filename);
+  //---
 
-  void setTexture(CQGLTexture *texture) { texture_ = texture; }
+  QColor diffuseColor() const;
+  void setDiffuseColor(const QColor &c);
+
+  //---
+
+  QString diffuseTextureFile() const;
+  bool setDiffuseTextureFile(const QString &filename);
+
+  Texture *diffuseTexture() const;
+  void setDiffuseTexture(Texture *texture);
 
   //---
 
@@ -60,18 +71,14 @@ class Plane3DObj : public Object3D {
 
   void render() override;
 
+ private:
+  void setTexCoords(const CPoint2D &p1, const CPoint2D &p2);
+
  protected:
-  using Points    = std::vector<CGLVector3D>;
   using Colors    = std::vector<CGLColor>;
   using TexCoords = std::vector<CGLVector2D>;
 
   static ShaderProgram* s_program;
-
-  QColor color_ { Qt::white };
-
-  QString      textureFile_;
-  CQGLTexture *texture_    { nullptr };
-  bool         useTexture_ { false };
 
   Points    points_;
   Colors    colors_;

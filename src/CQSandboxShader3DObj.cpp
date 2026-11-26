@@ -38,7 +38,9 @@ init()
 
   //---
 
-  shaderProgram_ = new ShaderProgram(this);
+  auto *app = canvas_->app();
+
+  shaderProgram_ = new ShaderProgram(app);
 }
 
 bool

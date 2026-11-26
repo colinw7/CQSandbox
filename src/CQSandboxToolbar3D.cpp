@@ -1,7 +1,8 @@
 #include <CQSandboxToolbar3D.h>
-#include <CQSandboxCanvas3D.h>
 #include <CQSandboxControl3D.h>
 #include <CQSandboxOverview3D.h>
+#include <CQSandboxConsole3D.h>
+#include <CQSandboxCanvas3D.h>
 #include <CQSandboxApp.h>
 
 #include <CQIconButton.h>
@@ -132,6 +133,10 @@ CanvasToolbar3D(Canvas3D *canvas) :
 
   layout->addWidget(settingsButton_);
 
+  consoleButton_ = addCheckButton("console", "CONSOLE" , "Console");
+
+  layout->addWidget(consoleButton_);
+
   //---
 
   auto *debugButton = addDebugButton();
@@ -228,6 +233,7 @@ connectSlots(bool b)
     connect(stepButton_ , SIGNAL(clicked()), this, SLOT(stepSlot()));
 
     connect(settingsButton_, SIGNAL(clicked()), this, SLOT(settingsSlot()));
+    connect(consoleButton_ , SIGNAL(clicked()), this, SLOT(consoleSlot()));
   }
   else {
     disconnect(cameraButton_, SIGNAL(clicked()), this, SLOT(cameraSlot()));
@@ -252,6 +258,7 @@ connectSlots(bool b)
     disconnect(stepButton_ , SIGNAL(clicked()), this, SLOT(stepSlot()));
 
     disconnect(settingsButton_, SIGNAL(clicked()), this, SLOT(settingsSlot()));
+    disconnect(consoleButton_ , SIGNAL(clicked()), this, SLOT(consoleSlot()));
   }
 }
 
@@ -508,6 +515,16 @@ settingsSlot()
   auto *control = app->control3D();
 
   control->toggleShown();
+}
+
+void
+CanvasToolbar3D::
+consoleSlot()
+{
+  auto *app     = canvas()->app();
+  auto *console = app->console3D();
+
+  console->show();
 }
 
 #ifdef CQSANDBOX_META_EDIT

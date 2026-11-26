@@ -164,7 +164,7 @@ class Camera : public CameraIFace {
   CMatrix3DH viewMatrix() const override;
 
   double distance() const override { return distance_; }
-  void setDistance(double r) override { if (distance_ != r) { distance_ = r; stateChanged(); } }
+  void setDistance(double r) override;
 
   //---
 

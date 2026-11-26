@@ -1,66 +1,31 @@
 #version 330 core
 
-in vec4 FragPos;
-in vec3 Normal;
-in vec3 Color;
-in vec2 TexCoord;
+#include "shaders/buffer_data.fs"
 
 out vec4 FragColor;
 
+//--- Lights
+
+#include "shaders/multi_light.fs"
+
 uniform vec3 viewPos;
-uniform vec3 lightPos;
-uniform vec3 lightColor;
 
 // --- Material
-uniform vec3  ambientColor;
-uniform float ambientStrength;
-uniform float diffuseStrength;
-uniform vec3  specularColor;
-uniform float specularStrength;
-uniform float shininess;
+
+#include "shaders/material_global.fs"
 
 //--- Textures
 
-struct TextureData {
-  bool      enabled;
-  sampler2D texture;
-};
-
-uniform TextureData diffuseTexture;
+#include "shaders/texture_data.fs"
 
 //--- State
 
 #include "shaders/wireframe_globals.fs"
 
-//---
+//-- Lights
 
-float calcDiffuseFactor(vec3 lightDir, vec3 nrm) {
-  float diffAmt = max(0.0, dot(nrm, lightDir));
-  return diffAmt;
-}
-
-vec3 calcDiffuseColor() {
-  vec3 diffColor;
-  if (diffuseTexture.enabled)
-    diffColor = texture(diffuseTexture.texture, TexCoord).rgb;
-  else
-    diffColor = Color;
-
-  vec3 diffuse = diffuseStrength*diffColor;
-
-  return diffuse;
-}
-
-float calcSpecularFactor(vec3 lightDir, vec3 viewDir, vec3 nrm, float shininess) {
-  vec3 reflectDir = reflect(-lightDir, nrm);
-  float specAmt = max(0.0, dot(viewDir, reflectDir));
-  
-  return pow(specAmt, shininess);
-}
-
-vec3 calcSpecularColor() {
-  return specularStrength*specularColor;
-}
+#include "shaders/light_calc.fs"
+#include "shaders/light_type_calc.fs"
 
 //---
 
@@ -73,7 +38,7 @@ void main() {
   //---
 
   // normal
-  vec3 norm = normalize(Normal);
+  vec3 norm = calcNormal();
 
   // view direction
   vec3 viewDir = normalize(viewPos - vec3(FragPos));
@@ -95,17 +60,45 @@ void main() {
 
   vec3 result = ambient;
 
-  // diffuse and specular color (per light)
-  vec3 lightDir = normalize(lightPos - vec3(FragPos));
+  bool lit = false;
 
-  float diffAmt = calcDiffuseFactor(lightDir, norm);
-  float specAmt = calcSpecularFactor(lightDir, viewDir, norm, shininess);
+  // lights
+  for (int i = 0; i < NUM_LIGHTS; ++i) {
+    if (! lights[i].enabled) {
+      continue;
+    }
 
-  result += diffAmt*lightColor*diffuseColor +
-            specAmt*lightColor*specColor;
+    lit = true;
+
+    if      (lights[i].type == 0) { // directional
+      result += calcDirectionalLight(lights[i], norm, diffuseColor, specColor, viewDir);
+    }
+    else if (lights[i].type == 1) { // point
+      result += calcPointLight(lights[i], norm, diffuseColor, specColor, viewDir);
+    }
+    else if (lights[i].type == 2) { // spot
+      result += calcSpotLight(lights[i], norm, diffuseColor, specColor, viewDir);
+    }
+    else if (lights[i].type == 3) { // flashlight
+      result += calcFlashLight(lights[i], norm, diffuseColor, specColor, viewDir);
+    }
+  }
+
+  // baked diffuse lighting if none
+  if (! lit) {
+    float diffFactor = max(dot(norm, viewDir), 0.0);
+
+    result += diffFactor*diffuseColor;
+  }
 
   //---
 
-//FragColor = vec4(result, 1.0f);
-  FragColor = vec4(diffuseColor, 1.0f);
+  // add emission
+  vec3 emissionColor = calcEmissionColor();
+
+  result += emissionColor;
+
+  //---
+
+  FragColor = vec4(result, 1.0f);
 }

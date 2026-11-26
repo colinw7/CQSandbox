@@ -55,8 +55,8 @@ class PointList3DObj : public Object3D {
  protected:
   class PointListShaderProgram : public ShaderProgram {
    public:
-    PointListShaderProgram(QObject *parent) :
-     ShaderProgram(parent) {
+    PointListShaderProgram(App *app) :
+     ShaderProgram(app) {
     }
 
     GLint positionAttr { 0 };

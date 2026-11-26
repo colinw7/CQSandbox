@@ -2,12 +2,14 @@
 #define ShaderToyProgram_H
 
 #include <CPoint2D.h>
+#include <CPoint3D.h>
 
 #include <QObject>
 #include <QString>
 
 namespace CQSandbox {
 
+class App;
 class ShaderProgram;
 
 class ShaderToyProgram {
@@ -18,11 +20,12 @@ class ShaderToyProgram {
     float    elapsed { 0.0f };
     int      ticks   { 0 };
     CPoint2D mousePress;
-    CPoint2D mouseMove ;
+    CPoint2D mouseMove;
+    CPoint3D cameraPos;
   };
 
  public:
-  ShaderToyProgram(QObject *parent=nullptr);
+  ShaderToyProgram(App *app);
 
   ShaderProgram *program() const { return program_; }
 
@@ -37,7 +40,7 @@ class ShaderToyProgram {
   void setShaderToyUniforms(const UniformData &data);
 
  private:
-  QObject *parent_ { nullptr };
+  App *app_ { nullptr };
 
   ShaderProgram* program_ { nullptr };
 

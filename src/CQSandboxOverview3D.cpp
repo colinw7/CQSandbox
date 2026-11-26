@@ -7,6 +7,7 @@
 #include <CQSandboxLineList3DObj.h>
 #include <CQSandboxParticleList3DObj.h>
 #include <CQSandboxPath3DObj.h>
+#include <CQSandboxPlane3DObj.h>
 #include <CQSandboxPoint3DObj.h>
 #include <CQSandboxPointList3DObj.h>
 #include <CQSandboxShape3DObj.h>
@@ -28,6 +29,7 @@
 
 #include <CGeomScene3D.h>
 #include <CGeomObject3D.h>
+#include <CGeomFace3D.h>
 
 #ifdef CQ_PERF_GRAPH
 #include <CQPerfMonitor.h>
@@ -351,6 +353,7 @@ updateObject(Object3D *obj)
   auto *lineListObj     = dynamic_cast<LineList3DObj     *>(obj);
   auto *particleListObj = dynamic_cast<ParticleList3DObj *>(obj);
   auto *pathObj         = dynamic_cast<Path3DObj         *>(obj);
+  auto *planeObj        = dynamic_cast<Plane3DObj        *>(obj);
   auto *pointObj        = dynamic_cast<Point3DObj        *>(obj);
   auto *pointListObj    = dynamic_cast<PointList3DObj    *>(obj);
   auto *shapeObj        = dynamic_cast<Shape3DObj        *>(obj);
@@ -363,6 +366,7 @@ updateObject(Object3D *obj)
   else if (lineListObj    ) updateLineList(lineListObj);
   else if (particleListObj) updateParticleList(particleListObj);
   else if (pathObj        ) updatePath(pathObj);
+  else if (planeObj       ) updatePlane(planeObj);
   else if (pointObj       ) updatePoint(pointObj);
   else if (pointListObj   ) updatePointList(pointListObj);
   else if (shapeObj       ) updateShape(shapeObj);
@@ -426,6 +430,25 @@ updateParticleList(ParticleList3DObj *obj)
 void
 Overview3D::
 updatePath(Path3DObj *obj)
+{
+  const auto &mm = obj->modelMatrix();
+
+  const auto &points = obj->points();
+
+  auto np = points.size();
+
+  for (uint i = 0; i < np; i += 2) {
+    auto p1 = mm*points[i + 0].point();
+    auto p2 = mm*points[i + 1].point();
+
+    drawData_.bbox += p1;
+    drawData_.bbox += p2;
+  }
+}
+
+void
+Overview3D::
+updatePlane(Plane3DObj *obj)
 {
   const auto &mm = obj->modelMatrix();
 
@@ -818,6 +841,7 @@ drawObject(Object3D *obj)
   auto *lineListObj     = dynamic_cast<LineList3DObj     *>(obj);
   auto *particleListObj = dynamic_cast<ParticleList3DObj *>(obj);
   auto *pathObj         = dynamic_cast<Path3DObj         *>(obj);
+  auto *planeObj        = dynamic_cast<Plane3DObj        *>(obj);
   auto *pointObj        = dynamic_cast<Point3DObj        *>(obj);
   auto *pointListObj    = dynamic_cast<PointList3DObj    *>(obj);
   auto *shapeObj        = dynamic_cast<Shape3DObj        *>(obj);
@@ -830,6 +854,7 @@ drawObject(Object3D *obj)
   else if (lineListObj    ) drawLineList(lineListObj);
   else if (particleListObj) drawParticleList(particleListObj);
   else if (pathObj        ) drawPath(pathObj);
+  else if (planeObj       ) drawPlane(planeObj);
   else if (pointObj       ) drawPoint(pointObj);
   else if (pointListObj   ) drawPointList(pointListObj);
   else if (shapeObj       ) drawShape(shapeObj);
@@ -1171,6 +1196,31 @@ drawPath(Path3DObj *obj)
 
     drawModelLine(p1, p2);
   }
+}
+
+void
+Overview3D::
+drawPlane(Plane3DObj *obj)
+{
+  //auto c = obj->color();
+
+  drawData_.modelMatrix = obj->modelMatrix();
+
+  const auto &points = obj->points();
+
+  auto np = points.size();
+
+  std::vector<CPoint3D> poly;
+
+  for (uint i = 0; i < np; ++i) {
+    auto p = points[i].point();
+
+    poly.push_back(p);
+  }
+
+  bool objSelected = obj->isSelected();
+
+  drawModelPolygon(poly, objSelected);
 }
 
 void

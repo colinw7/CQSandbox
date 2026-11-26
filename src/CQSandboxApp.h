@@ -25,6 +25,7 @@ class SideBar3D;
 class Overview3D;
 class OverviewToolbar3D;
 class Control3D;
+class Console3D;
 
 class Status;
 
@@ -65,6 +66,8 @@ class App : public QFrame {
   Control3D         *control3D        () const { return frame3D_.control; }
   Overview3D        *overview3D       () const { return frame3D_.overview; }
   OverviewToolbar3D *overviewToolbar3D() const { return frame3D_.overviewToolbar; }
+
+  Console3D *console3D() const;
 
   // Common
   Status *status() const { return status_; }
@@ -143,6 +146,7 @@ class App : public QFrame {
   Frame2D frame2D_;
 
   Console2D* console2D_ { nullptr };
+  Console3D* console3D_ { nullptr };
 
   Status* status_ { nullptr };
 };

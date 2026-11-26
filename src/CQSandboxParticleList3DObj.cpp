@@ -432,7 +432,7 @@ initShader()
 
   auto *app = canvas_->app();
 
-  s_program = new ParticleListShaderProgram(this);
+  s_program = new ParticleListShaderProgram(app);
 
   s_program->addVertexFile  (app->buildDir() + "/shaders/particle_list_billboard.vs");
   s_program->addFragmentFile(app->buildDir() + "/shaders/particle_list_billboard.fs");

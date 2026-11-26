@@ -1,19 +1,18 @@
 #version 330 core
 
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aColor;
-layout (location = 2) in vec2 aTexCoord;
+#include "shaders/buffer_data.vs"
 
-uniform highp mat4 projection;
-uniform highp mat4 view;
-uniform highp mat4 model;
-
-out vec3 Color;
-out vec2 TexCoord;
+#include "shaders/world_matrix.vs"
 
 void main() {
-  Color    = aColor;
-  TexCoord = vec2(aTexCoord.x, aTexCoord.y);
+  vec3 position = aPos;
+  vec3 norm     = normalize(aNormal);
 
-  gl_Position = projection*view*model*vec4(aPos, 1.0);
+  FragPos = model*vec4(position, 1.0);
+  Normal  = mat3(transpose(inverse(model)))*norm;
+
+  Color    = aColor;
+  TexCoord = aTexCoord;
+
+  gl_Position = projection*view*FragPos;
 }

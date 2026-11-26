@@ -231,7 +231,7 @@ initShader()
 
   auto *app = canvas_->app();
 
-  s_program = new ShaderProgram(this);
+  s_program = new ShaderProgram(app);
 
   s_program->addVertexFile  (app->buildDir() + "/shaders/line_list.vs");
   s_program->addFragmentFile(app->buildDir() + "/shaders/line_list.fs");

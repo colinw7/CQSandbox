@@ -50,7 +50,7 @@ init()
   if (! s_program) {
     auto *app = canvas_->app();
 
-    s_program = new ShaderProgram(this);
+    s_program = new ShaderProgram(app);
 
     s_program->addVertexFile  (app->buildDir() + "/shaders/shader_shape.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/shader_shape.fs");
@@ -107,7 +107,7 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
     setNeedsUpdate();
   }
-  else if (name == "tex_coords") {
+  else if (name == "texture_coords" || name == "tex_coords") {
     std::vector<CVector2D> vectors;
     if (! Util::stringToVectors2D(tcl, value, vectors))
       return false;
@@ -226,7 +226,9 @@ void
 ShaderShape3DObj::
 setShaderToyTexture(const QString &file)
 {
-  shaderToyData_.program = new ShaderToyProgram(this);
+  auto *app = canvas_->app();
+
+  shaderToyData_.program = new ShaderToyProgram(app);
   shaderToyData_.texture = new CQGLTexture;
 
   shaderToyData_.texture->setFunctions(canvas_);

@@ -14,6 +14,8 @@ FPCamera::
 FPCamera(App *app) :
  CameraIFace(app)
 {
+  orientation_.normalize();
+
   updateOrientation();
 }
 
@@ -262,6 +264,11 @@ updateOrientationI()
 #endif
 
     orientation_.normalize();
+
+    auto angles = toEuler(orientation_);
+
+    pitch_ = angles.x();
+    yaw_   = angles.y();
 
     angleDelta_   = CVector3D();
     angleChanged_ = false;

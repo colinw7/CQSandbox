@@ -295,7 +295,7 @@ init()
   if (! s_program) {
     auto *app = canvas_->app();
 
-    s_program = new PointListShaderProgram(this);
+    s_program = new PointListShaderProgram(app);
 
     s_program->addVertexFile  (app->buildDir() + "/shaders/point_list.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/point_list.fs");

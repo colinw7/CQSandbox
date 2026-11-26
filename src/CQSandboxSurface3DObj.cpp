@@ -412,7 +412,7 @@ shaderProgram()
   if (! s_program) {
     auto *app = canvas_->app();
 
-    s_program = new ShaderProgram(this);
+    s_program = new ShaderProgram(app);
 
     s_program->addVertexFile  (app->buildDir() + "/shaders/surface.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/surface.fs");
@@ -564,11 +564,17 @@ render()
 
   canvas_->bindProgram(program);
 
+  //---
+
   canvas_->setProgramMatrices(program);
+
+  //---
 
   canvas_->setProgramLightGlobals(program);
 
-  canvas_->setProgramSimpleLight(program);
+  canvas_->setProgramLights(program);
+
+  //---
 
   setModelMatrix();
   program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
@@ -587,11 +593,7 @@ render()
 
   //---
 
-  program->setUniformValue("wireframeColor", CQGLUtil::toVector(canvas_->wireframeColor()));
-  program->setUniformValue("wireframeAlpha", float(canvas_->wireframeAlpha()));
-
-  program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
-  program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
+  canvas_->setProgramStateColors(program);
 
   //---
 
@@ -621,10 +623,8 @@ render()
 
     CQGLBuffer::DrawData drawData;
 
-    drawData.mode = GL_TRIANGLES;
-
-    if (buffer_->hasIndices())
-      drawData.indexed = true;
+    drawData.mode    = GL_TRIANGLES;
+    drawData.indexed = buffer_->hasIndices();
 
     for (const auto &faceData : getFaceDatas()) {
       if (faceData.glMode >= 0)
@@ -672,11 +672,9 @@ render()
 
     CQGLStateInst->setLineWidth(canvas_->editLineWidth());
 
-    drawData.mode = GL_LINES;
-    drawData.len  = 2;
-
-    if (buffer_->hasIndices())
-      drawData.indexed = true;
+    drawData.mode    = GL_LINES;
+    drawData.indexed = buffer_->hasIndices();
+    drawData.len     = 2;
 
     for (const auto &lineData : getLineDatas()) {
       drawData.pos = lineData.ind1;

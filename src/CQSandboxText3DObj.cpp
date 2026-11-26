@@ -73,7 +73,7 @@ initShader()
   if (! s_program) {
     auto *app = canvas_->app();
 
-    s_program = new TextShaderProgram(this);
+    s_program = new TextShaderProgram(app);
 
     s_program->addVertexFile  (app->buildDir() + "/shaders/text.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/text.fs");

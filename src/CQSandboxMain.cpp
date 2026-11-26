@@ -106,6 +106,7 @@ proc init { } {\n\
   set ::model [sb3d::model {%1}]\n\
 }\n\
 proc bboxChanged { } {\n\
+  echo \"bboxChanged\"\n\
   sb3d::light exec reset 1\n\
   sb3d::camera exec reset\n\
 }").arg(modelName);

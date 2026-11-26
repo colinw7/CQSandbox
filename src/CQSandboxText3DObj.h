@@ -28,8 +28,8 @@ class Text3DObj : public Object3D {
 
   class TextShaderProgram : public ShaderProgram {
    public:
-    TextShaderProgram(QObject *parent) :
-     ShaderProgram(parent) {
+    TextShaderProgram(App *app) :
+     ShaderProgram(app) {
     }
 
     GLint posAttr        { 0 };

@@ -311,12 +311,17 @@ init(const QStringList &tclArgs)
   runTclCmd("proc init { args } { }");
   runTclCmd("proc update { args } { }");
   runTclCmd("proc click { args } { }");
-  runTclCmd("proc keyPress { args } { }");
   runTclCmd("proc tick { args } { }");
+
   runTclCmd("proc setMode { args } { }");
+
   runTclCmd("proc bboxChanged { args } { }");
   runTclCmd("proc cameraChanged { args } { }");
+
+  runTclCmd("proc keyPress { args } { }");
+
   runTclCmd("proc gamePress { args } { }");
+  runTclCmd("proc gameMove { args } { }");
   runTclCmd("proc gameRelease { args } { }");
   runTclCmd("proc gameClickObj { args } { }");
 
@@ -1734,6 +1739,8 @@ getCameraValue(const QString &name, const QStringList &, QVariant &res)
   else if (name == "zoom")
     res = Util::realToString(camera->zoom());
 #endif
+  else if (name == "distance")
+    res = Util::realToString(camera->distance());
   else if (name == "disable_roll") {
     auto *camera1 = dynamic_cast<Camera *>(camera);
 
@@ -2282,6 +2289,10 @@ step()
 
   ++ticks_;
 
+  elapsed_ += redrawTimeOut()/1000.0;
+
+  //---
+
   for (const auto &pm : mgrs_)
     pm.second->tick();
 
@@ -2321,14 +2332,42 @@ setRedrawTimeOut(int t)
 
 void
 Canvas3D::
+setProgramState(ShaderProgram *program)
+{
+  int elapsedLocation = program->uniformLocation("iTime");
+  program->setUniformValue(elapsedLocation, GLfloat(elapsed_));
+
+  int resLocation = program->uniformLocation("iResolution");
+  program->setUniformValue(resLocation, GLfloat(pixelWidth()), GLfloat(pixelHeight()), 1.0f);
+}
+
+void
+Canvas3D::
+setProgramStateColors(ShaderProgram *program)
+{
+  program->setUniformValue("wireframeColor", CQGLUtil::toVector(wireframeColor()));
+  program->setUniformValue("wireframeAlpha", float(wireframeAlpha()));
+
+  program->setUniformValue("selectColor", CQGLUtil::toVector(selectColor()));
+  program->setUniformValue("selectAlpha", float(selectAlpha()));
+}
+
+void
+Canvas3D::
 setProgramShadow(ShaderProgram *program)
 {
- auto *light = currentLight();
+  auto *light = shadowLight_;
 
   program->setUniformValue("shadowBias", float(shadowBias()));
 
-  program->setUniformValue("near_plane", float(light->near()));
-  program->setUniformValue("far_plane" , float(light->far ()));
+  if (light) {
+    program->setUniformValue("near_plane", float(light->near()));
+    program->setUniformValue("far_plane" , float(light->far ()));
+  }
+  else {
+    program->setUniformValue("near_plane", 0.01f);
+    program->setUniformValue("far_plane" , 1000.0f);
+  }
 
   //---
 
@@ -2704,7 +2743,7 @@ setProgramSimpleLight(ShaderProgram *program)
 {
   auto *light = currentLight();
 
-  setProgramLight(program, light, "light");
+  setProgramLight(program, light, 0, "light");
 
   program->setUniformValue("lightPos"  , CQGLUtil::toVector(light->position()));
   program->setUniformValue("lightColor", CQGLUtil::toVector(light->getDiffuse()));
@@ -2729,7 +2768,7 @@ setProgramLights(ShaderProgram *program)
   for (auto *light : lights()) {
     auto lightName = QString("lights[%1]").arg(il);
 
-    setProgramLight(program, light, lightName);
+    setProgramLight(program, light, il, lightName);
 
     ++il;
 
@@ -2749,7 +2788,7 @@ setProgramLights(ShaderProgram *program)
 
 void
 Canvas3D::
-setProgramLight(ShaderProgram *program, Light3D *light, const QString &lightName)
+setProgramLight(ShaderProgram *program, Light3D *light, int ind, const QString &lightName)
 {
   static char nameStr[256];
 
@@ -2760,6 +2799,9 @@ setProgramLight(ShaderProgram *program, Light3D *light, const QString &lightName
   };
 
   program->setUniformValue(STR(lightName + ".type"), int(light->getType()));
+
+  program->setUniformValue(STR(lightName + ".ind"), ind);
+
   program->setUniformValue(STR(lightName + ".enabled"), light->getEnabled());
 
   program->setUniformValue(STR(lightName + ".position"), CQGLUtil::toVector(light->position()));
@@ -3005,65 +3047,77 @@ render()
   //---
 
   if (isShadowed()) {
-    auto *light = currentLight();
+    bool shadowClear     = true;
+    bool shadowCubeClear = true;
 
-    if      (light->getType() == Light3D::Type::DIRECTIONAL) {
-      // draw scene with (directional) light as camera (eye) to texture to get visibilty
-      // from light direction
-      if (! shadowData_.textureBuffer.texture) {
-        shadowData_.textureBuffer.texture = new CQGLTexture;
+    for (auto *light : lights()) {
+      if (! light->getEnabled())
+        continue;
 
-        shadowData_.textureBuffer.texture->setFunctions(this);
+      shadowLight_ = light;
+
+      if      (light->getType() == Light3D::Type::DIRECTIONAL) {
+        // draw scene with (directional) light as camera (eye) to texture to get visibilty
+        // from light direction
+        if (! shadowData_.textureBuffer.texture) {
+          shadowData_.textureBuffer.texture = new CQGLTexture;
+
+          shadowData_.textureBuffer.texture->setFunctions(this);
+        }
+
+        if (! shadowData_.textureBuffer.texture->setShadow(shadowData_.size, shadowData_.size))
+          std::cerr << "Set shadow texture failed\n";
+
+        auto oldShaderType = setShaderType(ShaderType::SHADOW);
+
+        shadowData_.textureBuffer.texture->bind(shadowClear);
+        shadowClear = false;
+
+        shadowData_.textureBuffer.camera = light;
+
+        setViewGlobals(shadowData_.textureBuffer.camera);
+
+        drawContents();
+
+        setShaderType(oldShaderType);
+
+        shadowData_.textureBuffer.texture->unbind();
+      }
+      else if (light->getType() == Light3D::Type::POINT) {
+        // draw scene with (point) light as camera (eye) to cube map textures to get visibilty
+        // in all directions
+        if (! shadowCubeData_.textureBuffer.texture) {
+          shadowCubeData_.textureBuffer.texture = new CQGLTexture;
+
+          shadowCubeData_.textureBuffer.texture->setFunctions(this);
+        }
+
+        if (! shadowCubeData_.textureBuffer.texture->
+                setShadowCubeMap(shadowCubeData_.size, shadowCubeData_.size))
+          std::cerr << "Set shadow cube texture failed\n";
+
+        auto oldShaderType = setShaderType(ShaderType::SHADOW_CUBE);
+
+        shadowCubeData_.textureBuffer.texture->bind(shadowCubeClear);
+        shadowCubeClear = false;
+
+        shadowCubeData_.textureBuffer.camera = light;
+
+        auto oldFov = shadowCubeData_.textureBuffer.camera->fov();
+        shadowCubeData_.textureBuffer.camera->setFov(90.0);
+
+        setViewGlobals(shadowCubeData_.textureBuffer.camera);
+
+        drawContents();
+
+        setShaderType(oldShaderType);
+
+        shadowCubeData_.textureBuffer.texture->unbind();
+
+        shadowCubeData_.textureBuffer.camera->setFov(oldFov);
       }
 
-      if (! shadowData_.textureBuffer.texture->setShadow(shadowData_.size, shadowData_.size))
-        std::cerr << "Set shadow texture failed\n";
-
-      auto oldShaderType = setShaderType(ShaderType::SHADOW);
-
-      shadowData_.textureBuffer.texture->bind();
-
-      shadowData_.textureBuffer.camera = light;
-
-      setViewGlobals(shadowData_.textureBuffer.camera);
-
-      drawContents();
-
-      setShaderType(oldShaderType);
-
-      shadowData_.textureBuffer.texture->unbind();
-    }
-    else if (light->getType() == Light3D::Type::POINT) {
-      // draw scene with (point) light as camera (eye) to cube map textures to get visibilty
-      // in all directions
-      if (! shadowCubeData_.textureBuffer.texture) {
-        shadowCubeData_.textureBuffer.texture = new CQGLTexture;
-
-        shadowCubeData_.textureBuffer.texture->setFunctions(this);
-      }
-
-      if (! shadowCubeData_.textureBuffer.texture->
-              setShadowCubeMap(shadowCubeData_.size, shadowCubeData_.size))
-        std::cerr << "Set shadow cube texture failed\n";
-
-      auto oldShaderType = setShaderType(ShaderType::SHADOW_CUBE);
-
-      shadowCubeData_.textureBuffer.texture->bind();
-
-      shadowCubeData_.textureBuffer.camera = light;
-
-      auto oldFov = shadowCubeData_.textureBuffer.camera->fov();
-      shadowCubeData_.textureBuffer.camera->setFov(90.0);
-
-      setViewGlobals(shadowCubeData_.textureBuffer.camera);
-
-      drawContents();
-
-      setShaderType(oldShaderType);
-
-      shadowCubeData_.textureBuffer.texture->unbind();
-
-      shadowCubeData_.textureBuffer.camera->setFov(oldFov);
+      shadowLight_ = nullptr;
     }
   }
 
@@ -3217,17 +3271,24 @@ render()
   //---
 
   if (isShadowed() && isShadowDebug()) {
-    auto *light = currentLight();
+    int x = 0;
 
-    if      (light->getType() == Light3D::Type::DIRECTIONAL) {
-      glViewport(0, 0, textureAreaSize_, textureAreaSize_);
+    for (auto *light : lights()) {
+      if (! light->getEnabled())
+        continue;
 
-      drawTexture(shadowData_.textureBuffer, /*isDepth*/true);
-    }
-    else if (light->getType() == Light3D::Type::POINT) {
-      glViewport(0, 0, textureAreaSize_, textureAreaSize_);
+      if      (light->getType() == Light3D::Type::DIRECTIONAL) {
+        glViewport(x, 0, textureAreaSize_, textureAreaSize_);
 
-      drawCubeMapTexture(shadowCubeData_.textureBuffer, /*isDepth*/true);
+        drawTexture(shadowData_.textureBuffer, /*isDepth*/true);
+      }
+      else if (light->getType() == Light3D::Type::POINT) {
+        glViewport(x, 0, textureAreaSize_, textureAreaSize_);
+
+        drawCubeMapTexture(shadowCubeData_.textureBuffer, /*isDepth*/true);
+      }
+
+      x += textureAreaSize_;
     }
   }
 
@@ -4138,7 +4199,7 @@ Canvas3D::
 initSelectionProgram()
 {
   if (! selectionProgram_) {
-    selectionProgram_ = new ShaderProgram(this);
+    selectionProgram_ = new ShaderProgram(app_);
 
     selectionProgram_->addVertexFile  (app_->buildDir() + "/shaders/selection.vs");
     selectionProgram_->addFragmentFile(app_->buildDir() + "/shaders/selection.fs");
@@ -4156,8 +4217,10 @@ Canvas3D::
 drawLights()
 {
   for (auto *light : lights()) {
-    if (light->getEnabled())
-      light->render();
+    if (! light->getEnabled())
+      continue;
+
+    light->render();
   }
 }
 

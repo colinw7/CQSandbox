@@ -87,7 +87,7 @@ initShader(Canvas3D *canvas)
 
   auto *app = canvas->app();
 
-  s_program = new ShaderProgram(canvas);
+  s_program = new ShaderProgram(app);
 
   s_program->addVertexFile  (app->buildDir() + "/shaders/path.vs");
   s_program->addFragmentFile(app->buildDir() + "/shaders/path.fs");

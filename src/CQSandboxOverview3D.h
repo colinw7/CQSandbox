@@ -32,6 +32,7 @@ class Model3DObj;
 class LineList3DObj;
 class ParticleList3DObj;
 class Path3DObj;
+class Plane3DObj;
 class Point3DObj;
 class PointList3DObj;
 class Shape3DObj;
@@ -173,6 +174,7 @@ class Overview3D : public QFrame {
   void updateLineList(LineList3DObj *obj);
   void updateParticleList(ParticleList3DObj *obj);
   void updatePath(Path3DObj *obj);
+  void updatePlane(Plane3DObj *obj);
   void updatePoint(Point3DObj *obj);
   void updatePointList(PointList3DObj *obj);
   void updateShape(Shape3DObj *obj);
@@ -188,6 +190,7 @@ class Overview3D : public QFrame {
   void drawLineList(LineList3DObj *obj);
   void drawParticleList(ParticleList3DObj *obj);
   void drawPath(Path3DObj *obj);
+  void drawPlane(Plane3DObj *obj);
   void drawPoint(Point3DObj *obj);
   void drawPointList(PointList3DObj *obj);
   void drawShape(Shape3DObj *obj);

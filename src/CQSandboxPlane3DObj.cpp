@@ -1,4 +1,7 @@
 #include <CQSandboxPlane3DObj.h>
+#include <CQSandboxTexture3DObj.h>
+#include <CQSandboxTexture.h>
+#include <CQSandboxMaterial3D.h>
 #include <CQSandboxCanvas3D.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
@@ -34,6 +37,7 @@ Plane3DObj::
 Plane3DObj(Canvas3D *canvas) :
  Object3D(canvas, Type::PLANE)
 {
+  material_ = canvas_->createMaterial();
 }
 
 void
@@ -60,18 +64,9 @@ init()
     CGLVector3D(-0.5f, -0.5f, 0.0f),
   };
 
-  static TexCoords texCoords = {
-    CGLVector2D(0.0f, 0.0f),
-    CGLVector2D(1.0f, 0.0f),
-    CGLVector2D(1.0f, 1.0f),
+  points_ = points;
 
-    CGLVector2D(1.0f, 1.0f),
-    CGLVector2D(0.0f, 1.0f),
-    CGLVector2D(0.0f, 0.0f),
-  };
-
-  points_    = points;
-  texCoords_ = texCoords;
+  setTexCoords(CPoint2D(0, 0), CPoint2D(1, 1));
 
   //---
 
@@ -131,10 +126,32 @@ setValue(const QString &name, const QString &value, const QStringList &args)
     if (! Util::stringToQColor(tcl, value, c))
       return false;
 
-    setColor(c);
+    setDiffuseColor(c);
+
+    setNeedsUpdate();
   }
-  else if (name == "texture")
-    setTextureFile(value);
+  else if (name == "texture" || name == "diffuse_texture") {
+    auto *textureObj = dynamic_cast<Texture3DObj *>(canvas()->getObjectByName(value));
+
+    if (textureObj)
+      setDiffuseTexture(textureObj->texture());
+    else {
+      if (! setDiffuseTextureFile(value))
+        return canvas()->errorMsg("Bad diffuse texture file '" + value + "'");
+    }
+
+    setNeedsUpdate();
+  }
+  else if (name == "texture_coords" || name == "tex_coords") {
+    std::vector<CPoint2D> points;
+    if (! Util::stringToPoints2D(tcl, value, points))
+      return false;
+
+    if (points.size() != 2)
+      return false;
+
+    setTexCoords(points[0], points[1]);
+  }
   else
     return Object3D::setValue(name, value, args);
 
@@ -143,34 +160,84 @@ setValue(const QString &name, const QString &value, const QStringList &args)
 
 void
 Plane3DObj::
-setColor(const QColor &c)
+setTexCoords(const CPoint2D &p1, const CPoint2D &p2)
 {
-  color_ = c;
+  if (texCoords_.empty())
+    texCoords_.resize(6);
 
-  setNeedsUpdate();
+  auto x1 = p1.x; auto y1 = p1.y;
+  auto x2 = p2.x; auto y2 = p2.y;
+
+  assert(texCoords_.size() == 6);
+
+  texCoords_[0] = CGLVector2D(x1, y1);
+  texCoords_[1] = CGLVector2D(x2, y1);
+  texCoords_[2] = CGLVector2D(x2, y2);
+
+  texCoords_[3] = CGLVector2D(x2, y2);
+  texCoords_[4] = CGLVector2D(x1, y2);
+  texCoords_[5] = CGLVector2D(x1, y1);
+}
+
+//---
+
+QColor
+Plane3DObj::
+diffuseColor() const
+{
+  return Util::RGBAToQColor(material_->getDiffuse());
 }
 
 void
 Plane3DObj::
-setTextureFile(const QString &filename)
+setDiffuseColor(const QColor &c)
 {
-  textureFile_ = filename;
-
-  if (textureFile_ != "") {
-    texture_ = new CQGLTexture;
-
-    if (! texture_->load(textureFile_, /*flip*/true)) {
-      delete texture_;
-      texture_ = nullptr;
-    }
-  }
-  else {
-    delete texture_;
-    texture_ = nullptr;
-  }
-
-  setNeedsUpdate();
+  material_->setDiffuse(Util::QColorToRGBA(c));
 }
+
+//---
+
+QString
+Plane3DObj::
+diffuseTextureFile() const
+{
+  if (! material_->diffuseTexture())
+    return "";
+
+  auto *glTexture = dynamic_cast<Texture *>(material_->diffuseTexture())->glTexture(canvas_);
+
+  return glTexture->fileName();
+}
+
+bool
+Plane3DObj::
+setDiffuseTextureFile(const QString &filename)
+{
+  Texture *diffuseTexture { nullptr };
+
+  if (! canvas_->loadTexture(filename, diffuseTexture))
+    return false;
+
+  setDiffuseTexture(diffuseTexture);
+
+  return true;
+}
+
+Texture *
+Plane3DObj::
+diffuseTexture() const
+{
+  return static_cast<Texture *>(material_->diffuseTexture());
+}
+
+void
+Plane3DObj::
+setDiffuseTexture(Texture *texture)
+{
+  material_->setDiffuseTexture(texture);
+}
+
+//---
 
 ShaderProgram *
 Plane3DObj::
@@ -182,7 +249,7 @@ shaderProgram()
   if (! s_program) {
     auto *app = canvas_->app();
 
-    s_program = new ShaderProgram(this);
+    s_program = new ShaderProgram(app);
 
     s_program->addVertexFile  (app->buildDir() + "/shaders/plane.vs");
     s_program->addFragmentFile(app->buildDir() + "/shaders/plane.fs");
@@ -214,8 +281,10 @@ loadBuffer()
 
   auto np = points_.size();
 
-  for (uint i = 0; i < np; ++i)
-    buffer_->addPoint(points_[i]);
+  for (uint i = 0; i < np; ++i) {
+    buffer_->addPoint (points_[i]);
+    buffer_->addNormal(CVector3D(0, 0, 1));
+  }
 
   //---
 
@@ -223,7 +292,7 @@ loadBuffer()
   std::vector<CGLColor> colors1;
 
   if (colors_.size() != np) {
-    auto c  = this->color();
+    auto c  = this->diffuseColor();
     auto c1 = Util::qcolorToColor(c);
 
     while (colors1.size() < np)
@@ -277,6 +346,8 @@ render()
 {
   auto *program = shaderProgram();
 
+  //---
+
   loadBuffer();
 
   buffer_->setProgram(program->program());
@@ -285,12 +356,28 @@ render()
 
   canvas_->bindProgram(program);
 
+  //---
+
+  canvas_->setProgramShadow(program);
+
+  //---
+
   setModelMatrix();
   program->setUniformValue("model", CQGLUtil::toQMatrix(modelMatrix()));
 
   canvas_->setProgramMatrices(program, programMatrixData());
 
+  canvas_->setProgramLightGlobals(program);
+
+  canvas_->setProgramLights(program);
+
   program->loadUniforms();
+
+  //---
+
+  auto cullFace = isCullFace().value_or(canvas_->isCullFace());
+
+  bool oldCullFace = CQGLStateInst->setCullFace(cullFace);
 
   //---
 
@@ -298,29 +385,36 @@ render()
 
   //---
 
-  bool useTexture_ = false;
+  canvas_->setProgramState(program);
 
-  if (canvas_->isTextured() && texture_)
-    useTexture_ = true;
+  canvas_->setProgramStateColors(program);
 
-  program->setUniformValue("textureId", 0);
+  canvas_->setProgramMaterial(program, material_);
 
-  bool oldTexture = CQGLStateInst->setEnableTexture(useTexture_);
-
-  if (useTexture_) {
-    CQGLStateInst->setActiveTextureNum(0, true);
-    texture_->bind();
-  }
+  program->setUniformValue("alpha", float(diffuseColor().alphaF()));
 
   //---
 
-  program->setUniformValue("wireframeColor", CQGLUtil::toVector(canvas_->wireframeColor()));
-  program->setUniformValue("wireframeAlpha", float(canvas_->wireframeAlpha()));
+  bool useTexture = false;
 
-  program->setUniformValue("selectColor", CQGLUtil::toVector(canvas_->selectColor()));
-  program->setUniformValue("selectAlpha", float(canvas_->selectAlpha()));
+  if (canvas_->isTextured() && diffuseTexture())
+    useTexture = true;
 
-  program->setUniformValue("alpha", float(color().alphaF()));
+  program->setUniformValue("diffuseTexture.texture", 0);
+
+  bool oldTexture = CQGLStateInst->setEnableTexture(useTexture);
+
+  if (useTexture) {
+    CQGLStateInst->setActiveTextureNum(0, true);
+    diffuseTexture()->glTexture(canvas_)->bind();
+  }
+
+  program->setUniformValue("normalTexture.enabled"  , false);
+  program->setUniformValue("normalTexture.texture"  , 1);
+  program->setUniformValue("specularTexture.enabled", false);
+  program->setUniformValue("specularTexture.texture", 2);
+  program->setUniformValue("emissionTexture.enabled", false);
+  program->setUniformValue("emissionTexture.texture", 3);
 
   //---
 
@@ -331,7 +425,7 @@ render()
 
     CQGLStateInst->setPolygonMode(wireframe ? GL_LINE : GL_FILL);
 
-    program->setUniformValue("useTexture", ! wireframe && useTexture_);
+    program->setUniformValue("diffuseTexture.enabled", ! wireframe && useTexture);
 
     CQGLBuffer::DrawData drawData;
 
@@ -362,7 +456,7 @@ render()
     CQGLStateInst->setPointSize(canvas_->editPointSize());
 
     drawData.mode    = GL_POINTS;
-    drawData.indexed = buffer_->hasIndices();
+    drawData.indexed = false;
     drawData.len     = 1;
 
     for (const auto &pointData : getPointDatas()) {
@@ -420,12 +514,20 @@ render()
 
   //---
 
+  canvas_->unsetProgramShadow();
+
+  //---
+
   canvas_->bindProgram(nullptr);
 
   canvas_->bindBuffer(nullptr);
 
-  if (useTexture_)
-    texture_->unbind();
+  if (useTexture)
+    diffuseTexture()->glTexture(canvas_)->unbind();
+
+  //---
+
+  CQGLStateInst->setCullFace(oldCullFace);
 }
 
 }

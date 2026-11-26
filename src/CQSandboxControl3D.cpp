@@ -368,6 +368,7 @@ addLightsFrame()
 
   auto addColorEdit = [&](const QString &label) {
     auto *edit = new CQColorEdit;
+    edit->setShowSwatch(true);
     addLabelEdit(label, edit);
     return edit;
   };
@@ -545,6 +546,7 @@ addMaterialsFrame()
 
   auto addColorEdit = [&](const QString &label) {
     auto *edit = new CQColorEdit;
+    edit->setShowSwatch(true);
     addLabelEdit(label, edit);
     return edit;
   };
@@ -750,6 +752,7 @@ addOverviewFrame()
 
   auto addColorEdit = [&](const QString &label) {
     auto *edit = new CQColorEdit;
+    edit->setShowSwatch(true);
     addLabelEdit(label, edit);
     return edit;
   };

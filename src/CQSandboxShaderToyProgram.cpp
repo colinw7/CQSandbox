@@ -4,8 +4,8 @@
 namespace CQSandbox {
 
 ShaderToyProgram::
-ShaderToyProgram(QObject *parent) :
- parent_(parent)
+ShaderToyProgram(App *app) :
+ app_(app)
 {
   fragmentShader_ = QString("\
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {\n\
@@ -66,6 +66,7 @@ uniform sampler2D iChannel0;\n\
 uniform sampler2D iChannel1;\n\
 uniform sampler2D iChannel2;\n\
 uniform sampler2D iChannel3;\n\
+uniform vec3      iCameraPos;\n\
 \n");
 
   if (isTexture()) {
@@ -102,7 +103,7 @@ void main() {\n\
 
   //---
 
-  program_ = new ShaderProgram(parent_);
+  program_ = new ShaderProgram(app_);
 
   program_->addVertexCode  (vertexShader);
   program_->addFragmentCode(fragmentShader);
@@ -135,10 +136,24 @@ setShaderToyUniforms(const UniformData &data)
 
   //---
 
+  //      mouse.xy  = mouse position during last button down
+  //  abs(mouse.zw) = mouse position during last button click
+  // sign(mouze.z)  = button is down
+  // sign(mouze.w)  = button is clicked
   int mouseLocation = program->uniformLocation("iMouse");
+  auto mx = data.mouseMove.x;
+  auto my = data.h - 1 - data.mouseMove.y;
+  auto px = data.mousePress.x;
+  auto py = data.h - 1 - data.mousePress.y;
+
   program->setUniformValue(mouseLocation,
-    GLfloat(data.mousePress.x), GLfloat(data.mousePress.y),
-    GLfloat(data.mouseMove .x), GLfloat(data.mouseMove .y));
+    GLfloat(mx), GLfloat(my), GLfloat(px), GLfloat(py));
+
+  //---
+
+  int cameraPosLocation = program->uniformLocation("iCameraPos");
+  program->setUniformValue(cameraPosLocation,
+    GLfloat(data.cameraPos.x), GLfloat(data.cameraPos.y), GLfloat(data.cameraPos.z));
 }
 
 }

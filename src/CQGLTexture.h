@@ -94,7 +94,7 @@ class CQGLTexture {
   void bindFrameBuffer();
   void unbindFrameBuffer();
 
-  void bind() const;
+  void bind(bool clear=true) const;
   void unbind() const;
 
   void bindBuffer() const;

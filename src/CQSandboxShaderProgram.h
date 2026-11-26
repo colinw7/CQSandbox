@@ -1,7 +1,9 @@
 #ifndef CQSandboxShaderProgram_H
 #define CQSandboxShaderProgram_H
 
+#include <CQSandboxApp.h>
 #include <CQSandboxUtil.h>
+
 #include <CQGLUtil.h>
 #include <CPoint2D.h>
 
@@ -37,7 +39,7 @@ class ShaderUniform {
 
 class ShaderProgram {
  public:
-  ShaderProgram(QObject *parent=nullptr);
+  ShaderProgram(App *app);
 
   bool addVertexFile  (const QString &filename);
   bool addGeometryFile(const QString &filename);
@@ -157,7 +159,11 @@ class ShaderProgram {
  private:
   bool fileToCode(const QString &filename, QString &code) const;
 
+  bool showError(const QString &code, const QString &filename) const;
+
  private:
+  App* app_ { nullptr };
+
   QOpenGLShaderProgram* program_ { nullptr };
 
   GLint projectionUniform_ { 0 };

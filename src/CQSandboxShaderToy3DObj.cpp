@@ -1,5 +1,6 @@
 #include <CQSandboxShaderToy3DObj.h>
 #include <CQSandboxCanvas3D.h>
+#include <CQSandboxCamera.h>
 #include <CQSandboxApp.h>
 #include <CQSandboxShaderToyProgram.h>
 
@@ -38,7 +39,9 @@ init()
 
   //---
 
-  shaderToyProgram_ = new ShaderToyProgram(this);
+  auto *app = canvas_->app();
+
+  shaderToyProgram_ = new ShaderToyProgram(app);
 }
 
 bool
@@ -87,6 +90,8 @@ render()
 
   //---
 
+  auto *camera = canvas_->camera();
+
   const auto &mouseData = canvas_->mouseData();
 
   ShaderToyProgram::UniformData uniformData;
@@ -97,6 +102,7 @@ render()
   uniformData.ticks      = ticks_;
   uniformData.mousePress = mouseData.press;
   uniformData.mouseMove  = mouseData.move1;
+  uniformData.cameraPos  = camera->position().point();
 
   shaderToyProgram_->setShaderToyUniforms(uniformData);
 

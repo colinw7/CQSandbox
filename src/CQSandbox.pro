@@ -10,7 +10,8 @@ QMAKE_CXXFLAGS += \
 -std=c++17 \
 -DNO_QT_APP=1 \
 -DOS_UNIX=1 \
--DOS_LINUX=1
+-DOS_LINUX=1 \
+-DCQUTIL_IMAGE \
 
 MOC_DIR = .moc
 
@@ -27,16 +28,20 @@ CQSandboxCanvas3D.cpp \
 CQSandboxObject3D.cpp \
 CQSandboxParticleSystem.cpp \
 CQSandboxLight3D.cpp \
+CQSandboxMaterial3D.cpp \
+CQSandboxTexture.cpp \
 \
 CQSandboxArray2DObj.cpp \
 CQSandboxArrow2DObj.cpp \
 CQSandboxAStar2DObj.cpp \
 CQSandboxAxis2DObj.cpp \
 CQSandboxCircle2DObj.cpp \
+CQSandboxColor2DObj.cpp \
 CQSandboxCsv2DObj.cpp \
 CQSandboxGroup2DObj.cpp \
 CQSandboxImage2DObj.cpp \
 CQSandboxLine2DObj.cpp \
+CQSandboxObjArray2DObj.cpp \
 CQSandboxPalette2DObj.cpp \
 CQSandboxParticle2DObj.cpp \
 CQSandboxPath2DObj.cpp \
@@ -50,23 +55,27 @@ CQSandboxVector2DObj.cpp \
 \
 CQSandboxClass2DObj.cpp \
 CQSandboxInstance2DObj.cpp \
+CQSandboxClass2DUtil.cpp \
 \
 CQSandboxAnimReal3DObj.cpp \
+CQSandboxAnimPoint3DObj.cpp \
+\
 CQSandboxArray3DObj.cpp \
 CQSandboxAStar3DObj.cpp \
 CQSandboxAxis3DObj.cpp \
+CQSandboxBasis3DObj.cpp \
 CQSandboxBBox3DObj.cpp \
 CQSandboxCsv3DObj.cpp \
 CQSandboxCube3DObj.cpp \
-CQSandboxDungeon3DObj.cpp \
-CQSandboxFieldRunners3DObj.cpp \
+CQSandboxGizmo3DObj.cpp \
 CQSandboxGraph3DObj.cpp \
 CQSandboxGrid3DObj.cpp \
 CQSandboxGroup3DObj.cpp \
 CQSandboxJson3DObj.cpp \
 CQSandboxLineList3DObj.cpp \
+CQSandboxMaterial3DObj.cpp \
 CQSandboxModel3DObj.cpp \
-CQSandboxOthello3DObj.cpp \
+CQSandboxModifier3DObj.cpp \
 CQSandboxParticleList3DObj.cpp \
 CQSandboxPath3DObj.cpp \
 CQSandboxPlane3DObj.cpp \
@@ -75,14 +84,23 @@ CQSandboxPointList3DObj.cpp \
 CQSandboxQuadTree3DObj.cpp \
 CQSandboxShader3DObj.cpp \
 CQSandboxShaderShape3DObj.cpp \
+CQSandboxShaderToy3DObj.cpp \
 CQSandboxShape3DObj.cpp \
 CQSandboxShlib3DObj.cpp \
 CQSandboxSkybox3DObj.cpp \
 CQSandboxSprite3DObj.cpp \
 CQSandboxSurface3DObj.cpp \
 CQSandboxText3DObj.cpp \
+CQSandboxTexture3DObj.cpp \
 CQSandboxVector3DObj.cpp \
 CQSandboxXML3DObj.cpp \
+\
+CQSandboxDungeon3DObj.cpp \
+CQSandboxFieldRunners3DObj.cpp \
+CQSandboxOthello3DObj.cpp \
+\
+CQSandboxUVMap.cpp \
+CQSandboxObjectsList.cpp \
 \
 CQSandboxGeomObject3D.cpp \
 \
@@ -92,7 +110,9 @@ CQSandboxConsole2D.cpp \
 \
 CQSandboxControl3D.cpp \
 CQSandboxToolbar3D.cpp \
+CQSandboxSideBar3D.cpp \
 CQSandboxOverview3D.cpp \
+CQSandboxConsole3D.cpp \
 \
 CQSandboxStatus.cpp \
 \
@@ -108,6 +128,7 @@ CQGLTexture.cpp \
 CQGLCubemap.cpp \
 CQSVGUtil.cpp \
 CGLCamera.cpp \
+CGLPath3D.cpp \
 \
 CCircleFactor.cpp \
 CSVGUtil.cpp \
@@ -122,6 +143,8 @@ CQTclUtil.cpp \
 CTclUtil.cpp \
 CQRubberBand.cpp \
 CQImageFilter.cpp \
+CQImagePreview.cpp \
+CQTreeWidget.cpp \
 \
 CQTclCheckBox.cpp \
 CQTclIntegerSpin.cpp \
@@ -152,6 +175,10 @@ CTclParse.cpp \
 \
 CColorRange.cpp \
 \
+CPerlinNoise.cpp \
+CSimplexNoise.cpp \
+CSolidNoise.cpp \
+\
 shlib/CShLibMgr.cpp \
 shlib/CShLib.cpp \
 shlib/CShLibSun.cpp
@@ -166,16 +193,20 @@ CQSandboxCanvas3D.h \
 CQSandboxObject3D.h \
 CQSandboxParticleSystem.h \
 CQSandboxLight3D.h \
+CQSandboxMaterial3D.h \
+CQSandboxTexture.h \
 \
 CQSandboxArray2DObj.h \
 CQSandboxArrow2DObj.h \
 CQSandboxAStar2DObj.h \
 CQSandboxAxis2DObj.h \
 CQSandboxCircle2DObj.h \
+CQSandboxColor2DObj.h \
 CQSandboxCsv2DObj.h \
 CQSandboxGroup2DObj.h \
 CQSandboxImage2DObj.h \
 CQSandboxLine2DObj.h \
+CQSandboxObjArray2DObj.h \
 CQSandboxPalette2DObj.h \
 CQSandboxParticle2DObj.h \
 CQSandboxPath2DObj.h \
@@ -191,21 +222,24 @@ CQSandboxClass2DObj.h \
 CQSandboxInstance2DObj.h \
 \
 CQSandboxAnimReal3DObj.h \
+CQSandboxAnimPoint3DObj.h \
+\
 CQSandboxArray3DObj.h \
 CQSandboxAStar3DObj.h \
 CQSandboxAxis3DObj.h \
+CQSandboxBasis3DObj.h \
 CQSandboxBBox3DObj.h \
 CQSandboxCsv3DObj.h \
 CQSandboxCube3DObj.h \
-CQSandboxDungeon3DObj.h \
-CQSandboxFieldRunners3DObj.h \
+CQSandboxGizmo3DObj.h \
 CQSandboxGraph3DObj.h \
 CQSandboxGrid3DObj.h \
 CQSandboxGroup3DObj.h \
 CQSandboxJson3DObj.h \
 CQSandboxLineList3DObj.h \
+CQSandboxMaterial3DObj.h \
 CQSandboxModel3DObj.h \
-CQSandboxOthello3DObj.h \
+CQSandboxModifier3DObj.h \
 CQSandboxParticleList3DObj.h \
 CQSandboxPath3DObj.h \
 CQSandboxPlane3DObj.h \
@@ -214,14 +248,23 @@ CQSandboxPointList3DObj.h \
 CQSandboxQuadTree3DObj.h \
 CQSandboxShader3DObj.h \
 CQSandboxShaderShape3DObj.h \
+CQSandboxShaderToy3DObj.h \
 CQSandboxShape3DObj.h \
 CQSandboxShlib3DObj.h \
 CQSandboxSkybox3DObj.h \
 CQSandboxSprite3DObj.h \
 CQSandboxSurface3DObj.h \
 CQSandboxText3DObj.h \
+CQSandboxTexture3DObj.h \
 CQSandboxVector3DObj.h \
 CQSandboxXML3DObj.h \
+\
+CQSandboxDungeon3DObj.h \
+CQSandboxFieldRunners3DObj.h \
+CQSandboxOthello3DObj.h \
+\
+CQSandboxUVMap.h \
+CQSandboxObjectsList.h \
 \
 CQSandboxGeomObject3D.h \
 \
@@ -231,7 +274,9 @@ CQSandboxConsole2D.h \
 \
 CQSandboxControl3D.h \
 CQSandboxToolbar3D.h \
-CQSandboxOverview3D.h \
+CQSandboxSideBar3D.h \ 
+CQSandboxOverview3D.h \ 
+CQSandboxConsole3D.h \
 \
 CQSandboxStatus.h \
 \
@@ -245,6 +290,7 @@ CQGLTexture.h \
 CQGLCubemap.h \
 CQSVGUtil.h \
 CGLCamera.h \
+CGLPath3D.h \
 \
 CQTclUtil.h \
 CQArrow.h \
@@ -254,7 +300,9 @@ CQSVGUtil.h \
 CQGLBuffer.h \
 CQAxis.h \
 CQRubberBand.h \
-CQImageFilter.cpp \
+CQImageFilter.h \
+CQImagePreview.h \
+CQTreeWidget.h \
 \
 CQTclCheckBox.h \
 CQTclIntegerSpin.h \
@@ -294,6 +342,8 @@ INCLUDEPATH += \
 ../../CStrUtil/include \
 ../../COS/include \
 /usr/include/tcl \
+/usr/include/tcl/tcl-private/unix \
+/usr/include/tcl/tcl-private/generic \
 
 unix:LIBS += \
 -L$$LIB_DIR \

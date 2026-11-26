@@ -393,11 +393,9 @@ inline QVariant variantFromObj(Tcl_Interp *interp, const Tcl_Obj *obj) {
       QList<QVariant> lvars;
 
       Tcl_Size len = 0;
-
       if (Tcl_ListObjLength(interp, obj1, &len) == TCL_OK) {
         for (int i = 0; i < len; ++i) {
           Tcl_Obj *lobj;
-
           if (Tcl_ListObjIndex(interp, obj1, i, &lobj) == TCL_OK) {
             auto lvar = variantFromObj(interp, lobj);
 
@@ -966,7 +964,13 @@ class CQTcl : public QObject, public CTcl {
   }
 
   QString qstringFromObj(const Tcl_Obj *obj) {
+#if 0
     return variantFromObj(obj).toString();
+#else
+    auto str = CTclUtil::stringFromObj(const_cast<Tcl_Obj *>(obj));
+
+    return QString::fromStdString(str);
+#endif
   }
 
   static bool splitList(const QString &str, QStringList &strs) {
@@ -976,6 +980,59 @@ class CQTcl : public QObject, public CTcl {
   static QString mergeList(const QStringList &strs) {
     return CQTclUtil::mergeList(strs);
   }
+
+  //---
+
+  Tcl_Obj *newIntObj(int i) const {
+    return Tcl_NewIntObj(i);
+  }
+
+  Tcl_Obj *newRealObj(double r) const {
+    return Tcl_NewDoubleObj(r);
+  }
+
+  Tcl_Obj *newStringObj(const QString &s) const {
+    return Tcl_NewStringObj(s.toLatin1().constData(), s.length());
+  }
+
+  bool getIntFromObj(const Tcl_Obj *obj, int &i) const {
+    if (Tcl_GetIntFromObj(interp(), const_cast<Tcl_Obj *>(obj), &i) != TCL_OK)
+      return false;
+
+    return true;
+  }
+
+  bool getRealFromObj(const Tcl_Obj *obj, double &r) const {
+    if (Tcl_GetDoubleFromObj(interp(), const_cast<Tcl_Obj *>(obj), &r) != TCL_OK)
+      return false;
+
+    return true;
+  }
+
+  bool getStringFromObj(const Tcl_Obj *obj, QString &s) const {
+    Tcl_Size len = 0;
+    char *str = Tcl_GetStringFromObj(const_cast<Tcl_Obj *>(obj), &len);
+    s = QString(str);
+    return true;
+  }
+
+  int getObjLength(const Tcl_Obj *obj) const {
+    Tcl_Size len = 0;
+    if (Tcl_ListObjLength(interp(), const_cast<Tcl_Obj *>(obj), &len) != TCL_OK)
+      return -1;
+
+    return len;
+  }
+
+  Tcl_Obj *getListObj(const Tcl_Obj *obj, int i) {
+    Tcl_Obj *lobj;
+    if (Tcl_ListObjIndex(interp(), const_cast<Tcl_Obj *>(obj), i, &lobj) != TCL_OK)
+      return nullptr;
+
+    return lobj;
+  }
+
+  //---
 
   void traceVar(const QString &name) {
     int flags = TCL_TRACE_READS | TCL_TRACE_WRITES | TCL_TRACE_UNSETS | TCL_GLOBAL_ONLY;
@@ -1049,6 +1106,10 @@ class CQTcl : public QObject, public CTcl {
 
   void setResult(Tcl_Obj *obj) {
     CTcl::setResult(obj);
+  }
+
+  void setResult(double r) {
+    setResult(newRealObj(r));
   }
 
   void setResult(const std::string &res) {

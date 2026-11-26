@@ -702,7 +702,7 @@ unbindFrameBuffer()
 
 void
 CQGLTexture::
-bind() const
+bind(bool clear) const
 {
   enable(true);
 
@@ -719,7 +719,8 @@ bind() const
     functions_->glViewport(0, 0, targetWidth_, targetHeight_);
 
     // Clear the screen
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (clear)
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   }
   // bind cube map texture
   else if (type_ == Type::CUBE_MAP) {
@@ -734,7 +735,8 @@ bind() const
     functions_->glViewport(0, 0, targetWidth_, targetHeight_);
 
     // Clear the screen
-    glClear(GL_DEPTH_BUFFER_BIT);
+    if (clear)
+      glClear(GL_DEPTH_BUFFER_BIT);
   }
   // bind shadow cube map framebuffer
   else if (type_ == Type::SHADOW_CUBE_MAP) {
@@ -745,7 +747,8 @@ bind() const
     functions_->glViewport(0, 0, targetWidth_, targetHeight_);
 
     // Clear the screen
-    glClear(GL_DEPTH_BUFFER_BIT);
+    if (clear)
+      glClear(GL_DEPTH_BUFFER_BIT);
   }
   else {
     assert(false);
@@ -856,8 +859,6 @@ CQGLTexture::
 draw(double x1, double y1, double z1, double x2, double y2, double z2,
      double tx1, double ty1, double tx2, double ty2)
 {
-  //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
   enable(true);
 
   bind();

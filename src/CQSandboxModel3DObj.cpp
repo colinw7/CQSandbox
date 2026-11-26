@@ -118,7 +118,7 @@ initShader(Canvas3D *canvas)
   s_shaderData.vertShaderFile = app->buildDir() + "/shaders/model.vs";
   s_shaderData.fragShaderFile = app->buildDir() + "/shaders/model.fs";
 
-  s_shaderData.program = new ShaderProgram(canvas);
+  s_shaderData.program = new ShaderProgram(app);
 
   s_shaderData.program->addVertexFile  (s_shaderData.vertShaderFile);
   s_shaderData.program->addFragmentFile(s_shaderData.fragShaderFile);
@@ -870,6 +870,12 @@ render()
 
   //---
 
+  auto *program = currentShaderProgram(canvas_);
+
+  canvas_->setProgramShadow(program);
+
+  //---
+
   auto cullFace = isCullFace().value_or(canvas_->isCullFace());
 
   bool oldCullFace = CQGLStateInst->setCullFace(cullFace);
@@ -878,6 +884,10 @@ render()
     drawObject(object_, /*isRoot*/true);
 
   CQGLStateInst->setCullFace(oldCullFace);
+
+  //---
+
+  canvas_->unsetProgramShadow();
 }
 
 void
@@ -896,7 +906,6 @@ initDraw(Canvas3D *canvas, double t)
 
   canvas->setProgramMatrices(program);
 
-  canvas->setProgramShadow (program);
   canvas->setProgramOutline(program);
 
   //---
@@ -909,6 +918,8 @@ initDraw(Canvas3D *canvas, double t)
   canvas->setProgramLightGlobals(program);
 
   canvas->setProgramLights(program);
+
+  program->loadUniforms();
 
   //---
 
@@ -936,8 +947,6 @@ termDraw(Canvas3D *canvas)
   }
 
   canvas->bindProgram(nullptr);
-
-  canvas->unsetProgramShadow();
 }
 
 void
